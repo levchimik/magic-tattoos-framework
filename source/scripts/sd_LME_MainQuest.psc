@@ -32,6 +32,19 @@ int[] Property condHaloAlpha Auto
 string[] Property effectKey Auto
 int[] Property effectParam Auto
 
+; ── Per-slot cooldown ────────────────────────────────────────────────────────
+; cooldownMin:     duration in minutes (0 = disabled, max 1440 = 24h).
+; cooldownMode:    0 = "after deactivate"  — slot can't reactivate during timer
+;                  1 = "lock on activate"  — slot stays active during timer
+;                                            and lower-priority slots are
+;                                            blocked. Higher-priority slots
+;                                            can still override.
+; cooldownUntilGT: GameTime (days) when the timer ends. Armed at deactivate
+;                  (mode 0) or activate (mode 1).
+int[] Property cooldownMin Auto
+int[] Property cooldownMode Auto
+float[] Property cooldownUntilGT Auto Hidden
+
 ; ── Plugin registry (single unified registry — both conditions and effects) ──
 Form[] Property registeredPlugins Auto
 int Property pluginCount = 0 Auto
@@ -84,6 +97,9 @@ Function EnsureArrays()
     condHaloAlpha        = new int[8]
     effectKey            = new string[32]    ; 8 slots × 4 effects
     effectParam          = new int[32]
+    cooldownMin          = new int[8]
+    cooldownMode         = new int[8]
+    cooldownUntilGT      = new float[8]
     registeredPlugins    = new Form[32]
     pluginCount          = 0
     _arraysReady         = true
@@ -482,21 +498,49 @@ int Function evaluateTier()
     if condPluginId == None
         return 0
     endif
+    float now = Utility.GetCurrentGameTime()
     int i = 1
     while i < 8
         string key = condPluginId[i]
         if key != ""
-            sd_LME_Plugin p = ResolvePluginByKey(key)
-            if p != None
-                int itemIdx = _condIdxFor(p, _keyItemId(key))
-                if itemIdx >= 0 && p.checkCondition(itemIdx, PlayerRef, condParam[i])
-                    return i
+            bool timerActive = (cooldownUntilGT != None && now < cooldownUntilGT[i])
+            int mode = 0
+            if cooldownMode != None
+                mode = cooldownMode[i]
+            endif
+            if mode == 1 && timerActive
+                ; Lock-on-activate: slot is locked active. We've already
+                ; checked higher-priority slots (lower i) above; they
+                ; didn't win, so this slot stays in front.
+                return i
+            endif
+            bool inCooldown = (mode == 0 && timerActive)
+            if !inCooldown
+                sd_LME_Plugin p = ResolvePluginByKey(key)
+                if p != None
+                    int itemIdx = _condIdxFor(p, _keyItemId(key))
+                    if itemIdx >= 0 && p.checkCondition(itemIdx, PlayerRef, condParam[i])
+                        return i
+                    endif
                 endif
             endif
         endif
         i += 1
     endwhile
     return 0
+EndFunction
+
+Function _armCooldownTimer(int slot)
+{Sets cooldownUntilGT[slot] = now + cooldownMin[slot] minutes. Caller decides
+ whether to arm based on mode (deactivate vs activate edge).}
+    if slot <= 0 || slot >= 8 || cooldownMin == None || cooldownUntilGT == None
+        return
+    endif
+    int mins = cooldownMin[slot]
+    if mins <= 0
+        return
+    endif
+    cooldownUntilGT[slot] = Utility.GetCurrentGameTime() + (mins as float) / 1440.0
 EndFunction
 
 ; ── Effect lifecycle dispatch ────────────────────────────────────────────────
@@ -674,11 +718,19 @@ State checkingAroused
             forceRedraw = false
             if tierChanged && currentTier >= 0
                 _deactivateSlotEffects(currentTier)
+                ; Mode 0: arm cooldown so the slot can't reactivate.
+                if cooldownMode != None && cooldownMode[currentTier] == 0
+                    _armCooldownTimer(currentTier)
+                endif
             endif
             currentTier = newTier
             drawOverlay(PlayerRef, currentTier)
             if tierChanged
                 _activateSlotEffects(currentTier)
+                ; Mode 1: arm lock so the slot stays active for the duration.
+                if currentTier > 0 && cooldownMode != None && cooldownMode[currentTier] == 1
+                    _armCooldownTimer(currentTier)
+                endif
                 _notifyTierChange(currentTier)
             endif
         endif

@@ -15,7 +15,7 @@ sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 12
+    return 14
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -151,6 +151,15 @@ event OnVersionUpdate(int Version)
         Pages[1] = "Conditions"
         Pages[2] = "Plugins"
         Pages[3] = "Menu Options"
+    endif
+    if CurrentVersion < 13
+        ; v0.0.13: per-slot cooldown (minutes, up to 24h).
+        MainQuest.cooldownMin     = new int[8]
+        MainQuest.cooldownUntilGT = new float[8]
+    endif
+    if CurrentVersion < 14
+        ; v0.0.14: per-slot cooldown mode (0 = after-deactivate, 1 = lock-on-activate).
+        MainQuest.cooldownMode = new int[8]
     endif
 endEvent
 
@@ -507,6 +516,12 @@ function drawConditionsPage()
 
         AddSliderOptionST("SLOT_TEXTURE_NUM", "Texture (0 = Default)", MainQuest.condTextureNum[idx])
         AddToggleOptionST("SLOT_USE_GLOW",    "Use glow",               MainQuest.condUseGlow[idx])
+
+        int cdMin = MainQuest.cooldownMin[idx]
+        AddHeaderOption("Cooldown")
+        AddMenuOptionST("SLOT_CD_MODE",     "Mode",    _cooldownModeLabel(MainQuest.cooldownMode[idx]))
+        AddSliderOptionST("SLOT_CD_HOURS",   "Hours",   cdMin / 60)
+        AddSliderOptionST("SLOT_CD_MINUTES", "Minutes", cdMin % 60)
     endif
 
     AddHeaderOption("Effects")
@@ -830,6 +845,104 @@ state SLOT_USE_GLOW
     endEvent
     event OnHighlightST()
         SetInfoText("Show glowing texture variant and halo when this slot is active.")
+    endEvent
+endState
+
+string Function _cooldownModeLabel(int mode)
+    if mode == 1
+        return "Lock on activate"
+    endif
+    return "After deactivate"
+EndFunction
+
+state SLOT_CD_MODE
+    event OnMenuOpenST()
+        string[] opts = new string[2]
+        opts[0] = "After deactivate"
+        opts[1] = "Lock on activate"
+        SetMenuDialogStartIndex(MainQuest.cooldownMode[selectedCondition])
+        SetMenuDialogDefaultIndex(0)
+        SetMenuDialogOptions(opts)
+    endEvent
+    event OnMenuAcceptST(int index)
+        if index < 0
+            return
+        endif
+        MainQuest.cooldownMode[selectedCondition] = index
+        SetMenuOptionValueST(_cooldownModeLabel(index))
+    endEvent
+    event OnDefaultST()
+        MainQuest.cooldownMode[selectedCondition] = 0
+        SetMenuOptionValueST(_cooldownModeLabel(0))
+    endEvent
+    event OnHighlightST()
+        SetInfoText("After deactivate: slot can't reactivate for the cooldown duration. Lock on activate: slot stays active and blocks lower-priority slots for the duration (higher-priority slots can still override).")
+    endEvent
+endState
+
+Function _setCooldownComponents(int hours, int minutes)
+    if hours < 0
+        hours = 0
+    elseif hours > 24
+        hours = 24
+    endif
+    if minutes < 0
+        minutes = 0
+    elseif minutes > 59
+        minutes = 59
+    endif
+    int total = hours * 60 + minutes
+    if total > 1440
+        total = 1440
+    endif
+    MainQuest.cooldownMin[selectedCondition] = total
+EndFunction
+
+state SLOT_CD_HOURS
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.cooldownMin[selectedCondition] / 60)
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 24)
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        int hours = value as int
+        int minutes = MainQuest.cooldownMin[selectedCondition] % 60
+        _setCooldownComponents(hours, minutes)
+        SetSliderOptionValueST(MainQuest.cooldownMin[selectedCondition] / 60)
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        _setCooldownComponents(0, MainQuest.cooldownMin[selectedCondition] % 60)
+        SetSliderOptionValueST(0)
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Hours of cooldown after this slot deactivates. Higher-priority slots can still activate during cooldown.")
+    endEvent
+endState
+
+state SLOT_CD_MINUTES
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.cooldownMin[selectedCondition] % 60)
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 59)
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        int minutes = value as int
+        int hours = MainQuest.cooldownMin[selectedCondition] / 60
+        _setCooldownComponents(hours, minutes)
+        SetSliderOptionValueST(MainQuest.cooldownMin[selectedCondition] % 60)
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        _setCooldownComponents(MainQuest.cooldownMin[selectedCondition] / 60, 0)
+        SetSliderOptionValueST(0)
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Minutes of cooldown after this slot deactivates (added to hours).")
     endEvent
 endState
 

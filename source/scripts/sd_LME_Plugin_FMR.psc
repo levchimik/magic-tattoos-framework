@@ -11,6 +11,7 @@ Scriptname sd_LME_Plugin_FMR extends sd_LME_Plugin
                             (no-op if currently pregnant or recovering)}
 
 Faction Property FMR_PregnancyFaction Auto Hidden
+_JSW_BB_Storage Property FMR_Storage Auto Hidden
 
 string Function GetPluginId()
     return "lme.fmr"
@@ -20,10 +21,15 @@ string Function GetPluginLabel()
 EndFunction
 
 bool Function _resolveDeps()
-    if FMR_PregnancyFaction != None
+    if FMR_PregnancyFaction != None && FMR_Storage != None
         return true
     endif
-    FMR_PregnancyFaction = Game.GetFormFromFile(0x02666B, "Fertility Mode.esm") as Faction
+    if FMR_PregnancyFaction == None
+        FMR_PregnancyFaction = Game.GetFormFromFile(0x02666B, "Fertility Mode.esm") as Faction
+    endif
+    if FMR_Storage == None
+        FMR_Storage = Game.GetFormFromFile(0x000D62, "Fertility Mode.esm") as _JSW_BB_Storage
+    endif
     return FMR_PregnancyFaction != None
 EndFunction
 
@@ -131,13 +137,30 @@ string Function GetEffectParamLabel(int idx)
 EndFunction
 
 Function onActivate(int idx, Actor target, int param)
-    if idx != 0 || target == None || FMR_PregnancyFaction == None
+    if idx != 0 || target == None
         return
     endif
-    int rank = target.GetFactionRank(FMR_PregnancyFaction)
-    if rank >= 1 && rank <= 115
-        ; Pregnant or recovering — do not interrupt FMR's state machine.
+    ; Match the MCM "Force Ovulation" path: locate target in Storage.TrackedActors
+    ; and set Storage.LastOvulation[index] = 0.001. Setting the faction rank alone
+    ; isn't enough — FMR's state machine reads LastOvulation, and the faction rank
+    ; is derived from it, not the other way around.
+    if FMR_Storage == None
         return
     endif
-    target.SetFactionRank(FMR_PregnancyFaction, 118)
+    if FMR_PregnancyFaction != None
+        int rank = target.GetFactionRank(FMR_PregnancyFaction)
+        if rank >= 1 && rank <= 115
+            ; Pregnant or recovering — do not interrupt FMR's state machine.
+            return
+        endif
+    endif
+    int trackedIdx = FMR_Storage.TrackedActors.Find(target as Form)
+    if trackedIdx < 0
+        return
+    endif
+    if FMR_Storage.LastOvulation[trackedIdx] > 0.0
+        ; Already ovulating.
+        return
+    endif
+    FMR_Storage.LastOvulation[trackedIdx] = 0.001
 EndFunction
