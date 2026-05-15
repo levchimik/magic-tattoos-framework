@@ -11,11 +11,15 @@ string texturePathGlowRM   = "actors\\character\\overlays\\lewdmarks-glow\\"
 string texturePathNormalST = "actors\\character\\slavetats\\lewdmarks\\"
 string texturePathGlowST   = "actors\\character\\slavetats\\lewdmarks-glow\\"
 
+; Maps the last dialog's option indices back to plugin ids
+; Index 0 is reserved for "Not set" (id = "")
+string[] _lastDialogPluginIds
+
 sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 3
+    return 4
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -25,19 +29,15 @@ string Function _slotLabel(int idx)
     return "Condition " + idx
 endFunction
 
-string Function _condTypeLabel(int idx)
-    if idx == 1
-        return "Arousal"
-    elseif idx == 2
-        return "Pregnancy (FMR)"
-    elseif idx == 3
-        return "Magicka"
-    elseif idx == 4
-        return "Magic Effects"
-    elseif idx == 5
-        return "Ovulation (FMR)"
+string Function _condTypeLabel(string pid)
+    if pid == "" || MainQuest == None
+        return "Not set"
     endif
-    return "Not set"
+    sd_LME_ConditionPlugin p = MainQuest.FindPlugin(pid)
+    if p == None
+        return "Unknown (" + pid + ")"
+    endif
+    return p.GetLabel()
 endFunction
 
 event OnConfigInit()
@@ -59,8 +59,9 @@ event OnVersionUpdate(int Version)
     if MainQuest == None
         return
     endif
-    if CurrentVersion < 1
-        MainQuest.condType             = new int[8]
+    if CurrentVersion < 4
+        ; Fresh init for v0.0.2 plugin-system schema
+        MainQuest.condPluginId         = new string[8]
         MainQuest.condParam            = new int[8]
         MainQuest.condTextureNum       = new int[8]
         MainQuest.condUseGlow          = new bool[8]
@@ -79,10 +80,10 @@ event OnVersionUpdate(int Version)
         MainQuest.OverlaySlot        = 2
         MainQuest.CurrentOverlaySlot = 2
 
-        ; Default slot (index 0) — base appearance, no glow
-        MainQuest.condTextureNum[0] = 3
-        MainQuest.condMarkAlpha[0]  = 100
-        MainQuest.condMarkTint[0]   = 16777215
+        ; Default slot (index 0)
+        MainQuest.condTextureNum[0]   = 3
+        MainQuest.condMarkAlpha[0]    = 100
+        MainQuest.condMarkTint[0]     = 16777215
         MainQuest.condMarkEmissive[0] = 16777215
 
         ; Condition slots 1-7 — glow on, warm white defaults
@@ -99,17 +100,6 @@ event OnVersionUpdate(int Version)
             MainQuest.condHaloEmissiveMult[i] = 3.0
             i += 1
         endwhile
-
-    endif
-    if CurrentVersion < 3
-        ; Backfill tint/emissive for slot 0 (was missed in v1 init)
-        if MainQuest.condMarkTint != None && MainQuest.condMarkTint[0] == 0
-            MainQuest.condMarkTint[0] = 16777215
-        endif
-        if MainQuest.condMarkEmissive != None && MainQuest.condMarkEmissive[0] == 0
-            MainQuest.condMarkEmissive[0] = 16777215
-        endif
-        MainQuest.setRedraw()
     endif
 endEvent
 
@@ -129,6 +119,15 @@ function drawGeneralPage()
     AddToggleOptionST("GEN_MOD_ACTIVE",      "Enable",                MainQuest.ModActive)
     AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{1}")
     AddToggleOptionST("GEN_USE_SLAVETATS",   "Use SlaveTats textures", MainQuest.useSlaveTats)
+    AddHeaderOption("Registered plugins (" + MainQuest.pluginCount + ")")
+    int i = 0
+    while i < MainQuest.pluginCount
+        sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(i)
+        if p != None
+            AddTextOption(p.GetLabel(), p.GetPluginId(), OPTION_FLAG_DISABLED)
+        endif
+        i += 1
+    endwhile
 endFunction
 
 function drawConditionsPage()
@@ -143,25 +142,23 @@ function drawConditionsPage()
         AddSliderOptionST("SLOT_TEXTURE_NUM",  "Texture number", MainQuest.condTextureNum[0])
         AddToggleOptionST("SLOT_USE_GLOW",     "Use glow",       MainQuest.condUseGlow[0])
     else
+        string pid = MainQuest.condPluginId[idx]
+        sd_LME_ConditionPlugin p = None
+        if pid != ""
+            p = MainQuest.FindPlugin(pid)
+        endif
+
         AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
-        AddMenuOptionST("SLOT_COND_TYPE", "Condition type", _condTypeLabel(MainQuest.condType[idx]))
+        AddMenuOptionST("SLOT_COND_TYPE", "Condition type", _condTypeLabel(pid))
         AddHeaderOption("Condition " + idx)
 
-        int cType = MainQuest.condType[idx]
-        if cType == 1
-            AddSliderOptionST("SLOT_COND_PARAM", "Arousal threshold",      MainQuest.condParam[idx])
-        elseIf cType == 2
-            AddSliderOptionST("SLOT_COND_PARAM", "Min belly stage (1-100)", MainQuest.condParam[idx])
-        elseIf cType == 3
-            AddSliderOptionST("SLOT_COND_PARAM", "Magicka % threshold",    MainQuest.condParam[idx])
-        elseIf cType == 5
-            AddTextOption("Ovulation phase", "Active when FMR rank = 118", OPTION_FLAG_DISABLED)
-        elseIf cType == 4
-            int fxCount = 0
-            if MainQuest.cond_magicfx_effects != None
-                fxCount = MainQuest.cond_magicfx_effects.Length
+        if p != None
+            string paramLabel = p.GetParamLabel()
+            if paramLabel != ""
+                AddSliderOptionST("SLOT_COND_PARAM", paramLabel, MainQuest.condParam[idx])
+            else
+                AddTextOption(p.GetLabel(), "(no parameter)", OPTION_FLAG_DISABLED)
             endif
-            AddTextOption("Configured effects", fxCount as string, OPTION_FLAG_DISABLED)
         endif
 
         AddSliderOptionST("SLOT_TEXTURE_NUM", "Texture (0 = Default)", MainQuest.condTextureNum[idx])
@@ -308,100 +305,91 @@ endState
 
 state SLOT_COND_TYPE
     event OnMenuOpenST()
-        string[] opts = new string[6]
+        int n = 1 + MainQuest.pluginCount
+        string[] opts = new string[n]
+        _lastDialogPluginIds = new string[n]
         opts[0] = "Not set"
-        opts[1] = "Arousal"
-        opts[2] = "Pregnancy (FMR)"
-        opts[3] = "Magicka"
-        opts[4] = "Magic Effects"
-        opts[5] = "Ovulation (FMR)"
-        int curType = 0
-        if MainQuest != None
-            curType = MainQuest.condType[selectedCondition]
-        endif
-        SetMenuDialogStartIndex(curType)
+        _lastDialogPluginIds[0] = ""
+        int curIdx = 0
+        string curPid = MainQuest.condPluginId[selectedCondition]
+        int i = 0
+        while i < MainQuest.pluginCount
+            sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(i)
+            if p != None
+                opts[i + 1] = p.GetLabel()
+                _lastDialogPluginIds[i + 1] = p.GetPluginId()
+                if p.GetPluginId() == curPid
+                    curIdx = i + 1
+                endif
+            else
+                opts[i + 1] = "(missing plugin)"
+                _lastDialogPluginIds[i + 1] = ""
+            endif
+            i += 1
+        endwhile
+        SetMenuDialogStartIndex(curIdx)
         SetMenuDialogDefaultIndex(0)
         SetMenuDialogOptions(opts)
     endEvent
     event OnMenuAcceptST(int index)
-        if index < 0
+        if index < 0 || _lastDialogPluginIds == None || index >= _lastDialogPluginIds.Length
             return
         endif
-        int idx = selectedCondition
-        if MainQuest != None
-            MainQuest.condType[idx] = index
-            if index == 1
-                MainQuest.condParam[idx] = 70
-            elseIf index == 2
-                MainQuest.condParam[idx] = 1
-            elseIf index == 3
-                MainQuest.condParam[idx] = 100
-            else
-                MainQuest.condParam[idx] = 0
+        int slot = selectedCondition
+        string newPid = _lastDialogPluginIds[index]
+        MainQuest.condPluginId[slot] = newPid
+        if newPid == ""
+            MainQuest.condParam[slot] = 0
+        else
+            sd_LME_ConditionPlugin p = MainQuest.FindPlugin(newPid)
+            if p != None
+                MainQuest.condParam[slot] = p.GetParamDefault()
             endif
         endif
-        SetMenuOptionValueST(_condTypeLabel(index))
+        SetMenuOptionValueST(_condTypeLabel(newPid))
         ForcePageReset()
     endEvent
     event OnDefaultST()
-        if MainQuest != None
-            MainQuest.condType[selectedCondition]  = 0
-            MainQuest.condParam[selectedCondition] = 0
-        endif
-        SetMenuOptionValueST(_condTypeLabel(0))
+        MainQuest.condPluginId[selectedCondition] = ""
+        MainQuest.condParam[selectedCondition]    = 0
+        SetMenuOptionValueST(_condTypeLabel(""))
         ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Which condition must be satisfied for this slot to activate.")
+        SetInfoText("Which condition must be satisfied for this slot to activate. The list is built from registered plugins.")
     endEvent
 endState
 
 state SLOT_COND_PARAM
     event OnSliderOpenST()
-        int idx = selectedCondition
-        int cType = MainQuest.condType[idx]
-        SetSliderDialogStartValue(MainQuest.condParam[idx])
-        SetSliderDialogInterval(1)
-        if cType == 1
-            SetSliderDialogDefaultValue(70)
-            SetSliderDialogRange(0, 100)
-        elseIf cType == 2
-            SetSliderDialogDefaultValue(1)
-            SetSliderDialogRange(1, 100)
-        elseIf cType == 3
-            SetSliderDialogDefaultValue(100)
-            SetSliderDialogRange(1, 100)
+        sd_LME_ConditionPlugin p = MainQuest.FindPlugin(MainQuest.condPluginId[selectedCondition])
+        if p == None
+            return
         endif
+        SetSliderDialogStartValue(MainQuest.condParam[selectedCondition])
+        SetSliderDialogDefaultValue(p.GetParamDefault())
+        SetSliderDialogRange(p.GetParamMin(), p.GetParamMax())
+        SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
         MainQuest.condParam[selectedCondition] = value as int
         SetSliderOptionValueST(value as int)
     endEvent
     event OnDefaultST()
-        int cType = MainQuest.condType[selectedCondition]
+        sd_LME_ConditionPlugin p = MainQuest.FindPlugin(MainQuest.condPluginId[selectedCondition])
         int defVal = 0
-        if cType == 1
-            defVal = 70
-        elseIf cType == 2
-            defVal = 1
-        elseIf cType == 3
-            defVal = 100
+        if p != None
+            defVal = p.GetParamDefault()
         endif
         MainQuest.condParam[selectedCondition] = defVal
         SetSliderOptionValueST(defVal)
     endEvent
     event OnHighlightST()
-        int cType = MainQuest.condType[selectedCondition]
-        if cType == 1
-            SetInfoText("Arousal must be at or above this value (0-100).")
-        elseIf cType == 2
-            SetInfoText("Belly stage must be at or above this value. 1 = any pregnancy, 50 = mid-term, 100 = full term. Rank range 1-100 is pregnancy only; recovery (101-115) and cycle phases (116-119) are not checked.")
-        elseIf cType == 3
-            SetInfoText("Magicka must be at or above this percentage of maximum (1-100%).")
-        elseIf cType == 5
-            SetInfoText("No threshold — active only during the ovulation cycle phase (FMR rank 118).")
+        sd_LME_ConditionPlugin p = MainQuest.FindPlugin(MainQuest.condPluginId[selectedCondition])
+        if p != None
+            SetInfoText(p.GetParamLabel())
         else
-            SetInfoText("Threshold value for the selected condition type.")
+            SetInfoText("Threshold value for the selected condition.")
         endif
     endEvent
 endState
@@ -491,7 +479,7 @@ state SLOT_MARK_TINT
         if selectedCondition > 0
             SetColorDialogDefaultColor(16777215)
         else
-            SetColorDialogDefaultColor(0)
+            SetColorDialogDefaultColor(16777215)
         endif
     endEvent
     event OnColorAcceptST(int color)
@@ -500,12 +488,8 @@ state SLOT_MARK_TINT
         MainQuest.setRedraw()
     endEvent
     event OnDefaultST()
-        int defVal = 0
-        if selectedCondition > 0
-            defVal = 16777215
-        endif
-        MainQuest.condMarkTint[selectedCondition] = defVal
-        SetColorOptionValueST(defVal)
+        MainQuest.condMarkTint[selectedCondition] = 16777215
+        SetColorOptionValueST(16777215)
         MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
@@ -516,11 +500,7 @@ endState
 state SLOT_MARK_EMISSIVE
     event OnColorOpenST()
         SetColorDialogStartColor(MainQuest.condMarkEmissive[selectedCondition])
-        if selectedCondition > 0
-            SetColorDialogDefaultColor(16777215)
-        else
-            SetColorDialogDefaultColor(0)
-        endif
+        SetColorDialogDefaultColor(16777215)
     endEvent
     event OnColorAcceptST(int color)
         MainQuest.condMarkEmissive[selectedCondition] = color
@@ -528,12 +508,8 @@ state SLOT_MARK_EMISSIVE
         MainQuest.setRedraw()
     endEvent
     event OnDefaultST()
-        int defVal = 0
-        if selectedCondition > 0
-            defVal = 16777215
-        endif
-        MainQuest.condMarkEmissive[selectedCondition] = defVal
-        SetColorOptionValueST(defVal)
+        MainQuest.condMarkEmissive[selectedCondition] = 16777215
+        SetColorOptionValueST(16777215)
         MainQuest.setRedraw()
     endEvent
     event OnHighlightST()

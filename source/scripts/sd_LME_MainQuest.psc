@@ -11,10 +11,10 @@ int Property CurrentOverlaySlot = 2 Auto
 float Property updateInterval = 2.0 Auto
 
 ; ── Per-slot arrays (index 0 = Default, 1-7 = Conditions) ───────────────────
-; condType values: 0=none/disabled  1=arousal  2=pregnancy(FMR)  3=magicka  4=magic effects  5=ovulation(FMR)
-int[] Property condType Auto
-int[] Property condParam Auto           ; threshold / min value, interpreted per condType
-int[] Property condTextureNum Auto      ; 0 = inherit from slot 0 (only meaningful for slots 1-7)
+; condPluginId: empty string = unset/disabled; otherwise plugin's GetPluginId()
+string[] Property condPluginId Auto
+int[] Property condParam Auto
+int[] Property condTextureNum Auto
 bool[] Property condUseGlow Auto
 int[] Property condMarkTint Auto
 int[] Property condMarkEmissive Auto
@@ -24,36 +24,28 @@ int[] Property condHaloTint Auto
 int[] Property condHaloEmissive Auto
 float[] Property condHaloEmissiveMult Auto
 int[] Property condHaloAlpha Auto
-int[] Property condIncreaseExposure Auto    ; side effect: arousal exposure added per game hour
+int[] Property condIncreaseExposure Auto
 
-; ── External mod references (set in CK/xEdit) ───────────────────────────────
-; FMR ImmersiveEffectsFaction rank reference:
-;   1-100   pregnant (rank = belly progress %)
-;   101-115 post-birth recovery
-;   116-119 menstrual cycle phases (116=menstruation, 117=follicular, 118=ovulation, 119=luteal)
-;   120     active labor
-;   0       none / cleared
-; For future expansion: cycle-phase conditions would check rank 116-119.
-Faction Property FMR_PregnancyFaction Auto          ; point to FMR ImmersiveEffectsFaction
-MagicEffect[] Property cond_magicfx_effects Auto    ; fill with desired effects
-slaFrameWorkScr Property SLAFramework Auto          ; point to sla_Framework quest
+; ── Plugin registry ──────────────────────────────────────────────────────────
+int MAX_PLUGINS = 32 AutoReadOnly
+sd_LME_ConditionPlugin[] Property registeredPlugins Auto
+int Property pluginCount = 0 Auto
 
 ; ── Internal ──────────────────────────────────────────────────────────────────
 actor Property PlayerRef Auto
 string Property texturePathNormal = "actors\\character\\overlays\\lewdmarks\\" Auto
-string Property texturePathGlow = "actors\\character\\overlays\\lewdmarks-glow\\" Auto
+string Property texturePathGlow   = "actors\\character\\overlays\\lewdmarks-glow\\" Auto
+slaFrameWorkScr Property SLAFramework Auto    ; kept for legacy/sla-aware plugins to read
 
 bool forceRedraw = false
 int currentTier = -1
 bool influenceTracking = false
 
-slaFrameWorkScr slAroused
-
 ; ─────────────────────────────────────────────────────────────────────────────
 
 Event OnInit()
     Trace("[LME_Main] OnInit — initializing arrays")
-    condType             = new int[8]
+    condPluginId         = new string[8]
     condParam            = new int[8]
     condTextureNum       = new int[8]
     condUseGlow          = new bool[8]
@@ -66,12 +58,89 @@ Event OnInit()
     condHaloEmissiveMult = new float[8]
     condHaloAlpha        = new int[8]
     condIncreaseExposure = new int[8]
+    registeredPlugins    = new sd_LME_ConditionPlugin[32]
+    pluginCount          = 0
 EndEvent
 
+; ── Plugin API ───────────────────────────────────────────────────────────────
+Function RegisterPlugin(sd_LME_ConditionPlugin p)
+{Called by sd_LME_ConditionPlugin._registerWithHost(). Idempotent.}
+    if p == None
+        return
+    endif
+    if registeredPlugins == None
+        registeredPlugins = new sd_LME_ConditionPlugin[32]
+        pluginCount = 0
+    endif
+    string pid = p.GetPluginId()
+    if pid == ""
+        Trace("[LME_Main] RegisterPlugin REJECTED: empty PluginId on " + p)
+        return
+    endif
+    if FindPluginIndex(pid) >= 0
+        return    ; already registered (e.g. OnPlayerLoadGame re-fire)
+    endif
+    if pluginCount >= 32
+        Trace("[LME_Main] RegisterPlugin REJECTED: registry full (" + pid + ")")
+        return
+    endif
+    registeredPlugins[pluginCount] = p
+    pluginCount += 1
+    Trace("[LME_Main] Registered plugin '" + pid + "' (" + p.GetLabel() + ") at index " + (pluginCount - 1))
+EndFunction
+
+int Function FindPluginIndex(string pid)
+    if pid == "" || registeredPlugins == None
+        return -1
+    endif
+    int i = 0
+    while i < pluginCount
+        if registeredPlugins[i] != None && registeredPlugins[i].GetPluginId() == pid
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+sd_LME_ConditionPlugin Function FindPlugin(string pid)
+    int idx = FindPluginIndex(pid)
+    if idx < 0
+        return None
+    endif
+    return registeredPlugins[idx]
+EndFunction
+
+sd_LME_ConditionPlugin Function GetPluginAt(int idx)
+    if idx < 0 || idx >= pluginCount
+        return None
+    endif
+    return registeredPlugins[idx]
+EndFunction
+
+; ── Priority evaluation ───────────────────────────────────────────────────────
+int Function evaluateTier()
+    if condPluginId == None
+        return 0
+    endif
+    int i = 1
+    while i < 8
+        string pid = condPluginId[i]
+        if pid != ""
+            sd_LME_ConditionPlugin p = FindPlugin(pid)
+            if p != None && p.check(PlayerRef, condParam[i])
+                return i
+            endif
+        endif
+        i += 1
+    endwhile
+    return 0
+EndFunction
+
+; ── Update loop (state) ───────────────────────────────────────────────────────
 State checkingAroused
 
     Event OnBeginState()
-        slAroused = SLAFramework
         RegisterForSingleUpdate(0.5)
     EndEvent
 
@@ -80,9 +149,9 @@ State checkingAroused
             return
         endif
         int exposure = condIncreaseExposure[currentTier]
-        if exposure > 0 && slAroused
-            if slAroused.GetActorArousal(PlayerRef) < 99
-                slAroused.setActorExposure(PlayerRef, slAroused.getActorExposure(PlayerRef) + exposure)
+        if exposure > 0 && SLAFramework
+            if SLAFramework.GetActorArousal(PlayerRef) < 99
+                SLAFramework.setActorExposure(PlayerRef, SLAFramework.getActorExposure(PlayerRef) + exposure)
             endif
             RegisterForSingleUpdateGameTime(1.0)
         else
@@ -127,72 +196,9 @@ State checkingAroused
 
 EndState
 
-; ── Priority evaluation ───────────────────────────────────────────────────────
-; Iterates 1→7, returns the first satisfied condition index.
-; Falls back to 0 (Default) if none match.
-int Function evaluateTier()
-    if condType == None
-        return 0
-    endif
-    int i = 1
-    while i < 8
-        if condType[i] > 0 && checkCondition(i)
-            return i
-        endif
-        i += 1
-    endwhile
-    return 0
-EndFunction
-
-bool Function checkCondition(int idx)
-    int cType = condType[idx]
-    int param = condParam[idx]
-
-    if cType == 1   ; Arousal
-        return slAroused != None && slAroused.GetActorArousal(PlayerRef) >= param
-
-    elseIf cType == 2   ; Pregnancy (FMR) — rank 1-100 = pregnant
-        if FMR_PregnancyFaction == None
-            return false
-        endif
-        int rank = PlayerRef.GetFactionRank(FMR_PregnancyFaction)
-        return rank >= param && rank <= 100
-
-    elseIf cType == 3   ; Magicka
-        float maxMp = PlayerRef.GetActorValueMax("Magicka")
-        if maxMp <= 0.0
-            return false
-        endif
-        return (PlayerRef.GetActorValue("Magicka") / maxMp) * 100.0 >= param as float
-
-    elseIf cType == 5   ; Ovulation (FMR) — rank 118
-        if FMR_PregnancyFaction == None
-            return false
-        endif
-        return PlayerRef.GetFactionRank(FMR_PregnancyFaction) == 118
-
-    elseIf cType == 4   ; Magic Effects
-        if cond_magicfx_effects == None || cond_magicfx_effects.Length == 0
-            return false
-        endif
-        int j = 0
-        while j < cond_magicfx_effects.Length
-            if cond_magicfx_effects[j] && PlayerRef.HasMagicEffect(cond_magicfx_effects[j])
-                return true
-            endif
-            j += 1
-        endwhile
-        return false
-    endif
-
-    return false
-EndFunction
-
 ; ── Overlay drawing ───────────────────────────────────────────────────────────
 function drawOverlay(actor akTarget, int idx)
-    Trace("[LME] drawOverlay idx=" + idx + " target=" + akTarget)
     if condTextureNum == None
-        Trace("[LME] drawOverlay ABORT: condTextureNum is None")
         return
     endif
     bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
@@ -204,23 +210,19 @@ function drawOverlay(actor akTarget, int idx)
     endif
 
     string prefix = texPrefix(texNum)
-    Trace("[LME] drawOverlay texNum=" + texNum + " prefix='" + prefix + "' useGlow=" + condUseGlow[idx] + " slot=" + OverlaySlot + " isFemale=" + isFemale + " pathNorm='" + texturePathNormal + "' pathGlow='" + texturePathGlow + "'")
 
     if condUseGlow[idx]
         string texGlow = texturePathGlow + prefix + texNum + ".dds"
         string texNorm = texturePathNormal + prefix + texNum + ".dds"
-        Trace("[LME] drawOverlay GLOW texGlow='" + texGlow + "' texNorm='" + texNorm + "'")
         applyOverlay(akTarget, isFemale, Area, OverlaySlot,     texGlow, condHaloTint[idx], condHaloEmissive[idx], true,  condHaloEmissiveMult[idx], condHaloAlpha[idx] * 0.01)
         applyOverlay(akTarget, isFemale, Area, OverlaySlot + 1, texNorm, condMarkTint[idx], condMarkEmissive[idx], true,  condMarkEmissiveMult[idx], condMarkAlpha[idx] * 0.01)
     else
         string texNorm = texturePathNormal + prefix + texNum + ".dds"
-        Trace("[LME] drawOverlay FLAT texNorm='" + texNorm + "'")
         clearOverlay(akTarget, isFemale, Area, OverlaySlot)
         applyOverlay(akTarget, isFemale, Area, OverlaySlot + 1, texNorm, condMarkTint[idx], 0, false, 0.0, condMarkAlpha[idx] * 0.01)
     endif
 
     CurrentOverlaySlot = OverlaySlot
-    Trace("[LME] drawOverlay DONE")
 endFunction
 
 string Function texPrefix(int num)
@@ -239,9 +241,7 @@ endFunction
 ; ── NiOverride wrappers ───────────────────────────────────────────────────────
 Function applyOverlay(actor Target, bool isFemale, string Area, int Slot, string Texture, int Tint, int Emissive, bool isGlow, float Intensity, float Alpha)
     string Node = Area + " [ovl" + Slot + "]"
-    bool hadOverlays = NiOverride.HasOverlays(Target)
-    Trace("[LME] applyOverlay node='" + Node + "' tex='" + Texture + "' tint=" + Tint + " alpha=" + Alpha + " hadOverlays=" + hadOverlays)
-    if !hadOverlays
+    if !NiOverride.HasOverlays(Target)
         NiOverride.AddOverlays(Target)
     endif
     NiOverride.AddNodeOverrideString(Target, isFemale, Node, 9, 0, Texture, true)
