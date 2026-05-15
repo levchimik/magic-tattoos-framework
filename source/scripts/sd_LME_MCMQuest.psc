@@ -15,7 +15,7 @@ sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 5
+    return 6
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -109,6 +109,12 @@ event OnVersionUpdate(int Version)
         MainQuest.condCarryWeightPct = new int[8]
         MainQuest.condSneakPct       = new int[8]
     endif
+    if CurrentVersion < 6
+        ; v0.0.5: Pheromone Aura
+        MainQuest.condPheromoneAura = new int[8]
+        MainQuest.pheromoneRadius    = 1500.0
+        MainQuest.pheromoneMaxTargets = 32
+    endif
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -128,6 +134,7 @@ function drawGeneralPage()
     AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{1}")
     AddToggleOptionST("GEN_USE_SLAVETATS",   "Use SlaveTats textures", MainQuest.useSlaveTats)
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
+    AddSliderOptionST("GEN_PHEROMONE_RADIUS","Pheromone radius",       MainQuest.pheromoneRadius, "{0}")
     AddHeaderOption("Registered plugins (" + MainQuest.pluginCount + ")")
     int i = 0
     while i < MainQuest.pluginCount
@@ -176,6 +183,7 @@ function drawConditionsPage()
 
     AddHeaderOption("Side Effects")
     AddSliderOptionST("SLOT_INCREASE_EXPOSURE", "Arousal exposure per hour", MainQuest.condIncreaseExposure[idx])
+    AddSliderOptionST("SLOT_PHEROMONE_AURA",    "Pheromone aura per hour",   MainQuest.condPheromoneAura[idx])
     AddSliderOptionST("SLOT_MANA_SIPHON",        "Mana siphon",         MainQuest.condManaSiphonPct[idx],  "{0}%")
     AddSliderOptionST("SLOT_CARRY_WEIGHT_PEN",   "Carry weight penalty", MainQuest.condCarryWeightPct[idx], "{0}%")
     AddSliderOptionST("SLOT_SNEAK_PEN",          "Sneak penalty",        MainQuest.condSneakPct[idx],       "{0}%")
@@ -268,6 +276,26 @@ state GEN_DEBUG_MODE
     endEvent
     event OnHighlightST()
         SetInfoText("Show a corner-notification toast whenever the active condition tier changes, listing what's being drained. Useful for verifying that conditions and side effects are firing correctly.")
+    endEvent
+endState
+
+state GEN_PHEROMONE_RADIUS
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.pheromoneRadius)
+        SetSliderDialogDefaultValue(1500)
+        SetSliderDialogRange(100, 6000)
+        SetSliderDialogInterval(50)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.pheromoneRadius = value
+        SetSliderOptionValueST(value, "{0}")
+    endEvent
+    event OnDefaultST()
+        MainQuest.pheromoneRadius = 1500.0
+        SetSliderOptionValueST(1500.0, "{0}")
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Maximum distance (game units, ~70 = 1m) at which the Pheromone Aura affects NPCs. Default 1500 (~22m). Max 6000 matches high-process actor range.")
     endEvent
 endState
 
@@ -503,6 +531,26 @@ state SLOT_MANA_SIPHON
     endEvent
     event OnHighlightST()
         SetInfoText("Drain this percentage of your current Magicka regeneration rate (including enchantments) while this slot is active. Recomputes every update tick so gear/buff changes apply immediately. 0 = disabled.")
+    endEvent
+endState
+
+state SLOT_PHEROMONE_AURA
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.condPheromoneAura[selectedCondition])
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 100)
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.condPheromoneAura[selectedCondition] = value as int
+        SetSliderOptionValueST(value as int)
+    endEvent
+    event OnDefaultST()
+        MainQuest.condPheromoneAura[selectedCondition] = 0
+        SetSliderOptionValueST(0)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Increase arousal exposure on each nearby NPC by this amount every game hour while this slot is active. Radius is set on the General page. 0 = disabled.")
     endEvent
 endState
 

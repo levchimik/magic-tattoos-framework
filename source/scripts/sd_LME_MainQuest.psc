@@ -29,6 +29,11 @@ int[] Property condIncreaseExposure Auto
 int[] Property condManaSiphonPct Auto       ; 0-100, % of current MagickaRateMult to drain
 int[] Property condCarryWeightPct Auto      ; 0-100, % of current CarryWeight to drain
 int[] Property condSneakPct Auto            ; 0-100, % of current Sneak skill to drain
+int[] Property condPheromoneAura Auto       ; per-tier SLA exposure delta applied to each nearby NPC per game-hour
+
+; ── Pheromone Aura globals ───────────────────────────────────────────────────
+float Property pheromoneRadius = 1500.0 Auto    ; scan radius in game units (1500 ≈ 22m)
+int Property pheromoneMaxTargets = 32 Auto       ; safety cap to avoid stalls in crowds
 
 ; ── AV-drain runtime state (Hidden — persisted across save/load) ─────────────
 float Property _appliedSiphon = 0.0 Auto Hidden       ; absolute amount currently subtracted from MagickaRateMult
@@ -82,6 +87,7 @@ Function EnsureArrays()
     condManaSiphonPct    = new int[8]
     condCarryWeightPct   = new int[8]
     condSneakPct         = new int[8]
+    condPheromoneAura    = new int[8]
     registeredPlugins    = new Form[32]
     pluginCount          = 0
     _arraysReady         = true
@@ -195,6 +201,48 @@ Function _applySiphonForTier(int tier)
     _appliedSneak       = _applyAvPctDrain("Sneak",           _pctForTier(condSneakPct,       tier), _appliedSneak)
 EndFunction
 
+; ── Pheromone Aura ────────────────────────────────────────────────────────────
+int Function _doPheromoneAura(int tier)
+{Increment SLA exposure on each nearby valid NPC. Returns count of actors affected.
+ Designed to be called once per game-hour from OnUpdateGameTime.}
+    if condPheromoneAura == None || SLAFramework == None || PlayerRef == None
+        return 0
+    endif
+    int amt = _pctForTier(condPheromoneAura, tier)
+    if amt <= 0
+        return 0
+    endif
+    float radius = pheromoneRadius
+    if radius <= 0.0
+        radius = 1500.0
+    endif
+    Actor[] nearby = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
+    if nearby == None
+        return 0
+    endif
+    int cap = pheromoneMaxTargets
+    if cap <= 0
+        cap = 32
+    endif
+    int i = 0
+    int affected = 0
+    while i < nearby.Length && affected < cap
+        Actor a = nearby[i]
+        if a != None && a != PlayerRef && !a.IsDead()
+            if a.GetDistance(PlayerRef) <= radius
+                int cur = SLAFramework.GetActorArousal(a)
+                if cur >= 0 && cur < 99
+                    int curExp = SLAFramework.GetActorExposure(a)
+                    SLAFramework.SetActorExposure(a, curExp + amt)
+                    affected += 1
+                endif
+            endif
+        endif
+        i += 1
+    endwhile
+    return affected
+EndFunction
+
 Function _notifyTierChange(int tier)
 {Debug-only toast describing the new tier's active drains. Skipped when DebugMode is off.}
     if !DebugMode
@@ -208,7 +256,8 @@ Function _notifyTierChange(int tier)
     int mana   = _pctForTier(condManaSiphonPct,   tier)
     int carry  = _pctForTier(condCarryWeightPct,  tier)
     int sneak  = _pctForTier(condSneakPct,        tier)
-    int expose = _pctForTier(condIncreaseExposure, tier)
+    int expose    = _pctForTier(condIncreaseExposure, tier)
+    int pheromone = _pctForTier(condPheromoneAura,    tier)
     if mana > 0
         msg += " - Mana " + mana + "%"
     endif
@@ -220,6 +269,9 @@ Function _notifyTierChange(int tier)
     endif
     if expose > 0
         msg += " - Arousal +" + expose + "/h"
+    endif
+    if pheromone > 0
+        msg += " - Aura +" + pheromone + "/h"
     endif
     Notification(msg)
 EndFunction
@@ -235,11 +287,26 @@ State checkingAroused
         if !ModActive || !influenceTracking
             return
         endif
-        int exposure = condIncreaseExposure[currentTier]
-        if exposure > 0 && SLAFramework
+        int selfExp = condIncreaseExposure[currentTier]
+        int npcExp  = condPheromoneAura[currentTier]
+        bool any = false
+
+        if selfExp > 0 && SLAFramework
             if SLAFramework.GetActorArousal(PlayerRef) < 99
-                SLAFramework.setActorExposure(PlayerRef, SLAFramework.getActorExposure(PlayerRef) + exposure)
+                SLAFramework.setActorExposure(PlayerRef, SLAFramework.getActorExposure(PlayerRef) + selfExp)
             endif
+            any = true
+        endif
+
+        if npcExp > 0 && SLAFramework
+            int affected = _doPheromoneAura(currentTier)
+            if DebugMode && affected > 0
+                Notification("LewdMarks: pheromone affected " + affected + " NPC(s) +" + npcExp)
+            endif
+            any = true
+        endif
+
+        if any
             RegisterForSingleUpdateGameTime(1.0)
         else
             influenceTracking = false
@@ -275,7 +342,7 @@ State checkingAroused
             _notifyTierChange(currentTier)
         endif
 
-        if condIncreaseExposure[currentTier] > 0
+        if condIncreaseExposure[currentTier] > 0 || condPheromoneAura[currentTier] > 0
             if !influenceTracking
                 influenceTracking = true
                 RegisterForSingleUpdateGameTime(1.0)

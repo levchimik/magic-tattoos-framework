@@ -3,3 +3,4 @@
 *.broken-stub.bak
 *.tmp
 *.log
+source/scripts/*.pex
