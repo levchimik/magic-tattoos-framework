@@ -4,7 +4,7 @@ Scriptname sd_LME_ConditionPlugin extends Quest
  Built-in plugins live in this ESP; external plugins live in their own ESP/ESL
  and discover the host via Game.GetFormFromFile(0x803, "LewdMarksEffects.esp").}
 
-bool _registered = false
+bool Property _registered = false Auto Hidden
 
 ; ── Lifecycle ────────────────────────────────────────────────────────────────
 Event OnInit()

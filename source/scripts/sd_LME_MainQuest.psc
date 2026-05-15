@@ -50,7 +50,7 @@ int Property pluginCount = 0 Auto
 actor Property PlayerRef Auto
 string Property texturePathNormal = "actors\\character\\overlays\\lewdmarks\\" Auto
 string Property texturePathGlow   = "actors\\character\\overlays\\lewdmarks-glow\\" Auto
-slaFrameWorkScr Property SLAFramework Auto    ; kept for legacy/sla-aware plugins to read
+slaFrameWorkScr Property SLAFramework Auto Hidden    ; lazy-resolved from SexLabAroused.esm; None if SLA not loaded
 
 bool forceRedraw = false
 int currentTier = -1
@@ -61,7 +61,18 @@ bool influenceTracking = false
 Event OnInit()
     Trace("[LME_Main] OnInit")
     EnsureArrays()
+    _resolveSoftDeps()
 EndEvent
+
+Function _resolveSoftDeps()
+{Lazy-resolve optional master forms so they don't appear as hard deps in the ESP.}
+    if SLAFramework == None
+        SLAFramework = Game.GetFormFromFile(0x04290F, "SexLabAroused.esm") as slaFrameWorkScr
+        if SLAFramework == None
+            Trace("[LME_Main] SexLabAroused.esm not loaded — SLA-dependent features disabled")
+        endif
+    endif
+EndFunction
 
 bool Property _arraysReady = false Auto Hidden
 
@@ -314,6 +325,7 @@ State checkingAroused
     EndEvent
 
     Event OnUpdate()
+        _resolveSoftDeps()    ; cheap; self-heals if SLA was loaded mid-session or after script update
         if !ModActive
             removeOverlay(PlayerRef)
             currentTier = -1
