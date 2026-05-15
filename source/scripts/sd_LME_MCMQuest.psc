@@ -456,7 +456,7 @@ state SLOT_OVERLAY_SLOT
         MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
-        SetInfoText("Base NiOverride overlay slot. Two consecutive slots are used: this slot (halo) and slot+1 (mark). Avoid conflicts with other overlay mods.")
+        SetInfoText("Base NiOverride overlay slot. Two consecutive slots are used: this slot (mark) and slot+1 (halo). Avoid conflicts with other overlay mods.")
     endEvent
 endState
 

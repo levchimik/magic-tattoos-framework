@@ -567,12 +567,12 @@ function drawOverlay(actor akTarget, int idx)
     if condUseGlow[idx]
         string texGlow = texturePathGlow + prefix + texNum + ".dds"
         string texNorm = texturePathNormal + prefix + texNum + ".dds"
-        applyOverlay(akTarget, isFemale, Area, OverlaySlot,     texGlow, condHaloTint[idx], condHaloEmissive[idx], true,  condHaloEmissiveMult[idx], condHaloAlpha[idx] * 0.01)
-        applyOverlay(akTarget, isFemale, Area, OverlaySlot + 1, texNorm, condMarkTint[idx], condMarkEmissive[idx], true,  condMarkEmissiveMult[idx], condMarkAlpha[idx] * 0.01)
+        applyOverlay(akTarget, isFemale, Area, OverlaySlot,     texNorm, condMarkTint[idx], condMarkEmissive[idx], true,  condMarkEmissiveMult[idx], condMarkAlpha[idx] * 0.01)
+        applyOverlay(akTarget, isFemale, Area, OverlaySlot + 1, texGlow, condHaloTint[idx], condHaloEmissive[idx], true,  condHaloEmissiveMult[idx], condHaloAlpha[idx] * 0.01)
     else
         string texNorm = texturePathNormal + prefix + texNum + ".dds"
-        clearOverlay(akTarget, isFemale, Area, OverlaySlot)
-        applyOverlay(akTarget, isFemale, Area, OverlaySlot + 1, texNorm, condMarkTint[idx], 0, false, 0.0, condMarkAlpha[idx] * 0.01)
+        applyOverlay(akTarget, isFemale, Area, OverlaySlot,     texNorm, condMarkTint[idx], 0, false, 0.0, condMarkAlpha[idx] * 0.01)
+        clearOverlay(akTarget, isFemale, Area, OverlaySlot + 1)
     endif
 
     CurrentOverlaySlot = OverlaySlot
