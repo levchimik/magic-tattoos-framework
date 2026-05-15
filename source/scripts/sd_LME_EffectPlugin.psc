@@ -1,13 +1,17 @@
-Scriptname sd_LME_ConditionPlugin extends Quest
-{Abstract base for LewdMarksEffects condition plugins.
+Scriptname sd_LME_EffectPlugin extends Quest
+{Abstract base for LewdMarksEffects effect plugins.
 
- A plugin script declares one or more condition items via the GetItem*/checkItem
- methods. Each item is a separately-selectable entry in the MCM condition-type
- dropdown. Items within a plugin share the host quest (and any soft-master
- lookups it performs in _tryRegister).
+ An effect plugin script declares one or more effect items via the GetItem*
+ methods. Each item is a separately-selectable entry that the user can add to
+ a slot's effect list in the MCM. When that slot becomes the active tier the
+ host fires onActivate; when it stops being active the host fires onDeactivate;
+ onTick fires every script update for the active slot's effects (use for
+ stateful effects that need to recompute, e.g. %-of-current AV drains that
+ shift with gear); onGameTime fires once per in-game hour for the active
+ slot's effects (use for cumulative effects like SLA exposure deltas).
 
- A condition is globally identified by "<pluginId>:<itemId>". The host stores
- these composite keys in MainQuest.condPluginId[] per slot.
+ An effect is globally identified by "<pluginId>:<itemId>". The host stores
+ these composite keys in MainQuest.effectKey[] per (slot, effectIdx).
 
  Override the methods marked OVERRIDE in your derived script. External plugins
  live in their own ESP/ESL and discover the host via
@@ -17,7 +21,6 @@ bool Property _registered = false Auto Hidden
 
 ; ── Lifecycle ────────────────────────────────────────────────────────────────
 Event OnInit()
-    ; Delay registration so MainQuest.OnInit has a chance to allocate its registry array first.
     RegisterForSingleUpdate(0.5)
 EndEvent
 
@@ -30,40 +33,36 @@ Function _tryRegister()
         return
     endif
     sd_LME_MainQuest host = Game.GetFormFromFile(0x803, "LewdMarksEffects.esp") as sd_LME_MainQuest
-    if host == None || host.registeredPlugins == None
+    if host == None || host.registeredEffectPlugins == None
         RegisterForSingleUpdate(1.0)
         return
     endif
-    host.RegisterPlugin(self)
+    host.RegisterEffectPlugin(self)
     _registered = true
 EndFunction
 
 ; ── OVERRIDE: plugin identity ────────────────────────────────────────────────
 string Function GetPluginId()
-{Stable unique plugin id. Convention: "<author>.<plugin>", e.g. "lme.base".}
+{Stable unique plugin id. Convention: "<author>.<plugin>.fx", e.g. "lme.base.fx".}
     return ""
 EndFunction
 
 string Function GetPluginLabel()
-{User-facing plugin name. Used as a prefix/header in the MCM dropdown.}
+{User-facing plugin name. Used as a prefix in the MCM effect-type dropdown.}
     return ""
 EndFunction
 
 ; ── OVERRIDE: items ──────────────────────────────────────────────────────────
 int Function GetItemCount()
-{Number of condition items this plugin exposes in the MCM dropdown.}
     return 0
 EndFunction
 
 string Function GetItemId(int idx)
-{Stable per-plugin id for item `idx`. Combined with the plugin id as
- "<pluginId>:<itemId>" globally. Must be unique within this plugin and
- must not contain a colon.}
+{Stable per-plugin id for item `idx`. Must not contain a colon.}
     return ""
 EndFunction
 
 string Function GetItemLabel(int idx)
-{User-facing label shown in the MCM condition-type dropdown.}
     return ""
 EndFunction
 
@@ -84,43 +83,72 @@ int Function GetItemParamDefault(int idx)
     return 0
 EndFunction
 
-; ── OVERRIDE: evaluation ─────────────────────────────────────────────────────
-bool Function checkItem(int idx, Actor target, int param)
-{Return true when item `idx` is currently satisfied for `target`.
- `param` is the slot's configured int parameter (see GetItemParamLabel).}
-    return false
+; ── OVERRIDE: lifecycle hooks ────────────────────────────────────────────────
+Function onActivate(int idx, Actor target, int param)
+{Called when this effect becomes active on `target` (slot just became the
+ winning tier, or the user just added this effect to the active slot).}
+EndFunction
+
+Function onDeactivate(int idx, Actor target, int param)
+{Called when this effect stops being active. Must restore any persistent
+ changes (AV mods, applied magic effects, etc.). Should be safe to call
+ even if onActivate was never called.}
+EndFunction
+
+Function onTick(int idx, Actor target, int param)
+{Called every MainQuest update tick (typically every 2s) while this effect
+ is active. Use for stateful effects that need to recompute (e.g. %-of-current
+ AV drains shifting with gear changes). No-op by default.}
+EndFunction
+
+Function onGameTime(int idx, Actor target, int param)
+{Called once per in-game hour while this effect is active. Use for
+ cumulative effects (e.g. SLA exposure deltas). No-op by default.}
 EndFunction
 
 ; ── OVERRIDE: plugin-level settings ──────────────────────────────────────────
 ; Settings are global per-plugin sliders that the MCM renders on the General
-; page under the plugin's header. Use for cross-item knobs.
+; page under the plugin's header. Use for cross-effect knobs (e.g. scan radius
+; shared by multiple items in this plugin).
 
 int Function GetSettingCount()
     return 0
 EndFunction
+
 string Function GetSettingId(int idx)
+{Stable per-plugin id (for documentation; the MCM uses idx).}
     return ""
 EndFunction
+
 string Function GetSettingLabel(int idx)
     return ""
 EndFunction
+
 string Function GetSettingInfo(int idx)
+{Tooltip text shown when the slider is highlighted.}
     return ""
 EndFunction
+
 int Function GetSettingMin(int idx)
     return 0
 EndFunction
+
 int Function GetSettingMax(int idx)
     return 100
 EndFunction
+
 int Function GetSettingDefault(int idx)
     return 0
 EndFunction
+
 string Function GetSettingFormat(int idx)
+{SkyUI slider format string. Default is the plain integer format.}
     return "{0}"
 EndFunction
+
 int Function GetSettingValue(int idx)
     return 0
 EndFunction
+
 Function SetSettingValue(int idx, int v)
 EndFunction

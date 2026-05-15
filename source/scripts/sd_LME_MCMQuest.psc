@@ -15,7 +15,7 @@ sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 7
+    return 9
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -47,9 +47,10 @@ endFunction
 
 event OnConfigInit()
     ModName = "LewdMarks Effects"
-    Pages = new String[2]
+    Pages = new String[3]
     Pages[0] = "General"
     Pages[1] = "Conditions"
+    Pages[2] = "Plugins"
     _ensureMainQuest()
 endEvent
 
@@ -81,8 +82,6 @@ event OnVersionUpdate(int Version)
         MainQuest.condHaloEmissive     = new int[8]
         MainQuest.condHaloEmissiveMult = new float[8]
         MainQuest.condHaloAlpha        = new int[8]
-        MainQuest.condIncreaseExposure = new int[8]
-        MainQuest.condManaSiphonPct    = new int[8]
 
         MainQuest.ModActive          = false
         MainQuest.updateInterval     = 2.0
@@ -110,30 +109,22 @@ event OnVersionUpdate(int Version)
             i += 1
         endwhile
     endif
-    if CurrentVersion < 5
-        ; v0.0.4: add Mana Siphon side-effect array.
-        ; Allocate unconditionally — None-check on array properties is unreliable
-        ; (silent cast errors), and any prior allocation is by definition empty/unused.
-        MainQuest.condManaSiphonPct  = new int[8]
-        MainQuest.condCarryWeightPct = new int[8]
-        MainQuest.condSneakPct       = new int[8]
-    endif
-    if CurrentVersion < 6
-        ; v0.0.5: Pheromone Aura
-        MainQuest.condPheromoneAura = new int[8]
-        MainQuest.pheromoneRadius    = 1500.0
-        MainQuest.pheromoneMaxTargets = 32
-    endif
     if CurrentVersion < 7
         ; v0.0.8: condPluginId now stores composite "<pluginId>:<itemId>" keys.
-        ; All old single-id values (lme.magicka, lme.arousal, lme.pregnancy.fmr,
-        ; lme.ovulation.fmr, lme.combat.*) are obsolete — wipe them.
-        int slot = 0
-        while slot < 8
-            MainQuest.condPluginId[slot] = ""
-            MainQuest.condParam[slot]    = 0
-            slot += 1
+        ; All old single-id values are obsolete — wipe them.
+        int slot7 = 0
+        while slot7 < 8
+            MainQuest.condPluginId[slot7] = ""
+            MainQuest.condParam[slot7]    = 0
+            slot7 += 1
         endwhile
+    endif
+    if CurrentVersion < 8
+        ; v0.0.9: side effects moved to effect plugins. Allocate the per-slot
+        ; effect list (8 slots × 4 effects = 32) and wipe any previously-set
+        ; side-effect sliders (their backing arrays no longer exist on MainQuest).
+        MainQuest.effectKey   = new string[32]
+        MainQuest.effectParam = new int[32]
     endif
 endEvent
 
@@ -144,8 +135,58 @@ event OnPageReset(string page)
         drawGeneralPage()
     elseIf page == "Conditions"
         drawConditionsPage()
+    elseif page == "Plugins"
+        drawPluginsPage()
     endif
 endEvent
+
+; ── Settings binding (resolved on demand by walking plugins) ─────────────────
+; Slot index `slot` (0..7) maps to the Nth setting found by walking
+; (condition plugins in order, then effect plugins in order). _bindSetting()
+; returns the owning plugin's Form and writes the local item idx + is-effect
+; flag into _scratch* fields. Re-derivable from any context, so the slot →
+; plugin mapping always matches between render and slider-event time even
+; after save/load.
+
+int _scratchItemIdx
+bool _scratchIsEffect
+
+string Function _settingStateId(int slot)
+    return "SETTING_" + (slot + 1)
+EndFunction
+
+Form Function _bindSetting(int slot)
+    int seen = 0
+    int i = 0
+    while i < MainQuest.pluginCount
+        sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(i)
+        if p != None
+            int n = p.GetSettingCount()
+            if slot < seen + n
+                _scratchItemIdx = slot - seen
+                _scratchIsEffect = false
+                return p as Form
+            endif
+            seen += n
+        endif
+        i += 1
+    endwhile
+    int ei = 0
+    while ei < MainQuest.effectPluginCount
+        sd_LME_EffectPlugin pe = MainQuest.GetEffectPluginAt(ei)
+        if pe != None
+            int n = pe.GetSettingCount()
+            if slot < seen + n
+                _scratchItemIdx = slot - seen
+                _scratchIsEffect = true
+                return pe as Form
+            endif
+            seen += n
+        endif
+        ei += 1
+    endwhile
+    return None
+EndFunction
 
 function drawGeneralPage()
     SetCursorFillMode(TOP_TO_BOTTOM)
@@ -154,17 +195,135 @@ function drawGeneralPage()
     AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{1}")
     AddToggleOptionST("GEN_USE_SLAVETATS",   "Use SlaveTats textures", MainQuest.useSlaveTats)
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
-    AddSliderOptionST("GEN_PHEROMONE_RADIUS","Pheromone radius",       MainQuest.pheromoneRadius, "{0}")
-    AddHeaderOption("Registered plugins (" + MainQuest.pluginCount + ", " + MainQuest.GetTotalItemCount() + " items)")
+endFunction
+
+function drawPluginsPage()
+    SetCursorFillMode(TOP_TO_BOTTOM)
+    int settingSlot = 0
+
+    AddHeaderOption("Condition plugins (" + MainQuest.pluginCount + ", " + MainQuest.GetTotalItemCount() + " items)")
     int i = 0
     while i < MainQuest.pluginCount
         sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(i)
         if p != None
             AddTextOption(p.GetPluginLabel(), p.GetPluginId() + " (" + p.GetItemCount() + ")", OPTION_FLAG_DISABLED)
+            int sn = p.GetSettingCount()
+            int s = 0
+            while s < sn && settingSlot < 8
+                AddSliderOptionST(_settingStateId(settingSlot), "  " + p.GetSettingLabel(s), p.GetSettingValue(s), p.GetSettingFormat(s))
+                settingSlot += 1
+                s += 1
+            endwhile
         endif
         i += 1
     endwhile
+
+    AddHeaderOption("Effect plugins (" + MainQuest.effectPluginCount + ", " + MainQuest.GetTotalEffectItemCount() + " items)")
+    int ei = 0
+    while ei < MainQuest.effectPluginCount
+        sd_LME_EffectPlugin pe = MainQuest.GetEffectPluginAt(ei)
+        if pe != None
+            AddTextOption(pe.GetPluginLabel(), pe.GetPluginId() + " (" + pe.GetItemCount() + ")", OPTION_FLAG_DISABLED)
+            int sn = pe.GetSettingCount()
+            int s = 0
+            while s < sn && settingSlot < 8
+                AddSliderOptionST(_settingStateId(settingSlot), "  " + pe.GetSettingLabel(s), pe.GetSettingValue(s), pe.GetSettingFormat(s))
+                settingSlot += 1
+                s += 1
+            endwhile
+        endif
+        ei += 1
+    endwhile
 endFunction
+
+; ── Setting-slot dispatchers (the 8 SETTING_N state blocks all call these) ──
+
+Function _openSetting(int slot)
+    Form f = _bindSetting(slot)
+    if f == None
+        return
+    endif
+    int idx = _scratchItemIdx
+    int minV
+    int maxV
+    int defV
+    int curV
+    if _scratchIsEffect
+        sd_LME_EffectPlugin p = f as sd_LME_EffectPlugin
+        minV = p.GetSettingMin(idx)
+        maxV = p.GetSettingMax(idx)
+        defV = p.GetSettingDefault(idx)
+        curV = p.GetSettingValue(idx)
+    else
+        sd_LME_ConditionPlugin p = f as sd_LME_ConditionPlugin
+        minV = p.GetSettingMin(idx)
+        maxV = p.GetSettingMax(idx)
+        defV = p.GetSettingDefault(idx)
+        curV = p.GetSettingValue(idx)
+    endif
+    SetSliderDialogStartValue(curV)
+    SetSliderDialogDefaultValue(defV)
+    SetSliderDialogRange(minV, maxV)
+    SetSliderDialogInterval(1)
+EndFunction
+
+Function _acceptSetting(int slot, float value)
+    Form f = _bindSetting(slot)
+    if f == None
+        return
+    endif
+    int idx = _scratchItemIdx
+    int v = value as int
+    string fmt
+    if _scratchIsEffect
+        sd_LME_EffectPlugin p = f as sd_LME_EffectPlugin
+        p.SetSettingValue(idx, v)
+        fmt = p.GetSettingFormat(idx)
+    else
+        sd_LME_ConditionPlugin p = f as sd_LME_ConditionPlugin
+        p.SetSettingValue(idx, v)
+        fmt = p.GetSettingFormat(idx)
+    endif
+    SetSliderOptionValueST(v, fmt)
+EndFunction
+
+Function _defaultSetting(int slot)
+    Form f = _bindSetting(slot)
+    if f == None
+        return
+    endif
+    int idx = _scratchItemIdx
+    int defV
+    string fmt
+    if _scratchIsEffect
+        sd_LME_EffectPlugin p = f as sd_LME_EffectPlugin
+        defV = p.GetSettingDefault(idx)
+        fmt = p.GetSettingFormat(idx)
+        p.SetSettingValue(idx, defV)
+    else
+        sd_LME_ConditionPlugin p = f as sd_LME_ConditionPlugin
+        defV = p.GetSettingDefault(idx)
+        fmt = p.GetSettingFormat(idx)
+        p.SetSettingValue(idx, defV)
+    endif
+    SetSliderOptionValueST(defV, fmt)
+EndFunction
+
+Function _highlightSetting(int slot)
+    Form f = _bindSetting(slot)
+    if f == None
+        SetInfoText("")
+        return
+    endif
+    int idx = _scratchItemIdx
+    string info
+    if _scratchIsEffect
+        info = (f as sd_LME_EffectPlugin).GetSettingInfo(idx)
+    else
+        info = (f as sd_LME_ConditionPlugin).GetSettingInfo(idx)
+    endif
+    SetInfoText(info)
+EndFunction
 
 function drawConditionsPage()
     SetCursorFillMode(TOP_TO_BOTTOM)
@@ -205,12 +364,11 @@ function drawConditionsPage()
         AddToggleOptionST("SLOT_USE_GLOW",    "Use glow",               MainQuest.condUseGlow[idx])
     endif
 
-    AddHeaderOption("Side Effects")
-    AddSliderOptionST("SLOT_INCREASE_EXPOSURE", "Arousal exposure per hour", MainQuest.condIncreaseExposure[idx])
-    AddSliderOptionST("SLOT_PHEROMONE_AURA",    "Pheromone aura per hour",   MainQuest.condPheromoneAura[idx])
-    AddSliderOptionST("SLOT_MANA_SIPHON",        "Mana siphon",         MainQuest.condManaSiphonPct[idx],  "{0}%")
-    AddSliderOptionST("SLOT_CARRY_WEIGHT_PEN",   "Carry weight penalty", MainQuest.condCarryWeightPct[idx], "{0}%")
-    AddSliderOptionST("SLOT_SNEAK_PEN",          "Sneak penalty",        MainQuest.condSneakPct[idx],       "{0}%")
+    AddHeaderOption("Effects")
+    _drawEffectRow(idx, 0, "SLOT_EFFECT_1_TYPE", "SLOT_EFFECT_1_PARAM")
+    _drawEffectRow(idx, 1, "SLOT_EFFECT_2_TYPE", "SLOT_EFFECT_2_PARAM")
+    _drawEffectRow(idx, 2, "SLOT_EFFECT_3_TYPE", "SLOT_EFFECT_3_PARAM")
+    _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM")
 
     SetCursorPosition(1)
     AddHeaderOption("Mark colors")
@@ -303,26 +461,6 @@ state GEN_DEBUG_MODE
     endEvent
 endState
 
-state GEN_PHEROMONE_RADIUS
-    event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.pheromoneRadius)
-        SetSliderDialogDefaultValue(1500)
-        SetSliderDialogRange(100, 6000)
-        SetSliderDialogInterval(50)
-    endEvent
-    event OnSliderAcceptST(float value)
-        MainQuest.pheromoneRadius = value
-        SetSliderOptionValueST(value, "{0}")
-    endEvent
-    event OnDefaultST()
-        MainQuest.pheromoneRadius = 1500.0
-        SetSliderOptionValueST(1500.0, "{0}")
-    endEvent
-    event OnHighlightST()
-        SetInfoText("Maximum distance (game units, ~70 = 1m) at which the Pheromone Aura affects NPCs. Default 1500 (~22m). Max 6000 matches high-process actor range.")
-    endEvent
-endState
-
 ; ╔══════════════════════════════════════════════════════════════════════════╗
 ; ║  CONDITIONS PAGE STATES                                                 ║
 ; ╚══════════════════════════════════════════════════════════════════════════╝
@@ -387,8 +525,8 @@ state SLOT_COND_TYPE
         ; Build a flattened list of plugin×item entries. Index 0 = "Not set";
         ; indices 1..N map to MainQuest.GetGlobalItemKey(i-1).
         int total = 1 + MainQuest.GetTotalItemCount()
-        if total > 128
-            total = 128    ; SkyUI MCM hard cap on menu options
+        if total > 10
+            total = 10    ; _newOpts dispatcher max
         endif
         string[] opts = _newOpts(total)
         opts[0] = "Not set"
@@ -549,103 +687,265 @@ state SLOT_USE_GLOW
     endEvent
 endState
 
-state SLOT_MANA_SIPHON
-    event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condManaSiphonPct[selectedCondition])
-        SetSliderDialogDefaultValue(0)
-        SetSliderDialogRange(0, 100)
-        SetSliderDialogInterval(1)
+; ── Per-slot effect list (4 effects × 2 controls each) ──────────────────────
+
+string Function _effectTypeLabel(int effectIdx)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    if key == ""
+        return "Not set"
+    endif
+    sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(key)
+    if p == None
+        return "Unknown (" + key + ")"
+    endif
+    int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return "Unknown (" + key + ")"
+    endif
+    string pl = p.GetPluginLabel()
+    string il = p.GetItemLabel(itemIdx)
+    if pl == ""
+        return il
+    endif
+    return pl + " — " + il
+EndFunction
+
+Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string paramStateId)
+    AddMenuOptionST(typeStateId, "Effect " + (effectIdx + 1), _effectTypeLabel(effectIdx))
+    string key = MainQuest.GetSlotEffectKey(slot, effectIdx)
+    if key == ""
+        return
+    endif
+    sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    string paramLabel = p.GetItemParamLabel(itemIdx)
+    if paramLabel != ""
+        AddSliderOptionST(paramStateId, "  " + paramLabel, MainQuest.GetSlotEffectParam(slot, effectIdx))
+    endif
+EndFunction
+
+Function _openEffectTypeMenu(int effectIdx)
+    int total = 1 + MainQuest.GetTotalEffectItemCount()
+    if total > 10
+        total = 10
+    endif
+    string[] opts = _newOpts(total)
+    opts[0] = "Not set"
+    string curKey = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    int curSel = 0
+    int i = 0
+    while (i + 1) < total
+        string key = MainQuest.GetGlobalEffectKey(i)
+        opts[i + 1] = MainQuest.GetGlobalEffectLabel(i)
+        if key == curKey
+            curSel = i + 1
+        endif
+        i += 1
+    endwhile
+    SetMenuDialogStartIndex(curSel)
+    SetMenuDialogDefaultIndex(0)
+    SetMenuDialogOptions(opts)
+EndFunction
+
+Function _acceptEffectType(int effectIdx, int index)
+    if index < 0
+        return
+    endif
+    string newKey = ""
+    int defParam = 0
+    if index > 0
+        newKey = MainQuest.GetGlobalEffectKey(index - 1)
+        sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(newKey)
+        if p != None
+            int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(newKey))
+            if itemIdx >= 0
+                defParam = p.GetItemParamDefault(itemIdx)
+            endif
+        endif
+    endif
+    MainQuest.SetSlotEffect(selectedCondition, effectIdx, newKey, defParam)
+EndFunction
+
+Function _openEffectParam(int effectIdx)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    SetSliderDialogStartValue(MainQuest.GetSlotEffectParam(selectedCondition, effectIdx))
+    SetSliderDialogDefaultValue(p.GetItemParamDefault(itemIdx))
+    SetSliderDialogRange(p.GetItemParamMin(itemIdx), p.GetItemParamMax(itemIdx))
+    SetSliderDialogInterval(1)
+EndFunction
+
+Function _acceptEffectParam(int effectIdx, float value)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MainQuest.SetSlotEffect(selectedCondition, effectIdx, key, value as int)
+    SetSliderOptionValueST(value as int)
+EndFunction
+
+Function _defaultEffectParam(int effectIdx)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(key)
+    int defVal = 0
+    if p != None
+        int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(key))
+        if itemIdx >= 0
+            defVal = p.GetItemParamDefault(itemIdx)
+        endif
+    endif
+    MainQuest.SetSlotEffect(selectedCondition, effectIdx, key, defVal)
+    SetSliderOptionValueST(defVal)
+EndFunction
+
+Function _highlightEffectParam(int effectIdx)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(key)
+    if p != None
+        int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(key))
+        if itemIdx >= 0
+            SetInfoText(p.GetItemParamLabel(itemIdx))
+            return
+        endif
+    endif
+    SetInfoText("Effect parameter.")
+EndFunction
+
+state SLOT_EFFECT_1_TYPE
+    event OnMenuOpenST()
+        _openEffectTypeMenu(0)
     endEvent
-    event OnSliderAcceptST(float value)
-        MainQuest.condManaSiphonPct[selectedCondition] = value as int
-        SetSliderOptionValueST(value as int, "{0}%")
+    event OnMenuAcceptST(int index)
+        _acceptEffectType(0, index)
+        ForcePageReset()
     endEvent
     event OnDefaultST()
-        MainQuest.condManaSiphonPct[selectedCondition] = 0
-        SetSliderOptionValueST(0, "{0}%")
+        MainQuest.SetSlotEffect(selectedCondition, 0, "", 0)
+        ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Drain this percentage of your current Magicka regeneration rate (including enchantments) while this slot is active. Recomputes every update tick so gear/buff changes apply immediately. 0 = disabled.")
+        SetInfoText("Pick an effect from the registered effect plugins. The effect fires while this slot is the winning tier.")
     endEvent
 endState
 
-state SLOT_PHEROMONE_AURA
+state SLOT_EFFECT_1_PARAM
     event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condPheromoneAura[selectedCondition])
-        SetSliderDialogDefaultValue(0)
-        SetSliderDialogRange(0, 100)
-        SetSliderDialogInterval(1)
+        _openEffectParam(0)
     endEvent
     event OnSliderAcceptST(float value)
-        MainQuest.condPheromoneAura[selectedCondition] = value as int
-        SetSliderOptionValueST(value as int)
+        _acceptEffectParam(0, value)
     endEvent
     event OnDefaultST()
-        MainQuest.condPheromoneAura[selectedCondition] = 0
-        SetSliderOptionValueST(0)
+        _defaultEffectParam(0)
     endEvent
     event OnHighlightST()
-        SetInfoText("Increase arousal exposure on each nearby NPC by this amount every game hour while this slot is active. Radius is set on the General page. 0 = disabled.")
+        _highlightEffectParam(0)
     endEvent
 endState
 
-state SLOT_CARRY_WEIGHT_PEN
-    event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condCarryWeightPct[selectedCondition])
-        SetSliderDialogDefaultValue(0)
-        SetSliderDialogRange(0, 100)
-        SetSliderDialogInterval(1)
+state SLOT_EFFECT_2_TYPE
+    event OnMenuOpenST()
+        _openEffectTypeMenu(1)
     endEvent
-    event OnSliderAcceptST(float value)
-        MainQuest.condCarryWeightPct[selectedCondition] = value as int
-        SetSliderOptionValueST(value as int, "{0}%")
+    event OnMenuAcceptST(int index)
+        _acceptEffectType(1, index)
+        ForcePageReset()
     endEvent
     event OnDefaultST()
-        MainQuest.condCarryWeightPct[selectedCondition] = 0
-        SetSliderOptionValueST(0, "{0}%")
+        MainQuest.SetSlotEffect(selectedCondition, 1, "", 0)
+        ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Reduce your current Carry Weight by this percentage while this slot is active. Recomputes every update tick.")
+        SetInfoText("Pick an effect from the registered effect plugins.")
     endEvent
 endState
 
-state SLOT_SNEAK_PEN
+state SLOT_EFFECT_2_PARAM
     event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condSneakPct[selectedCondition])
-        SetSliderDialogDefaultValue(0)
-        SetSliderDialogRange(0, 100)
-        SetSliderDialogInterval(1)
+        _openEffectParam(1)
     endEvent
     event OnSliderAcceptST(float value)
-        MainQuest.condSneakPct[selectedCondition] = value as int
-        SetSliderOptionValueST(value as int, "{0}%")
+        _acceptEffectParam(1, value)
     endEvent
     event OnDefaultST()
-        MainQuest.condSneakPct[selectedCondition] = 0
-        SetSliderOptionValueST(0, "{0}%")
+        _defaultEffectParam(1)
     endEvent
     event OnHighlightST()
-        SetInfoText("Reduce your current Sneak skill by this percentage while this slot is active. Recomputes every update tick.")
+        _highlightEffectParam(1)
     endEvent
 endState
 
-state SLOT_INCREASE_EXPOSURE
-    event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condIncreaseExposure[selectedCondition])
-        SetSliderDialogDefaultValue(0)
-        SetSliderDialogRange(0, 100)
-        SetSliderDialogInterval(1)
+state SLOT_EFFECT_3_TYPE
+    event OnMenuOpenST()
+        _openEffectTypeMenu(2)
     endEvent
-    event OnSliderAcceptST(float value)
-        MainQuest.condIncreaseExposure[selectedCondition] = value as int
-        SetSliderOptionValueST(value as int)
+    event OnMenuAcceptST(int index)
+        _acceptEffectType(2, index)
+        ForcePageReset()
     endEvent
     event OnDefaultST()
-        MainQuest.condIncreaseExposure[selectedCondition] = 0
-        SetSliderOptionValueST(0)
+        MainQuest.SetSlotEffect(selectedCondition, 2, "", 0)
+        ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Passively increase arousal exposure by this amount every game hour while this slot is active. 0 = disabled.")
+        SetInfoText("Pick an effect from the registered effect plugins.")
+    endEvent
+endState
+
+state SLOT_EFFECT_3_PARAM
+    event OnSliderOpenST()
+        _openEffectParam(2)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(2, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(2)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(2)
+    endEvent
+endState
+
+state SLOT_EFFECT_4_TYPE
+    event OnMenuOpenST()
+        _openEffectTypeMenu(3)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectType(3, index)
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetSlotEffect(selectedCondition, 3, "", 0)
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Pick an effect from the registered effect plugins.")
+    endEvent
+endState
+
+state SLOT_EFFECT_4_PARAM
+    event OnSliderOpenST()
+        _openEffectParam(3)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(3, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(3)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(3)
     endEvent
 endState
 
@@ -868,6 +1168,127 @@ state SLOT_HALO_ALPHA
     endEvent
     event OnHighlightST()
         SetInfoText("Opacity of the halo.")
+    endEvent
+endState
+
+; ── Plugin-settings slider slots ──────────────────────────────────────────────
+state SETTING_1
+    event OnSliderOpenST()
+        _openSetting(0)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptSetting(0, value)
+    endEvent
+    event OnDefaultST()
+        _defaultSetting(0)
+    endEvent
+    event OnHighlightST()
+        _highlightSetting(0)
+    endEvent
+endState
+
+state SETTING_2
+    event OnSliderOpenST()
+        _openSetting(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptSetting(1, value)
+    endEvent
+    event OnDefaultST()
+        _defaultSetting(1)
+    endEvent
+    event OnHighlightST()
+        _highlightSetting(1)
+    endEvent
+endState
+
+state SETTING_3
+    event OnSliderOpenST()
+        _openSetting(2)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptSetting(2, value)
+    endEvent
+    event OnDefaultST()
+        _defaultSetting(2)
+    endEvent
+    event OnHighlightST()
+        _highlightSetting(2)
+    endEvent
+endState
+
+state SETTING_4
+    event OnSliderOpenST()
+        _openSetting(3)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptSetting(3, value)
+    endEvent
+    event OnDefaultST()
+        _defaultSetting(3)
+    endEvent
+    event OnHighlightST()
+        _highlightSetting(3)
+    endEvent
+endState
+
+state SETTING_5
+    event OnSliderOpenST()
+        _openSetting(4)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptSetting(4, value)
+    endEvent
+    event OnDefaultST()
+        _defaultSetting(4)
+    endEvent
+    event OnHighlightST()
+        _highlightSetting(4)
+    endEvent
+endState
+
+state SETTING_6
+    event OnSliderOpenST()
+        _openSetting(5)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptSetting(5, value)
+    endEvent
+    event OnDefaultST()
+        _defaultSetting(5)
+    endEvent
+    event OnHighlightST()
+        _highlightSetting(5)
+    endEvent
+endState
+
+state SETTING_7
+    event OnSliderOpenST()
+        _openSetting(6)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptSetting(6, value)
+    endEvent
+    event OnDefaultST()
+        _defaultSetting(6)
+    endEvent
+    event OnHighlightST()
+        _highlightSetting(6)
+    endEvent
+endState
+
+state SETTING_8
+    event OnSliderOpenST()
+        _openSetting(7)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptSetting(7, value)
+    endEvent
+    event OnDefaultST()
+        _defaultSetting(7)
+    endEvent
+    event OnHighlightST()
+        _highlightSetting(7)
     endEvent
 endState
 

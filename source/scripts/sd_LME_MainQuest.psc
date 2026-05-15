@@ -12,7 +12,7 @@ int Property CurrentOverlaySlot = 2 Auto
 float Property updateInterval = 2.0 Auto
 
 ; ── Per-slot arrays (index 0 = Default, 1-7 = Conditions) ───────────────────
-; condPluginId: empty string = unset/disabled; otherwise plugin's GetPluginId()
+; condPluginId: "<pluginId>:<itemId>" composite key; "" = unset/disabled.
 string[] Property condPluginId Auto
 int[] Property condParam Auto
 int[] Property condTextureNum Auto
@@ -25,26 +25,18 @@ int[] Property condHaloTint Auto
 int[] Property condHaloEmissive Auto
 float[] Property condHaloEmissiveMult Auto
 int[] Property condHaloAlpha Auto
-int[] Property condIncreaseExposure Auto
-int[] Property condManaSiphonPct Auto       ; 0-100, % of current MagickaRateMult to drain
-int[] Property condCarryWeightPct Auto      ; 0-100, % of current CarryWeight to drain
-int[] Property condSneakPct Auto            ; 0-100, % of current Sneak skill to drain
-int[] Property condPheromoneAura Auto       ; per-tier SLA exposure delta applied to each nearby NPC per game-hour
 
-; ── Pheromone Aura globals ───────────────────────────────────────────────────
-float Property pheromoneRadius = 1500.0 Auto    ; scan radius in game units (1500 ≈ 22m)
-int Property pheromoneMaxTargets = 32 Auto       ; safety cap to avoid stalls in crowds
+; ── Per-slot effect lists (flat, 8 slots × MAX_EFFECTS_PER_SLOT) ─────────────
+; effectKey: "<pluginId>:<itemId>" or ""; effectParam parallel.
+; Index: slot S, effect E => S * MAX_EFFECTS_PER_SLOT + E.
+string[] Property effectKey Auto
+int[] Property effectParam Auto
 
-; ── AV-drain runtime state (Hidden — persisted across save/load) ─────────────
-float Property _appliedSiphon = 0.0 Auto Hidden       ; absolute amount currently subtracted from MagickaRateMult
-float Property _appliedCarryWeight = 0.0 Auto Hidden  ; absolute amount currently subtracted from CarryWeight
-float Property _appliedSneak = 0.0 Auto Hidden        ; absolute amount currently subtracted from Sneak
-float Property _lastSiphonRecompute = 0.0 Auto Hidden ; (unused — kept for save compat)
-
-; ── Plugin registry ──────────────────────────────────────────────────────────
-; Stored as Form[] because Papyrus cannot allocate custom-script-typed arrays at runtime.
+; ── Plugin registries ────────────────────────────────────────────────────────
 Form[] Property registeredPlugins Auto
 int Property pluginCount = 0 Auto
+Form[] Property registeredEffectPlugins Auto
+int Property effectPluginCount = 0 Auto
 
 ; ── Internal ──────────────────────────────────────────────────────────────────
 actor Property PlayerRef Auto
@@ -55,6 +47,10 @@ slaFrameWorkScr Property SLAFramework Auto Hidden    ; lazy-resolved from SexLab
 bool forceRedraw = false
 int currentTier = -1
 bool influenceTracking = false
+
+int Function MAX_EFFECTS_PER_SLOT() global
+    return 4
+EndFunction
 
 ; ─────────────────────────────────────────────────────────────────────────────
 
@@ -94,20 +90,18 @@ Function EnsureArrays()
     condHaloEmissive     = new int[8]
     condHaloEmissiveMult = new float[8]
     condHaloAlpha        = new int[8]
-    condIncreaseExposure = new int[8]
-    condManaSiphonPct    = new int[8]
-    condCarryWeightPct   = new int[8]
-    condSneakPct         = new int[8]
-    condPheromoneAura    = new int[8]
-    registeredPlugins    = new Form[32]
+    effectKey            = new string[32]    ; 8 slots × 4 effects
+    effectParam          = new int[32]
+    registeredPlugins        = new Form[32]
+    registeredEffectPlugins  = new Form[32]
     pluginCount          = 0
+    effectPluginCount    = 0
     _arraysReady         = true
 EndFunction
 
-; ── Plugin API ───────────────────────────────────────────────────────────────
+; ── Condition plugin registry ────────────────────────────────────────────────
 Function RegisterPlugin(sd_LME_ConditionPlugin p)
-{Called by sd_LME_ConditionPlugin._tryRegister(). Idempotent.
- Plugins are responsible for waiting until registeredPlugins is allocated before calling.}
+{Called by sd_LME_ConditionPlugin._tryRegister(). Idempotent.}
     if p == None || registeredPlugins == None
         return
     endif
@@ -117,7 +111,7 @@ Function RegisterPlugin(sd_LME_ConditionPlugin p)
         return
     endif
     if FindPluginIndex(pid) >= 0
-        return    ; already registered
+        return
     endif
     if pluginCount >= registeredPlugins.Length
         Trace("[LME_Main] RegisterPlugin REJECTED: registry full (" + pid + ")")
@@ -125,7 +119,7 @@ Function RegisterPlugin(sd_LME_ConditionPlugin p)
     endif
     registeredPlugins[pluginCount] = p as Form
     pluginCount += 1
-    Trace("[LME_Main] Registered plugin '" + pid + "' (" + p.GetPluginLabel() + ", " + p.GetItemCount() + " items) at index " + (pluginCount - 1))
+    Trace("[LME_Main] Registered condition plugin '" + pid + "' (" + p.GetPluginLabel() + ", " + p.GetItemCount() + " items)")
 EndFunction
 
 int Function FindPluginIndex(string pid)
@@ -158,10 +152,59 @@ sd_LME_ConditionPlugin Function GetPluginAt(int idx)
     return registeredPlugins[idx] as sd_LME_ConditionPlugin
 EndFunction
 
-; ── Condition key helpers ─────────────────────────────────────────────────────
-; A condition key is "<pluginId>:<itemId>". MainQuest.condPluginId[] stores
-; these composite keys per slot. Empty string = "Not set".
+; ── Effect plugin registry ───────────────────────────────────────────────────
+Function RegisterEffectPlugin(sd_LME_EffectPlugin p)
+    if p == None || registeredEffectPlugins == None
+        return
+    endif
+    string pid = p.GetPluginId()
+    if pid == ""
+        Trace("[LME_Main] RegisterEffectPlugin REJECTED: empty PluginId on " + p)
+        return
+    endif
+    if FindEffectPluginIndex(pid) >= 0
+        return
+    endif
+    if effectPluginCount >= registeredEffectPlugins.Length
+        Trace("[LME_Main] RegisterEffectPlugin REJECTED: registry full (" + pid + ")")
+        return
+    endif
+    registeredEffectPlugins[effectPluginCount] = p as Form
+    effectPluginCount += 1
+    Trace("[LME_Main] Registered effect plugin '" + pid + "' (" + p.GetPluginLabel() + ", " + p.GetItemCount() + " items)")
+EndFunction
 
+int Function FindEffectPluginIndex(string pid)
+    if pid == "" || registeredEffectPlugins == None
+        return -1
+    endif
+    int i = 0
+    while i < effectPluginCount
+        sd_LME_EffectPlugin slot = registeredEffectPlugins[i] as sd_LME_EffectPlugin
+        if slot != None && slot.GetPluginId() == pid
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+sd_LME_EffectPlugin Function FindEffectPlugin(string pid)
+    int idx = FindEffectPluginIndex(pid)
+    if idx < 0
+        return None
+    endif
+    return registeredEffectPlugins[idx] as sd_LME_EffectPlugin
+EndFunction
+
+sd_LME_EffectPlugin Function GetEffectPluginAt(int idx)
+    if idx < 0 || idx >= effectPluginCount
+        return None
+    endif
+    return registeredEffectPlugins[idx] as sd_LME_EffectPlugin
+EndFunction
+
+; ── Key helpers (shared between condition and effect plugins) ─────────────────
 string Function _keyPluginId(string key)
     int sep = StringUtil.Find(key, ":")
     if sep < 0
@@ -193,6 +236,21 @@ int Function _itemIdxFor(sd_LME_ConditionPlugin p, string itemId)
     return -1
 EndFunction
 
+int Function _itemIdxForEffect(sd_LME_EffectPlugin p, string itemId)
+    if p == None || itemId == ""
+        return -1
+    endif
+    int n = p.GetItemCount()
+    int i = 0
+    while i < n
+        if p.GetItemId(i) == itemId
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
 sd_LME_ConditionPlugin Function ResolveConditionPlugin(string key)
     if key == ""
         return None
@@ -200,12 +258,19 @@ sd_LME_ConditionPlugin Function ResolveConditionPlugin(string key)
     return FindPlugin(_keyPluginId(key))
 EndFunction
 
+sd_LME_EffectPlugin Function ResolveEffectPlugin(string key)
+    if key == ""
+        return None
+    endif
+    return FindEffectPlugin(_keyPluginId(key))
+EndFunction
+
 int Function ResolveConditionItemIdx(string key)
     sd_LME_ConditionPlugin p = ResolveConditionPlugin(key)
     return _itemIdxFor(p, _keyItemId(key))
 EndFunction
 
-; ── Flattened plugin×item view (for MCM dropdown enumeration) ────────────────
+; ── Flattened plugin×item views (for MCM dropdowns) ──────────────────────────
 int Function GetTotalItemCount()
     int total = 0
     int i = 0
@@ -220,7 +285,6 @@ int Function GetTotalItemCount()
 EndFunction
 
 string Function GetGlobalItemKey(int globalIdx)
-{Returns "<pluginId>:<itemId>" for the flattened item at index `globalIdx`, or "".}
     int seen = 0
     int pi = 0
     while pi < pluginCount
@@ -238,7 +302,6 @@ string Function GetGlobalItemKey(int globalIdx)
 EndFunction
 
 string Function GetGlobalItemLabel(int globalIdx)
-{Returns user-facing "<PluginLabel> — <ItemLabel>" for flattened item at `globalIdx`.}
     int seen = 0
     int pi = 0
     while pi < pluginCount
@@ -258,6 +321,86 @@ string Function GetGlobalItemLabel(int globalIdx)
         pi += 1
     endwhile
     return ""
+EndFunction
+
+int Function GetTotalEffectItemCount()
+    int total = 0
+    int i = 0
+    while i < effectPluginCount
+        sd_LME_EffectPlugin p = GetEffectPluginAt(i)
+        if p != None
+            total += p.GetItemCount()
+        endif
+        i += 1
+    endwhile
+    return total
+EndFunction
+
+string Function GetGlobalEffectKey(int globalIdx)
+    int seen = 0
+    int pi = 0
+    while pi < effectPluginCount
+        sd_LME_EffectPlugin p = GetEffectPluginAt(pi)
+        if p != None
+            int n = p.GetItemCount()
+            if globalIdx < seen + n
+                return p.GetPluginId() + ":" + p.GetItemId(globalIdx - seen)
+            endif
+            seen += n
+        endif
+        pi += 1
+    endwhile
+    return ""
+EndFunction
+
+string Function GetGlobalEffectLabel(int globalIdx)
+    int seen = 0
+    int pi = 0
+    while pi < effectPluginCount
+        sd_LME_EffectPlugin p = GetEffectPluginAt(pi)
+        if p != None
+            int n = p.GetItemCount()
+            if globalIdx < seen + n
+                string pl = p.GetPluginLabel()
+                string il = p.GetItemLabel(globalIdx - seen)
+                if pl == ""
+                    return il
+                endif
+                return pl + " — " + il
+            endif
+            seen += n
+        endif
+        pi += 1
+    endwhile
+    return ""
+EndFunction
+
+; ── Per-slot effect-list helpers ─────────────────────────────────────────────
+int Function _fxBaseIdx(int slot)
+    return slot * MAX_EFFECTS_PER_SLOT()
+EndFunction
+
+string Function GetSlotEffectKey(int slot, int effectIdx)
+    if effectKey == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return ""
+    endif
+    return effectKey[_fxBaseIdx(slot) + effectIdx]
+EndFunction
+
+int Function GetSlotEffectParam(int slot, int effectIdx)
+    if effectParam == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return 0
+    endif
+    return effectParam[_fxBaseIdx(slot) + effectIdx]
+EndFunction
+
+Function SetSlotEffect(int slot, int effectIdx, string key, int param)
+    if effectKey == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return
+    endif
+    int globalI = _fxBaseIdx(slot) + effectIdx
+    effectKey[globalI] = key
+    effectParam[globalI] = param
 EndFunction
 
 ; ── Priority evaluation ───────────────────────────────────────────────────────
@@ -282,85 +425,117 @@ int Function evaluateTier()
     return 0
 EndFunction
 
-; ── AV-drain side effects ────────────────────────────────────────────────────
-float Function _applyAvPctDrain(string avName, int pct, float prevApplied)
-{Reverses any previous drain on this AV, then applies a new one as `pct`% of the
- current (post-reverse) value. Returns the new applied amount so caller can store it.
- Pass pct<=0 (or PlayerRef==None) to fully clear.}
-    if prevApplied != 0.0 && PlayerRef != None
-        PlayerRef.ModActorValue(avName, prevApplied)
+; ── Effect lifecycle dispatch ────────────────────────────────────────────────
+Function _activateSlotEffects(int slot)
+{Fires onActivate for every configured effect on `slot`.}
+    if effectKey == None || slot < 0 || slot >= 8
+        return
     endif
-    if PlayerRef == None || pct <= 0
-        return 0.0
-    endif
-    float current = PlayerRef.GetActorValue(avName)
-    if current <= 0.0
-        return 0.0
-    endif
-    float amt = current * pct / 100.0
-    PlayerRef.ModActorValue(avName, -amt)
-    return amt
-EndFunction
-
-int Function _pctForTier(int[] arr, int tier)
-    if arr == None || tier < 0 || tier >= 8
-        return 0
-    endif
-    return arr[tier]
-EndFunction
-
-Function _applySiphonForTier(int tier)
-{Recomputes all AV-drain side effects (Mana / Carry Weight / Sneak) for the given tier.
- Pass -1 (or any out-of-range tier) to fully clear all drains.}
-    _appliedSiphon      = _applyAvPctDrain("MagickaRateMult", _pctForTier(condManaSiphonPct,  tier), _appliedSiphon)
-    _appliedCarryWeight = _applyAvPctDrain("CarryWeight",     _pctForTier(condCarryWeightPct, tier), _appliedCarryWeight)
-    _appliedSneak       = _applyAvPctDrain("Sneak",           _pctForTier(condSneakPct,       tier), _appliedSneak)
-EndFunction
-
-; ── Pheromone Aura ────────────────────────────────────────────────────────────
-int Function _doPheromoneAura(int tier)
-{Increment SLA exposure on each nearby valid NPC. Returns count of actors affected.
- Designed to be called once per game-hour from OnUpdateGameTime.}
-    if condPheromoneAura == None || SLAFramework == None || PlayerRef == None
-        return 0
-    endif
-    int amt = _pctForTier(condPheromoneAura, tier)
-    if amt <= 0
-        return 0
-    endif
-    float radius = pheromoneRadius
-    if radius <= 0.0
-        radius = 1500.0
-    endif
-    Actor[] nearby = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
-    if nearby == None
-        return 0
-    endif
-    int cap = pheromoneMaxTargets
-    if cap <= 0
-        cap = 32
-    endif
-    int i = 0
-    int affected = 0
-    while i < nearby.Length && affected < cap
-        Actor a = nearby[i]
-        if a != None && a != PlayerRef && !a.IsDead()
-            if a.GetDistance(PlayerRef) <= radius
-                int cur = SLAFramework.GetActorArousal(a)
-                if cur >= 0 && cur < 99
-                    int curExp = SLAFramework.GetActorExposure(a)
-                    SLAFramework.SetActorExposure(a, curExp + amt)
-                    affected += 1
+    int base = _fxBaseIdx(slot)
+    int e = 0
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while e < maxE
+        string key = effectKey[base + e]
+        if key != ""
+            sd_LME_EffectPlugin p = ResolveEffectPlugin(key)
+            if p != None
+                int itemIdx = _itemIdxForEffect(p, _keyItemId(key))
+                if itemIdx >= 0
+                    p.onActivate(itemIdx, PlayerRef, effectParam[base + e])
                 endif
             endif
         endif
-        i += 1
+        e += 1
     endwhile
-    return affected
+EndFunction
+
+Function _deactivateSlotEffects(int slot)
+{Fires onDeactivate for every configured effect on `slot`. Safe to call with slot=-1 (no-op).}
+    if effectKey == None || slot < 0 || slot >= 8
+        return
+    endif
+    int base = _fxBaseIdx(slot)
+    int e = 0
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while e < maxE
+        string key = effectKey[base + e]
+        if key != ""
+            sd_LME_EffectPlugin p = ResolveEffectPlugin(key)
+            if p != None
+                int itemIdx = _itemIdxForEffect(p, _keyItemId(key))
+                if itemIdx >= 0
+                    p.onDeactivate(itemIdx, PlayerRef, effectParam[base + e])
+                endif
+            endif
+        endif
+        e += 1
+    endwhile
+EndFunction
+
+Function _tickSlotEffects(int slot)
+{Fires onTick for every configured effect on `slot`. Called every OnUpdate.}
+    if effectKey == None || slot < 0 || slot >= 8
+        return
+    endif
+    int base = _fxBaseIdx(slot)
+    int e = 0
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while e < maxE
+        string key = effectKey[base + e]
+        if key != ""
+            sd_LME_EffectPlugin p = ResolveEffectPlugin(key)
+            if p != None
+                int itemIdx = _itemIdxForEffect(p, _keyItemId(key))
+                if itemIdx >= 0
+                    p.onTick(itemIdx, PlayerRef, effectParam[base + e])
+                endif
+            endif
+        endif
+        e += 1
+    endwhile
+EndFunction
+
+Function _gameTickSlotEffects(int slot)
+{Fires onGameTime for every configured effect on `slot`. Called per in-game hour.}
+    if effectKey == None || slot < 0 || slot >= 8
+        return
+    endif
+    int base = _fxBaseIdx(slot)
+    int e = 0
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while e < maxE
+        string key = effectKey[base + e]
+        if key != ""
+            sd_LME_EffectPlugin p = ResolveEffectPlugin(key)
+            if p != None
+                int itemIdx = _itemIdxForEffect(p, _keyItemId(key))
+                if itemIdx >= 0
+                    p.onGameTime(itemIdx, PlayerRef, effectParam[base + e])
+                endif
+            endif
+        endif
+        e += 1
+    endwhile
+EndFunction
+
+bool Function _slotHasEffects(int slot)
+    if effectKey == None || slot < 0 || slot >= 8
+        return false
+    endif
+    int base = _fxBaseIdx(slot)
+    int e = 0
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while e < maxE
+        if effectKey[base + e] != ""
+            return true
+        endif
+        e += 1
+    endwhile
+    return false
 EndFunction
 
 Function _notifyTierChange(int tier)
-{Debug-only toast describing the new tier's active drains. Skipped when DebugMode is off.}
+{Debug-only toast describing the new tier and its configured effects.}
     if !DebugMode
         return
     endif
@@ -369,26 +544,22 @@ Function _notifyTierChange(int tier)
         return
     endif
     string msg = "LewdMarks: Tier " + tier
-    int mana   = _pctForTier(condManaSiphonPct,   tier)
-    int carry  = _pctForTier(condCarryWeightPct,  tier)
-    int sneak  = _pctForTier(condSneakPct,        tier)
-    int expose    = _pctForTier(condIncreaseExposure, tier)
-    int pheromone = _pctForTier(condPheromoneAura,    tier)
-    if mana > 0
-        msg += " - Mana " + mana + "%"
-    endif
-    if carry > 0
-        msg += " - Carry " + carry + "%"
-    endif
-    if sneak > 0
-        msg += " - Sneak " + sneak + "%"
-    endif
-    if expose > 0
-        msg += " - Arousal +" + expose + "/h"
-    endif
-    if pheromone > 0
-        msg += " - Aura +" + pheromone + "/h"
-    endif
+    int base = _fxBaseIdx(tier)
+    int e = 0
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while e < maxE
+        string key = effectKey[base + e]
+        if key != ""
+            sd_LME_EffectPlugin p = ResolveEffectPlugin(key)
+            if p != None
+                int itemIdx = _itemIdxForEffect(p, _keyItemId(key))
+                if itemIdx >= 0
+                    msg += " - " + p.GetItemLabel(itemIdx) + " " + effectParam[base + e]
+                endif
+            endif
+        endif
+        e += 1
+    endwhile
     Notification(msg)
 EndFunction
 
@@ -403,39 +574,23 @@ State checkingAroused
         if !ModActive || !influenceTracking
             return
         endif
-        int selfExp = condIncreaseExposure[currentTier]
-        int npcExp  = condPheromoneAura[currentTier]
-        bool any = false
-
-        if selfExp > 0 && SLAFramework
-            if SLAFramework.GetActorArousal(PlayerRef) < 99
-                SLAFramework.setActorExposure(PlayerRef, SLAFramework.getActorExposure(PlayerRef) + selfExp)
-            endif
-            any = true
-        endif
-
-        if npcExp > 0 && SLAFramework
-            int affected = _doPheromoneAura(currentTier)
-            if DebugMode && affected > 0
-                Notification("LewdMarks: pheromone affected " + affected + " NPC(s) +" + npcExp)
-            endif
-            any = true
-        endif
-
-        if any
-            RegisterForSingleUpdateGameTime(1.0)
-        else
+        if currentTier < 0 || !_slotHasEffects(currentTier)
             influenceTracking = false
+            return
         endif
+        _gameTickSlotEffects(currentTier)
+        RegisterForSingleUpdateGameTime(1.0)
     EndEvent
 
     Event OnUpdate()
         _resolveSoftDeps()    ; cheap; self-heals if SLA was loaded mid-session or after script update
         if !ModActive
             removeOverlay(PlayerRef)
+            if currentTier >= 0
+                _deactivateSlotEffects(currentTier)
+            endif
             currentTier = -1
             influenceTracking = false
-            _applySiphonForTier(-1)
             return
         endif
 
@@ -448,18 +603,21 @@ State checkingAroused
 
         if forceRedraw || tierChanged
             forceRedraw = false
+            if tierChanged && currentTier >= 0
+                _deactivateSlotEffects(currentTier)
+            endif
             currentTier = newTier
             drawOverlay(PlayerRef, currentTier)
+            if tierChanged
+                _activateSlotEffects(currentTier)
+                _notifyTierChange(currentTier)
+            endif
         endif
 
-        ; AV drains: recompute every tick so they stay in sync with gear/buff changes
-        _applySiphonForTier(currentTier)
+        ; Per-tick effect refresh (e.g. %-of-current AV drains shifting with gear).
+        _tickSlotEffects(currentTier)
 
-        if tierChanged
-            _notifyTierChange(currentTier)
-        endif
-
-        if condIncreaseExposure[currentTier] > 0 || condPheromoneAura[currentTier] > 0
+        if _slotHasEffects(currentTier)
             if !influenceTracking
                 influenceTracking = true
                 RegisterForSingleUpdateGameTime(1.0)
