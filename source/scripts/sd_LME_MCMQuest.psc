@@ -15,7 +15,7 @@ sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 4
+    return 5
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -73,6 +73,7 @@ event OnVersionUpdate(int Version)
         MainQuest.condHaloEmissiveMult = new float[8]
         MainQuest.condHaloAlpha        = new int[8]
         MainQuest.condIncreaseExposure = new int[8]
+        MainQuest.condManaSiphonPct    = new int[8]
 
         MainQuest.ModActive          = false
         MainQuest.updateInterval     = 2.0
@@ -100,6 +101,14 @@ event OnVersionUpdate(int Version)
             i += 1
         endwhile
     endif
+    if CurrentVersion < 5
+        ; v0.0.4: add Mana Siphon side-effect array.
+        ; Allocate unconditionally — None-check on array properties is unreliable
+        ; (silent cast errors), and any prior allocation is by definition empty/unused.
+        MainQuest.condManaSiphonPct  = new int[8]
+        MainQuest.condCarryWeightPct = new int[8]
+        MainQuest.condSneakPct       = new int[8]
+    endif
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -118,6 +127,7 @@ function drawGeneralPage()
     AddToggleOptionST("GEN_MOD_ACTIVE",      "Enable",                MainQuest.ModActive)
     AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{1}")
     AddToggleOptionST("GEN_USE_SLAVETATS",   "Use SlaveTats textures", MainQuest.useSlaveTats)
+    AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
     AddHeaderOption("Registered plugins (" + MainQuest.pluginCount + ")")
     int i = 0
     while i < MainQuest.pluginCount
@@ -166,6 +176,9 @@ function drawConditionsPage()
 
     AddHeaderOption("Side Effects")
     AddSliderOptionST("SLOT_INCREASE_EXPOSURE", "Arousal exposure per hour", MainQuest.condIncreaseExposure[idx])
+    AddSliderOptionST("SLOT_MANA_SIPHON",        "Mana siphon",         MainQuest.condManaSiphonPct[idx],  "{0}%")
+    AddSliderOptionST("SLOT_CARRY_WEIGHT_PEN",   "Carry weight penalty", MainQuest.condCarryWeightPct[idx], "{0}%")
+    AddSliderOptionST("SLOT_SNEAK_PEN",          "Sneak penalty",        MainQuest.condSneakPct[idx],       "{0}%")
 
     SetCursorPosition(1)
     AddHeaderOption("Mark colors")
@@ -240,6 +253,21 @@ state GEN_USE_SLAVETATS
     endEvent
     event OnHighlightST()
         SetInfoText("Use SlaveTats texture paths instead of RaceMenu overlay paths.")
+    endEvent
+endState
+
+state GEN_DEBUG_MODE
+    event OnSelectST()
+        bool v = !MainQuest.DebugMode
+        MainQuest.DebugMode = v
+        SetToggleOptionValueST(v)
+    endEvent
+    event OnDefaultST()
+        MainQuest.DebugMode = false
+        SetToggleOptionValueST(false)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Show a corner-notification toast whenever the active condition tier changes, listing what's being drained. Useful for verifying that conditions and side effects are firing correctly.")
     endEvent
 endState
 
@@ -455,6 +483,66 @@ state SLOT_USE_GLOW
     endEvent
     event OnHighlightST()
         SetInfoText("Show glowing texture variant and halo when this slot is active.")
+    endEvent
+endState
+
+state SLOT_MANA_SIPHON
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.condManaSiphonPct[selectedCondition])
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 100)
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.condManaSiphonPct[selectedCondition] = value as int
+        SetSliderOptionValueST(value as int, "{0}%")
+    endEvent
+    event OnDefaultST()
+        MainQuest.condManaSiphonPct[selectedCondition] = 0
+        SetSliderOptionValueST(0, "{0}%")
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Drain this percentage of your current Magicka regeneration rate (including enchantments) while this slot is active. Recomputes every update tick so gear/buff changes apply immediately. 0 = disabled.")
+    endEvent
+endState
+
+state SLOT_CARRY_WEIGHT_PEN
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.condCarryWeightPct[selectedCondition])
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 100)
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.condCarryWeightPct[selectedCondition] = value as int
+        SetSliderOptionValueST(value as int, "{0}%")
+    endEvent
+    event OnDefaultST()
+        MainQuest.condCarryWeightPct[selectedCondition] = 0
+        SetSliderOptionValueST(0, "{0}%")
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Reduce your current Carry Weight by this percentage while this slot is active. Recomputes every update tick.")
+    endEvent
+endState
+
+state SLOT_SNEAK_PEN
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.condSneakPct[selectedCondition])
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 100)
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.condSneakPct[selectedCondition] = value as int
+        SetSliderOptionValueST(value as int, "{0}%")
+    endEvent
+    event OnDefaultST()
+        MainQuest.condSneakPct[selectedCondition] = 0
+        SetSliderOptionValueST(0, "{0}%")
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Reduce your current Sneak skill by this percentage while this slot is active. Recomputes every update tick.")
     endEvent
 endState
 

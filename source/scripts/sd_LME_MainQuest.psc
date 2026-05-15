@@ -5,6 +5,7 @@ import Utility
 
 ; ── Global settings ──────────────────────────────────────────────────────────
 bool Property ModActive = false Auto
+bool Property DebugMode = false Auto
 bool Property useSlaveTats = false Auto
 int Property OverlaySlot = 2 Auto
 int Property CurrentOverlaySlot = 2 Auto
@@ -25,6 +26,15 @@ int[] Property condHaloEmissive Auto
 float[] Property condHaloEmissiveMult Auto
 int[] Property condHaloAlpha Auto
 int[] Property condIncreaseExposure Auto
+int[] Property condManaSiphonPct Auto       ; 0-100, % of current MagickaRateMult to drain
+int[] Property condCarryWeightPct Auto      ; 0-100, % of current CarryWeight to drain
+int[] Property condSneakPct Auto            ; 0-100, % of current Sneak skill to drain
+
+; ── AV-drain runtime state (Hidden — persisted across save/load) ─────────────
+float Property _appliedSiphon = 0.0 Auto Hidden       ; absolute amount currently subtracted from MagickaRateMult
+float Property _appliedCarryWeight = 0.0 Auto Hidden  ; absolute amount currently subtracted from CarryWeight
+float Property _appliedSneak = 0.0 Auto Hidden        ; absolute amount currently subtracted from Sneak
+float Property _lastSiphonRecompute = 0.0 Auto Hidden ; (unused — kept for save compat)
 
 ; ── Plugin registry ──────────────────────────────────────────────────────────
 ; Stored as Form[] because Papyrus cannot allocate custom-script-typed arrays at runtime.
@@ -69,6 +79,9 @@ Function EnsureArrays()
     condHaloEmissiveMult = new float[8]
     condHaloAlpha        = new int[8]
     condIncreaseExposure = new int[8]
+    condManaSiphonPct    = new int[8]
+    condCarryWeightPct   = new int[8]
+    condSneakPct         = new int[8]
     registeredPlugins    = new Form[32]
     pluginCount          = 0
     _arraysReady         = true
@@ -147,6 +160,70 @@ int Function evaluateTier()
     return 0
 EndFunction
 
+; ── AV-drain side effects ────────────────────────────────────────────────────
+float Function _applyAvPctDrain(string avName, int pct, float prevApplied)
+{Reverses any previous drain on this AV, then applies a new one as `pct`% of the
+ current (post-reverse) value. Returns the new applied amount so caller can store it.
+ Pass pct<=0 (or PlayerRef==None) to fully clear.}
+    if prevApplied != 0.0 && PlayerRef != None
+        PlayerRef.ModActorValue(avName, prevApplied)
+    endif
+    if PlayerRef == None || pct <= 0
+        return 0.0
+    endif
+    float current = PlayerRef.GetActorValue(avName)
+    if current <= 0.0
+        return 0.0
+    endif
+    float amt = current * pct / 100.0
+    PlayerRef.ModActorValue(avName, -amt)
+    return amt
+EndFunction
+
+int Function _pctForTier(int[] arr, int tier)
+    if arr == None || tier < 0 || tier >= 8
+        return 0
+    endif
+    return arr[tier]
+EndFunction
+
+Function _applySiphonForTier(int tier)
+{Recomputes all AV-drain side effects (Mana / Carry Weight / Sneak) for the given tier.
+ Pass -1 (or any out-of-range tier) to fully clear all drains.}
+    _appliedSiphon      = _applyAvPctDrain("MagickaRateMult", _pctForTier(condManaSiphonPct,  tier), _appliedSiphon)
+    _appliedCarryWeight = _applyAvPctDrain("CarryWeight",     _pctForTier(condCarryWeightPct, tier), _appliedCarryWeight)
+    _appliedSneak       = _applyAvPctDrain("Sneak",           _pctForTier(condSneakPct,       tier), _appliedSneak)
+EndFunction
+
+Function _notifyTierChange(int tier)
+{Debug-only toast describing the new tier's active drains. Skipped when DebugMode is off.}
+    if !DebugMode
+        return
+    endif
+    if tier <= 0
+        Notification("LewdMarks: condition cleared")
+        return
+    endif
+    string msg = "LewdMarks: Tier " + tier
+    int mana   = _pctForTier(condManaSiphonPct,   tier)
+    int carry  = _pctForTier(condCarryWeightPct,  tier)
+    int sneak  = _pctForTier(condSneakPct,        tier)
+    int expose = _pctForTier(condIncreaseExposure, tier)
+    if mana > 0
+        msg += " - Mana " + mana + "%"
+    endif
+    if carry > 0
+        msg += " - Carry " + carry + "%"
+    endif
+    if sneak > 0
+        msg += " - Sneak " + sneak + "%"
+    endif
+    if expose > 0
+        msg += " - Arousal +" + expose + "/h"
+    endif
+    Notification(msg)
+EndFunction
+
 ; ── Update loop (state) ───────────────────────────────────────────────────────
 State checkingAroused
 
@@ -174,6 +251,7 @@ State checkingAroused
             removeOverlay(PlayerRef)
             currentTier = -1
             influenceTracking = false
+            _applySiphonForTier(-1)
             return
         endif
 
@@ -182,11 +260,19 @@ State checkingAroused
         endif
 
         int newTier = evaluateTier()
+        bool tierChanged = (newTier != currentTier)
 
-        if forceRedraw || newTier != currentTier
+        if forceRedraw || tierChanged
             forceRedraw = false
             currentTier = newTier
             drawOverlay(PlayerRef, currentTier)
+        endif
+
+        ; AV drains: recompute every tick so they stay in sync with gear/buff changes
+        _applySiphonForTier(currentTier)
+
+        if tierChanged
+            _notifyTierChange(currentTier)
         endif
 
         if condIncreaseExposure[currentTier] > 0
