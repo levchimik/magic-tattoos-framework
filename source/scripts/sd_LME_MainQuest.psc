@@ -36,6 +36,12 @@ int[] Property effectParam Auto
 Form[] Property registeredPlugins Auto
 int Property pluginCount = 0 Auto
 
+; ── Disabled items (composite "<pluginId>:<itemId>" keys) ───────────────────
+; Fixed-size pool; "" = empty slot. Disabled items are hidden from MCM
+; dropdowns. Items not in this list are enabled by default.
+string[] Property disabledItems Auto Hidden
+bool _disabledReady = false
+
 ; ── Internal ──────────────────────────────────────────────────────────────────
 actor Property PlayerRef Auto
 string Property texturePathNormal = "actors\\character\\overlays\\lewdmarks\\" Auto
@@ -81,6 +87,58 @@ Function EnsureArrays()
     registeredPlugins    = new Form[32]
     pluginCount          = 0
     _arraysReady         = true
+EndFunction
+
+Function EnsureDisabledArray()
+    if _disabledReady
+        return
+    endif
+    if disabledItems == None
+        disabledItems = new string[64]
+    endif
+    _disabledReady = true
+EndFunction
+
+bool Function IsItemEnabled(string key)
+    EnsureDisabledArray()
+    if key == ""
+        return true
+    endif
+    int i = 0
+    while i < disabledItems.Length
+        if disabledItems[i] == key
+            return false
+        endif
+        i += 1
+    endwhile
+    return true
+EndFunction
+
+Function SetItemEnabled(string key, bool on)
+    EnsureDisabledArray()
+    if key == ""
+        return
+    endif
+    int existing = -1
+    int empty = -1
+    int i = 0
+    while i < disabledItems.Length
+        if disabledItems[i] == key
+            existing = i
+        elseif empty < 0 && disabledItems[i] == ""
+            empty = i
+        endif
+        i += 1
+    endwhile
+    if on
+        if existing >= 0
+            disabledItems[existing] = ""
+        endif
+    else
+        if existing < 0 && empty >= 0
+            disabledItems[empty] = key
+        endif
+    endif
 EndFunction
 
 ; ── Plugin registry ──────────────────────────────────────────────────────────
@@ -294,6 +352,101 @@ string Function GetGlobalEffectLabel(int globalIdx)
         pi += 1
     endwhile
     return ""
+EndFunction
+
+; ── Visible (enabled-only) views, with currently-bound key kept visible ─────
+int Function GetVisibleConditionCount(string includeKey)
+    int total = GetTotalConditionItemCount()
+    int n = 0
+    int i = 0
+    while i < total
+        string k = GetGlobalConditionKey(i)
+        if IsItemEnabled(k) || k == includeKey
+            n += 1
+        endif
+        i += 1
+    endwhile
+    return n
+EndFunction
+
+int Function _visibleConditionGlobalIdx(int visIdx, string includeKey)
+    int total = GetTotalConditionItemCount()
+    int seen = 0
+    int i = 0
+    while i < total
+        string k = GetGlobalConditionKey(i)
+        if IsItemEnabled(k) || k == includeKey
+            if seen == visIdx
+                return i
+            endif
+            seen += 1
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+string Function GetVisibleConditionKey(int visIdx, string includeKey)
+    int gi = _visibleConditionGlobalIdx(visIdx, includeKey)
+    if gi < 0
+        return ""
+    endif
+    return GetGlobalConditionKey(gi)
+EndFunction
+
+string Function GetVisibleConditionLabel(int visIdx, string includeKey)
+    int gi = _visibleConditionGlobalIdx(visIdx, includeKey)
+    if gi < 0
+        return ""
+    endif
+    return GetGlobalConditionLabel(gi)
+EndFunction
+
+int Function GetVisibleEffectCount(string includeKey)
+    int total = GetTotalEffectItemCount()
+    int n = 0
+    int i = 0
+    while i < total
+        string k = GetGlobalEffectKey(i)
+        if IsItemEnabled(k) || k == includeKey
+            n += 1
+        endif
+        i += 1
+    endwhile
+    return n
+EndFunction
+
+int Function _visibleEffectGlobalIdx(int visIdx, string includeKey)
+    int total = GetTotalEffectItemCount()
+    int seen = 0
+    int i = 0
+    while i < total
+        string k = GetGlobalEffectKey(i)
+        if IsItemEnabled(k) || k == includeKey
+            if seen == visIdx
+                return i
+            endif
+            seen += 1
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+string Function GetVisibleEffectKey(int visIdx, string includeKey)
+    int gi = _visibleEffectGlobalIdx(visIdx, includeKey)
+    if gi < 0
+        return ""
+    endif
+    return GetGlobalEffectKey(gi)
+EndFunction
+
+string Function GetVisibleEffectLabel(int visIdx, string includeKey)
+    int gi = _visibleEffectGlobalIdx(visIdx, includeKey)
+    if gi < 0
+        return ""
+    endif
+    return GetGlobalEffectLabel(gi)
 EndFunction
 
 ; ── Per-slot effect-list helpers ─────────────────────────────────────────────

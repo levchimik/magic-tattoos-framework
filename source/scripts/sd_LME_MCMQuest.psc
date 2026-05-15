@@ -15,7 +15,7 @@ sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 10
+    return 12
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -47,10 +47,11 @@ endFunction
 
 event OnConfigInit()
     ModName = "LewdMarks Effects"
-    Pages = new String[3]
+    Pages = new String[4]
     Pages[0] = "General"
     Pages[1] = "Conditions"
     Pages[2] = "Plugins"
+    Pages[3] = "Menu Options"
     _ensureMainQuest()
 endEvent
 
@@ -138,6 +139,19 @@ event OnVersionUpdate(int Version)
             fxI += 1
         endwhile
     endif
+    if CurrentVersion < 11
+        ; v0.0.11: per-item enable/disable list. Default = all enabled.
+        MainQuest.disabledItems = new string[64]
+    endif
+    if CurrentVersion < 12
+        ; v0.0.12: split per-item toggles into their own "Menu Options" page.
+        ; OnConfigInit only sets Pages once per MCM registration, so refresh.
+        Pages = new String[4]
+        Pages[0] = "General"
+        Pages[1] = "Conditions"
+        Pages[2] = "Plugins"
+        Pages[3] = "Menu Options"
+    endif
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -149,6 +163,8 @@ event OnPageReset(string page)
         drawConditionsPage()
     elseif page == "Plugins"
         drawPluginsPage()
+    elseif page == "Menu Options"
+        drawMenuOptionsPage()
     endif
 endEvent
 
@@ -183,6 +199,142 @@ Form Function _bindSetting(int slot)
     return None
 EndFunction
 
+; Toggle pool: 32 TOGGLE_N states, each maps (via _bindToggle) to one
+; condition or effect item across all registered plugins, in walk order:
+;   for each plugin p, conditions 0..cn-1 then effects 0..en-1.
+; Re-derived on demand; nothing cached.
+
+string Function _toggleStateId(int slot)
+    return "TOGGLE_" + (slot + 1)
+EndFunction
+
+string _scratchToggleKey
+string _scratchToggleLabel
+string _scratchToggleKind   ; "cond" or "effect"
+
+bool Function _bindToggle(int slot)
+{Writes the slot's composite key + label into scratch fields. Returns true if slot resolved.
+ Walk order: all conditions across all plugins first, then all effects. The Menu Options
+ page draws conditions in the left column and effects in the right, in the same order.}
+    int totalConds = MainQuest.GetTotalConditionItemCount()
+    if slot < totalConds
+        ; condition walk
+        int seen = 0
+        int i = 0
+        while i < MainQuest.pluginCount
+            sd_LME_Plugin p = MainQuest.GetPluginAt(i)
+            if p != None
+                int cn = p.GetConditionCount()
+                if slot < seen + cn
+                    int local = slot - seen
+                    _scratchToggleKey   = p.GetPluginId() + ":" + p.GetConditionId(local)
+                    _scratchToggleLabel = p.GetConditionLabel(local)
+                    _scratchToggleKind  = "cond"
+                    return true
+                endif
+                seen += cn
+            endif
+            i += 1
+        endwhile
+        return false
+    endif
+    ; effect walk
+    int eslot = slot - totalConds
+    int seenE = 0
+    int j = 0
+    while j < MainQuest.pluginCount
+        sd_LME_Plugin p2 = MainQuest.GetPluginAt(j)
+        if p2 != None
+            int en = p2.GetEffectCount()
+            if eslot < seenE + en
+                int localE = eslot - seenE
+                _scratchToggleKey   = p2.GetPluginId() + ":" + p2.GetEffectId(localE)
+                _scratchToggleLabel = p2.GetEffectLabel(localE)
+                _scratchToggleKind  = "effect"
+                return true
+            endif
+            seenE += en
+        endif
+        j += 1
+    endwhile
+    return false
+EndFunction
+
+Function _selectToggle(int slot)
+    if !_bindToggle(slot)
+        return
+    endif
+    bool now = !MainQuest.IsItemEnabled(_scratchToggleKey)
+    MainQuest.SetItemEnabled(_scratchToggleKey, now)
+    SetToggleOptionValueST(now)
+EndFunction
+
+Function _defaultToggle(int slot)
+    if !_bindToggle(slot)
+        return
+    endif
+    MainQuest.SetItemEnabled(_scratchToggleKey, true)
+    SetToggleOptionValueST(true)
+EndFunction
+
+Function _highlightToggle(int slot)
+    if !_bindToggle(slot)
+        SetInfoText("")
+        return
+    endif
+    string kindLabel = "condition"
+    if _scratchToggleKind == "effect"
+        kindLabel = "effect"
+    endif
+    SetInfoText("Enable this " + kindLabel + " (" + _scratchToggleKey + "). Disabled items are hidden from slot dropdowns.")
+EndFunction
+
+Function _setAllItems(bool on)
+    int i = 0
+    while i < MainQuest.pluginCount
+        sd_LME_Plugin p = MainQuest.GetPluginAt(i)
+        if p != None
+            string pid = p.GetPluginId()
+            int cn = p.GetConditionCount()
+            int c = 0
+            while c < cn
+                MainQuest.SetItemEnabled(pid + ":" + p.GetConditionId(c), on)
+                c += 1
+            endwhile
+            int en = p.GetEffectCount()
+            int e = 0
+            while e < en
+                MainQuest.SetItemEnabled(pid + ":" + p.GetEffectId(e), on)
+                e += 1
+            endwhile
+        endif
+        i += 1
+    endwhile
+    ForcePageReset()
+EndFunction
+
+state TOGGLE_ALL
+    event OnMenuOpenST()
+        string[] opts = new string[3]
+        opts[0] = "—"
+        opts[1] = "Enable all"
+        opts[2] = "Disable all"
+        SetMenuDialogStartIndex(0)
+        SetMenuDialogDefaultIndex(0)
+        SetMenuDialogOptions(opts)
+    endEvent
+    event OnMenuAcceptST(int index)
+        if index == 1
+            _setAllItems(true)
+        elseif index == 2
+            _setAllItems(false)
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Bulk-toggle every condition and effect across all plugins.")
+    endEvent
+endState
+
 function drawGeneralPage()
     SetCursorFillMode(TOP_TO_BOTTOM)
     AddHeaderOption("General")
@@ -213,6 +365,59 @@ function drawPluginsPage()
             endwhile
         endif
         i += 1
+    endwhile
+endFunction
+
+function drawMenuOptionsPage()
+    SetCursorFillMode(TOP_TO_BOTTOM)
+    ; Row 0 — header left, bulk toggle right
+    AddHeaderOption("Visible items")
+    SetCursorPosition(1)
+    AddMenuOptionST("TOGGLE_ALL", "Bulk toggle", "—")
+
+    ; ── Left column: conditions ──
+    SetCursorPosition(2)    ; row 1 col 0
+    int toggleSlot = 0
+    AddHeaderOption("Conditions")
+    int i = 0
+    while i < MainQuest.pluginCount
+        sd_LME_Plugin p = MainQuest.GetPluginAt(i)
+        if p != None
+            int cn = p.GetConditionCount()
+            if cn > 0
+                AddTextOption(p.GetPluginLabel(), "", OPTION_FLAG_DISABLED)
+                int c = 0
+                while c < cn && toggleSlot < 32
+                    string ckey = p.GetPluginId() + ":" + p.GetConditionId(c)
+                    AddToggleOptionST(_toggleStateId(toggleSlot), "  " + p.GetConditionLabel(c), MainQuest.IsItemEnabled(ckey))
+                    toggleSlot += 1
+                    c += 1
+                endwhile
+            endif
+        endif
+        i += 1
+    endwhile
+
+    ; ── Right column: effects ──
+    SetCursorPosition(3)    ; row 1 col 1
+    AddHeaderOption("Effects")
+    int j = 0
+    while j < MainQuest.pluginCount
+        sd_LME_Plugin p2 = MainQuest.GetPluginAt(j)
+        if p2 != None
+            int en = p2.GetEffectCount()
+            if en > 0
+                AddTextOption(p2.GetPluginLabel(), "", OPTION_FLAG_DISABLED)
+                int e = 0
+                while e < en && toggleSlot < 32
+                    string ekey = p2.GetPluginId() + ":" + p2.GetEffectId(e)
+                    AddToggleOptionST(_toggleStateId(toggleSlot), "  " + p2.GetEffectLabel(e), MainQuest.IsItemEnabled(ekey))
+                    toggleSlot += 1
+                    e += 1
+                endwhile
+            endif
+        endif
+        j += 1
     endwhile
 endFunction
 
@@ -462,20 +667,20 @@ endState
 
 state SLOT_COND_TYPE
     event OnMenuOpenST()
-        ; Build a flattened list of plugin×item entries. Index 0 = "Not set";
-        ; indices 1..N map to MainQuest.GetGlobalConditionKey(i-1).
-        int total = 1 + MainQuest.GetTotalConditionItemCount()
+        ; Flattened visible-only list. Index 0 = "Not set"; the currently-
+        ; bound key stays visible even if disabled.
+        string curKey = MainQuest.condPluginId[selectedCondition]
+        int total = 1 + MainQuest.GetVisibleConditionCount(curKey)
         if total > 10
             total = 10    ; _newOpts dispatcher max
         endif
         string[] opts = _newOpts(total)
         opts[0] = "Not set"
         int curIdx = 0
-        string curKey = MainQuest.condPluginId[selectedCondition]
         int i = 0
         while (i + 1) < total
-            string key = MainQuest.GetGlobalConditionKey(i)
-            opts[i + 1] = MainQuest.GetGlobalConditionLabel(i)
+            string key = MainQuest.GetVisibleConditionKey(i, curKey)
+            opts[i + 1] = MainQuest.GetVisibleConditionLabel(i, curKey)
             if key == curKey
                 curIdx = i + 1
             endif
@@ -490,9 +695,10 @@ state SLOT_COND_TYPE
             return
         endif
         int slot = selectedCondition
+        string curKey = MainQuest.condPluginId[slot]
         string newKey = ""
         if index > 0
-            newKey = MainQuest.GetGlobalConditionKey(index - 1)
+            newKey = MainQuest.GetVisibleConditionKey(index - 1, curKey)
         endif
         MainQuest.condPluginId[slot] = newKey
         if newKey == ""
@@ -671,18 +877,18 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string para
 EndFunction
 
 Function _openEffectTypeMenu(int effectIdx)
-    int total = 1 + MainQuest.GetTotalEffectItemCount()
+    string curKey = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    int total = 1 + MainQuest.GetVisibleEffectCount(curKey)
     if total > 10
         total = 10
     endif
     string[] opts = _newOpts(total)
     opts[0] = "Not set"
-    string curKey = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
     int curSel = 0
     int i = 0
     while (i + 1) < total
-        string key = MainQuest.GetGlobalEffectKey(i)
-        opts[i + 1] = MainQuest.GetGlobalEffectLabel(i)
+        string key = MainQuest.GetVisibleEffectKey(i, curKey)
+        opts[i + 1] = MainQuest.GetVisibleEffectLabel(i, curKey)
         if key == curKey
             curSel = i + 1
         endif
@@ -700,7 +906,8 @@ Function _acceptEffectType(int effectIdx, int index)
     string newKey = ""
     int defParam = 0
     if index > 0
-        newKey = MainQuest.GetGlobalEffectKey(index - 1)
+        string curKey = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+        newKey = MainQuest.GetVisibleEffectKey(index - 1, curKey)
         sd_LME_Plugin p = MainQuest.ResolvePluginByKey(newKey)
         if p != None
             int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(newKey))
@@ -1266,3 +1473,356 @@ function toggleTextureSet(bool useST)
         MainQuest.texturePathGlow   = texturePathGlowRM
     endif
 endFunction
+
+state TOGGLE_1
+    event OnSelectST()
+        _selectToggle(0)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(0)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(0)
+    endEvent
+endState
+state TOGGLE_2
+    event OnSelectST()
+        _selectToggle(1)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(1)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(1)
+    endEvent
+endState
+state TOGGLE_3
+    event OnSelectST()
+        _selectToggle(2)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(2)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(2)
+    endEvent
+endState
+state TOGGLE_4
+    event OnSelectST()
+        _selectToggle(3)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(3)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(3)
+    endEvent
+endState
+state TOGGLE_5
+    event OnSelectST()
+        _selectToggle(4)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(4)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(4)
+    endEvent
+endState
+state TOGGLE_6
+    event OnSelectST()
+        _selectToggle(5)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(5)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(5)
+    endEvent
+endState
+state TOGGLE_7
+    event OnSelectST()
+        _selectToggle(6)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(6)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(6)
+    endEvent
+endState
+state TOGGLE_8
+    event OnSelectST()
+        _selectToggle(7)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(7)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(7)
+    endEvent
+endState
+state TOGGLE_9
+    event OnSelectST()
+        _selectToggle(8)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(8)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(8)
+    endEvent
+endState
+state TOGGLE_10
+    event OnSelectST()
+        _selectToggle(9)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(9)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(9)
+    endEvent
+endState
+state TOGGLE_11
+    event OnSelectST()
+        _selectToggle(10)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(10)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(10)
+    endEvent
+endState
+state TOGGLE_12
+    event OnSelectST()
+        _selectToggle(11)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(11)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(11)
+    endEvent
+endState
+state TOGGLE_13
+    event OnSelectST()
+        _selectToggle(12)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(12)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(12)
+    endEvent
+endState
+state TOGGLE_14
+    event OnSelectST()
+        _selectToggle(13)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(13)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(13)
+    endEvent
+endState
+state TOGGLE_15
+    event OnSelectST()
+        _selectToggle(14)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(14)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(14)
+    endEvent
+endState
+state TOGGLE_16
+    event OnSelectST()
+        _selectToggle(15)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(15)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(15)
+    endEvent
+endState
+state TOGGLE_17
+    event OnSelectST()
+        _selectToggle(16)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(16)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(16)
+    endEvent
+endState
+state TOGGLE_18
+    event OnSelectST()
+        _selectToggle(17)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(17)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(17)
+    endEvent
+endState
+state TOGGLE_19
+    event OnSelectST()
+        _selectToggle(18)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(18)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(18)
+    endEvent
+endState
+state TOGGLE_20
+    event OnSelectST()
+        _selectToggle(19)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(19)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(19)
+    endEvent
+endState
+state TOGGLE_21
+    event OnSelectST()
+        _selectToggle(20)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(20)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(20)
+    endEvent
+endState
+state TOGGLE_22
+    event OnSelectST()
+        _selectToggle(21)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(21)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(21)
+    endEvent
+endState
+state TOGGLE_23
+    event OnSelectST()
+        _selectToggle(22)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(22)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(22)
+    endEvent
+endState
+state TOGGLE_24
+    event OnSelectST()
+        _selectToggle(23)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(23)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(23)
+    endEvent
+endState
+state TOGGLE_25
+    event OnSelectST()
+        _selectToggle(24)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(24)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(24)
+    endEvent
+endState
+state TOGGLE_26
+    event OnSelectST()
+        _selectToggle(25)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(25)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(25)
+    endEvent
+endState
+state TOGGLE_27
+    event OnSelectST()
+        _selectToggle(26)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(26)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(26)
+    endEvent
+endState
+state TOGGLE_28
+    event OnSelectST()
+        _selectToggle(27)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(27)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(27)
+    endEvent
+endState
+state TOGGLE_29
+    event OnSelectST()
+        _selectToggle(28)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(28)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(28)
+    endEvent
+endState
+state TOGGLE_30
+    event OnSelectST()
+        _selectToggle(29)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(29)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(29)
+    endEvent
+endState
+state TOGGLE_31
+    event OnSelectST()
+        _selectToggle(30)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(30)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(30)
+    endEvent
+endState
+state TOGGLE_32
+    event OnSelectST()
+        _selectToggle(31)
+    endEvent
+    event OnDefaultST()
+        _defaultToggle(31)
+    endEvent
+    event OnHighlightST()
+        _highlightToggle(31)
+    endEvent
+endState
