@@ -11,10 +11,6 @@ string texturePathGlowRM   = "actors\\character\\overlays\\lewdmarks-glow\\"
 string texturePathNormalST = "actors\\character\\slavetats\\lewdmarks\\"
 string texturePathGlowST   = "actors\\character\\slavetats\\lewdmarks-glow\\"
 
-; Maps the last dialog's option indices back to plugin ids
-; Index 0 is reserved for "Not set" (id = "")
-string[] _lastDialogPluginIds
-
 sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
@@ -52,6 +48,9 @@ function _ensureMainQuest()
     if MainQuest == None
         Quest q = Game.GetFormFromFile(0x803, "LewdMarksEffects.esp") as Quest
         MainQuest = q as sd_LME_MainQuest
+    endif
+    if MainQuest != None
+        MainQuest.EnsureArrays()
     endif
 endFunction
 
@@ -305,25 +304,27 @@ endState
 
 state SLOT_COND_TYPE
     event OnMenuOpenST()
-        int n = 1 + MainQuest.pluginCount
-        string[] opts = new string[n]
-        _lastDialogPluginIds = new string[n]
+        ; Index 0 = "Not set"; indices 1..N map to MainQuest.GetPluginAt(i-1).
+        ; OnMenuAcceptST re-derives the mapping live (no cached array — Papyrus
+        ; script-level vars don't survive the dialog open→accept gap reliably).
+        int total = 1 + MainQuest.pluginCount
+        if total > 10
+            total = 10
+        endif
+        string[] opts = _newOpts(total)
         opts[0] = "Not set"
-        _lastDialogPluginIds[0] = ""
         int curIdx = 0
         string curPid = MainQuest.condPluginId[selectedCondition]
         int i = 0
-        while i < MainQuest.pluginCount
+        while i < MainQuest.pluginCount && (i + 1) < total
             sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(i)
             if p != None
                 opts[i + 1] = p.GetLabel()
-                _lastDialogPluginIds[i + 1] = p.GetPluginId()
                 if p.GetPluginId() == curPid
                     curIdx = i + 1
                 endif
             else
-                opts[i + 1] = "(missing plugin)"
-                _lastDialogPluginIds[i + 1] = ""
+                opts[i + 1] = "(missing)"
             endif
             i += 1
         endwhile
@@ -332,11 +333,17 @@ state SLOT_COND_TYPE
         SetMenuDialogOptions(opts)
     endEvent
     event OnMenuAcceptST(int index)
-        if index < 0 || _lastDialogPluginIds == None || index >= _lastDialogPluginIds.Length
+        if index < 0
             return
         endif
         int slot = selectedCondition
-        string newPid = _lastDialogPluginIds[index]
+        string newPid = ""
+        if index > 0
+            sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(index - 1)
+            if p != None
+                newPid = p.GetPluginId()
+            endif
+        endif
         MainQuest.condPluginId[slot] = newPid
         if newPid == ""
             MainQuest.condParam[slot] = 0
@@ -694,6 +701,30 @@ state SLOT_HALO_ALPHA
 endState
 
 ; ── Helpers ───────────────────────────────────────────────────────────────────
+string[] Function _newOpts(int n)
+{Papyrus requires literal array sizes; this dispatcher picks the matching literal.}
+    if n <= 1
+        return new string[1]
+    elseIf n == 2
+        return new string[2]
+    elseIf n == 3
+        return new string[3]
+    elseIf n == 4
+        return new string[4]
+    elseIf n == 5
+        return new string[5]
+    elseIf n == 6
+        return new string[6]
+    elseIf n == 7
+        return new string[7]
+    elseIf n == 8
+        return new string[8]
+    elseIf n == 9
+        return new string[9]
+    endif
+    return new string[10]
+EndFunction
+
 function toggleTextureSet(bool useST)
     if useST
         MainQuest.texturePathNormal = texturePathNormalST

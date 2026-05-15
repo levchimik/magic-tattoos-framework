@@ -27,8 +27,8 @@ int[] Property condHaloAlpha Auto
 int[] Property condIncreaseExposure Auto
 
 ; ── Plugin registry ──────────────────────────────────────────────────────────
-int MAX_PLUGINS = 32 AutoReadOnly
-sd_LME_ConditionPlugin[] Property registeredPlugins Auto
+; Stored as Form[] because Papyrus cannot allocate custom-script-typed arrays at runtime.
+Form[] Property registeredPlugins Auto
 int Property pluginCount = 0 Auto
 
 ; ── Internal ──────────────────────────────────────────────────────────────────
@@ -44,7 +44,18 @@ bool influenceTracking = false
 ; ─────────────────────────────────────────────────────────────────────────────
 
 Event OnInit()
-    Trace("[LME_Main] OnInit — initializing arrays")
+    Trace("[LME_Main] OnInit")
+    EnsureArrays()
+EndEvent
+
+bool Property _arraysReady = false Auto Hidden
+
+Function EnsureArrays()
+{One-shot allocation — bool guard avoids reading array properties (Papyrus errors on None→Type[] casts).}
+    if _arraysReady
+        return
+    endif
+    Trace("[LME_Main] EnsureArrays: allocating arrays")
     condPluginId         = new string[8]
     condParam            = new int[8]
     condTextureNum       = new int[8]
@@ -58,19 +69,17 @@ Event OnInit()
     condHaloEmissiveMult = new float[8]
     condHaloAlpha        = new int[8]
     condIncreaseExposure = new int[8]
-    registeredPlugins    = new sd_LME_ConditionPlugin[32]
+    registeredPlugins    = new Form[32]
     pluginCount          = 0
-EndEvent
+    _arraysReady         = true
+EndFunction
 
 ; ── Plugin API ───────────────────────────────────────────────────────────────
 Function RegisterPlugin(sd_LME_ConditionPlugin p)
-{Called by sd_LME_ConditionPlugin._registerWithHost(). Idempotent.}
-    if p == None
+{Called by sd_LME_ConditionPlugin._tryRegister(). Idempotent.
+ Plugins are responsible for waiting until registeredPlugins is allocated before calling.}
+    if p == None || registeredPlugins == None
         return
-    endif
-    if registeredPlugins == None
-        registeredPlugins = new sd_LME_ConditionPlugin[32]
-        pluginCount = 0
     endif
     string pid = p.GetPluginId()
     if pid == ""
@@ -78,13 +87,13 @@ Function RegisterPlugin(sd_LME_ConditionPlugin p)
         return
     endif
     if FindPluginIndex(pid) >= 0
-        return    ; already registered (e.g. OnPlayerLoadGame re-fire)
+        return    ; already registered
     endif
-    if pluginCount >= 32
+    if pluginCount >= registeredPlugins.Length
         Trace("[LME_Main] RegisterPlugin REJECTED: registry full (" + pid + ")")
         return
     endif
-    registeredPlugins[pluginCount] = p
+    registeredPlugins[pluginCount] = p as Form
     pluginCount += 1
     Trace("[LME_Main] Registered plugin '" + pid + "' (" + p.GetLabel() + ") at index " + (pluginCount - 1))
 EndFunction
@@ -95,7 +104,8 @@ int Function FindPluginIndex(string pid)
     endif
     int i = 0
     while i < pluginCount
-        if registeredPlugins[i] != None && registeredPlugins[i].GetPluginId() == pid
+        sd_LME_ConditionPlugin slot = registeredPlugins[i] as sd_LME_ConditionPlugin
+        if slot != None && slot.GetPluginId() == pid
             return i
         endif
         i += 1
@@ -108,14 +118,14 @@ sd_LME_ConditionPlugin Function FindPlugin(string pid)
     if idx < 0
         return None
     endif
-    return registeredPlugins[idx]
+    return registeredPlugins[idx] as sd_LME_ConditionPlugin
 EndFunction
 
 sd_LME_ConditionPlugin Function GetPluginAt(int idx)
     if idx < 0 || idx >= pluginCount
         return None
     endif
-    return registeredPlugins[idx]
+    return registeredPlugins[idx] as sd_LME_ConditionPlugin
 EndFunction
 
 ; ── Priority evaluation ───────────────────────────────────────────────────────

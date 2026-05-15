@@ -4,17 +4,30 @@ Scriptname sd_LME_ConditionPlugin extends Quest
  Built-in plugins live in this ESP; external plugins live in their own ESP/ESL
  and discover the host via Game.GetFormFromFile(0x803, "LewdMarksEffects.esp").}
 
+bool _registered = false
+
 ; ── Lifecycle ────────────────────────────────────────────────────────────────
 Event OnInit()
-    _registerWithHost()
+    ; Delay registration so MainQuest.OnInit has a chance to allocate its registry array first.
+    RegisterForSingleUpdate(0.5)
 EndEvent
 
-Function _registerWithHost()
+Event OnUpdate()
+    _tryRegister()
+EndEvent
+
+Function _tryRegister()
+    if _registered
+        return
+    endif
     sd_LME_MainQuest host = Game.GetFormFromFile(0x803, "LewdMarksEffects.esp") as sd_LME_MainQuest
-    if host == None
+    if host == None || host.registeredPlugins == None
+        ; Host not ready yet — retry shortly.
+        RegisterForSingleUpdate(1.0)
         return
     endif
     host.RegisterPlugin(self)
+    _registered = true
 EndFunction
 
 ; ── OVERRIDE: identity ───────────────────────────────────────────────────────
