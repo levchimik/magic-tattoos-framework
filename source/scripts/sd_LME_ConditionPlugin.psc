@@ -1,8 +1,17 @@
 Scriptname sd_LME_ConditionPlugin extends Quest
 {Abstract base for LewdMarksEffects condition plugins.
- Override the methods marked OVERRIDE in your derived script.
- Built-in plugins live in this ESP; external plugins live in their own ESP/ESL
- and discover the host via Game.GetFormFromFile(0x803, "LewdMarksEffects.esp").}
+
+ A plugin script declares one or more condition items via the GetItem*/checkItem
+ methods. Each item is a separately-selectable entry in the MCM condition-type
+ dropdown. Items within a plugin share the host quest (and any soft-master
+ lookups it performs in _tryRegister).
+
+ A condition is globally identified by "<pluginId>:<itemId>". The host stores
+ these composite keys in MainQuest.condPluginId[] per slot.
+
+ Override the methods marked OVERRIDE in your derived script. External plugins
+ live in their own ESP/ESL and discover the host via
+   Game.GetFormFromFile(0x803, "LewdMarksEffects.esp")}
 
 bool Property _registered = false Auto Hidden
 
@@ -22,7 +31,6 @@ Function _tryRegister()
     endif
     sd_LME_MainQuest host = Game.GetFormFromFile(0x803, "LewdMarksEffects.esp") as sd_LME_MainQuest
     if host == None || host.registeredPlugins == None
-        ; Host not ready yet — retry shortly.
         RegisterForSingleUpdate(1.0)
         return
     endif
@@ -30,38 +38,55 @@ Function _tryRegister()
     _registered = true
 EndFunction
 
-; ── OVERRIDE: identity ───────────────────────────────────────────────────────
+; ── OVERRIDE: plugin identity ────────────────────────────────────────────────
 string Function GetPluginId()
-{Unique stable identifier — used in saves. Convention: "author.name".}
+{Stable unique plugin id. Convention: "<author>.<plugin>", e.g. "lme.base".}
     return ""
 EndFunction
 
-string Function GetLabel()
-{User-facing label shown in MCM condition-type dropdown.}
+string Function GetPluginLabel()
+{User-facing plugin name. Used as a prefix/header in the MCM dropdown.}
     return ""
 EndFunction
 
-string Function GetParamLabel()
-{Label for the integer parameter slider (e.g. "Arousal threshold").
- Return empty string if this plugin takes no parameter.}
-    return ""
-EndFunction
-
-int Function GetParamMin()
+; ── OVERRIDE: items ──────────────────────────────────────────────────────────
+int Function GetItemCount()
+{Number of condition items this plugin exposes in the MCM dropdown.}
     return 0
 EndFunction
 
-int Function GetParamMax()
+string Function GetItemId(int idx)
+{Stable per-plugin id for item `idx`. Combined with the plugin id as
+ "<pluginId>:<itemId>" globally. Must be unique within this plugin and
+ must not contain a colon.}
+    return ""
+EndFunction
+
+string Function GetItemLabel(int idx)
+{User-facing label shown in the MCM condition-type dropdown.}
+    return ""
+EndFunction
+
+string Function GetItemParamLabel(int idx)
+{Label for the integer parameter slider. Return "" if this item takes no parameter.}
+    return ""
+EndFunction
+
+int Function GetItemParamMin(int idx)
+    return 0
+EndFunction
+
+int Function GetItemParamMax(int idx)
     return 100
 EndFunction
 
-int Function GetParamDefault()
+int Function GetItemParamDefault(int idx)
     return 0
 EndFunction
 
 ; ── OVERRIDE: evaluation ─────────────────────────────────────────────────────
-bool Function check(Actor target, int param)
-{Return true when this condition is currently active on `target`.
- `param` is the slot's configured int parameter (see GetParamLabel).}
+bool Function checkItem(int idx, Actor target, int param)
+{Return true when item `idx` is currently satisfied for `target`.
+ `param` is the slot's configured int parameter (see GetItemParamLabel).}
     return false
 EndFunction

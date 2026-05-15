@@ -125,7 +125,7 @@ Function RegisterPlugin(sd_LME_ConditionPlugin p)
     endif
     registeredPlugins[pluginCount] = p as Form
     pluginCount += 1
-    Trace("[LME_Main] Registered plugin '" + pid + "' (" + p.GetLabel() + ") at index " + (pluginCount - 1))
+    Trace("[LME_Main] Registered plugin '" + pid + "' (" + p.GetPluginLabel() + ", " + p.GetItemCount() + " items) at index " + (pluginCount - 1))
 EndFunction
 
 int Function FindPluginIndex(string pid)
@@ -158,6 +158,108 @@ sd_LME_ConditionPlugin Function GetPluginAt(int idx)
     return registeredPlugins[idx] as sd_LME_ConditionPlugin
 EndFunction
 
+; ── Condition key helpers ─────────────────────────────────────────────────────
+; A condition key is "<pluginId>:<itemId>". MainQuest.condPluginId[] stores
+; these composite keys per slot. Empty string = "Not set".
+
+string Function _keyPluginId(string key)
+    int sep = StringUtil.Find(key, ":")
+    if sep < 0
+        return key
+    endif
+    return StringUtil.Substring(key, 0, sep)
+EndFunction
+
+string Function _keyItemId(string key)
+    int sep = StringUtil.Find(key, ":")
+    if sep < 0
+        return ""
+    endif
+    return StringUtil.Substring(key, sep + 1)
+EndFunction
+
+int Function _itemIdxFor(sd_LME_ConditionPlugin p, string itemId)
+    if p == None || itemId == ""
+        return -1
+    endif
+    int n = p.GetItemCount()
+    int i = 0
+    while i < n
+        if p.GetItemId(i) == itemId
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+sd_LME_ConditionPlugin Function ResolveConditionPlugin(string key)
+    if key == ""
+        return None
+    endif
+    return FindPlugin(_keyPluginId(key))
+EndFunction
+
+int Function ResolveConditionItemIdx(string key)
+    sd_LME_ConditionPlugin p = ResolveConditionPlugin(key)
+    return _itemIdxFor(p, _keyItemId(key))
+EndFunction
+
+; ── Flattened plugin×item view (for MCM dropdown enumeration) ────────────────
+int Function GetTotalItemCount()
+    int total = 0
+    int i = 0
+    while i < pluginCount
+        sd_LME_ConditionPlugin p = GetPluginAt(i)
+        if p != None
+            total += p.GetItemCount()
+        endif
+        i += 1
+    endwhile
+    return total
+EndFunction
+
+string Function GetGlobalItemKey(int globalIdx)
+{Returns "<pluginId>:<itemId>" for the flattened item at index `globalIdx`, or "".}
+    int seen = 0
+    int pi = 0
+    while pi < pluginCount
+        sd_LME_ConditionPlugin p = GetPluginAt(pi)
+        if p != None
+            int n = p.GetItemCount()
+            if globalIdx < seen + n
+                return p.GetPluginId() + ":" + p.GetItemId(globalIdx - seen)
+            endif
+            seen += n
+        endif
+        pi += 1
+    endwhile
+    return ""
+EndFunction
+
+string Function GetGlobalItemLabel(int globalIdx)
+{Returns user-facing "<PluginLabel> — <ItemLabel>" for flattened item at `globalIdx`.}
+    int seen = 0
+    int pi = 0
+    while pi < pluginCount
+        sd_LME_ConditionPlugin p = GetPluginAt(pi)
+        if p != None
+            int n = p.GetItemCount()
+            if globalIdx < seen + n
+                string pl = p.GetPluginLabel()
+                string il = p.GetItemLabel(globalIdx - seen)
+                if pl == ""
+                    return il
+                endif
+                return pl + " — " + il
+            endif
+            seen += n
+        endif
+        pi += 1
+    endwhile
+    return ""
+EndFunction
+
 ; ── Priority evaluation ───────────────────────────────────────────────────────
 int Function evaluateTier()
     if condPluginId == None
@@ -165,11 +267,14 @@ int Function evaluateTier()
     endif
     int i = 1
     while i < 8
-        string pid = condPluginId[i]
-        if pid != ""
-            sd_LME_ConditionPlugin p = FindPlugin(pid)
-            if p != None && p.check(PlayerRef, condParam[i])
-                return i
+        string key = condPluginId[i]
+        if key != ""
+            sd_LME_ConditionPlugin p = ResolveConditionPlugin(key)
+            if p != None
+                int itemIdx = _itemIdxFor(p, _keyItemId(key))
+                if itemIdx >= 0 && p.checkItem(itemIdx, PlayerRef, condParam[i])
+                    return i
+                endif
             endif
         endif
         i += 1

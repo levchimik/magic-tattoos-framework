@@ -15,7 +15,7 @@ sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 6
+    return 7
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -25,15 +25,24 @@ string Function _slotLabel(int idx)
     return "Condition " + idx
 endFunction
 
-string Function _condTypeLabel(string pid)
-    if pid == "" || MainQuest == None
+string Function _condTypeLabel(string key)
+    if key == "" || MainQuest == None
         return "Not set"
     endif
-    sd_LME_ConditionPlugin p = MainQuest.FindPlugin(pid)
+    sd_LME_ConditionPlugin p = MainQuest.ResolveConditionPlugin(key)
     if p == None
-        return "Unknown (" + pid + ")"
+        return "Unknown (" + key + ")"
     endif
-    return p.GetLabel()
+    int itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return "Unknown (" + key + ")"
+    endif
+    string pl = p.GetPluginLabel()
+    string il = p.GetItemLabel(itemIdx)
+    if pl == ""
+        return il
+    endif
+    return pl + " — " + il
 endFunction
 
 event OnConfigInit()
@@ -115,6 +124,17 @@ event OnVersionUpdate(int Version)
         MainQuest.pheromoneRadius    = 1500.0
         MainQuest.pheromoneMaxTargets = 32
     endif
+    if CurrentVersion < 7
+        ; v0.0.8: condPluginId now stores composite "<pluginId>:<itemId>" keys.
+        ; All old single-id values (lme.magicka, lme.arousal, lme.pregnancy.fmr,
+        ; lme.ovulation.fmr, lme.combat.*) are obsolete — wipe them.
+        int slot = 0
+        while slot < 8
+            MainQuest.condPluginId[slot] = ""
+            MainQuest.condParam[slot]    = 0
+            slot += 1
+        endwhile
+    endif
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -135,12 +155,12 @@ function drawGeneralPage()
     AddToggleOptionST("GEN_USE_SLAVETATS",   "Use SlaveTats textures", MainQuest.useSlaveTats)
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
     AddSliderOptionST("GEN_PHEROMONE_RADIUS","Pheromone radius",       MainQuest.pheromoneRadius, "{0}")
-    AddHeaderOption("Registered plugins (" + MainQuest.pluginCount + ")")
+    AddHeaderOption("Registered plugins (" + MainQuest.pluginCount + ", " + MainQuest.GetTotalItemCount() + " items)")
     int i = 0
     while i < MainQuest.pluginCount
         sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(i)
         if p != None
-            AddTextOption(p.GetLabel(), p.GetPluginId(), OPTION_FLAG_DISABLED)
+            AddTextOption(p.GetPluginLabel(), p.GetPluginId() + " (" + p.GetItemCount() + ")", OPTION_FLAG_DISABLED)
         endif
         i += 1
     endwhile
@@ -158,22 +178,26 @@ function drawConditionsPage()
         AddSliderOptionST("SLOT_TEXTURE_NUM",  "Texture number", MainQuest.condTextureNum[0])
         AddToggleOptionST("SLOT_USE_GLOW",     "Use glow",       MainQuest.condUseGlow[0])
     else
-        string pid = MainQuest.condPluginId[idx]
+        string key = MainQuest.condPluginId[idx]
         sd_LME_ConditionPlugin p = None
-        if pid != ""
-            p = MainQuest.FindPlugin(pid)
+        int itemIdx = -1
+        if key != ""
+            p = MainQuest.ResolveConditionPlugin(key)
+            if p != None
+                itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(key))
+            endif
         endif
 
         AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
-        AddMenuOptionST("SLOT_COND_TYPE", "Condition type", _condTypeLabel(pid))
+        AddMenuOptionST("SLOT_COND_TYPE", "Condition type", _condTypeLabel(key))
         AddHeaderOption("Condition " + idx)
 
-        if p != None
-            string paramLabel = p.GetParamLabel()
+        if p != None && itemIdx >= 0
+            string paramLabel = p.GetItemParamLabel(itemIdx)
             if paramLabel != ""
                 AddSliderOptionST("SLOT_COND_PARAM", paramLabel, MainQuest.condParam[idx])
             else
-                AddTextOption(p.GetLabel(), "(no parameter)", OPTION_FLAG_DISABLED)
+                AddTextOption(p.GetItemLabel(itemIdx), "(no parameter)", OPTION_FLAG_DISABLED)
             endif
         endif
 
@@ -360,27 +384,22 @@ endState
 
 state SLOT_COND_TYPE
     event OnMenuOpenST()
-        ; Index 0 = "Not set"; indices 1..N map to MainQuest.GetPluginAt(i-1).
-        ; OnMenuAcceptST re-derives the mapping live (no cached array — Papyrus
-        ; script-level vars don't survive the dialog open→accept gap reliably).
-        int total = 1 + MainQuest.pluginCount
-        if total > 10
-            total = 10
+        ; Build a flattened list of plugin×item entries. Index 0 = "Not set";
+        ; indices 1..N map to MainQuest.GetGlobalItemKey(i-1).
+        int total = 1 + MainQuest.GetTotalItemCount()
+        if total > 128
+            total = 128    ; SkyUI MCM hard cap on menu options
         endif
         string[] opts = _newOpts(total)
         opts[0] = "Not set"
         int curIdx = 0
-        string curPid = MainQuest.condPluginId[selectedCondition]
+        string curKey = MainQuest.condPluginId[selectedCondition]
         int i = 0
-        while i < MainQuest.pluginCount && (i + 1) < total
-            sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(i)
-            if p != None
-                opts[i + 1] = p.GetLabel()
-                if p.GetPluginId() == curPid
-                    curIdx = i + 1
-                endif
-            else
-                opts[i + 1] = "(missing)"
+        while (i + 1) < total
+            string key = MainQuest.GetGlobalItemKey(i)
+            opts[i + 1] = MainQuest.GetGlobalItemLabel(i)
+            if key == curKey
+                curIdx = i + 1
             endif
             i += 1
         endwhile
@@ -393,23 +412,26 @@ state SLOT_COND_TYPE
             return
         endif
         int slot = selectedCondition
-        string newPid = ""
+        string newKey = ""
         if index > 0
-            sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(index - 1)
-            if p != None
-                newPid = p.GetPluginId()
-            endif
+            newKey = MainQuest.GetGlobalItemKey(index - 1)
         endif
-        MainQuest.condPluginId[slot] = newPid
-        if newPid == ""
+        MainQuest.condPluginId[slot] = newKey
+        if newKey == ""
             MainQuest.condParam[slot] = 0
         else
-            sd_LME_ConditionPlugin p = MainQuest.FindPlugin(newPid)
+            sd_LME_ConditionPlugin p = MainQuest.ResolveConditionPlugin(newKey)
+            int itemIdx = -1
             if p != None
-                MainQuest.condParam[slot] = p.GetParamDefault()
+                itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(newKey))
+            endif
+            if itemIdx >= 0
+                MainQuest.condParam[slot] = p.GetItemParamDefault(itemIdx)
+            else
+                MainQuest.condParam[slot] = 0
             endif
         endif
-        SetMenuOptionValueST(_condTypeLabel(newPid))
+        SetMenuOptionValueST(_condTypeLabel(newKey))
         ForcePageReset()
     endEvent
     event OnDefaultST()
@@ -425,13 +447,18 @@ endState
 
 state SLOT_COND_PARAM
     event OnSliderOpenST()
-        sd_LME_ConditionPlugin p = MainQuest.FindPlugin(MainQuest.condPluginId[selectedCondition])
+        string key = MainQuest.condPluginId[selectedCondition]
+        sd_LME_ConditionPlugin p = MainQuest.ResolveConditionPlugin(key)
         if p == None
             return
         endif
+        int itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(key))
+        if itemIdx < 0
+            return
+        endif
         SetSliderDialogStartValue(MainQuest.condParam[selectedCondition])
-        SetSliderDialogDefaultValue(p.GetParamDefault())
-        SetSliderDialogRange(p.GetParamMin(), p.GetParamMax())
+        SetSliderDialogDefaultValue(p.GetItemParamDefault(itemIdx))
+        SetSliderDialogRange(p.GetItemParamMin(itemIdx), p.GetItemParamMax(itemIdx))
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
@@ -439,21 +466,29 @@ state SLOT_COND_PARAM
         SetSliderOptionValueST(value as int)
     endEvent
     event OnDefaultST()
-        sd_LME_ConditionPlugin p = MainQuest.FindPlugin(MainQuest.condPluginId[selectedCondition])
+        string key = MainQuest.condPluginId[selectedCondition]
+        sd_LME_ConditionPlugin p = MainQuest.ResolveConditionPlugin(key)
         int defVal = 0
         if p != None
-            defVal = p.GetParamDefault()
+            int itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                defVal = p.GetItemParamDefault(itemIdx)
+            endif
         endif
         MainQuest.condParam[selectedCondition] = defVal
         SetSliderOptionValueST(defVal)
     endEvent
     event OnHighlightST()
-        sd_LME_ConditionPlugin p = MainQuest.FindPlugin(MainQuest.condPluginId[selectedCondition])
+        string key = MainQuest.condPluginId[selectedCondition]
+        sd_LME_ConditionPlugin p = MainQuest.ResolveConditionPlugin(key)
         if p != None
-            SetInfoText(p.GetParamLabel())
-        else
-            SetInfoText("Threshold value for the selected condition.")
+            int itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                SetInfoText(p.GetItemParamLabel(itemIdx))
+                return
+            endif
         endif
+        SetInfoText("Threshold value for the selected condition.")
     endEvent
 endState
 
