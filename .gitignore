@@ -4,3 +4,4 @@
 *.tmp
 *.log
 source/scripts/*.pex
+_deps/

@@ -3,21 +3,46 @@ Scriptname sd_LME_Plugin_Base extends sd_LME_Plugin
  + PO3 PapyrusExtender.
 
  Conditions (idx → id):
-   0  magicka         — Magicka %
-   1  combat.in       — In Combat
-   2  combat.alerted  — Enemies Alerted (combat state 1 or 2)
-   3  combat.hostile  — Hostile Nearby
+   0  magicka               — Above Magicka %
+   1  magicka.below         — Below Magicka %
+   2  stamina               — Above Stamina %
+   3  stamina.below         — Below Stamina %
+   4  combat.in             — In Combat
+   5  combat.alerted        — Enemies Alerted (combat state 1 or 2)
+   6  combat.hostile        — Hostile Nearby
+   7  combat.hit            — On Combat Hit (any source)
+   8  combat.hit.blunt      — On Combat Hit (mace/warhammer/fist)
+   9  combat.hit.bladed     — On Combat Hit (sword/dagger/axe)
+   10 combat.hit.ranged     — On Combat Hit (bow/crossbow)
+   11 combat.hit.magic.fire — On Combat Hit (fire spell)
+   12 combat.hit.magic.frost— On Combat Hit (frost spell)
+   13 combat.hit.magic.shock— On Combat Hit (shock spell)
 
  Effects (idx → id):
    0  drain.magickaRate  — drain `param`% of current MagickaRateMult
    1  drain.carryWeight  — drain `param`% of current CarryWeight
    2  drain.sneak        — drain `param`% of current Sneak
    3  burst.magicka      — one-shot: subtract `param`% of current Magicka on switch
-   4  burst.stamina      — one-shot: subtract `param`% of current Stamina on switch}
+   4  burst.stamina      — one-shot: subtract `param`% of current Stamina on switch
+
+ Hit detection is event-driven: sd_LME_HitListener (a ReferenceAlias on
+ LME_MainQuest forced to the player) calls _onHit(classIdx) on every hit.
+ Each class has its own counter; combat.hit.* conditions consume one
+ counter increment per check and roll the slot's chance%. The result
+ stays "armed" for HIT_VISIBLE_SECONDS so the mark is visible briefly.}
 
 float Property _appliedMana = 0.0 Auto Hidden
 float Property _appliedCarry = 0.0 Auto Hidden
 float Property _appliedSneak = 0.0 Auto Hidden
+
+; Parallel arrays indexed by class 0..6 (ANY/BLUNT/BLADED/RANGED/FIRE/FROST/SHOCK).
+int[] Property _hitCount Auto Hidden
+int[] Property _hitRolled Auto Hidden
+float[] Property _hitArmedRT Auto Hidden
+
+float Function HIT_VISIBLE_SECONDS() global
+    return 8.0
+EndFunction
 
 string Function GetPluginId()
     return "lme.base"
@@ -26,70 +51,176 @@ string Function GetPluginLabel()
     return "Base"
 EndFunction
 
+Function _ensureHitArrays()
+    if _hitCount == None
+        _hitCount = new int[7]
+    endif
+    if _hitRolled == None
+        _hitRolled = new int[7]
+    endif
+    if _hitArmedRT == None
+        _hitArmedRT = new float[7]
+    endif
+EndFunction
+
+; Called by sd_LME_HitListener on each player OnHit event.
+Function _onHit(int classIdx)
+    _ensureHitArrays()
+    _hitCount[0] += 1                              ; ANY always counts
+    if classIdx >= 1 && classIdx <= 6
+        _hitCount[classIdx] += 1
+    endif
+EndFunction
+
 ; ── Conditions ────────────────────────────────────────────────────────────────
 
 int Function GetConditionCount()
-    return 4
+    return 14
 EndFunction
 
 string Function GetConditionId(int idx)
     if idx == 0
         return "magicka"
     elseif idx == 1
-        return "combat.in"
+        return "magicka.below"
     elseif idx == 2
-        return "combat.alerted"
+        return "stamina"
     elseif idx == 3
+        return "stamina.below"
+    elseif idx == 4
+        return "combat.in"
+    elseif idx == 5
+        return "combat.alerted"
+    elseif idx == 6
         return "combat.hostile"
+    elseif idx == 7
+        return "combat.hit"
+    elseif idx == 8
+        return "combat.hit.blunt"
+    elseif idx == 9
+        return "combat.hit.bladed"
+    elseif idx == 10
+        return "combat.hit.ranged"
+    elseif idx == 11
+        return "combat.hit.magic.fire"
+    elseif idx == 12
+        return "combat.hit.magic.frost"
+    elseif idx == 13
+        return "combat.hit.magic.shock"
     endif
     return ""
 EndFunction
 
 string Function GetConditionLabel(int idx)
     if idx == 0
-        return "Magicka %"
+        return "Above Magicka %"
     elseif idx == 1
-        return "In Combat"
+        return "Below Magicka %"
     elseif idx == 2
-        return "Enemies Alerted"
+        return "Above Stamina %"
     elseif idx == 3
+        return "Below Stamina %"
+    elseif idx == 4
+        return "In Combat"
+    elseif idx == 5
+        return "Enemies Alerted"
+    elseif idx == 6
         return "Hostile Nearby"
+    elseif idx == 7
+        return "On Hit (Any)"
+    elseif idx == 8
+        return "On Hit (Blunt: mace/warhammer/fist)"
+    elseif idx == 9
+        return "On Hit (Bladed)"
+    elseif idx == 10
+        return "On Hit (Ranged)"
+    elseif idx == 11
+        return "On Hit (Fire)"
+    elseif idx == 12
+        return "On Hit (Frost)"
+    elseif idx == 13
+        return "On Hit (Shock)"
     endif
     return ""
 EndFunction
 
 string Function GetConditionParamLabel(int idx)
-    if idx == 0
-        return "Magicka % threshold"
-    elseif idx == 2 || idx == 3
+    if idx <= 3
+        return "Magicka/Stamina % threshold"
+    elseif idx == 5 || idx == 6
         return "Scan radius (meters)"
+    elseif idx >= 7 && idx <= 13
+        return "Chance % per hit"
     endif
     return ""
 EndFunction
 
 int Function GetConditionParamMin(int idx)
-    if idx == 2 || idx == 3
+    if idx == 5 || idx == 6
+        return 1
+    elseif idx >= 7 && idx <= 13
         return 1
     endif
     return 0
 EndFunction
 
 int Function GetConditionParamMax(int idx)
-    if idx == 0 || idx == 2 || idx == 3
-        return 100
+    return 100
+EndFunction
+
+int Function GetConditionParamDefault(int idx)
+    if idx == 0 || idx == 2
+        return 50
+    elseif idx == 1 || idx == 3
+        return 30
+    elseif idx == 5
+        return 40
+    elseif idx == 6
+        return 25
+    elseif idx >= 7 && idx <= 13
+        return 25
     endif
     return 0
 EndFunction
 
-int Function GetConditionParamDefault(int idx)
-    if idx == 0
-        return 50
-    elseif idx == 2
-        return 40
-    elseif idx == 3
-        return 25
+float Function _avPercent(Actor target, string av)
+    float maxV = target.GetActorValueMax(av)
+    if maxV <= 0.0
+        return -1.0
     endif
-    return 0
+    return (target.GetActorValue(av) / maxV) * 100.0
+EndFunction
+
+int Function _hitClassFor(int idx)
+    ; 7=ANY 8=BLUNT 9=BLADED 10=RANGED 11=FIRE 12=FROST 13=SHOCK
+    if idx == 7
+        return 0
+    elseif idx == 8
+        return 1
+    elseif idx == 9
+        return 2
+    elseif idx == 10
+        return 3
+    elseif idx == 11
+        return 4
+    elseif idx == 12
+        return 5
+    elseif idx == 13
+        return 6
+    endif
+    return -1
+EndFunction
+
+bool Function _checkHit(int classIdx, int param)
+    _ensureHitArrays()
+    float now = Utility.GetCurrentRealTime()
+    if _hitCount[classIdx] > _hitRolled[classIdx]
+        _hitRolled[classIdx] = _hitCount[classIdx]
+        if Utility.RandomInt(1, 100) <= param
+            _hitArmedRT[classIdx] = now + HIT_VISIBLE_SECONDS()
+        endif
+    endif
+    return now < _hitArmedRT[classIdx]
 EndFunction
 
 bool Function checkCondition(int idx, Actor target, int param)
@@ -97,17 +228,29 @@ bool Function checkCondition(int idx, Actor target, int param)
         return false
     endif
     if idx == 0
-        float maxMp = target.GetActorValueMax("Magicka")
-        if maxMp <= 0.0
+        float p = _avPercent(target, "Magicka")
+        return p >= 0.0 && p >= param as float
+    elseif idx == 1
+        float p = _avPercent(target, "Magicka")
+        return p >= 0.0 && p <= param as float
+    elseif idx == 2
+        float p = _avPercent(target, "Stamina")
+        return p >= 0.0 && p >= param as float
+    elseif idx == 3
+        float p = _avPercent(target, "Stamina")
+        return p >= 0.0 && p <= param as float
+    elseif idx == 4
+        return target.IsInCombat()
+    elseif idx == 5
+        return _scanNearbyCombat(target, param)
+    elseif idx == 6
+        return _scanNearbyHostile(target, param)
+    elseif idx >= 7 && idx <= 13
+        int c = _hitClassFor(idx)
+        if c < 0
             return false
         endif
-        return (target.GetActorValue("Magicka") / maxMp) * 100.0 >= param as float
-    elseif idx == 1
-        return target.IsInCombat()
-    elseif idx == 2
-        return _scanNearbyCombat(target, param)
-    elseif idx == 3
-        return _scanNearbyHostile(target, param)
+        return _checkHit(c, param)
     endif
     return false
 EndFunction
@@ -308,8 +451,6 @@ Function onDeactivate(int idx, Actor target, int param)
 EndFunction
 
 Function onTick(int idx, Actor target, int param)
-    ; Re-apply every tick so continuous drains stay in sync with gear/buff
-    ; changes. Burst effects are one-shot (onActivate only) and don't tick.
     if idx <= 2
         _recompute(idx, target, param)
     endif

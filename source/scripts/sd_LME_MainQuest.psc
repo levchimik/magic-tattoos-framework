@@ -55,6 +55,15 @@ int Property pluginCount = 0 Auto
 string[] Property disabledItems Auto Hidden
 bool _disabledReady = false
 
+; ── MCM picker cache ────────────────────────────────────────────────────────
+; Filled by BuildVisibleConditionMenu / BuildVisibleEffectMenu and consumed
+; by the MCM. Kept here (not on the MCM script) because Auto Hidden array
+; properties on the persistent main quest behave reliably, whereas the same
+; pattern on the MCM script returned empty arrays in testing.
+string[] Property menuKeys Auto Hidden
+string[] Property menuLabels Auto Hidden
+int Property menuCount = 0 Auto Hidden
+
 ; ── Internal ──────────────────────────────────────────────────────────────────
 actor Property PlayerRef Auto
 string Property texturePathNormal = "actors\\character\\overlays\\lewdmarks\\" Auto
@@ -76,6 +85,7 @@ Event OnInit()
 EndEvent
 
 bool Property _arraysReady = false Auto Hidden
+int Property _migrationLevel = 0 Auto Hidden
 
 Function EnsureArrays()
 {One-shot allocation — bool guard avoids reading array properties (Papyrus errors on None→Type[] casts).}
@@ -103,6 +113,28 @@ Function EnsureArrays()
     registeredPlugins    = new Form[32]
     pluginCount          = 0
     _arraysReady         = true
+EndFunction
+
+; Indexed write helpers — `obj.arrayProp[i] = val` syntax can fail to
+; persist on Papyrus property arrays (writes hit a transient copy, not the
+; backing storage). Reading the array into a local, mutating, and writing
+; the whole reference back through the setter is reliable.
+Function SetCondPluginId(int slot, string key)
+    string[] a = condPluginId
+    if a == None || a.Length < 8
+        a = new string[8]
+    endif
+    a[slot] = key
+    condPluginId = a
+EndFunction
+
+Function SetCondParam(int slot, int val)
+    int[] a = condParam
+    if a == None || a.Length < 8
+        a = new int[8]
+    endif
+    a[slot] = val
+    condParam = a
 EndFunction
 
 Function EnsureDisabledArray()
@@ -368,6 +400,56 @@ string Function GetGlobalEffectLabel(int globalIdx)
         pi += 1
     endwhile
     return ""
+EndFunction
+
+; ── MCM picker cache builders ─────────────────────────────────────────────────
+; One pass each. Caller snapshots references to menuKeys/menuLabels/menuCount
+; locally and reads from them in a tight loop — that turns the picker rebuild
+; from O(N^2) cross-script calls (the old GetVisibleConditionKey/Label loop)
+; into O(N) total with only a handful of cross-script hops.
+
+Function _ensureMenuArrays()
+    ; Force-reallocate every call so any stale 0-length array from prior
+    ; broken builds gets overwritten.
+    menuKeys = new string[64]
+    menuLabels = new string[64]
+EndFunction
+
+Function _stripDiagnostics()
+EndFunction
+
+Function BuildVisibleConditionMenu(string includeKey)
+    _ensureMenuArrays()
+    int total = GetTotalConditionItemCount()
+    int n = 0
+    int i = 0
+    while i < total && n < 64
+        string k = GetGlobalConditionKey(i)
+        if IsItemEnabled(k) || k == includeKey
+            menuKeys[n] = k
+            menuLabels[n] = GetGlobalConditionLabel(i)
+            n += 1
+        endif
+        i += 1
+    endwhile
+    menuCount = n
+EndFunction
+
+Function BuildVisibleEffectMenu(string includeKey)
+    _ensureMenuArrays()
+    int total = GetTotalEffectItemCount()
+    int n = 0
+    int i = 0
+    while i < total && n < 64
+        string k = GetGlobalEffectKey(i)
+        if IsItemEnabled(k) || k == includeKey
+            menuKeys[n] = k
+            menuLabels[n] = GetGlobalEffectLabel(i)
+            n += 1
+        endif
+        i += 1
+    endwhile
+    menuCount = n
 EndFunction
 
 ; ── Visible (enabled-only) views, with currently-bound key kept visible ─────

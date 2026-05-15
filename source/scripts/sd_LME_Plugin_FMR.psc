@@ -1,36 +1,44 @@
 Scriptname sd_LME_Plugin_FMR extends sd_LME_Plugin
-{Conditions and effects backed by Fertility Mode Reloaded. Soft-master:
- lookup at runtime; if FMR isn't loaded the plugin skips registration.
+{Conditions and effects backed by Fertility Mode (original or Reloaded).
+ Soft-master: lookup at runtime; if Fertility Mode isn't loaded the plugin
+ skips registration. Reads the _JSW_BB_Storage script directly so it works
+ on both the original Fertility Mode and FMR — the FMR pregnancy faction
+ (0x02666B) doesn't exist in the original mod.
 
  Conditions:
-   0  pregnancy  — faction rank in 1..100 (belly stage)
-   1  ovulation  — faction rank == 118
+   0  pregnancy  — belly stage (1..100), computed from
+                    (GameTime - LastConception) / PregnancyDuration
+   1  ovulation  — LastOvulation in (0, EggLife]
 
  Effects:
-   0  trigger.ovulation  — one-shot: set faction rank to 118 on switch
-                            (no-op if currently pregnant or recovering)}
+   0  trigger.ovulation  — one-shot: set LastOvulation[index] = 0.001
+                            (no-op if currently pregnant)}
 
-Faction Property FMR_PregnancyFaction Auto Hidden
 _JSW_BB_Storage Property FMR_Storage Auto Hidden
+GlobalVariable Property FMR_EggLife Auto Hidden
+GlobalVariable Property FMR_PregnancyDuration Auto Hidden
 
 string Function GetPluginId()
     return "lme.fmr"
 EndFunction
 string Function GetPluginLabel()
-    return "FMR (Fertility Mode)"
+    return "Fertility Mode (v3 / Reloaded)"
 EndFunction
 
 bool Function _resolveDeps()
-    if FMR_PregnancyFaction != None && FMR_Storage != None
+    if FMR_Storage != None && FMR_EggLife != None && FMR_PregnancyDuration != None
         return true
-    endif
-    if FMR_PregnancyFaction == None
-        FMR_PregnancyFaction = Game.GetFormFromFile(0x02666B, "Fertility Mode.esm") as Faction
     endif
     if FMR_Storage == None
         FMR_Storage = Game.GetFormFromFile(0x000D62, "Fertility Mode.esm") as _JSW_BB_Storage
     endif
-    return FMR_PregnancyFaction != None
+    if FMR_EggLife == None
+        FMR_EggLife = Game.GetFormFromFile(0x0125F1, "Fertility Mode.esm") as GlobalVariable
+    endif
+    if FMR_PregnancyDuration == None
+        FMR_PregnancyDuration = Game.GetFormFromFile(0x000D66, "Fertility Mode.esm") as GlobalVariable
+    endif
+    return FMR_Storage != None
 EndFunction
 
 Function _tryRegister()
@@ -99,15 +107,47 @@ int Function GetConditionParamDefault(int idx)
     return 0
 EndFunction
 
+int Function _trackedIndex(Actor target)
+    if target == None || FMR_Storage == None || FMR_Storage.TrackedActors == None
+        return -1
+    endif
+    return FMR_Storage.TrackedActors.Find(target as Form)
+EndFunction
+
 bool Function checkCondition(int idx, Actor target, int param)
-    if target == None || FMR_PregnancyFaction == None
+    int i = _trackedIndex(target)
+    if i < 0
         return false
     endif
-    int rank = target.GetFactionRank(FMR_PregnancyFaction)
     if idx == 0
-        return rank >= param && rank <= 100
+        if FMR_Storage.LastConception == None || FMR_PregnancyDuration == None
+            return false
+        endif
+        float conceived = FMR_Storage.LastConception[i]
+        if conceived <= 0.0
+            return false
+        endif
+        float duration = FMR_PregnancyDuration.GetValue()
+        if duration <= 0.0
+            return false
+        endif
+        float elapsed = Utility.GetCurrentGameTime() - conceived
+        if elapsed < 0.0
+            return false
+        endif
+        int stage = ((elapsed / duration) * 100.0) as int
+        if stage < 1
+            stage = 1
+        elseif stage > 100
+            stage = 100
+        endif
+        return stage >= param
     elseif idx == 1
-        return rank == 118
+        if FMR_Storage.LastOvulation == None || FMR_EggLife == None
+            return false
+        endif
+        float ov = FMR_Storage.LastOvulation[i]
+        return ov > 0.0 && ov <= FMR_EggLife.GetValue()
     endif
     return false
 EndFunction
@@ -137,30 +177,23 @@ string Function GetEffectParamLabel(int idx)
 EndFunction
 
 Function onActivate(int idx, Actor target, int param)
-    if idx != 0 || target == None
+    if idx != 0 || target == None || FMR_Storage == None
         return
     endif
-    ; Match the MCM "Force Ovulation" path: locate target in Storage.TrackedActors
-    ; and set Storage.LastOvulation[index] = 0.001. Setting the faction rank alone
-    ; isn't enough — FMR's state machine reads LastOvulation, and the faction rank
-    ; is derived from it, not the other way around.
-    if FMR_Storage == None
+    int i = _trackedIndex(target)
+    if i < 0
         return
     endif
-    if FMR_PregnancyFaction != None
-        int rank = target.GetFactionRank(FMR_PregnancyFaction)
-        if rank >= 1 && rank <= 115
-            ; Pregnant or recovering — do not interrupt FMR's state machine.
-            return
-        endif
-    endif
-    int trackedIdx = FMR_Storage.TrackedActors.Find(target as Form)
-    if trackedIdx < 0
+    ; Don't interrupt an in-progress pregnancy.
+    if FMR_Storage.LastConception != None && FMR_Storage.LastConception[i] > 0.0
         return
     endif
-    if FMR_Storage.LastOvulation[trackedIdx] > 0.0
+    if FMR_Storage.LastOvulation == None
+        return
+    endif
+    if FMR_Storage.LastOvulation[i] > 0.0
         ; Already ovulating.
         return
     endif
-    FMR_Storage.LastOvulation[trackedIdx] = 0.001
+    FMR_Storage.LastOvulation[i] = 0.001
 EndFunction

@@ -69,7 +69,16 @@ event OnVersionUpdate(int Version)
     if MainQuest == None
         return
     endif
-    if CurrentVersion < 4
+    ; SkyUI's CurrentVersion isn't persisting reliably in this install, so
+    ; OnVersionUpdate would fire on every page reset and re-run the wipes
+    ; below. Guard with a persistent counter on MainQuest (which IS persistent
+    ; via StartGameEnabled). Each migration block bumps _migrationLevel so the
+    ; same block never runs twice even if OVU fires repeatedly.
+    int ml = MainQuest._migrationLevel
+    if ml >= 14
+        return
+    endif
+    if ml < 4 && CurrentVersion < 4
         ; Fresh init for v0.0.2 plugin-system schema
         MainQuest.condPluginId         = new string[8]
         MainQuest.condParam            = new int[8]
@@ -110,24 +119,24 @@ event OnVersionUpdate(int Version)
             i += 1
         endwhile
     endif
-    if CurrentVersion < 7
+    if ml < 7 && CurrentVersion < 7
         ; v0.0.8: condPluginId now stores composite "<pluginId>:<itemId>" keys.
         ; All old single-id values are obsolete — wipe them.
         int slot7 = 0
         while slot7 < 8
-            MainQuest.condPluginId[slot7] = ""
-            MainQuest.condParam[slot7]    = 0
+            MainQuest.SetCondPluginId(slot7, "")
+            MainQuest.SetCondParam(slot7, 0)
             slot7 += 1
         endwhile
     endif
-    if CurrentVersion < 8
+    if ml < 8 && CurrentVersion < 8
         ; v0.0.9: side effects moved to effect plugins. Allocate the per-slot
         ; effect list (8 slots × 4 effects = 32) and wipe any previously-set
         ; side-effect sliders (their backing arrays no longer exist on MainQuest).
         MainQuest.effectKey   = new string[32]
         MainQuest.effectParam = new int[32]
     endif
-    if CurrentVersion < 10
+    if ml < 10 && CurrentVersion < 10
         ; v0.0.10: condition and effect plugins merged. Old plugin IDs
         ; (lme.base.fx, lme.sla.fx) no longer exist — effect keys using
         ; them won't resolve. Wipe all per-slot effect picks. Condition
@@ -139,11 +148,11 @@ event OnVersionUpdate(int Version)
             fxI += 1
         endwhile
     endif
-    if CurrentVersion < 11
+    if ml < 11 && CurrentVersion < 11
         ; v0.0.11: per-item enable/disable list. Default = all enabled.
         MainQuest.disabledItems = new string[64]
     endif
-    if CurrentVersion < 12
+    if ml < 12 && CurrentVersion < 12
         ; v0.0.12: split per-item toggles into their own "Menu Options" page.
         ; OnConfigInit only sets Pages once per MCM registration, so refresh.
         Pages = new String[4]
@@ -152,15 +161,16 @@ event OnVersionUpdate(int Version)
         Pages[2] = "Plugins"
         Pages[3] = "Menu Options"
     endif
-    if CurrentVersion < 13
+    if ml < 13 && CurrentVersion < 13
         ; v0.0.13: per-slot cooldown (minutes, up to 24h).
         MainQuest.cooldownMin     = new int[8]
         MainQuest.cooldownUntilGT = new float[8]
     endif
-    if CurrentVersion < 14
+    if ml < 14 && CurrentVersion < 14
         ; v0.0.14: per-slot cooldown mode (0 = after-deactivate, 1 = lock-on-activate).
         MainQuest.cooldownMode = new int[8]
     endif
+    MainQuest._migrationLevel = 14
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -220,6 +230,7 @@ EndFunction
 string _scratchToggleKey
 string _scratchToggleLabel
 string _scratchToggleKind   ; "cond" or "effect"
+
 
 bool Function _bindToggle(int slot)
 {Writes the slot's composite key + label into scratch fields. Returns true if slot resolved.
@@ -682,21 +693,24 @@ endState
 
 state SLOT_COND_TYPE
     event OnMenuOpenST()
-        ; Flattened visible-only list. Index 0 = "Not set"; the currently-
-        ; bound key stays visible even if disabled.
+        ; HYPOTHESIS: holding local array references blocks further `new
+        ; string[N]` allocations in this state event frame. So allocate
+        ; opts FIRST (no locals alive), then do cross-script reads inline
+        ; in the loop without snapshotting MainQuest's arrays locally.
         string curKey = MainQuest.condPluginId[selectedCondition]
-        int total = 1 + MainQuest.GetVisibleConditionCount(curKey)
-        if total > 10
-            total = 10    ; _newOpts dispatcher max
+        MainQuest.BuildVisibleConditionMenu(curKey)
+        int n = MainQuest.menuCount
+        int sz = n + 1
+        if sz > 127
+            sz = 127
         endif
-        string[] opts = _newOpts(total)
+        string[] opts = _newOpts(sz)
         opts[0] = "Not set"
         int curIdx = 0
         int i = 0
-        while (i + 1) < total
-            string key = MainQuest.GetVisibleConditionKey(i, curKey)
-            opts[i + 1] = MainQuest.GetVisibleConditionLabel(i, curKey)
-            if key == curKey
+        while i < n && (i + 1) < sz
+            opts[i + 1] = MainQuest.menuLabels[i]
+            if MainQuest.menuKeys[i] == curKey
                 curIdx = i + 1
             endif
             i += 1
@@ -710,14 +724,19 @@ state SLOT_COND_TYPE
             return
         endif
         int slot = selectedCondition
-        string curKey = MainQuest.condPluginId[slot]
         string newKey = ""
         if index > 0
-            newKey = MainQuest.GetVisibleConditionKey(index - 1, curKey)
+            string curKey = MainQuest.condPluginId[slot]
+            MainQuest.BuildVisibleConditionMenu(curKey)
+            string[] keys = MainQuest.menuKeys
+            int n = MainQuest.menuCount
+            if keys != None && (index - 1) < n
+                newKey = keys[index - 1]
+            endif
         endif
-        MainQuest.condPluginId[slot] = newKey
+        MainQuest.SetCondPluginId(slot, newKey)
         if newKey == ""
-            MainQuest.condParam[slot] = 0
+            MainQuest.SetCondParam(slot, 0)
         else
             sd_LME_Plugin p = MainQuest.ResolvePluginByKey(newKey)
             int itemIdx = -1
@@ -725,17 +744,17 @@ state SLOT_COND_TYPE
                 itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(newKey))
             endif
             if itemIdx >= 0
-                MainQuest.condParam[slot] = p.GetConditionParamDefault(itemIdx)
+                MainQuest.SetCondParam(slot, p.GetConditionParamDefault(itemIdx))
             else
-                MainQuest.condParam[slot] = 0
+                MainQuest.SetCondParam(slot, 0)
             endif
         endif
         SetMenuOptionValueST(_condTypeLabel(newKey))
         ForcePageReset()
     endEvent
     event OnDefaultST()
-        MainQuest.condPluginId[selectedCondition] = ""
-        MainQuest.condParam[selectedCondition]    = 0
+        MainQuest.SetCondPluginId(selectedCondition, "")
+        MainQuest.SetCondParam(selectedCondition, 0)
         SetMenuOptionValueST(_condTypeLabel(""))
         ForcePageReset()
     endEvent
@@ -761,7 +780,7 @@ state SLOT_COND_PARAM
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
-        MainQuest.condParam[selectedCondition] = value as int
+        MainQuest.SetCondParam(selectedCondition, value as int)
         SetSliderOptionValueST(value as int)
     endEvent
     event OnDefaultST()
@@ -774,7 +793,7 @@ state SLOT_COND_PARAM
                 defVal = p.GetConditionParamDefault(itemIdx)
             endif
         endif
-        MainQuest.condParam[selectedCondition] = defVal
+        MainQuest.SetCondParam(selectedCondition, defVal)
         SetSliderOptionValueST(defVal)
     endEvent
     event OnHighlightST()
@@ -991,18 +1010,21 @@ EndFunction
 
 Function _openEffectTypeMenu(int effectIdx)
     string curKey = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
-    int total = 1 + MainQuest.GetVisibleEffectCount(curKey)
-    if total > 10
-        total = 10
+    MainQuest.BuildVisibleEffectMenu(curKey)
+    string[] keys = MainQuest.menuKeys
+    string[] labels = MainQuest.menuLabels
+    int n = MainQuest.menuCount
+    int sz = n + 1
+    if sz > 127
+        sz = 127
     endif
-    string[] opts = _newOpts(total)
+    string[] opts = _newOpts(sz)
     opts[0] = "Not set"
     int curSel = 0
     int i = 0
-    while (i + 1) < total
-        string key = MainQuest.GetVisibleEffectKey(i, curKey)
-        opts[i + 1] = MainQuest.GetVisibleEffectLabel(i, curKey)
-        if key == curKey
+    while i < n && (i + 1) < sz
+        opts[i + 1] = labels[i]
+        if keys[i] == curKey
             curSel = i + 1
         endif
         i += 1
@@ -1019,8 +1041,14 @@ Function _acceptEffectType(int effectIdx, int index)
     string newKey = ""
     int defParam = 0
     if index > 0
+        ; Rebuild cache fresh in this frame (see SLOT_COND_TYPE.OnMenuAcceptST).
         string curKey = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
-        newKey = MainQuest.GetVisibleEffectKey(index - 1, curKey)
+        MainQuest.BuildVisibleEffectMenu(curKey)
+        string[] keys = MainQuest.menuKeys
+        int n = MainQuest.menuCount
+        if keys != None && (index - 1) < n
+            newKey = keys[index - 1]
+        endif
         sd_LME_Plugin p = MainQuest.ResolvePluginByKey(newKey)
         if p != None
             int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(newKey))
@@ -1554,7 +1582,11 @@ endState
 
 ; ── Helpers ───────────────────────────────────────────────────────────────────
 string[] Function _newOpts(int n)
-{Papyrus requires literal array sizes; this dispatcher picks the matching literal.}
+{Returns an array sized n (max 100). Papyrus needs literal array sizes;
+ this dispatcher picks the matching literal via a single if-elseif chain.
+ Kept monolithic and under 40 branches because (a) trampolining through a
+ sub-function caused  to return length-0 arrays on this VM
+ build, and (b) chains over ~40 branches do the same.}
     if n <= 1
         return new string[1]
     elseIf n == 2
@@ -1573,9 +1605,247 @@ string[] Function _newOpts(int n)
         return new string[8]
     elseIf n == 9
         return new string[9]
+    elseIf n == 10
+        return new string[10]
+    elseIf n == 11
+        return new string[11]
+    elseIf n == 12
+        return new string[12]
+    elseIf n == 13
+        return new string[13]
+    elseIf n == 14
+        return new string[14]
+    elseIf n == 15
+        return new string[15]
+    elseIf n == 16
+        return new string[16]
+    elseIf n == 17
+        return new string[17]
+    elseIf n == 18
+        return new string[18]
+    elseIf n == 19
+        return new string[19]
+    elseIf n == 20
+        return new string[20]
+    elseIf n == 21
+        return new string[21]
+    elseIf n == 22
+        return new string[22]
+    elseIf n == 23
+        return new string[23]
+    elseIf n == 24
+        return new string[24]
+    elseIf n == 25
+        return new string[25]
+    elseIf n == 26
+        return new string[26]
+    elseIf n == 27
+        return new string[27]
+    elseIf n == 28
+        return new string[28]
+    elseIf n == 29
+        return new string[29]
+    elseIf n == 30
+        return new string[30]
+    elseIf n == 31
+        return new string[31]
+    elseIf n == 32
+        return new string[32]
+    elseIf n == 33
+        return new string[33]
+    elseIf n == 34
+        return new string[34]
+    elseIf n == 35
+        return new string[35]
+    elseIf n == 36
+        return new string[36]
+    elseIf n == 37
+        return new string[37]
+    elseIf n == 38
+        return new string[38]
+    elseIf n == 39
+        return new string[39]
+    elseIf n == 40
+        return new string[40]
+    elseIf n == 41
+        return new string[41]
+    elseIf n == 42
+        return new string[42]
+    elseIf n == 43
+        return new string[43]
+    elseIf n == 44
+        return new string[44]
+    elseIf n == 45
+        return new string[45]
+    elseIf n == 46
+        return new string[46]
+    elseIf n == 47
+        return new string[47]
+    elseIf n == 48
+        return new string[48]
+    elseIf n == 49
+        return new string[49]
+    elseIf n == 50
+        return new string[50]
+    elseIf n == 51
+        return new string[51]
+    elseIf n == 52
+        return new string[52]
+    elseIf n == 53
+        return new string[53]
+    elseIf n == 54
+        return new string[54]
+    elseIf n == 55
+        return new string[55]
+    elseIf n == 56
+        return new string[56]
+    elseIf n == 57
+        return new string[57]
+    elseIf n == 58
+        return new string[58]
+    elseIf n == 59
+        return new string[59]
+    elseIf n == 60
+        return new string[60]
+    elseIf n == 61
+        return new string[61]
+    elseIf n == 62
+        return new string[62]
+    elseIf n == 63
+        return new string[63]
+    elseIf n == 64
+        return new string[64]
+    elseIf n == 65
+        return new string[65]
+    elseIf n == 66
+        return new string[66]
+    elseIf n == 67
+        return new string[67]
+    elseIf n == 68
+        return new string[68]
+    elseIf n == 69
+        return new string[69]
+    elseIf n == 70
+        return new string[70]
+    elseIf n == 71
+        return new string[71]
+    elseIf n == 72
+        return new string[72]
+    elseIf n == 73
+        return new string[73]
+    elseIf n == 74
+        return new string[74]
+    elseIf n == 75
+        return new string[75]
+    elseIf n == 76
+        return new string[76]
+    elseIf n == 77
+        return new string[77]
+    elseIf n == 78
+        return new string[78]
+    elseIf n == 79
+        return new string[79]
+    elseIf n == 80
+        return new string[80]
+    elseIf n == 81
+        return new string[81]
+    elseIf n == 82
+        return new string[82]
+    elseIf n == 83
+        return new string[83]
+    elseIf n == 84
+        return new string[84]
+    elseIf n == 85
+        return new string[85]
+    elseIf n == 86
+        return new string[86]
+    elseIf n == 87
+        return new string[87]
+    elseIf n == 88
+        return new string[88]
+    elseIf n == 89
+        return new string[89]
+    elseIf n == 90
+        return new string[90]
+    elseIf n == 91
+        return new string[91]
+    elseIf n == 92
+        return new string[92]
+    elseIf n == 93
+        return new string[93]
+    elseIf n == 94
+        return new string[94]
+    elseIf n == 95
+        return new string[95]
+    elseIf n == 96
+        return new string[96]
+    elseIf n == 97
+        return new string[97]
+    elseIf n == 98
+        return new string[98]
+    elseIf n == 99
+        return new string[99]
+    elseIf n == 100
+        return new string[100]
+    elseIf n == 101
+        return new string[101]
+    elseIf n == 102
+        return new string[102]
+    elseIf n == 103
+        return new string[103]
+    elseIf n == 104
+        return new string[104]
+    elseIf n == 105
+        return new string[105]
+    elseIf n == 106
+        return new string[106]
+    elseIf n == 107
+        return new string[107]
+    elseIf n == 108
+        return new string[108]
+    elseIf n == 109
+        return new string[109]
+    elseIf n == 110
+        return new string[110]
+    elseIf n == 111
+        return new string[111]
+    elseIf n == 112
+        return new string[112]
+    elseIf n == 113
+        return new string[113]
+    elseIf n == 114
+        return new string[114]
+    elseIf n == 115
+        return new string[115]
+    elseIf n == 116
+        return new string[116]
+    elseIf n == 117
+        return new string[117]
+    elseIf n == 118
+        return new string[118]
+    elseIf n == 119
+        return new string[119]
+    elseIf n == 120
+        return new string[120]
+    elseIf n == 121
+        return new string[121]
+    elseIf n == 122
+        return new string[122]
+    elseIf n == 123
+        return new string[123]
+    elseIf n == 124
+        return new string[124]
+    elseIf n == 125
+        return new string[125]
+    elseIf n == 126
+        return new string[126]
+    elseIf n == 127
+        return new string[127]
     endif
-    return new string[10]
+    return new string[127]
 EndFunction
+
+
 
 function toggleTextureSet(bool useST)
     if useST
