@@ -1,8 +1,8 @@
-Scriptname sd_LME_Plugin_FMR extends sd_LME_ConditionPlugin
-{Conditions backed by Fertility Mode Reloaded. Soft-master: lookup at runtime;
- if FMR isn't loaded the plugin skips registration entirely.
+Scriptname sd_LME_Plugin_FMR extends sd_LME_Plugin
+{Conditions backed by Fertility Mode Reloaded. Soft-master: lookup at
+ runtime; if FMR isn't loaded the plugin skips registration entirely.
 
- Items:
+ Conditions:
    0  pregnancy  — faction rank in 1..100 (belly stage)
    1  ovulation  — faction rank == 118}
 
@@ -39,11 +39,11 @@ Function _tryRegister()
     _registered = true
 EndFunction
 
-int Function GetItemCount()
+int Function GetConditionCount()
     return 2
 EndFunction
 
-string Function GetItemId(int idx)
+string Function GetConditionId(int idx)
     if idx == 0
         return "pregnancy"
     elseif idx == 1
@@ -52,7 +52,7 @@ string Function GetItemId(int idx)
     return ""
 EndFunction
 
-string Function GetItemLabel(int idx)
+string Function GetConditionLabel(int idx)
     if idx == 0
         return "Pregnancy"
     elseif idx == 1
@@ -61,35 +61,35 @@ string Function GetItemLabel(int idx)
     return ""
 EndFunction
 
-string Function GetItemParamLabel(int idx)
+string Function GetConditionParamLabel(int idx)
     if idx == 0
         return "Min belly stage (1-100)"
     endif
-    return ""    ; ovulation: no param
+    return ""
 EndFunction
 
-int Function GetItemParamMin(int idx)
+int Function GetConditionParamMin(int idx)
     if idx == 0
         return 1
     endif
     return 0
 EndFunction
 
-int Function GetItemParamMax(int idx)
+int Function GetConditionParamMax(int idx)
     if idx == 0
         return 100
     endif
     return 0
 EndFunction
 
-int Function GetItemParamDefault(int idx)
+int Function GetConditionParamDefault(int idx)
     if idx == 0
         return 1
     endif
     return 0
 EndFunction
 
-bool Function checkItem(int idx, Actor target, int param)
+bool Function checkCondition(int idx, Actor target, int param)
     if target == None || FMR_PregnancyFaction == None
         return false
     endif

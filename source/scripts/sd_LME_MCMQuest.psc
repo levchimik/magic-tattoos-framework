@@ -15,7 +15,7 @@ sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 9
+    return 10
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -29,16 +29,16 @@ string Function _condTypeLabel(string key)
     if key == "" || MainQuest == None
         return "Not set"
     endif
-    sd_LME_ConditionPlugin p = MainQuest.ResolveConditionPlugin(key)
+    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
     if p == None
         return "Unknown (" + key + ")"
     endif
-    int itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(key))
+    int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
     if itemIdx < 0
         return "Unknown (" + key + ")"
     endif
     string pl = p.GetPluginLabel()
-    string il = p.GetItemLabel(itemIdx)
+    string il = p.GetConditionLabel(itemIdx)
     if pl == ""
         return il
     endif
@@ -126,6 +126,18 @@ event OnVersionUpdate(int Version)
         MainQuest.effectKey   = new string[32]
         MainQuest.effectParam = new int[32]
     endif
+    if CurrentVersion < 10
+        ; v0.0.10: condition and effect plugins merged. Old plugin IDs
+        ; (lme.base.fx, lme.sla.fx) no longer exist — effect keys using
+        ; them won't resolve. Wipe all per-slot effect picks. Condition
+        ; picks are unchanged (lme.base, lme.fmr, lme.sla survive).
+        int fxI = 0
+        while fxI < 32
+            MainQuest.effectKey[fxI]   = ""
+            MainQuest.effectParam[fxI] = 0
+            fxI += 1
+        endwhile
+    endif
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -142,14 +154,12 @@ endEvent
 
 ; ── Settings binding (resolved on demand by walking plugins) ─────────────────
 ; Slot index `slot` (0..7) maps to the Nth setting found by walking
-; (condition plugins in order, then effect plugins in order). _bindSetting()
-; returns the owning plugin's Form and writes the local item idx + is-effect
-; flag into _scratch* fields. Re-derivable from any context, so the slot →
-; plugin mapping always matches between render and slider-event time even
-; after save/load.
+; registered plugins in order. _bindSetting() returns the owning plugin's
+; Form and writes the local item idx into _scratchItemIdx. Re-derivable
+; from any context so the slot → plugin mapping always matches between
+; render and slider-event time even after save/load.
 
 int _scratchItemIdx
-bool _scratchIsEffect
 
 string Function _settingStateId(int slot)
     return "SETTING_" + (slot + 1)
@@ -159,31 +169,16 @@ Form Function _bindSetting(int slot)
     int seen = 0
     int i = 0
     while i < MainQuest.pluginCount
-        sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(i)
+        sd_LME_Plugin p = MainQuest.GetPluginAt(i)
         if p != None
             int n = p.GetSettingCount()
             if slot < seen + n
                 _scratchItemIdx = slot - seen
-                _scratchIsEffect = false
                 return p as Form
             endif
             seen += n
         endif
         i += 1
-    endwhile
-    int ei = 0
-    while ei < MainQuest.effectPluginCount
-        sd_LME_EffectPlugin pe = MainQuest.GetEffectPluginAt(ei)
-        if pe != None
-            int n = pe.GetSettingCount()
-            if slot < seen + n
-                _scratchItemIdx = slot - seen
-                _scratchIsEffect = true
-                return pe as Form
-            endif
-            seen += n
-        endif
-        ei += 1
     endwhile
     return None
 EndFunction
@@ -201,12 +196,14 @@ function drawPluginsPage()
     SetCursorFillMode(TOP_TO_BOTTOM)
     int settingSlot = 0
 
-    AddHeaderOption("Condition plugins (" + MainQuest.pluginCount + ", " + MainQuest.GetTotalItemCount() + " items)")
+    AddHeaderOption("Plugins (" + MainQuest.pluginCount + ", " + MainQuest.GetTotalConditionItemCount() + " conditions, " + MainQuest.GetTotalEffectItemCount() + " effects)")
     int i = 0
     while i < MainQuest.pluginCount
-        sd_LME_ConditionPlugin p = MainQuest.GetPluginAt(i)
+        sd_LME_Plugin p = MainQuest.GetPluginAt(i)
         if p != None
-            AddTextOption(p.GetPluginLabel(), p.GetPluginId() + " (" + p.GetItemCount() + ")", OPTION_FLAG_DISABLED)
+            int cn = p.GetConditionCount()
+            int en = p.GetEffectCount()
+            AddTextOption(p.GetPluginLabel(), p.GetPluginId() + " (" + cn + "c, " + en + "e)", OPTION_FLAG_DISABLED)
             int sn = p.GetSettingCount()
             int s = 0
             while s < sn && settingSlot < 8
@@ -217,23 +214,6 @@ function drawPluginsPage()
         endif
         i += 1
     endwhile
-
-    AddHeaderOption("Effect plugins (" + MainQuest.effectPluginCount + ", " + MainQuest.GetTotalEffectItemCount() + " items)")
-    int ei = 0
-    while ei < MainQuest.effectPluginCount
-        sd_LME_EffectPlugin pe = MainQuest.GetEffectPluginAt(ei)
-        if pe != None
-            AddTextOption(pe.GetPluginLabel(), pe.GetPluginId() + " (" + pe.GetItemCount() + ")", OPTION_FLAG_DISABLED)
-            int sn = pe.GetSettingCount()
-            int s = 0
-            while s < sn && settingSlot < 8
-                AddSliderOptionST(_settingStateId(settingSlot), "  " + pe.GetSettingLabel(s), pe.GetSettingValue(s), pe.GetSettingFormat(s))
-                settingSlot += 1
-                s += 1
-            endwhile
-        endif
-        ei += 1
-    endwhile
 endFunction
 
 ; ── Setting-slot dispatchers (the 8 SETTING_N state blocks all call these) ──
@@ -243,27 +223,11 @@ Function _openSetting(int slot)
     if f == None
         return
     endif
+    sd_LME_Plugin p = f as sd_LME_Plugin
     int idx = _scratchItemIdx
-    int minV
-    int maxV
-    int defV
-    int curV
-    if _scratchIsEffect
-        sd_LME_EffectPlugin p = f as sd_LME_EffectPlugin
-        minV = p.GetSettingMin(idx)
-        maxV = p.GetSettingMax(idx)
-        defV = p.GetSettingDefault(idx)
-        curV = p.GetSettingValue(idx)
-    else
-        sd_LME_ConditionPlugin p = f as sd_LME_ConditionPlugin
-        minV = p.GetSettingMin(idx)
-        maxV = p.GetSettingMax(idx)
-        defV = p.GetSettingDefault(idx)
-        curV = p.GetSettingValue(idx)
-    endif
-    SetSliderDialogStartValue(curV)
-    SetSliderDialogDefaultValue(defV)
-    SetSliderDialogRange(minV, maxV)
+    SetSliderDialogStartValue(p.GetSettingValue(idx))
+    SetSliderDialogDefaultValue(p.GetSettingDefault(idx))
+    SetSliderDialogRange(p.GetSettingMin(idx), p.GetSettingMax(idx))
     SetSliderDialogInterval(1)
 EndFunction
 
@@ -272,19 +236,11 @@ Function _acceptSetting(int slot, float value)
     if f == None
         return
     endif
+    sd_LME_Plugin p = f as sd_LME_Plugin
     int idx = _scratchItemIdx
     int v = value as int
-    string fmt
-    if _scratchIsEffect
-        sd_LME_EffectPlugin p = f as sd_LME_EffectPlugin
-        p.SetSettingValue(idx, v)
-        fmt = p.GetSettingFormat(idx)
-    else
-        sd_LME_ConditionPlugin p = f as sd_LME_ConditionPlugin
-        p.SetSettingValue(idx, v)
-        fmt = p.GetSettingFormat(idx)
-    endif
-    SetSliderOptionValueST(v, fmt)
+    p.SetSettingValue(idx, v)
+    SetSliderOptionValueST(v, p.GetSettingFormat(idx))
 EndFunction
 
 Function _defaultSetting(int slot)
@@ -292,21 +248,11 @@ Function _defaultSetting(int slot)
     if f == None
         return
     endif
+    sd_LME_Plugin p = f as sd_LME_Plugin
     int idx = _scratchItemIdx
-    int defV
-    string fmt
-    if _scratchIsEffect
-        sd_LME_EffectPlugin p = f as sd_LME_EffectPlugin
-        defV = p.GetSettingDefault(idx)
-        fmt = p.GetSettingFormat(idx)
-        p.SetSettingValue(idx, defV)
-    else
-        sd_LME_ConditionPlugin p = f as sd_LME_ConditionPlugin
-        defV = p.GetSettingDefault(idx)
-        fmt = p.GetSettingFormat(idx)
-        p.SetSettingValue(idx, defV)
-    endif
-    SetSliderOptionValueST(defV, fmt)
+    int defV = p.GetSettingDefault(idx)
+    p.SetSettingValue(idx, defV)
+    SetSliderOptionValueST(defV, p.GetSettingFormat(idx))
 EndFunction
 
 Function _highlightSetting(int slot)
@@ -315,14 +261,8 @@ Function _highlightSetting(int slot)
         SetInfoText("")
         return
     endif
-    int idx = _scratchItemIdx
-    string info
-    if _scratchIsEffect
-        info = (f as sd_LME_EffectPlugin).GetSettingInfo(idx)
-    else
-        info = (f as sd_LME_ConditionPlugin).GetSettingInfo(idx)
-    endif
-    SetInfoText(info)
+    sd_LME_Plugin p = f as sd_LME_Plugin
+    SetInfoText(p.GetSettingInfo(_scratchItemIdx))
 EndFunction
 
 function drawConditionsPage()
@@ -338,12 +278,12 @@ function drawConditionsPage()
         AddToggleOptionST("SLOT_USE_GLOW",     "Use glow",       MainQuest.condUseGlow[0])
     else
         string key = MainQuest.condPluginId[idx]
-        sd_LME_ConditionPlugin p = None
+        sd_LME_Plugin p = None
         int itemIdx = -1
         if key != ""
-            p = MainQuest.ResolveConditionPlugin(key)
+            p = MainQuest.ResolvePluginByKey(key)
             if p != None
-                itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(key))
+                itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
             endif
         endif
 
@@ -352,11 +292,11 @@ function drawConditionsPage()
         AddHeaderOption("Condition " + idx)
 
         if p != None && itemIdx >= 0
-            string paramLabel = p.GetItemParamLabel(itemIdx)
+            string paramLabel = p.GetConditionParamLabel(itemIdx)
             if paramLabel != ""
                 AddSliderOptionST("SLOT_COND_PARAM", paramLabel, MainQuest.condParam[idx])
             else
-                AddTextOption(p.GetItemLabel(itemIdx), "(no parameter)", OPTION_FLAG_DISABLED)
+                AddTextOption(p.GetConditionLabel(itemIdx), "(no parameter)", OPTION_FLAG_DISABLED)
             endif
         endif
 
@@ -523,8 +463,8 @@ endState
 state SLOT_COND_TYPE
     event OnMenuOpenST()
         ; Build a flattened list of plugin×item entries. Index 0 = "Not set";
-        ; indices 1..N map to MainQuest.GetGlobalItemKey(i-1).
-        int total = 1 + MainQuest.GetTotalItemCount()
+        ; indices 1..N map to MainQuest.GetGlobalConditionKey(i-1).
+        int total = 1 + MainQuest.GetTotalConditionItemCount()
         if total > 10
             total = 10    ; _newOpts dispatcher max
         endif
@@ -534,8 +474,8 @@ state SLOT_COND_TYPE
         string curKey = MainQuest.condPluginId[selectedCondition]
         int i = 0
         while (i + 1) < total
-            string key = MainQuest.GetGlobalItemKey(i)
-            opts[i + 1] = MainQuest.GetGlobalItemLabel(i)
+            string key = MainQuest.GetGlobalConditionKey(i)
+            opts[i + 1] = MainQuest.GetGlobalConditionLabel(i)
             if key == curKey
                 curIdx = i + 1
             endif
@@ -552,19 +492,19 @@ state SLOT_COND_TYPE
         int slot = selectedCondition
         string newKey = ""
         if index > 0
-            newKey = MainQuest.GetGlobalItemKey(index - 1)
+            newKey = MainQuest.GetGlobalConditionKey(index - 1)
         endif
         MainQuest.condPluginId[slot] = newKey
         if newKey == ""
             MainQuest.condParam[slot] = 0
         else
-            sd_LME_ConditionPlugin p = MainQuest.ResolveConditionPlugin(newKey)
+            sd_LME_Plugin p = MainQuest.ResolvePluginByKey(newKey)
             int itemIdx = -1
             if p != None
-                itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(newKey))
+                itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(newKey))
             endif
             if itemIdx >= 0
-                MainQuest.condParam[slot] = p.GetItemParamDefault(itemIdx)
+                MainQuest.condParam[slot] = p.GetConditionParamDefault(itemIdx)
             else
                 MainQuest.condParam[slot] = 0
             endif
@@ -586,17 +526,17 @@ endState
 state SLOT_COND_PARAM
     event OnSliderOpenST()
         string key = MainQuest.condPluginId[selectedCondition]
-        sd_LME_ConditionPlugin p = MainQuest.ResolveConditionPlugin(key)
+        sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
         if p == None
             return
         endif
-        int itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(key))
+        int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
         if itemIdx < 0
             return
         endif
         SetSliderDialogStartValue(MainQuest.condParam[selectedCondition])
-        SetSliderDialogDefaultValue(p.GetItemParamDefault(itemIdx))
-        SetSliderDialogRange(p.GetItemParamMin(itemIdx), p.GetItemParamMax(itemIdx))
+        SetSliderDialogDefaultValue(p.GetConditionParamDefault(itemIdx))
+        SetSliderDialogRange(p.GetConditionParamMin(itemIdx), p.GetConditionParamMax(itemIdx))
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
@@ -605,12 +545,12 @@ state SLOT_COND_PARAM
     endEvent
     event OnDefaultST()
         string key = MainQuest.condPluginId[selectedCondition]
-        sd_LME_ConditionPlugin p = MainQuest.ResolveConditionPlugin(key)
+        sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
         int defVal = 0
         if p != None
-            int itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(key))
+            int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
             if itemIdx >= 0
-                defVal = p.GetItemParamDefault(itemIdx)
+                defVal = p.GetConditionParamDefault(itemIdx)
             endif
         endif
         MainQuest.condParam[selectedCondition] = defVal
@@ -618,11 +558,11 @@ state SLOT_COND_PARAM
     endEvent
     event OnHighlightST()
         string key = MainQuest.condPluginId[selectedCondition]
-        sd_LME_ConditionPlugin p = MainQuest.ResolveConditionPlugin(key)
+        sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
         if p != None
-            int itemIdx = MainQuest._itemIdxFor(p, MainQuest._keyItemId(key))
+            int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
             if itemIdx >= 0
-                SetInfoText(p.GetItemParamLabel(itemIdx))
+                SetInfoText(p.GetConditionParamLabel(itemIdx))
                 return
             endif
         endif
@@ -694,16 +634,16 @@ string Function _effectTypeLabel(int effectIdx)
     if key == ""
         return "Not set"
     endif
-    sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(key)
+    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
     if p == None
         return "Unknown (" + key + ")"
     endif
-    int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(key))
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
     if itemIdx < 0
         return "Unknown (" + key + ")"
     endif
     string pl = p.GetPluginLabel()
-    string il = p.GetItemLabel(itemIdx)
+    string il = p.GetEffectLabel(itemIdx)
     if pl == ""
         return il
     endif
@@ -716,15 +656,15 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string para
     if key == ""
         return
     endif
-    sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(key)
+    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
     if p == None
         return
     endif
-    int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(key))
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
     if itemIdx < 0
         return
     endif
-    string paramLabel = p.GetItemParamLabel(itemIdx)
+    string paramLabel = p.GetEffectParamLabel(itemIdx)
     if paramLabel != ""
         AddSliderOptionST(paramStateId, "  " + paramLabel, MainQuest.GetSlotEffectParam(slot, effectIdx))
     endif
@@ -761,11 +701,11 @@ Function _acceptEffectType(int effectIdx, int index)
     int defParam = 0
     if index > 0
         newKey = MainQuest.GetGlobalEffectKey(index - 1)
-        sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(newKey)
+        sd_LME_Plugin p = MainQuest.ResolvePluginByKey(newKey)
         if p != None
-            int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(newKey))
+            int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(newKey))
             if itemIdx >= 0
-                defParam = p.GetItemParamDefault(itemIdx)
+                defParam = p.GetEffectParamDefault(itemIdx)
             endif
         endif
     endif
@@ -774,17 +714,17 @@ EndFunction
 
 Function _openEffectParam(int effectIdx)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
-    sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(key)
+    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
     if p == None
         return
     endif
-    int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(key))
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
     if itemIdx < 0
         return
     endif
     SetSliderDialogStartValue(MainQuest.GetSlotEffectParam(selectedCondition, effectIdx))
-    SetSliderDialogDefaultValue(p.GetItemParamDefault(itemIdx))
-    SetSliderDialogRange(p.GetItemParamMin(itemIdx), p.GetItemParamMax(itemIdx))
+    SetSliderDialogDefaultValue(p.GetEffectParamDefault(itemIdx))
+    SetSliderDialogRange(p.GetEffectParamMin(itemIdx), p.GetEffectParamMax(itemIdx))
     SetSliderDialogInterval(1)
 EndFunction
 
@@ -796,12 +736,12 @@ EndFunction
 
 Function _defaultEffectParam(int effectIdx)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
-    sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(key)
+    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
     int defVal = 0
     if p != None
-        int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(key))
+        int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
         if itemIdx >= 0
-            defVal = p.GetItemParamDefault(itemIdx)
+            defVal = p.GetEffectParamDefault(itemIdx)
         endif
     endif
     MainQuest.SetSlotEffect(selectedCondition, effectIdx, key, defVal)
@@ -810,11 +750,11 @@ EndFunction
 
 Function _highlightEffectParam(int effectIdx)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
-    sd_LME_EffectPlugin p = MainQuest.ResolveEffectPlugin(key)
+    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
     if p != None
-        int itemIdx = MainQuest._itemIdxForEffect(p, MainQuest._keyItemId(key))
+        int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
         if itemIdx >= 0
-            SetInfoText(p.GetItemParamLabel(itemIdx))
+            SetInfoText(p.GetEffectParamLabel(itemIdx))
             return
         endif
     endif

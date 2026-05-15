@@ -12,7 +12,7 @@ int Property CurrentOverlaySlot = 2 Auto
 float Property updateInterval = 2.0 Auto
 
 ; ── Per-slot arrays (index 0 = Default, 1-7 = Conditions) ───────────────────
-; condPluginId: "<pluginId>:<itemId>" composite key; "" = unset/disabled.
+; condPluginId: "<pluginId>:<conditionItemId>" composite key; "" = unset.
 string[] Property condPluginId Auto
 int[] Property condParam Auto
 int[] Property condTextureNum Auto
@@ -27,22 +27,19 @@ float[] Property condHaloEmissiveMult Auto
 int[] Property condHaloAlpha Auto
 
 ; ── Per-slot effect lists (flat, 8 slots × MAX_EFFECTS_PER_SLOT) ─────────────
-; effectKey: "<pluginId>:<itemId>" or ""; effectParam parallel.
+; effectKey: "<pluginId>:<effectItemId>" or ""; effectParam parallel.
 ; Index: slot S, effect E => S * MAX_EFFECTS_PER_SLOT + E.
 string[] Property effectKey Auto
 int[] Property effectParam Auto
 
-; ── Plugin registries ────────────────────────────────────────────────────────
+; ── Plugin registry (single unified registry — both conditions and effects) ──
 Form[] Property registeredPlugins Auto
 int Property pluginCount = 0 Auto
-Form[] Property registeredEffectPlugins Auto
-int Property effectPluginCount = 0 Auto
 
 ; ── Internal ──────────────────────────────────────────────────────────────────
 actor Property PlayerRef Auto
 string Property texturePathNormal = "actors\\character\\overlays\\lewdmarks\\" Auto
 string Property texturePathGlow   = "actors\\character\\overlays\\lewdmarks-glow\\" Auto
-slaFrameWorkScr Property SLAFramework Auto Hidden    ; lazy-resolved from SexLabAroused.esm; None if SLA not loaded
 
 bool forceRedraw = false
 int currentTier = -1
@@ -57,18 +54,7 @@ EndFunction
 Event OnInit()
     Trace("[LME_Main] OnInit")
     EnsureArrays()
-    _resolveSoftDeps()
 EndEvent
-
-Function _resolveSoftDeps()
-{Lazy-resolve optional master forms so they don't appear as hard deps in the ESP.}
-    if SLAFramework == None
-        SLAFramework = Game.GetFormFromFile(0x04290F, "SexLabAroused.esm") as slaFrameWorkScr
-        if SLAFramework == None
-            Trace("[LME_Main] SexLabAroused.esm not loaded — SLA-dependent features disabled")
-        endif
-    endif
-EndFunction
 
 bool Property _arraysReady = false Auto Hidden
 
@@ -92,16 +78,14 @@ Function EnsureArrays()
     condHaloAlpha        = new int[8]
     effectKey            = new string[32]    ; 8 slots × 4 effects
     effectParam          = new int[32]
-    registeredPlugins        = new Form[32]
-    registeredEffectPlugins  = new Form[32]
+    registeredPlugins    = new Form[32]
     pluginCount          = 0
-    effectPluginCount    = 0
     _arraysReady         = true
 EndFunction
 
-; ── Condition plugin registry ────────────────────────────────────────────────
-Function RegisterPlugin(sd_LME_ConditionPlugin p)
-{Called by sd_LME_ConditionPlugin._tryRegister(). Idempotent.}
+; ── Plugin registry ──────────────────────────────────────────────────────────
+Function RegisterPlugin(sd_LME_Plugin p)
+{Called by sd_LME_Plugin._tryRegister(). Idempotent.}
     if p == None || registeredPlugins == None
         return
     endif
@@ -119,7 +103,7 @@ Function RegisterPlugin(sd_LME_ConditionPlugin p)
     endif
     registeredPlugins[pluginCount] = p as Form
     pluginCount += 1
-    Trace("[LME_Main] Registered condition plugin '" + pid + "' (" + p.GetPluginLabel() + ", " + p.GetItemCount() + " items)")
+    Trace("[LME_Main] Registered '" + pid + "' (" + p.GetPluginLabel() + ", " + p.GetConditionCount() + " conditions, " + p.GetEffectCount() + " effects)")
 EndFunction
 
 int Function FindPluginIndex(string pid)
@@ -128,7 +112,7 @@ int Function FindPluginIndex(string pid)
     endif
     int i = 0
     while i < pluginCount
-        sd_LME_ConditionPlugin slot = registeredPlugins[i] as sd_LME_ConditionPlugin
+        sd_LME_Plugin slot = registeredPlugins[i] as sd_LME_Plugin
         if slot != None && slot.GetPluginId() == pid
             return i
         endif
@@ -137,74 +121,22 @@ int Function FindPluginIndex(string pid)
     return -1
 EndFunction
 
-sd_LME_ConditionPlugin Function FindPlugin(string pid)
+sd_LME_Plugin Function FindPlugin(string pid)
     int idx = FindPluginIndex(pid)
     if idx < 0
         return None
     endif
-    return registeredPlugins[idx] as sd_LME_ConditionPlugin
+    return registeredPlugins[idx] as sd_LME_Plugin
 EndFunction
 
-sd_LME_ConditionPlugin Function GetPluginAt(int idx)
+sd_LME_Plugin Function GetPluginAt(int idx)
     if idx < 0 || idx >= pluginCount
         return None
     endif
-    return registeredPlugins[idx] as sd_LME_ConditionPlugin
+    return registeredPlugins[idx] as sd_LME_Plugin
 EndFunction
 
-; ── Effect plugin registry ───────────────────────────────────────────────────
-Function RegisterEffectPlugin(sd_LME_EffectPlugin p)
-    if p == None || registeredEffectPlugins == None
-        return
-    endif
-    string pid = p.GetPluginId()
-    if pid == ""
-        Trace("[LME_Main] RegisterEffectPlugin REJECTED: empty PluginId on " + p)
-        return
-    endif
-    if FindEffectPluginIndex(pid) >= 0
-        return
-    endif
-    if effectPluginCount >= registeredEffectPlugins.Length
-        Trace("[LME_Main] RegisterEffectPlugin REJECTED: registry full (" + pid + ")")
-        return
-    endif
-    registeredEffectPlugins[effectPluginCount] = p as Form
-    effectPluginCount += 1
-    Trace("[LME_Main] Registered effect plugin '" + pid + "' (" + p.GetPluginLabel() + ", " + p.GetItemCount() + " items)")
-EndFunction
-
-int Function FindEffectPluginIndex(string pid)
-    if pid == "" || registeredEffectPlugins == None
-        return -1
-    endif
-    int i = 0
-    while i < effectPluginCount
-        sd_LME_EffectPlugin slot = registeredEffectPlugins[i] as sd_LME_EffectPlugin
-        if slot != None && slot.GetPluginId() == pid
-            return i
-        endif
-        i += 1
-    endwhile
-    return -1
-EndFunction
-
-sd_LME_EffectPlugin Function FindEffectPlugin(string pid)
-    int idx = FindEffectPluginIndex(pid)
-    if idx < 0
-        return None
-    endif
-    return registeredEffectPlugins[idx] as sd_LME_EffectPlugin
-EndFunction
-
-sd_LME_EffectPlugin Function GetEffectPluginAt(int idx)
-    if idx < 0 || idx >= effectPluginCount
-        return None
-    endif
-    return registeredEffectPlugins[idx] as sd_LME_EffectPlugin
-EndFunction
-
-; ── Key helpers (shared between condition and effect plugins) ─────────────────
+; ── Key helpers ───────────────────────────────────────────────────────────────
 string Function _keyPluginId(string key)
     int sep = StringUtil.Find(key, ":")
     if sep < 0
@@ -221,14 +153,14 @@ string Function _keyItemId(string key)
     return StringUtil.Substring(key, sep + 1)
 EndFunction
 
-int Function _itemIdxFor(sd_LME_ConditionPlugin p, string itemId)
+int Function _condIdxFor(sd_LME_Plugin p, string itemId)
     if p == None || itemId == ""
         return -1
     endif
-    int n = p.GetItemCount()
+    int n = p.GetConditionCount()
     int i = 0
     while i < n
-        if p.GetItemId(i) == itemId
+        if p.GetConditionId(i) == itemId
             return i
         endif
         i += 1
@@ -236,14 +168,14 @@ int Function _itemIdxFor(sd_LME_ConditionPlugin p, string itemId)
     return -1
 EndFunction
 
-int Function _itemIdxForEffect(sd_LME_EffectPlugin p, string itemId)
+int Function _effectIdxFor(sd_LME_Plugin p, string itemId)
     if p == None || itemId == ""
         return -1
     endif
-    int n = p.GetItemCount()
+    int n = p.GetEffectCount()
     int i = 0
     while i < n
-        if p.GetItemId(i) == itemId
+        if p.GetEffectId(i) == itemId
             return i
         endif
         i += 1
@@ -251,48 +183,36 @@ int Function _itemIdxForEffect(sd_LME_EffectPlugin p, string itemId)
     return -1
 EndFunction
 
-sd_LME_ConditionPlugin Function ResolveConditionPlugin(string key)
+sd_LME_Plugin Function ResolvePluginByKey(string key)
     if key == ""
         return None
     endif
     return FindPlugin(_keyPluginId(key))
 EndFunction
 
-sd_LME_EffectPlugin Function ResolveEffectPlugin(string key)
-    if key == ""
-        return None
-    endif
-    return FindEffectPlugin(_keyPluginId(key))
-EndFunction
-
-int Function ResolveConditionItemIdx(string key)
-    sd_LME_ConditionPlugin p = ResolveConditionPlugin(key)
-    return _itemIdxFor(p, _keyItemId(key))
-EndFunction
-
-; ── Flattened plugin×item views (for MCM dropdowns) ──────────────────────────
-int Function GetTotalItemCount()
+; ── Flattened condition view (for MCM dropdown) ──────────────────────────────
+int Function GetTotalConditionItemCount()
     int total = 0
     int i = 0
     while i < pluginCount
-        sd_LME_ConditionPlugin p = GetPluginAt(i)
+        sd_LME_Plugin p = GetPluginAt(i)
         if p != None
-            total += p.GetItemCount()
+            total += p.GetConditionCount()
         endif
         i += 1
     endwhile
     return total
 EndFunction
 
-string Function GetGlobalItemKey(int globalIdx)
+string Function GetGlobalConditionKey(int globalIdx)
     int seen = 0
     int pi = 0
     while pi < pluginCount
-        sd_LME_ConditionPlugin p = GetPluginAt(pi)
+        sd_LME_Plugin p = GetPluginAt(pi)
         if p != None
-            int n = p.GetItemCount()
+            int n = p.GetConditionCount()
             if globalIdx < seen + n
-                return p.GetPluginId() + ":" + p.GetItemId(globalIdx - seen)
+                return p.GetPluginId() + ":" + p.GetConditionId(globalIdx - seen)
             endif
             seen += n
         endif
@@ -301,16 +221,16 @@ string Function GetGlobalItemKey(int globalIdx)
     return ""
 EndFunction
 
-string Function GetGlobalItemLabel(int globalIdx)
+string Function GetGlobalConditionLabel(int globalIdx)
     int seen = 0
     int pi = 0
     while pi < pluginCount
-        sd_LME_ConditionPlugin p = GetPluginAt(pi)
+        sd_LME_Plugin p = GetPluginAt(pi)
         if p != None
-            int n = p.GetItemCount()
+            int n = p.GetConditionCount()
             if globalIdx < seen + n
                 string pl = p.GetPluginLabel()
-                string il = p.GetItemLabel(globalIdx - seen)
+                string il = p.GetConditionLabel(globalIdx - seen)
                 if pl == ""
                     return il
                 endif
@@ -323,13 +243,14 @@ string Function GetGlobalItemLabel(int globalIdx)
     return ""
 EndFunction
 
+; ── Flattened effect view (for MCM dropdown) ─────────────────────────────────
 int Function GetTotalEffectItemCount()
     int total = 0
     int i = 0
-    while i < effectPluginCount
-        sd_LME_EffectPlugin p = GetEffectPluginAt(i)
+    while i < pluginCount
+        sd_LME_Plugin p = GetPluginAt(i)
         if p != None
-            total += p.GetItemCount()
+            total += p.GetEffectCount()
         endif
         i += 1
     endwhile
@@ -339,12 +260,12 @@ EndFunction
 string Function GetGlobalEffectKey(int globalIdx)
     int seen = 0
     int pi = 0
-    while pi < effectPluginCount
-        sd_LME_EffectPlugin p = GetEffectPluginAt(pi)
+    while pi < pluginCount
+        sd_LME_Plugin p = GetPluginAt(pi)
         if p != None
-            int n = p.GetItemCount()
+            int n = p.GetEffectCount()
             if globalIdx < seen + n
-                return p.GetPluginId() + ":" + p.GetItemId(globalIdx - seen)
+                return p.GetPluginId() + ":" + p.GetEffectId(globalIdx - seen)
             endif
             seen += n
         endif
@@ -356,13 +277,13 @@ EndFunction
 string Function GetGlobalEffectLabel(int globalIdx)
     int seen = 0
     int pi = 0
-    while pi < effectPluginCount
-        sd_LME_EffectPlugin p = GetEffectPluginAt(pi)
+    while pi < pluginCount
+        sd_LME_Plugin p = GetPluginAt(pi)
         if p != None
-            int n = p.GetItemCount()
+            int n = p.GetEffectCount()
             if globalIdx < seen + n
                 string pl = p.GetPluginLabel()
-                string il = p.GetItemLabel(globalIdx - seen)
+                string il = p.GetEffectLabel(globalIdx - seen)
                 if pl == ""
                     return il
                 endif
@@ -412,10 +333,10 @@ int Function evaluateTier()
     while i < 8
         string key = condPluginId[i]
         if key != ""
-            sd_LME_ConditionPlugin p = ResolveConditionPlugin(key)
+            sd_LME_Plugin p = ResolvePluginByKey(key)
             if p != None
-                int itemIdx = _itemIdxFor(p, _keyItemId(key))
-                if itemIdx >= 0 && p.checkItem(itemIdx, PlayerRef, condParam[i])
+                int itemIdx = _condIdxFor(p, _keyItemId(key))
+                if itemIdx >= 0 && p.checkCondition(itemIdx, PlayerRef, condParam[i])
                     return i
                 endif
             endif
@@ -427,7 +348,6 @@ EndFunction
 
 ; ── Effect lifecycle dispatch ────────────────────────────────────────────────
 Function _activateSlotEffects(int slot)
-{Fires onActivate for every configured effect on `slot`.}
     if effectKey == None || slot < 0 || slot >= 8
         return
     endif
@@ -437,9 +357,9 @@ Function _activateSlotEffects(int slot)
     while e < maxE
         string key = effectKey[base + e]
         if key != ""
-            sd_LME_EffectPlugin p = ResolveEffectPlugin(key)
+            sd_LME_Plugin p = ResolvePluginByKey(key)
             if p != None
-                int itemIdx = _itemIdxForEffect(p, _keyItemId(key))
+                int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     p.onActivate(itemIdx, PlayerRef, effectParam[base + e])
                 endif
@@ -450,7 +370,6 @@ Function _activateSlotEffects(int slot)
 EndFunction
 
 Function _deactivateSlotEffects(int slot)
-{Fires onDeactivate for every configured effect on `slot`. Safe to call with slot=-1 (no-op).}
     if effectKey == None || slot < 0 || slot >= 8
         return
     endif
@@ -460,9 +379,9 @@ Function _deactivateSlotEffects(int slot)
     while e < maxE
         string key = effectKey[base + e]
         if key != ""
-            sd_LME_EffectPlugin p = ResolveEffectPlugin(key)
+            sd_LME_Plugin p = ResolvePluginByKey(key)
             if p != None
-                int itemIdx = _itemIdxForEffect(p, _keyItemId(key))
+                int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     p.onDeactivate(itemIdx, PlayerRef, effectParam[base + e])
                 endif
@@ -473,7 +392,6 @@ Function _deactivateSlotEffects(int slot)
 EndFunction
 
 Function _tickSlotEffects(int slot)
-{Fires onTick for every configured effect on `slot`. Called every OnUpdate.}
     if effectKey == None || slot < 0 || slot >= 8
         return
     endif
@@ -483,9 +401,9 @@ Function _tickSlotEffects(int slot)
     while e < maxE
         string key = effectKey[base + e]
         if key != ""
-            sd_LME_EffectPlugin p = ResolveEffectPlugin(key)
+            sd_LME_Plugin p = ResolvePluginByKey(key)
             if p != None
-                int itemIdx = _itemIdxForEffect(p, _keyItemId(key))
+                int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     p.onTick(itemIdx, PlayerRef, effectParam[base + e])
                 endif
@@ -496,7 +414,6 @@ Function _tickSlotEffects(int slot)
 EndFunction
 
 Function _gameTickSlotEffects(int slot)
-{Fires onGameTime for every configured effect on `slot`. Called per in-game hour.}
     if effectKey == None || slot < 0 || slot >= 8
         return
     endif
@@ -506,9 +423,9 @@ Function _gameTickSlotEffects(int slot)
     while e < maxE
         string key = effectKey[base + e]
         if key != ""
-            sd_LME_EffectPlugin p = ResolveEffectPlugin(key)
+            sd_LME_Plugin p = ResolvePluginByKey(key)
             if p != None
-                int itemIdx = _itemIdxForEffect(p, _keyItemId(key))
+                int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     p.onGameTime(itemIdx, PlayerRef, effectParam[base + e])
                 endif
@@ -550,11 +467,11 @@ Function _notifyTierChange(int tier)
     while e < maxE
         string key = effectKey[base + e]
         if key != ""
-            sd_LME_EffectPlugin p = ResolveEffectPlugin(key)
+            sd_LME_Plugin p = ResolvePluginByKey(key)
             if p != None
-                int itemIdx = _itemIdxForEffect(p, _keyItemId(key))
+                int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    msg += " - " + p.GetItemLabel(itemIdx) + " " + effectParam[base + e]
+                    msg += " - " + p.GetEffectLabel(itemIdx) + " " + effectParam[base + e]
                 endif
             endif
         endif
@@ -583,7 +500,6 @@ State checkingAroused
     EndEvent
 
     Event OnUpdate()
-        _resolveSoftDeps()    ; cheap; self-heals if SLA was loaded mid-session or after script update
         if !ModActive
             removeOverlay(PlayerRef)
             if currentTier >= 0
@@ -614,7 +530,6 @@ State checkingAroused
             endif
         endif
 
-        ; Per-tick effect refresh (e.g. %-of-current AV drains shifting with gear).
         _tickSlotEffects(currentTier)
 
         if _slotHasEffects(currentTier)
