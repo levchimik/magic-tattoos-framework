@@ -11,7 +11,9 @@ Scriptname sd_LME_Plugin_Base extends sd_LME_Plugin
  Effects (idx → id):
    0  drain.magickaRate  — drain `param`% of current MagickaRateMult
    1  drain.carryWeight  — drain `param`% of current CarryWeight
-   2  drain.sneak        — drain `param`% of current Sneak}
+   2  drain.sneak        — drain `param`% of current Sneak
+   3  burst.magicka      — one-shot: subtract `param`% of current Magicka on switch
+   4  burst.stamina      — one-shot: subtract `param`% of current Stamina on switch}
 
 float Property _appliedMana = 0.0 Auto Hidden
 float Property _appliedCarry = 0.0 Auto Hidden
@@ -161,7 +163,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 3
+    return 5
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -171,6 +173,10 @@ string Function GetEffectId(int idx)
         return "drain.carryWeight"
     elseif idx == 2
         return "drain.sneak"
+    elseif idx == 3
+        return "burst.magicka"
+    elseif idx == 4
+        return "burst.stamina"
     endif
     return ""
 EndFunction
@@ -182,6 +188,10 @@ string Function GetEffectLabel(int idx)
         return "Carry Weight Penalty"
     elseif idx == 2
         return "Sneak Penalty"
+    elseif idx == 3
+        return "[!] Magicka Burst"
+    elseif idx == 4
+        return "[!] Stamina Burst"
     endif
     return ""
 EndFunction
@@ -193,6 +203,10 @@ string Function GetEffectParamLabel(int idx)
         return "Drain % of current CarryWeight"
     elseif idx == 2
         return "Drain % of current Sneak"
+    elseif idx == 3
+        return "Burst drain % of current Magicka"
+    elseif idx == 4
+        return "Burst drain % of current Stamina"
     endif
     return ""
 EndFunction
@@ -204,6 +218,9 @@ int Function GetEffectParamMax(int idx)
     return 100
 EndFunction
 int Function GetEffectParamDefault(int idx)
+    if idx == 3 || idx == 4
+        return 50
+    endif
     return 25
 EndFunction
 
@@ -262,15 +279,38 @@ Function _recompute(int idx, Actor target, int param)
     _setApplied(idx, amt)
 EndFunction
 
+Function _burstDrain(string av, Actor target, int param)
+    if target == None || param <= 0
+        return
+    endif
+    float current = target.GetActorValue(av)
+    if current <= 0.0
+        return
+    endif
+    float amt = current * param / 100.0
+    target.DamageActorValue(av, amt)
+EndFunction
+
 Function onActivate(int idx, Actor target, int param)
-    _recompute(idx, target, param)
+    if idx <= 2
+        _recompute(idx, target, param)
+    elseif idx == 3
+        _burstDrain("Magicka", target, param)
+    elseif idx == 4
+        _burstDrain("Stamina", target, param)
+    endif
 EndFunction
 
 Function onDeactivate(int idx, Actor target, int param)
-    _recompute(idx, target, 0)
+    if idx <= 2
+        _recompute(idx, target, 0)
+    endif
 EndFunction
 
 Function onTick(int idx, Actor target, int param)
-    ; Re-apply every tick so the drain stays in sync with gear/buff changes.
-    _recompute(idx, target, param)
+    ; Re-apply every tick so continuous drains stay in sync with gear/buff
+    ; changes. Burst effects are one-shot (onActivate only) and don't tick.
+    if idx <= 2
+        _recompute(idx, target, param)
+    endif
 EndFunction

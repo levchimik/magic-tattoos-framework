@@ -1,10 +1,14 @@
 Scriptname sd_LME_Plugin_FMR extends sd_LME_Plugin
-{Conditions backed by Fertility Mode Reloaded. Soft-master: lookup at
- runtime; if FMR isn't loaded the plugin skips registration entirely.
+{Conditions and effects backed by Fertility Mode Reloaded. Soft-master:
+ lookup at runtime; if FMR isn't loaded the plugin skips registration.
 
  Conditions:
    0  pregnancy  — faction rank in 1..100 (belly stage)
-   1  ovulation  — faction rank == 118}
+   1  ovulation  — faction rank == 118
+
+ Effects:
+   0  trigger.ovulation  — one-shot: set faction rank to 118 on switch
+                            (no-op if currently pregnant or recovering)}
 
 Faction Property FMR_PregnancyFaction Auto Hidden
 
@@ -100,4 +104,40 @@ bool Function checkCondition(int idx, Actor target, int param)
         return rank == 118
     endif
     return false
+EndFunction
+
+; ── Effects ───────────────────────────────────────────────────────────────────
+
+int Function GetEffectCount()
+    return 1
+EndFunction
+
+string Function GetEffectId(int idx)
+    if idx == 0
+        return "trigger.ovulation"
+    endif
+    return ""
+EndFunction
+
+string Function GetEffectLabel(int idx)
+    if idx == 0
+        return "[!] Trigger Ovulation"
+    endif
+    return ""
+EndFunction
+
+string Function GetEffectParamLabel(int idx)
+    return ""
+EndFunction
+
+Function onActivate(int idx, Actor target, int param)
+    if idx != 0 || target == None || FMR_PregnancyFaction == None
+        return
+    endif
+    int rank = target.GetFactionRank(FMR_PregnancyFaction)
+    if rank >= 1 && rank <= 115
+        ; Pregnant or recovering — do not interrupt FMR's state machine.
+        return
+    endif
+    target.SetFactionRank(FMR_PregnancyFaction, 118)
 EndFunction
