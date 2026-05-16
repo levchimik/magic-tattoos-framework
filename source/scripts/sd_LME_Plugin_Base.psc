@@ -35,10 +35,11 @@ float Property _appliedMana = 0.0 Auto Hidden
 float Property _appliedCarry = 0.0 Auto Hidden
 float Property _appliedSneak = 0.0 Auto Hidden
 
-; Parallel arrays indexed by class 0..6 (ANY/BLUNT/BLADED/RANGED/FIRE/FROST/SHOCK).
-int[] Property _hitCount Auto Hidden
-int[] Property _hitRolled Auto Hidden
-float[] Property _hitArmedRT Auto Hidden
+; Hit-class counter storage uses PapyrusUtil StorageUtil (see MainQuest).
+; Auto Hidden array properties added post-release do not get attached to
+; existing script instances — even on a "fresh new game" if any prior save
+; touched the quest, indexed-property and whole-array writes silently no-op.
+; StorageUtil persists in the cosave and sidesteps the OnInit-once trap.
 
 float Function HIT_VISIBLE_SECONDS() global
     return 8.0
@@ -51,25 +52,17 @@ string Function GetPluginLabel()
     return "Base"
 EndFunction
 
-Function _ensureHitArrays()
-    if _hitCount == None
-        _hitCount = new int[7]
-    endif
-    if _hitRolled == None
-        _hitRolled = new int[7]
-    endif
-    if _hitArmedRT == None
-        _hitArmedRT = new float[7]
-    endif
+sd_LME_MainQuest Function _host()
+    return Game.GetFormFromFile(0x803, "LewdMarksEffects.esp") as sd_LME_MainQuest
 EndFunction
 
 ; Called by sd_LME_HitListener on each player OnHit event.
 Function _onHit(int classIdx)
-    _ensureHitArrays()
-    _hitCount[0] += 1                              ; ANY always counts
-    if classIdx >= 1 && classIdx <= 6
-        _hitCount[classIdx] += 1
+    sd_LME_MainQuest h = _host()
+    if h == None
+        return
     endif
+    h.IncHitCount(classIdx)
 EndFunction
 
 ; ── Conditions ────────────────────────────────────────────────────────────────
@@ -212,15 +205,20 @@ int Function _hitClassFor(int idx)
 EndFunction
 
 bool Function _checkHit(int classIdx, int param)
-    _ensureHitArrays()
+    sd_LME_MainQuest h = _host()
+    if h == None
+        return false
+    endif
     float now = Utility.GetCurrentRealTime()
-    if _hitCount[classIdx] > _hitRolled[classIdx]
-        _hitRolled[classIdx] = _hitCount[classIdx]
+    int cnt = h.GetHitCount(classIdx)
+    int rolled = h.GetHitRolled(classIdx)
+    if cnt > rolled
+        h.SetHitRolled(classIdx, cnt)
         if Utility.RandomInt(1, 100) <= param
-            _hitArmedRT[classIdx] = now + HIT_VISIBLE_SECONDS()
+            h.SetHitArmedRT(classIdx, now + HIT_VISIBLE_SECONDS())
         endif
     endif
-    return now < _hitArmedRT[classIdx]
+    return now < h.GetHitArmedRT(classIdx)
 EndFunction
 
 bool Function checkCondition(int idx, Actor target, int param)

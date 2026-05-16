@@ -74,7 +74,8 @@ Event OnHit(ObjectReference akAggressor, Form akSource, Projectile akProjectile,
     _resolveKeywords()
     int cls = _classify(akSource)
     sd_LME_Plugin_Base p = Game.GetFormFromFile(0x80D, "LewdMarksEffects.esp") as sd_LME_Plugin_Base
-    if p != None
-        p._onHit(cls)
+    if p == None
+        return
     endif
+    p._onHit(cls)
 EndEvent

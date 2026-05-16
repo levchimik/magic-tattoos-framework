@@ -137,6 +137,41 @@ Function SetCondParam(int slot, int val)
     condParam = a
 EndFunction
 
+; Hit-class counters (7 classes: ANY/BLUNT/BLADED/RANGED/FIRE/FROST/SHOCK).
+; Stored via PapyrusUtil StorageUtil. Auto Hidden array properties added
+; post-release do not get attached to existing script instances and even
+; whole-array writes (`_hitCount = new int[7]`) don't read back — verified
+; empirically. StorageUtil persists in the cosave, no init-order traps.
+
+Function IncHitCount(int classIdx)
+    int cur = StorageUtil.GetIntValue(self, "lme.hit.count.0", 0)
+    StorageUtil.SetIntValue(self, "lme.hit.count.0", cur + 1)
+    if classIdx >= 1 && classIdx <= 6
+        int curC = StorageUtil.GetIntValue(self, "lme.hit.count." + classIdx, 0)
+        StorageUtil.SetIntValue(self, "lme.hit.count." + classIdx, curC + 1)
+    endif
+EndFunction
+
+int Function GetHitCount(int classIdx)
+    return StorageUtil.GetIntValue(self, "lme.hit.count." + classIdx, 0)
+EndFunction
+
+int Function GetHitRolled(int classIdx)
+    return StorageUtil.GetIntValue(self, "lme.hit.rolled." + classIdx, 0)
+EndFunction
+
+Function SetHitRolled(int classIdx, int val)
+    StorageUtil.SetIntValue(self, "lme.hit.rolled." + classIdx, val)
+EndFunction
+
+float Function GetHitArmedRT(int classIdx)
+    return StorageUtil.GetFloatValue(self, "lme.hit.armed." + classIdx, 0.0)
+EndFunction
+
+Function SetHitArmedRT(int classIdx, float val)
+    StorageUtil.SetFloatValue(self, "lme.hit.armed." + classIdx, val)
+EndFunction
+
 Function EnsureDisabledArray()
     if _disabledReady
         return
