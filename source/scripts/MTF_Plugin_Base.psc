@@ -17,6 +17,23 @@ Scriptname MTF_Plugin_Base extends MTF_Plugin
    11 combat.hit.magic.fire — On Combat Hit (fire spell)
    12 combat.hit.magic.frost— On Combat Hit (frost spell)
    13 combat.hit.magic.shock— On Combat Hit (shock spell)
+   14 health                — Above Health %
+   15 health.below          — Below Health %
+   16 location.indoors      — Player is in an interior cell
+   17 location.outdoors     — Player is in an exterior cell
+   18 location.playerHome   — Current location has LocTypePlayerHouse
+   19 location.dungeon      — Current location has LocTypeDungeon
+   20 location.city         — Current location has LocTypeCity
+   21 location.town         — Current location has LocTypeTown
+   22 location.inn          — Current location has LocTypeInn
+   23 location.jail         — Current location has LocTypeJail
+   24 weather.pleasant      — Active weather classification == 0 (sunny/clear)
+   25 weather.cloudy        — Active weather classification == 1
+   26 weather.rainy         — Active weather classification == 2
+   27 weather.snowy         — Active weather classification == 3
+   28 state.sprinting       — IsSprinting()
+   29 state.running         — IsRunning() (but not sprinting)
+   30 state.weaponDrawn     — IsWeaponDrawn()
 
  Effects (idx → id):
    0  drain.magickaRate     — drain `param`% of current MagickaRateMult
@@ -47,6 +64,49 @@ float Property _appliedAtkDmg     = 0.0 Auto Hidden
 float Property _appliedDmgResist  = 0.0 Auto Hidden
 float Property _appliedSpellCost  = 0.0 Auto Hidden
 Spell  Property _costPenaltySpell        Auto Hidden
+
+; Lazy-resolved location keywords (Skyrim.esm, no master needed).
+Keyword Property _kwPlayerHouse Auto Hidden
+Keyword Property _kwDungeon     Auto Hidden
+Keyword Property _kwCity        Auto Hidden
+Keyword Property _kwTown        Auto Hidden
+Keyword Property _kwInn         Auto Hidden
+Keyword Property _kwJail        Auto Hidden
+
+Keyword Function _locKw(int idx)
+    if idx == 18
+        if _kwPlayerHouse == None
+            _kwPlayerHouse = Game.GetForm(0x0FC1A3) as Keyword
+        endif
+        return _kwPlayerHouse
+    elseif idx == 19
+        if _kwDungeon == None
+            _kwDungeon = Game.GetForm(0x18EF1) as Keyword
+        endif
+        return _kwDungeon
+    elseif idx == 20
+        if _kwCity == None
+            _kwCity = Game.GetForm(0x13167) as Keyword
+        endif
+        return _kwCity
+    elseif idx == 21
+        if _kwTown == None
+            _kwTown = Game.GetForm(0x192BD) as Keyword
+        endif
+        return _kwTown
+    elseif idx == 22
+        if _kwInn == None
+            _kwInn = Game.GetForm(0x1929F) as Keyword
+        endif
+        return _kwInn
+    elseif idx == 23
+        if _kwJail == None
+            _kwJail = Game.GetForm(0x5254C) as Keyword
+        endif
+        return _kwJail
+    endif
+    return None
+EndFunction
 
 ; Hit-class counter storage uses PapyrusUtil StorageUtil (see MainQuest).
 ; Auto Hidden array properties added post-release do not get attached to
@@ -81,7 +141,7 @@ EndFunction
 ; ── Conditions ────────────────────────────────────────────────────────────────
 
 int Function GetConditionCount()
-    return 14
+    return 31
 EndFunction
 
 string Function GetConditionId(int idx)
@@ -113,6 +173,40 @@ string Function GetConditionId(int idx)
         return "combat.hit.magic.frost"
     elseif idx == 13
         return "combat.hit.magic.shock"
+    elseif idx == 14
+        return "health"
+    elseif idx == 15
+        return "health.below"
+    elseif idx == 16
+        return "location.indoors"
+    elseif idx == 17
+        return "location.outdoors"
+    elseif idx == 18
+        return "location.playerHome"
+    elseif idx == 19
+        return "location.dungeon"
+    elseif idx == 20
+        return "location.city"
+    elseif idx == 21
+        return "location.town"
+    elseif idx == 22
+        return "location.inn"
+    elseif idx == 23
+        return "location.jail"
+    elseif idx == 24
+        return "weather.pleasant"
+    elseif idx == 25
+        return "weather.cloudy"
+    elseif idx == 26
+        return "weather.rainy"
+    elseif idx == 27
+        return "weather.snowy"
+    elseif idx == 28
+        return "state.sprinting"
+    elseif idx == 29
+        return "state.running"
+    elseif idx == 30
+        return "state.weaponDrawn"
     endif
     return ""
 EndFunction
@@ -146,13 +240,47 @@ string Function GetConditionLabel(int idx)
         return "On Hit (Frost)"
     elseif idx == 13
         return "On Hit (Shock)"
+    elseif idx == 14
+        return "Above Health %"
+    elseif idx == 15
+        return "Below Health %"
+    elseif idx == 16
+        return "Indoors"
+    elseif idx == 17
+        return "Outdoors"
+    elseif idx == 18
+        return "In Player Home"
+    elseif idx == 19
+        return "In Dungeon"
+    elseif idx == 20
+        return "In City"
+    elseif idx == 21
+        return "In Town"
+    elseif idx == 22
+        return "In Inn"
+    elseif idx == 23
+        return "In Jail"
+    elseif idx == 24
+        return "Weather: Clear / Sunny"
+    elseif idx == 25
+        return "Weather: Cloudy"
+    elseif idx == 26
+        return "Weather: Rainy"
+    elseif idx == 27
+        return "Weather: Snowy"
+    elseif idx == 28
+        return "Sprinting"
+    elseif idx == 29
+        return "Running"
+    elseif idx == 30
+        return "Weapon Drawn"
     endif
     return ""
 EndFunction
 
 string Function GetConditionParamLabel(int idx)
-    if idx <= 3
-        return "Magicka/Stamina % threshold"
+    if idx <= 3 || idx == 14 || idx == 15
+        return "Health/Magicka/Stamina % threshold"
     elseif idx == 5 || idx == 6
         return "Scan radius (meters)"
     elseif idx >= 7 && idx <= 13
@@ -175,9 +303,9 @@ int Function GetConditionParamMax(int idx)
 EndFunction
 
 int Function GetConditionParamDefault(int idx)
-    if idx == 0 || idx == 2
+    if idx == 0 || idx == 2 || idx == 14
         return 50
-    elseif idx == 1 || idx == 3
+    elseif idx == 1 || idx == 3 || idx == 15
         return 30
     elseif idx == 5
         return 40
@@ -262,6 +390,41 @@ bool Function checkCondition(int idx, Actor target, int param)
             return false
         endif
         return _checkHit(c, param)
+    elseif idx == 14
+        float p = _avPercent(target, "Health")
+        return p >= 0.0 && p >= param as float
+    elseif idx == 15
+        float p = _avPercent(target, "Health")
+        return p >= 0.0 && p <= param as float
+    elseif idx == 16
+        Cell c = target.GetParentCell()
+        return c != None && c.IsInterior()
+    elseif idx == 17
+        Cell c = target.GetParentCell()
+        return c != None && !c.IsInterior()
+    elseif idx >= 18 && idx <= 23
+        Location loc = target.GetCurrentLocation()
+        if loc == None
+            return false
+        endif
+        Keyword kw = _locKw(idx)
+        if kw == None
+            return false
+        endif
+        return loc.HasKeyword(kw)
+    elseif idx >= 24 && idx <= 27
+        Weather w = Weather.GetCurrentWeather()
+        if w == None
+            return false
+        endif
+        return w.GetClassification() == (idx - 24)
+    elseif idx == 28
+        return target.IsSprinting()
+    elseif idx == 29
+        ; "Running" without the sprint state — distinct condition.
+        return target.IsRunning() && !target.IsSprinting()
+    elseif idx == 30
+        return target.IsWeaponDrawn()
     endif
     return false
 EndFunction
