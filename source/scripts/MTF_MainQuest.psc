@@ -623,9 +623,7 @@ bool Function LoadPreset(string name)
         return false
     endif
     if JsonUtil.GetPathIntValue(f, ".schemaversion", 1) < 4
-        ; Preset predates the v0.0.31 Path-API + hex-color refactor. Loader
-        ; refuses to keep the code simple; re-save in-game to upgrade.
-        Notification("MTF: preset '" + name + "' is on old schema (re-save to upgrade)")
+        Notification("MTF: preset '" + name + "' uses an unsupported schema")
         return false
     endif
     EnsureArrays()
@@ -713,11 +711,7 @@ string[] Function ListPresets()
         if dot > 0
             nm = StringUtil.Substring(nm, 0, dot)
         endif
-        ; v4+ presets store .valid via Path API; older v3 presets used a flat
-        ; "valid" int. Accept either so the dropdown shows everything; LoadPreset
-        ; itself refuses v3 with a "re-save to upgrade" notification.
-        string pf = _presetFile(nm)
-        if JsonUtil.GetPathIntValue(pf, ".valid", 0) == 1 || JsonUtil.GetIntValue(pf, "valid", 0) == 1
+        if JsonUtil.GetPathIntValue(_presetFile(nm), ".valid", 0) == 1
             result[n] = nm
             n += 1
         endif
@@ -739,13 +733,7 @@ int Function ListPresetsCount()
 EndFunction
 
 string Function GetPresetDisplayName(string name)
-    ; Try v4 Path API key first; fall back to legacy flat key for v3 presets.
-    string f = _presetFile(name)
-    string disp = JsonUtil.GetPathStringValue(f, ".displayname", "")
-    if disp != ""
-        return disp
-    endif
-    return JsonUtil.GetStringValue(f, "displayName", name)
+    return JsonUtil.GetPathStringValue(_presetFile(name), ".displayname", name)
 EndFunction
 
 Function EnsureDisabledArray()
