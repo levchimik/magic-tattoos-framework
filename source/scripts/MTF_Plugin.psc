@@ -127,23 +127,47 @@ int Function GetEffectParamStep(int idx)
     return 1
 EndFunction
 
-Function onActivate(int idx, Actor target, int param)
+; Optional 2nd per-slot parameter. Effects that need a second knob
+; (e.g. Pheromone Aura's radius) override these. If GetEffectParam2Label
+; returns "", the MCM hides the 2nd slider and dispatch passes 0.
+
+string Function GetEffectParam2Label(int idx)
+{Slider label for the optional 2nd param. Return "" if effect has no 2nd param.}
+    return ""
+EndFunction
+int Function GetEffectParam2Min(int idx)
+    return 0
+EndFunction
+int Function GetEffectParam2Max(int idx)
+    return 100
+EndFunction
+int Function GetEffectParam2Default(int idx)
+    return 0
+EndFunction
+int Function GetEffectParam2Step(int idx)
+    return 1
+EndFunction
+string Function GetEffectParam2Format(int idx)
+    return "{0}"
+EndFunction
+
+Function onActivate(int idx, Actor target, int param, int param2)
 {Called when effect `idx` becomes active (slot just became the winning tier).}
 EndFunction
 
-Function onDeactivate(int idx, Actor target, int param)
+Function onDeactivate(int idx, Actor target, int param, int param2)
 {Called when effect `idx` stops being active. Must restore any persistent
  changes (AV mods, applied magic effects, etc.). Safe to call even if
  onActivate was never called.}
 EndFunction
 
-Function onTick(int idx, Actor target, int param)
+Function onTick(int idx, Actor target, int param, int param2)
 {Called every MainQuest update tick (typically every 2s) while effect `idx`
  is active. Use for stateful effects that need to recompute (e.g. %-of-
  current AV drains shifting with gear changes). No-op by default.}
 EndFunction
 
-Function onGameTime(int idx, Actor target, int param)
+Function onGameTime(int idx, Actor target, int param, int param2)
 {Called once per in-game hour while effect `idx` is active. Use for
  cumulative effects (e.g. SLA exposure deltas). No-op by default.}
 EndFunction

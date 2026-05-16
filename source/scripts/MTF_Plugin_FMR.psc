@@ -176,7 +176,7 @@ string Function GetEffectParamLabel(int idx)
     return ""
 EndFunction
 
-Function onActivate(int idx, Actor target, int param)
+Function onActivate(int idx, Actor target, int param, int param2)
     if idx != 0 || target == None || FMR_Storage == None
         return
     endif

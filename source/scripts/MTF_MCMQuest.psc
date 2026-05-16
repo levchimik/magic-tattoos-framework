@@ -9,7 +9,7 @@ MTF_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 17
+    return 18
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -70,7 +70,7 @@ event OnVersionUpdate(int Version)
     ; via StartGameEnabled). Each migration block bumps _migrationLevel so the
     ; same block never runs twice even if OVU fires repeatedly.
     int ml = MainQuest._migrationLevel
-    if ml >= 17
+    if ml >= 18
         return
     endif
     if ml < 17 && CurrentVersion < 17
@@ -206,7 +206,14 @@ event OnVersionUpdate(int Version)
         Pages[3] = "Menu Options"
         Pages[4] = "Presets"
     endif
-    MainQuest._migrationLevel = 17
+    if ml < 18 && CurrentVersion < 18
+        ; v0.0.26: per-slot effect param2. Allocate the new array; existing
+        ; effect picks become param2=0 which the SLA aura interprets as
+        ; "use default 22m". User can re-pick the effect to get the default
+        ; into the slider or just adjust it.
+        MainQuest.effectParam2 = new int[32]
+    endif
+    MainQuest._migrationLevel = 18
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -534,53 +541,7 @@ function drawConditionsPage()
 
     int idx = selectedCondition
 
-    if idx == 0
-        AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
-        AddHeaderOption("Default slot")
-        AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(0))
-        AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(0))
-    else
-        string key = MainQuest.condPluginId[idx]
-        MTF_Plugin p = None
-        int itemIdx = -1
-        if key != ""
-            p = MainQuest.ResolvePluginByKey(key)
-            if p != None
-                itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
-            endif
-        endif
-
-        AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
-        AddMenuOptionST("SLOT_COND_TYPE", "Condition type", _condTypeLabel(key))
-        AddHeaderOption("Condition " + idx)
-
-        if p != None && itemIdx >= 0
-            string paramLabel = p.GetConditionParamLabel(itemIdx)
-            if paramLabel != ""
-                AddSliderOptionST("SLOT_COND_PARAM", paramLabel, MainQuest.condParam[idx])
-            else
-                AddTextOption(p.GetConditionLabel(itemIdx), "(no parameter)", OPTION_FLAG_DISABLED)
-            endif
-        endif
-
-        AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(idx))
-        AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(idx))
-
-        int cdMin = MainQuest.cooldownMin[idx]
-        AddHeaderOption("Cooldown")
-        AddMenuOptionST("SLOT_CD_MODE",     "Mode",    _cooldownModeLabel(MainQuest.cooldownMode[idx]))
-        AddSliderOptionST("SLOT_CD_HOURS",   "Hours",   cdMin / 60)
-        AddSliderOptionST("SLOT_CD_MINUTES", "Minutes", cdMin % 60)
-    endif
-
-    AddHeaderOption("Effects")
-    _drawEffectRow(idx, 0, "SLOT_EFFECT_1_TYPE", "SLOT_EFFECT_1_PARAM")
-    _drawEffectRow(idx, 1, "SLOT_EFFECT_2_TYPE", "SLOT_EFFECT_2_PARAM")
-    _drawEffectRow(idx, 2, "SLOT_EFFECT_3_TYPE", "SLOT_EFFECT_3_PARAM")
-    _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM")
-
-    SetCursorPosition(1)
-    AddHeaderOption("Visuals (per layer)")
+    ; ── LEFT COLUMN: per-layer visual sliders ────────────────────────────────
     ; Determine layer count from the resolved (slot or inherited) entry.
     ; If unresolved, show all MAX_LAYERS rows so user can still tweak.
     string resPack  = MainQuest.ResolveSlotPackId(idx)
@@ -605,6 +566,55 @@ function drawConditionsPage()
         AddSliderOptionST("SLOT_L" + L + "_ALPHA",    "Opacity",           MainQuest.condLayerAlpha[li], "{0}%")
         L += 1
     endwhile
+
+    ; ── RIGHT COLUMN: slot configuration + visual pack block + effects ──────
+    SetCursorPosition(1)
+
+    AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
+
+    if idx == 0
+        AddHeaderOption("Default slot")
+    else
+        string key = MainQuest.condPluginId[idx]
+        MTF_Plugin p = None
+        int itemIdx = -1
+        if key != ""
+            p = MainQuest.ResolvePluginByKey(key)
+            if p != None
+                itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            endif
+        endif
+
+        AddMenuOptionST("SLOT_COND_TYPE", "Condition type", _condTypeLabel(key))
+        AddHeaderOption("Condition " + idx)
+
+        if p != None && itemIdx >= 0
+            string paramLabel = p.GetConditionParamLabel(itemIdx)
+            if paramLabel != ""
+                AddSliderOptionST("SLOT_COND_PARAM", paramLabel, MainQuest.condParam[idx])
+            else
+                AddTextOption(p.GetConditionLabel(itemIdx), "(no parameter)", OPTION_FLAG_DISABLED)
+            endif
+        endif
+    endif
+
+    AddHeaderOption("Visuals")
+    AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(idx))
+    AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(idx))
+
+    if idx != 0
+        int cdMin = MainQuest.cooldownMin[idx]
+        AddHeaderOption("Cooldown")
+        AddMenuOptionST("SLOT_CD_MODE",     "Mode",    _cooldownModeLabel(MainQuest.cooldownMode[idx]))
+        AddSliderOptionST("SLOT_CD_HOURS",   "Hours",   cdMin / 60)
+        AddSliderOptionST("SLOT_CD_MINUTES", "Minutes", cdMin % 60)
+    endif
+
+    AddHeaderOption("Effects")
+    _drawEffectRow(idx, 0, "SLOT_EFFECT_1_TYPE", "SLOT_EFFECT_1_PARAM", "SLOT_EFFECT_1_P2")
+    _drawEffectRow(idx, 1, "SLOT_EFFECT_2_TYPE", "SLOT_EFFECT_2_PARAM", "SLOT_EFFECT_2_P2")
+    _drawEffectRow(idx, 2, "SLOT_EFFECT_3_TYPE", "SLOT_EFFECT_3_PARAM", "SLOT_EFFECT_3_P2")
+    _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM", "SLOT_EFFECT_4_P2")
 endFunction
 
 ; ╔══════════════════════════════════════════════════════════════════════════╗
@@ -1207,7 +1217,7 @@ string Function _effectTypeLabel(int effectIdx)
     return pl + " — " + il
 EndFunction
 
-Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string paramStateId)
+Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string paramStateId, string param2StateId)
     AddMenuOptionST(typeStateId, "Effect " + (effectIdx + 1), _effectTypeLabel(effectIdx))
     string key = MainQuest.GetSlotEffectKey(slot, effectIdx)
     if key == ""
@@ -1224,6 +1234,10 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string para
     string paramLabel = p.GetEffectParamLabel(itemIdx)
     if paramLabel != ""
         AddSliderOptionST(paramStateId, "  " + paramLabel, MainQuest.GetSlotEffectParam(slot, effectIdx))
+    endif
+    string param2Label = p.GetEffectParam2Label(itemIdx)
+    if param2Label != ""
+        AddSliderOptionST(param2StateId, "  " + param2Label, MainQuest.GetSlotEffectParam2(slot, effectIdx), p.GetEffectParam2Format(itemIdx))
     endif
 EndFunction
 
@@ -1259,6 +1273,7 @@ Function _acceptEffectType(int effectIdx, int index)
     endif
     string newKey = ""
     int defParam = 0
+    int defParam2 = 0
     if index > 0
         ; Rebuild cache fresh in this frame (see SLOT_COND_TYPE.OnMenuAcceptST).
         string curKey = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
@@ -1273,10 +1288,11 @@ Function _acceptEffectType(int effectIdx, int index)
             int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(newKey))
             if itemIdx >= 0
                 defParam = p.GetEffectParamDefault(itemIdx)
+                defParam2 = p.GetEffectParam2Default(itemIdx)
             endif
         endif
     endif
-    MainQuest.SetSlotEffect(selectedCondition, effectIdx, newKey, defParam)
+    MainQuest.SetSlotEffectFull(selectedCondition, effectIdx, newKey, defParam, defParam2)
 EndFunction
 
 Function _openEffectParam(int effectIdx)
@@ -1330,6 +1346,70 @@ Function _highlightEffectParam(int effectIdx)
         endif
     endif
     SetInfoText("Effect parameter.")
+EndFunction
+
+; ── Per-effect param2 helpers ───────────────────────────────────────────────
+Function _openEffectParam2(int effectIdx)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    SetSliderDialogStartValue(MainQuest.GetSlotEffectParam2(selectedCondition, effectIdx))
+    SetSliderDialogDefaultValue(p.GetEffectParam2Default(itemIdx))
+    SetSliderDialogRange(p.GetEffectParam2Min(itemIdx), p.GetEffectParam2Max(itemIdx))
+    int step = p.GetEffectParam2Step(itemIdx)
+    if step < 1
+        step = 1
+    endif
+    SetSliderDialogInterval(step)
+EndFunction
+
+Function _acceptEffectParam2(int effectIdx, float value)
+    MainQuest.SetSlotEffectParam2(selectedCondition, effectIdx, value as int)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    string fmt = "{0}"
+    if p != None
+        int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+        if itemIdx >= 0
+            fmt = p.GetEffectParam2Format(itemIdx)
+        endif
+    endif
+    SetSliderOptionValueST(value as int, fmt)
+EndFunction
+
+Function _defaultEffectParam2(int effectIdx)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    int defVal = 0
+    string fmt = "{0}"
+    if p != None
+        int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+        if itemIdx >= 0
+            defVal = p.GetEffectParam2Default(itemIdx)
+            fmt = p.GetEffectParam2Format(itemIdx)
+        endif
+    endif
+    MainQuest.SetSlotEffectParam2(selectedCondition, effectIdx, defVal)
+    SetSliderOptionValueST(defVal, fmt)
+EndFunction
+
+Function _highlightEffectParam2(int effectIdx)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p != None
+        int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+        if itemIdx >= 0
+            SetInfoText(p.GetEffectParam2Label(itemIdx))
+            return
+        endif
+    endif
+    SetInfoText("Secondary effect parameter.")
 EndFunction
 
 state SLOT_EFFECT_1_TYPE
@@ -1457,6 +1537,67 @@ state SLOT_EFFECT_4_PARAM
     endEvent
     event OnHighlightST()
         _highlightEffectParam(3)
+    endEvent
+endState
+
+; ── Per-effect param2 states (only shown when effect declares param2) ───────
+state SLOT_EFFECT_1_P2
+    event OnSliderOpenST()
+        _openEffectParam2(0)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam2(0, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam2(0)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam2(0)
+    endEvent
+endState
+
+state SLOT_EFFECT_2_P2
+    event OnSliderOpenST()
+        _openEffectParam2(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam2(1, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam2(1)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam2(1)
+    endEvent
+endState
+
+state SLOT_EFFECT_3_P2
+    event OnSliderOpenST()
+        _openEffectParam2(2)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam2(2, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam2(2)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam2(2)
+    endEvent
+endState
+
+state SLOT_EFFECT_4_P2
+    event OnSliderOpenST()
+        _openEffectParam2(3)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam2(3, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam2(3)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam2(3)
     endEvent
 endState
 

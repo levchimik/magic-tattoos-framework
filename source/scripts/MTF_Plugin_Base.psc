@@ -598,7 +598,7 @@ Function _alertNearby(Actor target, int paramMeters)
     endwhile
 EndFunction
 
-Function onActivate(int idx, Actor target, int param)
+Function onActivate(int idx, Actor target, int param, int param2)
     if _isDrain(idx)
         _recompute(idx, target, param)
     elseif idx == 3
@@ -616,7 +616,7 @@ Function onActivate(int idx, Actor target, int param)
     endif
 EndFunction
 
-Function onDeactivate(int idx, Actor target, int param)
+Function onDeactivate(int idx, Actor target, int param, int param2)
     if _isDrain(idx)
         _recompute(idx, target, 0)
     elseif idx == 11
@@ -624,7 +624,7 @@ Function onDeactivate(int idx, Actor target, int param)
     endif
 EndFunction
 
-Function onTick(int idx, Actor target, int param)
+Function onTick(int idx, Actor target, int param, int param2)
     if _isDrain(idx)
         _recompute(idx, target, param)
     elseif idx == 11

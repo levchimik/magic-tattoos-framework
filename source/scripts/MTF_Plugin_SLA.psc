@@ -7,17 +7,20 @@ Scriptname MTF_Plugin_SLA extends MTF_Plugin
 
  Effects:
    0  exposure.self      — increase target's SLA exposure by `param` per game-hour
-   1  exposure.aura      — increase nearby NPCs' SLA exposure by `param` per game-hour
+   1  exposure.aura      — increase nearby NPCs' SLA exposure by `param` per game-hour;
+                          radius is per-slot `param2` (meters, default 22)
    2  arousal.burst.self — one-shot: add `param` exposure on self on switch
 
- Settings:
-   0  radius_m           — pheromone aura scan radius, meters (default 22)
-   1  max_targets        — pheromone aura per-tick NPC cap (default 32)}
+ No plugin-level settings — the aura radius is per-slot (effect param2);
+ the per-tick NPC cap is hardcoded to PHEROMONE_MAX_TARGETS (30).}
 
 slaFrameWorkScr Property SLAFramework Auto Hidden
 
-int Property pheromoneRadiusM    = 22 Auto Hidden
-int Property pheromoneMaxTargets = 32 Auto Hidden
+; Maximum NPCs the Pheromone Aura can affect in one game-hour tick.
+; Caps the cost in crowds. Not user-tunable.
+int Function PHEROMONE_MAX_TARGETS() global
+    return 30
+EndFunction
 
 string Function GetPluginId()
     return "mtf.sla"
@@ -152,7 +155,7 @@ int Function GetEffectParamDefault(int idx)
     return 5
 EndFunction
 
-Function onActivate(int idx, Actor target, int param)
+Function onActivate(int idx, Actor target, int param, int param2)
     if idx != 2 || SLAFramework == None || target == None || param <= 0
         return
     endif
@@ -163,7 +166,7 @@ Function onActivate(int idx, Actor target, int param)
     SLAFramework.SetActorExposure(target, cur + param)
 EndFunction
 
-Function onGameTime(int idx, Actor target, int param)
+Function onGameTime(int idx, Actor target, int param, int param2)
     if SLAFramework == None || target == None || param <= 0
         return
     endif
@@ -173,15 +176,12 @@ Function onGameTime(int idx, Actor target, int param)
             SLAFramework.SetActorExposure(target, cur + param)
         endif
     elseif idx == 1
-        int radiusM = pheromoneRadiusM
+        int radiusM = param2
         if radiusM <= 0
             radiusM = 22
         endif
         float radius = (radiusM as float) * 70.0
-        int cap = pheromoneMaxTargets
-        if cap <= 0
-            cap = 32
-        endif
+        int cap = PHEROMONE_MAX_TARGETS()
         Actor[] nearby = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
         if nearby == None
             return
@@ -205,82 +205,42 @@ Function onGameTime(int idx, Actor target, int param)
     endif
 EndFunction
 
-; ── Settings ──────────────────────────────────────────────────────────────────
+; ── Per-effect param2 (Pheromone Aura radius) ───────────────────────────────
 
-int Function GetSettingCount()
-    return 2
-EndFunction
-
-string Function GetSettingId(int idx)
-    if idx == 0
-        return "radius_m"
-    elseif idx == 1
-        return "max_targets"
+string Function GetEffectParam2Label(int idx)
+    if idx == 1
+        return "Aura radius (m)"
     endif
     return ""
 EndFunction
 
-string Function GetSettingLabel(int idx)
-    if idx == 0
-        return "Pheromone aura radius"
-    elseif idx == 1
-        return "Pheromone aura max targets"
-    endif
-    return ""
-EndFunction
-
-string Function GetSettingInfo(int idx)
-    if idx == 0
-        return "Scan radius for the Pheromone Aura effect, in meters (1m ≈ 70 game units). Default 22m."
-    elseif idx == 1
-        return "Maximum NPCs the Pheromone Aura can affect in a single game-hour tick. Caps the cost in crowds. Default 32."
-    endif
-    return ""
-EndFunction
-
-int Function GetSettingMin(int idx)
-    return 1
-EndFunction
-
-int Function GetSettingMax(int idx)
-    return 100
-EndFunction
-
-int Function GetSettingDefault(int idx)
-    if idx == 0
-        return 22
-    elseif idx == 1
-        return 32
+int Function GetEffectParam2Min(int idx)
+    if idx == 1
+        return 5
     endif
     return 0
 EndFunction
 
-string Function GetSettingFormat(int idx)
-    if idx == 0
+int Function GetEffectParam2Max(int idx)
+    if idx == 1
+        return 100
+    endif
+    return 0
+EndFunction
+
+int Function GetEffectParam2Default(int idx)
+    if idx == 1
+        return 22
+    endif
+    return 0
+EndFunction
+
+string Function GetEffectParam2Format(int idx)
+    if idx == 1
         return "{0}m"
     endif
     return "{0}"
 EndFunction
 
-int Function GetSettingValue(int idx)
-    if idx == 0
-        if pheromoneRadiusM <= 0
-            return 22
-        endif
-        return pheromoneRadiusM
-    elseif idx == 1
-        if pheromoneMaxTargets <= 0
-            return 32
-        endif
-        return pheromoneMaxTargets
-    endif
-    return 0
-EndFunction
-
-Function SetSettingValue(int idx, int v)
-    if idx == 0
-        pheromoneRadiusM = v
-    elseif idx == 1
-        pheromoneMaxTargets = v
-    endif
-EndFunction
+; No plugin-level settings — both legacy knobs (radius, max_targets) are gone:
+; radius is now per-slot via param2; max_targets is hardcoded to 30.

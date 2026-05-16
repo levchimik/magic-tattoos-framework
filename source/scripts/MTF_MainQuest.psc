@@ -50,6 +50,7 @@ EndFunction
 ; Index: slot S, effect E => S * MAX_EFFECTS_PER_SLOT + E.
 string[] Property effectKey Auto
 int[] Property effectParam Auto
+int[] Property effectParam2 Auto Hidden
 
 ; ── Per-slot cooldown ────────────────────────────────────────────────────────
 ; cooldownMin:     duration in minutes (0 = disabled, max 1440 = 24h).
@@ -120,6 +121,7 @@ Function EnsureArrays()
     condLayerAlpha        = new int[32]
     effectKey             = new string[32]    ; 8 slots × 4 effects
     effectParam           = new int[32]
+    effectParam2          = new int[32]       ; optional 2nd param per effect slot
     cooldownMin           = new int[8]
     cooldownMode          = new int[8]
     cooldownUntilGT       = new float[8]
@@ -505,6 +507,7 @@ bool Function SavePreset(string rawName)
             int fxI = s * maxE + e
             JsonUtil.SetStringValue(f, "slot." + s + ".effect." + e + ".key", effectKey[fxI])
             JsonUtil.SetIntValue(f, "slot." + s + ".effect." + e + ".param", effectParam[fxI])
+            JsonUtil.SetIntValue(f, "slot." + s + ".effect." + e + ".param2", effectParam2[fxI])
             e += 1
         endwhile
         s += 1
@@ -567,8 +570,9 @@ bool Function LoadPreset(string name)
         int maxE = MAX_EFFECTS_PER_SLOT()
         while e < maxE
             int fxI = s * maxE + e
-            effectKey[fxI]   = JsonUtil.GetStringValue(f, "slot." + s + ".effect." + e + ".key", "")
-            effectParam[fxI] = JsonUtil.GetIntValue(f, "slot." + s + ".effect." + e + ".param", 0)
+            effectKey[fxI]    = JsonUtil.GetStringValue(f, "slot." + s + ".effect." + e + ".key", "")
+            effectParam[fxI]  = JsonUtil.GetIntValue(f,    "slot." + s + ".effect." + e + ".param",  0)
+            effectParam2[fxI] = JsonUtil.GetIntValue(f,    "slot." + s + ".effect." + e + ".param2", 0)
             e += 1
         endwhile
         s += 1
@@ -1078,13 +1082,40 @@ int Function GetSlotEffectParam(int slot, int effectIdx)
     return effectParam[_fxBaseIdx(slot) + effectIdx]
 EndFunction
 
+int Function GetSlotEffectParam2(int slot, int effectIdx)
+    if effectParam2 == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return 0
+    endif
+    return effectParam2[_fxBaseIdx(slot) + effectIdx]
+EndFunction
+
 Function SetSlotEffect(int slot, int effectIdx, string key, int param)
+{Legacy 4-arg setter — preserves existing param2.}
     if effectKey == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
     int globalI = _fxBaseIdx(slot) + effectIdx
     effectKey[globalI] = key
     effectParam[globalI] = param
+EndFunction
+
+Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int param2)
+{Sets all three at once. Used when picking a new effect type so the
+ default param2 is applied alongside default param.}
+    if effectKey == None || effectParam2 == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return
+    endif
+    int globalI = _fxBaseIdx(slot) + effectIdx
+    effectKey[globalI] = key
+    effectParam[globalI] = param
+    effectParam2[globalI] = param2
+EndFunction
+
+Function SetSlotEffectParam2(int slot, int effectIdx, int param2)
+    if effectParam2 == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return
+    endif
+    effectParam2[_fxBaseIdx(slot) + effectIdx] = param2
 EndFunction
 
 ; ── Priority evaluation ───────────────────────────────────────────────────────
@@ -1152,7 +1183,7 @@ Function _activateSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    p.onActivate(itemIdx, PlayerRef, effectParam[base + e])
+                    p.onActivate(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
                 endif
             endif
         endif
@@ -1174,7 +1205,7 @@ Function _deactivateSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    p.onDeactivate(itemIdx, PlayerRef, effectParam[base + e])
+                    p.onDeactivate(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
                 endif
             endif
         endif
@@ -1196,7 +1227,7 @@ Function _tickSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    p.onTick(itemIdx, PlayerRef, effectParam[base + e])
+                    p.onTick(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
                 endif
             endif
         endif
@@ -1218,7 +1249,7 @@ Function _gameTickSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    p.onGameTime(itemIdx, PlayerRef, effectParam[base + e])
+                    p.onGameTime(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
                 endif
             endif
         endif
