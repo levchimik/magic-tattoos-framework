@@ -541,35 +541,7 @@ function drawConditionsPage()
 
     int idx = selectedCondition
 
-    ; ── LEFT COLUMN: per-layer visual sliders ────────────────────────────────
-    ; Determine layer count from the resolved (slot or inherited) entry.
-    ; If unresolved, show all MAX_LAYERS rows so user can still tweak.
-    string resPack  = MainQuest.ResolveSlotPackId(idx)
-    string resEntry = MainQuest.ResolveSlotEntryId(idx)
-    int layerN = MTF_MainQuest.MAX_LAYERS_PER_SLOT()
-    if resPack != "" && resEntry != ""
-        int lc = MainQuest.GetEntryLayerCount(resPack, resEntry)
-        if lc > 0 && lc < layerN
-            layerN = lc
-        endif
-    endif
-    ; Per-layer visuals always read from the LAYOUT slot (idx), not the
-    ; inheritance target — letting a condition slot keep its own colors
-    ; even when it inherits pack+entry.
-    int L = 0
-    while L < layerN
-        int li = idx * MTF_MainQuest.MAX_LAYERS_PER_SLOT() + L
-        AddHeaderOption("Layer " + L)
-        AddColorOptionST("SLOT_L" + L + "_TINT",      "Tint",              MainQuest.condLayerTint[li])
-        AddColorOptionST("SLOT_L" + L + "_EMISSIVE",  "Emission color",    MainQuest.condLayerEmissive[li])
-        AddSliderOptionST("SLOT_L" + L + "_EM_MULT",  "Emission strength", MainQuest.condLayerEmissiveMult[li], "{1}")
-        AddSliderOptionST("SLOT_L" + L + "_ALPHA",    "Opacity",           MainQuest.condLayerAlpha[li], "{0}%")
-        L += 1
-    endwhile
-
-    ; ── RIGHT COLUMN: slot configuration + visual pack block + effects ──────
-    SetCursorPosition(1)
-
+    ; ── LEFT COLUMN: slot config + cooldown + effects ────────────────────────
     AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
 
     if idx == 0
@@ -596,13 +568,7 @@ function drawConditionsPage()
                 AddTextOption(p.GetConditionLabel(itemIdx), "(no parameter)", OPTION_FLAG_DISABLED)
             endif
         endif
-    endif
 
-    AddHeaderOption("Visuals")
-    AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(idx))
-    AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(idx))
-
-    if idx != 0
         int cdMin = MainQuest.cooldownMin[idx]
         AddHeaderOption("Cooldown")
         AddMenuOptionST("SLOT_CD_MODE",     "Mode",    _cooldownModeLabel(MainQuest.cooldownMode[idx]))
@@ -615,6 +581,38 @@ function drawConditionsPage()
     _drawEffectRow(idx, 1, "SLOT_EFFECT_2_TYPE", "SLOT_EFFECT_2_PARAM", "SLOT_EFFECT_2_P2")
     _drawEffectRow(idx, 2, "SLOT_EFFECT_3_TYPE", "SLOT_EFFECT_3_PARAM", "SLOT_EFFECT_3_P2")
     _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM", "SLOT_EFFECT_4_P2")
+
+    ; ── RIGHT COLUMN: Visuals block (pack + texture) then per-layer sliders ──
+    SetCursorPosition(1)
+
+    AddHeaderOption("Visuals")
+    AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(idx))
+    AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(idx))
+
+    ; Determine layer count from the resolved (slot or inherited) entry.
+    ; If unresolved, show all MAX_LAYERS rows so user can still tweak.
+    string resPack  = MainQuest.ResolveSlotPackId(idx)
+    string resEntry = MainQuest.ResolveSlotEntryId(idx)
+    int layerN = MTF_MainQuest.MAX_LAYERS_PER_SLOT()
+    if resPack != "" && resEntry != ""
+        int lc = MainQuest.GetEntryLayerCount(resPack, resEntry)
+        if lc > 0 && lc < layerN
+            layerN = lc
+        endif
+    endif
+    ; Per-layer visuals always read from the LAYOUT slot (idx), not the
+    ; inheritance target — letting a condition slot keep its own colors
+    ; even when it inherits pack+entry.
+    int L = 0
+    while L < layerN
+        int li = idx * MTF_MainQuest.MAX_LAYERS_PER_SLOT() + L
+        AddHeaderOption("Layer " + L)
+        AddColorOptionST("SLOT_L" + L + "_TINT",      "Tint",              MainQuest.condLayerTint[li])
+        AddColorOptionST("SLOT_L" + L + "_EMISSIVE",  "Emission color",    MainQuest.condLayerEmissive[li])
+        AddSliderOptionST("SLOT_L" + L + "_EM_MULT",  "Emission strength", MainQuest.condLayerEmissiveMult[li], "{1}")
+        AddSliderOptionST("SLOT_L" + L + "_ALPHA",    "Opacity",           MainQuest.condLayerAlpha[li], "{0}%")
+        L += 1
+    endwhile
 endFunction
 
 ; ╔══════════════════════════════════════════════════════════════════════════╗
