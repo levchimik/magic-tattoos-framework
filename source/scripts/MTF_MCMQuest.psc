@@ -9,7 +9,7 @@ MTF_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 18
+    return 19
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -41,12 +41,11 @@ endFunction
 
 event OnConfigInit()
     ModName = "Magic Tattoos Framework"
-    Pages = new String[5]
+    Pages = new String[4]
     Pages[0] = "General"
     Pages[1] = "Conditions"
     Pages[2] = "Plugins"
     Pages[3] = "Menu Options"
-    Pages[4] = "Presets"
     _ensureMainQuest()
 endEvent
 
@@ -70,23 +69,23 @@ event OnVersionUpdate(int Version)
     ; via StartGameEnabled).
     ;
     ; v0.0.27 collapsed the 11-block pre-release migration ladder into a
-    ; single fresh-init wipe. Anyone upgrading from an older pre-release
-    ; (ml<18) gets all arrays reallocated and all defaults applied. Once we
-    ; ship, the next migration must be a non-destructive ml<19 block added
-    ; below this one.
+    ; single fresh-init wipe. v0.0.29 bumped to ml=19 so the Pages array gets
+    ; rewritten (Presets folded into General). Anyone upgrading from an older
+    ; pre-release (ml<19) gets all arrays reallocated and all defaults
+    ; applied. Once we ship, the next migration must be a non-destructive
+    ; ml<20 block added below this one.
     int ml = MainQuest._migrationLevel
-    if ml >= 18
+    if ml >= 19
         return
     endif
 
     ; Pages: 5-page layout (also set by OnConfigInit; redundant here for the
     ; sake of upgraders whose Pages array predates the current shape).
-    Pages = new String[5]
+    Pages = new String[4]
     Pages[0] = "General"
     Pages[1] = "Conditions"
     Pages[2] = "Plugins"
     Pages[3] = "Menu Options"
-    Pages[4] = "Presets"
 
     ; Allocate every state array. EnsureArrays handles fresh installs; this
     ; block additionally handles upgraders whose existing script instance
@@ -170,7 +169,7 @@ event OnVersionUpdate(int Version)
         s += 1
     endwhile
 
-    MainQuest._migrationLevel = 18
+    MainQuest._migrationLevel = 19
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -184,8 +183,6 @@ event OnPageReset(string page)
         drawPluginsPage()
     elseif page == "Menu Options"
         drawMenuOptionsPage()
-    elseif page == "Presets"
-        drawPresetsPage()
     endif
 endEvent
 
@@ -355,13 +352,31 @@ state TOGGLE_ALL
 endState
 
 function drawGeneralPage()
-    SetCursorFillMode(TOP_TO_BOTTOM)
+    SetCursorFillMode(LEFT_TO_RIGHT)
+
+    ; ── Left column: core settings ──────────────────────────────────────────
     AddHeaderOption("General")
     AddToggleOptionST("GEN_MOD_ACTIVE",      "Enable",                MainQuest.ModActive)
     AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{1}")
     AddSliderOptionST("SLOT_OVERLAY_SLOT",   "Overlay slot",          MainQuest.OverlaySlot)
     AddTextOptionST("GEN_RELOAD_VISUALS", "Reload visual packs", "(" + MainQuest.GetVisualPackCount() + " loaded)")
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
+
+    ; ── Right column: presets ───────────────────────────────────────────────
+    SetCursorPosition(1)
+    _refreshPresetNames()
+
+    AddHeaderOption("Presets")
+    AddInputOptionST("PRESET_SAVE_AS", "Save current as...", "(type a name)")
+    AddMenuOptionST("PRESET_PICK", "Selected preset", _currentPresetLabel())
+    int loadFlag = OPTION_FLAG_NONE
+    int delFlag  = OPTION_FLAG_NONE
+    if _scratchPresetCount == 0 || _selectedPresetIdx < 0
+        loadFlag = OPTION_FLAG_DISABLED
+        delFlag  = OPTION_FLAG_DISABLED
+    endif
+    AddTextOptionST("PRESET_LOAD", "Load selected",   "", loadFlag)
+    AddTextOptionST("PRESET_DEL",  "Delete selected", "", delFlag)
 endFunction
 
 function drawPluginsPage()
@@ -2670,25 +2685,6 @@ string function _currentPresetLabel()
         return "(none)"
     endif
     return MainQuest.GetPresetDisplayName(_scratchPresetNames[_selectedPresetIdx])
-endFunction
-
-function drawPresetsPage()
-    SetCursorFillMode(LEFT_TO_RIGHT)
-    _refreshPresetNames()
-
-    AddHeaderOption("Save")
-    AddInputOptionST("PRESET_SAVE_AS", "Save current as...", "(type a name)")
-
-    AddHeaderOption("Load / Delete")
-    AddMenuOptionST("PRESET_PICK", "Selected preset", _currentPresetLabel())
-    int loadFlag = OPTION_FLAG_NONE
-    int delFlag  = OPTION_FLAG_NONE
-    if _scratchPresetCount == 0 || _selectedPresetIdx < 0
-        loadFlag = OPTION_FLAG_DISABLED
-        delFlag  = OPTION_FLAG_DISABLED
-    endif
-    AddTextOptionST("PRESET_LOAD", "Load selected",   "", loadFlag)
-    AddTextOptionST("PRESET_DEL",  "Delete selected", "", delFlag)
 endFunction
 
 state PRESET_SAVE_AS
