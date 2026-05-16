@@ -1,0 +1,12 @@
+build/
+install/
+out/
+.vs/
+CMakeUserPresets.json
+*.user
+
+# Cloned by build.bat — not vendored in our repo.
+extern/
+
+# vcpkg manifest install output — regenerated on every build.
+vcpkg_installed/

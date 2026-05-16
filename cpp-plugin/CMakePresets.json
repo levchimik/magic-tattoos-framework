@@ -1,0 +1,40 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "x64-Release",
+            "displayName": "x64 Release",
+            "description": "Default release build. Targets Skyrim AE 1.6.1170. Run build.bat first to clone extern/CommonLibSSE-NG and vcpkg install deps.",
+            "generator": "Visual Studio 18 2026",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
+                "CMAKE_TOOLCHAIN_FILE": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/vcpkg/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_TARGET_TRIPLET": "x64-windows-static-md",
+                "CMAKE_PREFIX_PATH": "${sourceDir}/vcpkg_installed/x64-windows-static-md"
+            }
+        },
+        {
+            "name": "x64-Debug",
+            "inherits": "x64-Release",
+            "displayName": "x64 Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "x64-Release",
+            "configurePreset": "x64-Release",
+            "configuration": "Release"
+        },
+        {
+            "name": "x64-Debug",
+            "configurePreset": "x64-Debug",
+            "configuration": "Debug"
+        }
+    ]
+}
