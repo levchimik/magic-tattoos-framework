@@ -158,6 +158,54 @@ Event OnInit()
     EnsureArrays()
 EndEvent
 
+Function _hotkeyAddCrosshairTarget()
+{Called by MTF_HitListener.OnKeyDown when the player presses the bound
+ subject hotkey. Walks Game.GetCurrentCrosshairRef and adds it as a
+ tracked subject if it's an actor and not the player.}
+    if !ModActive
+        return
+    endif
+    if Utility.IsInMenuMode()
+        return
+    endif
+    ObjectReference cross = Game.GetCurrentCrosshairRef()
+    if cross == None
+        if DebugMode
+            Notification("MTF: no crosshair target")
+        endif
+        return
+    endif
+    Actor target = cross as Actor
+    if target == None
+        if DebugMode
+            Notification("MTF: crosshair target is not an actor")
+        endif
+        return
+    endif
+    if target == PlayerRef
+        if DebugMode
+            Notification("MTF: cannot tattoo the player from the hotkey (use MCM Presets)")
+        endif
+        return
+    endif
+    string defPreset = GetDefaultSubjectPreset()
+    if defPreset == ""
+        Notification("MTF: set a default preset first (MCM > Subjects)")
+        return
+    endif
+    int rc = AddTrackedActor(target, defPreset)
+    string nm = target.GetDisplayName()
+    if rc == 1
+        Notification("MTF: added " + nm + " (preset: " + defPreset + ")")
+        EvalAndDrawActor(target)
+    elseif rc == 0
+        Notification("MTF: " + nm + " already tracked; preset refreshed")
+        EvalAndDrawActor(target)
+    elseif rc == -3
+        Notification("MTF: tracked-subject cap reached (" + TRACKED_CAP() + ")")
+    endif
+EndFunction
+
 bool Property _arraysReady = false Auto Hidden
 int Property _migrationLevel = 0 Auto Hidden
 
