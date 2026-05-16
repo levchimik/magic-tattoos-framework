@@ -95,6 +95,21 @@ int Function ROSTER_CAP() global
     return 8
 EndFunction
 
+int Function MAX_EVALS_PER_TICK() global
+{Slow-tick budget: at most this many tracked actors are evaluated per
+ update tick. Default 16 means a 256-actor roster completes a full sweep
+ in 16 ticks (~32s at default 2s interval) — fine for non-realtime
+ conditions like location/weather/state.}
+    return 16
+EndFunction
+
+float Function SUBJECT_EVAL_RADIUS() global
+{Skip eval+draw when the actor is farther than this from the player.
+ Out-of-render actors aren't visible anyway. 4096 units ≈ 80m, which
+ spans most exterior cells the player can see.}
+    return 4096.0
+EndFunction
+
 int Function MAX_LAYERS_PER_SLOT() global
     return 4
 EndFunction
@@ -1781,9 +1796,10 @@ State checkingAroused
                 influenceTracking = false
             endif
 
-            ; ── Step 5: tracked NPC rotation. Baseline: full pass each slow
-            ; tick. Step 6 introduces MAX_EVALS_PER_TICK + distance gate.
-            _processTrackedActorsSlowTick(0)
+            ; Tracked NPC rotation: stagger MAX_EVALS_PER_TICK per slow tick.
+            ; Each evaluated actor goes through Is3DLoaded + distance gates
+            ; in _processTrackedActorOnce; out-of-range actors cost ~2 calls.
+            _processTrackedActorsSlowTick(MAX_EVALS_PER_TICK())
         endif
 
         ; Pulse step. Fires if either the player has an active pulse tier
@@ -2820,7 +2836,12 @@ int _rotIdx = 0
 
 Function _processTrackedActorOnce(Actor target)
 {Eval, draw, lifecycle one tracked actor. Updates roster membership for
- pulse on tier transition.}
+ pulse on tier transition. Step 6 gates: skip when suspended (cell detach),
+ killed, missing 3D, or farther than SUBJECT_EVAL_RADIUS from the player.
+ Out-of-range actors that have an active pulse roster slot stay on the
+ roster — the pulse hot path issues NiOverride writes regardless of
+ visibility and the cost per slot is trivial. They get evicted on tier
+ transition or by the farthest-from-player eviction rule.}
     if target == None
         return
     endif
@@ -2828,6 +2849,17 @@ Function _processTrackedActorOnce(Actor target)
         return
     endif
     if _getActorKilled(target)
+        return
+    endif
+    if !target.Is3DLoaded()
+        ; Treat unloaded actors as suspended even if we missed the
+        ; OnObjectUnloaded event (e.g. registration was set up after
+        ; the actor already unloaded).
+        _setActorSuspended(target, true)
+        _rosterRemoveActor(target)
+        return
+    endif
+    if PlayerRef != None && target.GetDistance(PlayerRef) > SUBJECT_EVAL_RADIUS()
         return
     endif
     string preset = GetActorPreset(target)
