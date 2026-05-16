@@ -131,6 +131,8 @@ Function EnsureArrays()
 EndFunction
 
 ; Inheritance helpers — slots 1-7 with empty condPackId fall back to slot 0.
+; The "<none>" sentinel means "explicit no-texture / effects-only" and never
+; inherits; drawOverlay skips drawing when it sees this value.
 string Function ResolveSlotPackId(int slot)
     if condPackId == None
         return ""
@@ -146,20 +148,8 @@ string Function ResolveSlotEntryId(int slot)
     if condEntryId == None
         return ""
     endif
-    ; "<none>" is an explicit "no texture" sentinel — never inherits, and
-    ; resolves to "" so the overlay code skips drawing layers.
-    if condEntryId[slot] == "<none>"
-        return ""
-    endif
     if slot > 0 && condPackId != None && condPackId[slot] == ""
-        ; Inherit-pack slot with no explicit entry override → inherit entry too.
-        ; But if Default itself has "<none>" set, that resolves to "".
-        if condEntryId[slot] == ""
-            if condEntryId[0] == "<none>"
-                return ""
-            endif
-            return condEntryId[0]
-        endif
+        return condEntryId[0]
     endif
     return condEntryId[slot]
 EndFunction
@@ -1431,7 +1421,7 @@ function drawOverlay(actor akTarget, int idx)
     int max = _maxLayerSlots()
     int maxLayers = MAX_LAYERS_PER_SLOT()
     int layerN = 0
-    if packId != "" && entryId != ""
+    if packId != "" && packId != "<none>" && entryId != ""
         layerN = GetEntryLayerCount(packId, entryId)
         if layerN > max
             layerN = max

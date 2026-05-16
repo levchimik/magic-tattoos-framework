@@ -544,17 +544,16 @@ function drawConditionsPage()
     AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(idx))
 
     ; Determine layer count from the resolved (slot or inherited) entry.
-    ; If the slot is in "(no texture)" mode (resolved entry is empty) we hide
-    ; layer sliders entirely — there's nothing to tint. If pack/entry are
-    ; merely unresolved (no packs installed), show all MAX_LAYERS rows so
-    ; the user can still pre-tweak.
+    ; When the slot's pack resolves to "(no texture)" (sentinel "<none>" or,
+    ; for Default with no packs installed, ""), hide all layer sliders —
+    ; there's nothing to tint. Otherwise default to MAX_LAYERS so the user
+    ; can pre-tweak even before an entry resolves.
     string resPack  = MainQuest.ResolveSlotPackId(idx)
     string resEntry = MainQuest.ResolveSlotEntryId(idx)
-    bool noTexture = (MainQuest.condEntryId[idx] == "<none>") || (idx == 0 && MainQuest.condEntryId[0] == "")
     int layerN = MTF_MainQuest.MAX_LAYERS_PER_SLOT()
-    if noTexture
+    if resPack == "" || resPack == "<none>"
         layerN = 0
-    elseif resPack != "" && resEntry != ""
+    elseif resEntry != ""
         int lc = MainQuest.GetEntryLayerCount(resPack, resEntry)
         if lc > 0 && lc < layerN
             layerN = lc
@@ -825,13 +824,16 @@ endState
 
 ; ── Per-slot entry picker (texture choice within the active visual pack) ────
 string Function _slotEntryLabel(int slot)
-    string entryId = MainQuest.condEntryId[slot]
-    if entryId == "<none>"
-        return "(no texture)"
+    ; When the slot is in "(no texture)" mode (resolved at the pack level)
+    ; the entry row is informational only.
+    string resPack = MainQuest.ResolveSlotPackId(slot)
+    if resPack == "<none>" || resPack == ""
+        return "—"
     endif
+    string entryId = MainQuest.condEntryId[slot]
     if entryId == ""
         if slot == 0
-            return "(no texture)"
+            return "(not set)"
         endif
         return "(inherit Default)"
     endif
@@ -858,12 +860,15 @@ EndFunction
 
 string Function _slotPackLabel(int slot)
     string pid = MainQuest.condPackId[slot]
+    if pid == "<none>"
+        return "(no texture)"
+    endif
     if pid == ""
         if slot == 0
             if MainQuest.GetVisualPackCount() == 0
                 return "(no packs found)"
             endif
-            return "(not set)"
+            return "(no texture)"
         endif
         return "(inherit Default)"
     endif
@@ -878,32 +883,31 @@ state SLOT_PACK_PICK
     event OnMenuOpenST()
         int n = MainQuest.GetVisualPackCount()
         bool allowInherit = (selectedCondition > 0)
-        int total = n
+        ; Options layout: [(inherit Default) if slot>0], (no texture), packs...
+        int total = n + 1   ; +1 for "(no texture)"
         if allowInherit
             total += 1
-        endif
-        if total <= 0
-            string[] empty = new string[1]
-            empty[0] = "(no packs found)"
-            SetMenuDialogStartIndex(0)
-            SetMenuDialogDefaultIndex(0)
-            SetMenuDialogOptions(empty)
-            return
         endif
         string[] opts = _newOpts(total)
         int sel = 0
         int writeIdx = 0
+        string curPack = MainQuest.condPackId[selectedCondition]
         if allowInherit
-            opts[0] = "(inherit Default)"
-            if MainQuest.condPackId[selectedCondition] == ""
-                sel = 0
+            opts[writeIdx] = "(inherit Default)"
+            if curPack == ""
+                sel = writeIdx
             endif
-            writeIdx = 1
+            writeIdx += 1
         endif
+        opts[writeIdx] = "(no texture)"
+        if curPack == "<none>" || (selectedCondition == 0 && curPack == "")
+            sel = writeIdx
+        endif
+        writeIdx += 1
         int i = 0
         while i < n
             opts[writeIdx] = MainQuest.GetVisualPackLabelAt(i)
-            if MainQuest.GetVisualPackIdAt(i) == MainQuest.condPackId[selectedCondition]
+            if MainQuest.GetVisualPackIdAt(i) == curPack
                 sel = writeIdx
             endif
             writeIdx += 1
@@ -918,21 +922,38 @@ state SLOT_PACK_PICK
         if index < 0
             return
         endif
+        int cursor = 0
         string newPack = ""
-        if !(allowInherit && index == 0)
-            int packIdx = index
-            if allowInherit
-                packIdx -= 1
+        bool resolved = false
+        if allowInherit
+            if index == cursor
+                newPack = ""
+                resolved = true
             endif
+            cursor += 1
+        endif
+        if !resolved && index == cursor
+            ; "(no texture)" — for slot 0 we just clear (no inheritance possible);
+            ; for 1-7 we store the explicit sentinel.
+            if selectedCondition == 0
+                newPack = ""
+            else
+                newPack = "<none>"
+            endif
+            resolved = true
+        endif
+        cursor += 1
+        if !resolved
+            int packIdx = index - cursor
             if packIdx >= 0 && packIdx < MainQuest.GetVisualPackCount()
                 newPack = MainQuest.GetVisualPackIdAt(packIdx)
             endif
         endif
         ; Switching packs invalidates the entry pick — reset to first entry
-        ; of the new pack (or "" if inheriting).
+        ; of the new pack (or clear if inheriting / no-texture).
         if newPack != MainQuest.condPackId[selectedCondition]
             MainQuest.condPackId[selectedCondition] = newPack
-            if newPack == ""
+            if newPack == "" || newPack == "<none>"
                 MainQuest.condEntryId[selectedCondition] = ""
             elseif MainQuest.GetPackEntryCount(newPack) > 0
                 MainQuest.condEntryId[selectedCondition] = MainQuest.GetPackEntryIdAt(newPack, 0)
@@ -961,9 +982,9 @@ state SLOT_PACK_PICK
     endEvent
     event OnHighlightST()
         if selectedCondition == 0
-            SetInfoText("Visual pack used by the Default slot. Packs are JSON files under Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/.")
+            SetInfoText("Visual pack used by the Default slot. Pick (no texture) for effects-only operation with no overlay. Packs are JSON files under Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/.")
         else
-            SetInfoText("Visual pack for this condition slot. (inherit Default) falls back to the Default slot's pack + texture.")
+            SetInfoText("Visual pack for this condition slot. (inherit Default) falls back to the Default slot's pack + texture; (no texture) renders nothing and runs effects only.")
         endif
     endEvent
 endState
@@ -971,43 +992,47 @@ endState
 state SLOT_VISUAL_ENTRY
     event OnMenuOpenST()
         string pid = MainQuest.ResolveSlotPackId(selectedCondition)
-        int n = 0
-        if pid != ""
-            n = MainQuest.GetPackEntryCount(pid)
+        ; If the slot is in "(no texture)" / no-pack mode, the entry picker
+        ; is a no-op — render a single read-only label.
+        if pid == "" || pid == "<none>"
+            string[] na = new string[1]
+            na[0] = "—"
+            SetMenuDialogStartIndex(0)
+            SetMenuDialogDefaultIndex(0)
+            SetMenuDialogOptions(na)
+            return
         endif
-        ; Condition slots (1-7) get a leading "(inherit Default)" option ONLY
-        ; when they also inherit the pack — picking a different pack means
+        int n = MainQuest.GetPackEntryCount(pid)
+        ; Condition slots get a leading "(inherit Default)" option at index 0
+        ; ONLY when they also inherit the pack — picking a different pack means
         ; the slot has its own (pack, entry) and entry inheritance is moot.
-        ; All slots get a "(no texture)" option (effects-only, no overlay).
         bool allowInherit = (selectedCondition > 0) && (MainQuest.condPackId[selectedCondition] == "")
-        int total = n + 1   ; +1 for "(no texture)"
+        int total = n
         if allowInherit
             total += 1
+        endif
+        if total <= 0
+            string[] empty = new string[1]
+            empty[0] = "(no entries)"
+            SetMenuDialogStartIndex(0)
+            SetMenuDialogDefaultIndex(0)
+            SetMenuDialogOptions(empty)
+            return
         endif
         string[] opts = _newOpts(total)
         int sel = 0
         int writeIdx = 0
-        string curEntry = MainQuest.condEntryId[selectedCondition]
         if allowInherit
-            opts[writeIdx] = "(inherit Default)"
-            if curEntry == ""
-                sel = writeIdx
+            opts[0] = "(inherit Default)"
+            if MainQuest.condEntryId[selectedCondition] == ""
+                sel = 0
             endif
-            writeIdx += 1
+            writeIdx = 1
         endif
-        ; "(no texture)" — for slot 0 represented as "" (no inherit possible),
-        ; for slots 1-7 represented as "<none>" so we can distinguish from inherit.
-        opts[writeIdx] = "(no texture)"
-        if selectedCondition == 0 && curEntry == ""
-            sel = writeIdx
-        elseif selectedCondition > 0 && curEntry == "<none>"
-            sel = writeIdx
-        endif
-        writeIdx += 1
         int i = 0
         while i < n
             opts[writeIdx] = MainQuest.GetPackEntryLabelAt(pid, i)
-            if MainQuest.GetPackEntryIdAt(pid, i) == curEntry
+            if MainQuest.GetPackEntryIdAt(pid, i) == MainQuest.condEntryId[selectedCondition]
                 sel = writeIdx
             endif
             writeIdx += 1
@@ -1019,37 +1044,24 @@ state SLOT_VISUAL_ENTRY
     endEvent
     event OnMenuAcceptST(int index)
         string pid = MainQuest.ResolveSlotPackId(selectedCondition)
+        if pid == "" || pid == "<none>"
+            ; No-pack mode — picker is informational; ignore selection.
+            return
+        endif
         bool allowInherit = (selectedCondition > 0) && (MainQuest.condPackId[selectedCondition] == "")
         if index < 0
             return
         endif
-        int cursor = 0
-        if allowInherit
-            if index == cursor
-                MainQuest.condEntryId[selectedCondition] = ""
-                SetMenuOptionValueST(_slotEntryLabel(selectedCondition))
-                MainQuest.setRedraw()
-                ForcePageReset()
-                return
+        if allowInherit && index == 0
+            MainQuest.condEntryId[selectedCondition] = ""
+        else
+            int entryIdx = index
+            if allowInherit
+                entryIdx -= 1
             endif
-            cursor += 1
-        endif
-        if index == cursor
-            ; "(no texture)" — explicit empty for slot 0, sentinel for 1-7.
-            if selectedCondition == 0
-                MainQuest.condEntryId[0] = ""
-            else
-                MainQuest.condEntryId[selectedCondition] = "<none>"
+            if entryIdx >= 0 && entryIdx < MainQuest.GetPackEntryCount(pid)
+                MainQuest.condEntryId[selectedCondition] = MainQuest.GetPackEntryIdAt(pid, entryIdx)
             endif
-            SetMenuOptionValueST(_slotEntryLabel(selectedCondition))
-            MainQuest.setRedraw()
-            ForcePageReset()
-            return
-        endif
-        cursor += 1
-        int entryIdx = index - cursor
-        if entryIdx >= 0 && pid != "" && entryIdx < MainQuest.GetPackEntryCount(pid)
-            MainQuest.condEntryId[selectedCondition] = MainQuest.GetPackEntryIdAt(pid, entryIdx)
         endif
         SetMenuOptionValueST(_slotEntryLabel(selectedCondition))
         MainQuest.setRedraw()
@@ -1072,9 +1084,9 @@ state SLOT_VISUAL_ENTRY
     endEvent
     event OnHighlightST()
         if selectedCondition == 0
-            SetInfoText("Texture used by the Default slot. Pick (no texture) for effects-only with no overlay.")
+            SetInfoText("Texture used by the Default slot. To run effects-only with no overlay, set Visual pack to (no texture).")
         else
-            SetInfoText("Texture used by this condition slot. (inherit Default) falls back to Default's pick; (no texture) renders nothing and runs effects only.")
+            SetInfoText("Texture used by this condition slot. (inherit Default) falls back to Default's pick. To disable the overlay entirely, set Visual pack to (no texture).")
         endif
     endEvent
 endState
