@@ -352,7 +352,7 @@ state TOGGLE_ALL
 endState
 
 function drawGeneralPage()
-    SetCursorFillMode(LEFT_TO_RIGHT)
+    SetCursorFillMode(TOP_TO_BOTTOM)
 
     ; ── Left column: core settings ──────────────────────────────────────────
     AddHeaderOption("General")
