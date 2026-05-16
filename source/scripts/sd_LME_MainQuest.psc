@@ -6,25 +6,34 @@ import Utility
 ; ── Global settings ──────────────────────────────────────────────────────────
 bool Property ModActive = false Auto
 bool Property DebugMode = false Auto
-bool Property useSlaveTats = false Auto
 int Property OverlaySlot = 2 Auto
 int Property CurrentOverlaySlot = 2 Auto
 float Property updateInterval = 2.0 Auto
+
+; ── Visual pack (loaded from JSON catalogs) ─────────────────────────────────
+; activeVisualPackId is the stable packId from the catalog JSON's "packId"
+; field, e.g. "lme.racemenu-lewdmarks". Catalog files live under
+;   Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/*.json
+; LoadVisualCatalogs() scans the folder, caches packIds/labels/filenames.
+string Property activeVisualPackId = "" Auto
+string[] Property visualPackIds Auto Hidden
+string[] Property visualPackLabels Auto Hidden
+string[] Property visualPackFiles Auto Hidden   ; JsonUtil path: "LewdMarksEffects/visuals/<basename>"
+int Property visualPackCount = 0 Auto Hidden
+bool _visualsLoaded = false
 
 ; ── Per-slot arrays (index 0 = Default, 1-7 = Conditions) ───────────────────
 ; condPluginId: "<pluginId>:<conditionItemId>" composite key; "" = unset.
 string[] Property condPluginId Auto
 int[] Property condParam Auto
-int[] Property condTextureNum Auto
-bool[] Property condUseGlow Auto
-int[] Property condMarkTint Auto
-int[] Property condMarkEmissive Auto
-float[] Property condMarkEmissiveMult Auto
-int[] Property condMarkAlpha Auto
-int[] Property condHaloTint Auto
-int[] Property condHaloEmissive Auto
-float[] Property condHaloEmissiveMult Auto
-int[] Property condHaloAlpha Auto
+; condEntryId: stable per-pack entry id (e.g. "001"). "" = inherit slot 0.
+string[] Property condEntryId Auto
+; Shared visual params — applied to every layer of the picked entry.
+; Layer JSON can pre-multiply emissive/alpha per layer.
+int[] Property condTint Auto
+int[] Property condEmissive Auto
+float[] Property condEmissiveMult Auto
+int[] Property condAlpha Auto
 
 ; ── Per-slot effect lists (flat, 8 slots × MAX_EFFECTS_PER_SLOT) ─────────────
 ; effectKey: "<pluginId>:<effectItemId>" or ""; effectParam parallel.
@@ -66,8 +75,6 @@ int Property menuCount = 0 Auto Hidden
 
 ; ── Internal ──────────────────────────────────────────────────────────────────
 actor Property PlayerRef Auto
-string Property texturePathNormal = "actors\\character\\overlays\\lewdmarks\\" Auto
-string Property texturePathGlow   = "actors\\character\\overlays\\lewdmarks-glow\\" Auto
 
 bool forceRedraw = false
 int currentTier = -1
@@ -93,26 +100,266 @@ Function EnsureArrays()
         return
     endif
     Trace("[LME_Main] EnsureArrays: allocating arrays")
-    condPluginId         = new string[8]
-    condParam            = new int[8]
-    condTextureNum       = new int[8]
-    condUseGlow          = new bool[8]
-    condMarkTint         = new int[8]
-    condMarkEmissive     = new int[8]
-    condMarkEmissiveMult = new float[8]
-    condMarkAlpha        = new int[8]
-    condHaloTint         = new int[8]
-    condHaloEmissive     = new int[8]
-    condHaloEmissiveMult = new float[8]
-    condHaloAlpha        = new int[8]
-    effectKey            = new string[32]    ; 8 slots × 4 effects
-    effectParam          = new int[32]
-    cooldownMin          = new int[8]
-    cooldownMode         = new int[8]
-    cooldownUntilGT      = new float[8]
-    registeredPlugins    = new Form[32]
-    pluginCount          = 0
-    _arraysReady         = true
+    condPluginId      = new string[8]
+    condParam         = new int[8]
+    condEntryId       = new string[8]
+    condTint          = new int[8]
+    condEmissive      = new int[8]
+    condEmissiveMult  = new float[8]
+    condAlpha         = new int[8]
+    effectKey         = new string[32]    ; 8 slots × 4 effects
+    effectParam       = new int[32]
+    cooldownMin       = new int[8]
+    cooldownMode      = new int[8]
+    cooldownUntilGT   = new float[8]
+    registeredPlugins = new Form[32]
+    pluginCount       = 0
+    _arraysReady      = true
+EndFunction
+
+; ─────────────────────────────────────────────────────────────────────────────
+; Visual catalog (JSON-driven texture packs)
+; ─────────────────────────────────────────────────────────────────────────────
+; A "visual pack" is a JSON file under
+;   Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/
+; describing a set of "entries", each with one or more texture "layers".
+; Picking an entry in MCM stamps that entry's layers into consecutive
+; NiOverride overlay slots (OverlaySlot + layerIndex). Per-layer
+; emissiveMult / alphaMult biases let the catalog encode e.g. "this glow
+; layer should be 2× brighter than the base mark" without exposing
+; per-layer sliders in the MCM.
+;
+; The pack list itself is cached once into visualPackIds/Labels/Files
+; arrays; entry details (id/label/layer count/textures) are looked up
+; on demand via JsonUtil PathCount/GetPathStringValue/GetPathFloatValue
+; because 96+ entries × 2 layers = too much to flatten into Papyrus
+; arrays up-front.
+
+Function LoadVisualCatalogs()
+    if _visualsLoaded
+        return
+    endif
+    ForceReloadVisualCatalogs()
+EndFunction
+
+Function ForceReloadVisualCatalogs()
+{Bypasses the _visualsLoaded cache. Two-pass:
+   1. JsonInFolder enumeration — picks up third-party drop-in packs.
+   2. Hardcoded fallback for the two ship-included catalogs — defends
+      against JsonInFolder native quirks (some VFS overlays don't expose
+      newly-added subdirectories to its FindFirstFile-style scan).}
+    visualPackIds    = new string[32]
+    visualPackLabels = new string[32]
+    visualPackFiles  = new string[32]
+    visualPackCount  = 0
+
+    int rawCount = 0
+    int probedCount = 0
+    int directHits = 0
+
+    ; Pass 1: folder scan
+    string[] files = JsonUtil.JsonInFolder("LewdMarksEffects/visuals")
+    if files != None
+        rawCount = files.Length
+        int i = 0
+        while i < files.Length && visualPackCount < 32
+            ; Try TWO path forms — different PapyrusUtil builds disagree
+            ; about whether the .json suffix should be on the filename
+            ; passed to GetStringValue. Take whichever returns a packId.
+            string raw = files[i]
+            string withExt    = "LewdMarksEffects/visuals/" + raw
+            string withoutExt = withExt
+            int dot = StringUtil.Find(raw, ".json")
+            if dot > 0
+                withoutExt = "LewdMarksEffects/visuals/" + StringUtil.Substring(raw, 0, dot)
+            endif
+            probedCount += 1
+            string useFile = withoutExt
+            string pid   = JsonUtil.GetPathStringValue(useFile, ".packId", "")
+            if pid == ""
+                useFile = withExt
+                pid = JsonUtil.GetPathStringValue(useFile, ".packId", "")
+            endif
+            string label = JsonUtil.GetPathStringValue(useFile, ".label", pid)
+            Trace("[LME_Main] visual probe raw='" + raw + "' useFile='" + useFile + "' packId='" + pid + "'")
+            if pid != "" && _findPackFileIdx(useFile) < 0
+                visualPackIds[visualPackCount]    = pid
+                visualPackLabels[visualPackCount] = label
+                visualPackFiles[visualPackCount]  = useFile
+                visualPackCount += 1
+            endif
+            i += 1
+        endwhile
+    endif
+
+    ; Pass 2: hardcoded probe for ship-included packs
+    string[] known = new string[2]
+    known[0] = "LewdMarksEffects/visuals/lme.racemenu-lewdmarks"
+    known[1] = "LewdMarksEffects/visuals/lme.slavetats-lewdmarks"
+    int k = 0
+    while k < known.Length && visualPackCount < 32
+        string kf = known[k]
+        string kpid = ""
+        string klabel = ""
+        if _findPackFileIdx(kf) < 0
+            kpid = JsonUtil.GetPathStringValue(kf, ".packId", "")
+            if kpid == ""
+                kf = kf + ".json"
+                if _findPackFileIdx(kf) < 0
+                    kpid = JsonUtil.GetPathStringValue(kf, ".packId", "")
+                endif
+            endif
+            klabel = JsonUtil.GetPathStringValue(kf, ".label", kpid)
+            Trace("[LME_Main] direct hit '" + kf + "' packId='" + kpid + "'")
+            if kpid != ""
+                visualPackIds[visualPackCount]    = kpid
+                visualPackLabels[visualPackCount] = klabel
+                visualPackFiles[visualPackCount]  = kf
+                visualPackCount += 1
+                directHits += 1
+            endif
+        endif
+        k += 1
+    endwhile
+
+    _visualsLoaded = true
+    Trace("[LME_Main] LoadVisualCatalogs: folderRaw=" + rawCount + " probed=" + probedCount + " direct=" + directHits + " loaded=" + visualPackCount)
+    string sample = "(none)"
+    if files != None && files.Length > 0
+        sample = files[0]
+    endif
+    Notification("LME visuals: folder=" + rawCount + " direct=" + directHits + " loaded=" + visualPackCount)
+    Notification("LME first file: '" + sample + "'")
+EndFunction
+
+int Function _findPackFileIdx(string f)
+    int i = 0
+    while i < visualPackCount
+        if visualPackFiles[i] == f
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+int Function GetVisualPackCount()
+    LoadVisualCatalogs()
+    return visualPackCount
+EndFunction
+
+string Function GetVisualPackIdAt(int i)
+    LoadVisualCatalogs()
+    if i < 0 || i >= visualPackCount
+        return ""
+    endif
+    return visualPackIds[i]
+EndFunction
+
+string Function GetVisualPackLabelAt(int i)
+    LoadVisualCatalogs()
+    if i < 0 || i >= visualPackCount
+        return ""
+    endif
+    return visualPackLabels[i]
+EndFunction
+
+int Function FindVisualPackIndex(string packId)
+    LoadVisualCatalogs()
+    if packId == ""
+        return -1
+    endif
+    int i = 0
+    while i < visualPackCount
+        if visualPackIds[i] == packId
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+string Function _packFileById(string packId)
+    int idx = FindVisualPackIndex(packId)
+    if idx < 0
+        return ""
+    endif
+    return visualPackFiles[idx]
+EndFunction
+
+int Function GetPackEntryCount(string packId)
+    string f = _packFileById(packId)
+    if f == ""
+        return 0
+    endif
+    return JsonUtil.PathCount(f, ".entries")
+EndFunction
+
+string Function GetPackEntryIdAt(string packId, int entryIdx)
+    string f = _packFileById(packId)
+    if f == "" || entryIdx < 0
+        return ""
+    endif
+    return JsonUtil.GetPathStringValue(f, ".entries[" + entryIdx + "].id", "")
+EndFunction
+
+string Function GetPackEntryLabelAt(string packId, int entryIdx)
+    string f = _packFileById(packId)
+    if f == "" || entryIdx < 0
+        return ""
+    endif
+    return JsonUtil.GetPathStringValue(f, ".entries[" + entryIdx + "].label", "")
+EndFunction
+
+int Function _findEntryIdx(string packId, string entryId)
+    if entryId == ""
+        return -1
+    endif
+    int n = GetPackEntryCount(packId)
+    int i = 0
+    while i < n
+        if GetPackEntryIdAt(packId, i) == entryId
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+int Function GetEntryLayerCount(string packId, string entryId)
+    string f = _packFileById(packId)
+    int idx = _findEntryIdx(packId, entryId)
+    if f == "" || idx < 0
+        return 0
+    endif
+    return JsonUtil.PathCount(f, ".entries[" + idx + "].layers")
+EndFunction
+
+string Function GetEntryLayerTexture(string packId, string entryId, int layer)
+    string f = _packFileById(packId)
+    int idx = _findEntryIdx(packId, entryId)
+    if f == "" || idx < 0 || layer < 0
+        return ""
+    endif
+    return JsonUtil.GetPathStringValue(f, ".entries[" + idx + "].layers[" + layer + "].texture", "")
+EndFunction
+
+float Function GetEntryLayerEmissiveMult(string packId, string entryId, int layer)
+    string f = _packFileById(packId)
+    int idx = _findEntryIdx(packId, entryId)
+    if f == "" || idx < 0 || layer < 0
+        return 1.0
+    endif
+    return JsonUtil.GetPathFloatValue(f, ".entries[" + idx + "].layers[" + layer + "].emissiveMult", 1.0)
+EndFunction
+
+float Function GetEntryLayerAlphaMult(string packId, string entryId, int layer)
+    string f = _packFileById(packId)
+    int idx = _findEntryIdx(packId, entryId)
+    if f == "" || idx < 0 || layer < 0
+        return 1.0
+    endif
+    return JsonUtil.GetPathFloatValue(f, ".entries[" + idx + "].layers[" + layer + "].alphaMult", 1.0)
 EndFunction
 
 ; Indexed write helpers — `obj.arrayProp[i] = val` syntax can fail to
@@ -216,27 +463,19 @@ bool Function SavePreset(string rawName)
     JsonUtil.ClearAll(f)
     JsonUtil.SetIntValue(f, "valid", 1)
     JsonUtil.SetStringValue(f, "displayName", rawName)
-    JsonUtil.SetIntValue(f, "schemaVersion", 1)
+    JsonUtil.SetIntValue(f, "schemaVersion", 2)
+    JsonUtil.SetStringValue(f, "general.activeVisualPackId", activeVisualPackId)
 
     EnsureArrays()
     int s = 0
     while s < 8
         JsonUtil.SetStringValue(f, "slot." + s + ".condPluginId", condPluginId[s])
         JsonUtil.SetIntValue(f, "slot." + s + ".condParam", condParam[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".condTextureNum", condTextureNum[s])
-        if condUseGlow[s]
-            JsonUtil.SetIntValue(f, "slot." + s + ".condUseGlow", 1)
-        else
-            JsonUtil.SetIntValue(f, "slot." + s + ".condUseGlow", 0)
-        endif
-        JsonUtil.SetIntValue(f, "slot." + s + ".condMarkTint", condMarkTint[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".condMarkEmissive", condMarkEmissive[s])
-        JsonUtil.SetFloatValue(f, "slot." + s + ".condMarkEmissiveMult", condMarkEmissiveMult[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".condMarkAlpha", condMarkAlpha[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".condHaloTint", condHaloTint[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".condHaloEmissive", condHaloEmissive[s])
-        JsonUtil.SetFloatValue(f, "slot." + s + ".condHaloEmissiveMult", condHaloEmissiveMult[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".condHaloAlpha", condHaloAlpha[s])
+        JsonUtil.SetStringValue(f, "slot." + s + ".condEntryId", condEntryId[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".condTint", condTint[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".condEmissive", condEmissive[s])
+        JsonUtil.SetFloatValue(f, "slot." + s + ".condEmissiveMult", condEmissiveMult[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".condAlpha", condAlpha[s])
         JsonUtil.SetIntValue(f, "slot." + s + ".cooldownMin", cooldownMin[s])
         JsonUtil.SetIntValue(f, "slot." + s + ".cooldownMode", cooldownMode[s])
         int e = 0
@@ -279,23 +518,24 @@ bool Function LoadPreset(string name)
     if JsonUtil.GetIntValue(f, "valid", 0) != 1
         return false
     endif
+    if JsonUtil.GetIntValue(f, "schemaVersion", 1) < 2
+        ; Preset predates the visual-pack rewrite. Refuse rather than half-load.
+        return false
+    endif
     EnsureArrays()
+
+    activeVisualPackId = JsonUtil.GetStringValue(f, "general.activeVisualPackId", "")
 
     int s = 0
     while s < 8
         SetCondPluginId(s, JsonUtil.GetStringValue(f, "slot." + s + ".condPluginId", ""))
         SetCondParam(s, JsonUtil.GetIntValue(f, "slot." + s + ".condParam", 0))
-        condTextureNum[s]       = JsonUtil.GetIntValue(f, "slot." + s + ".condTextureNum", 0)
-        condUseGlow[s]          = JsonUtil.GetIntValue(f, "slot." + s + ".condUseGlow", 0) == 1
-        condMarkTint[s]         = JsonUtil.GetIntValue(f, "slot." + s + ".condMarkTint", 16777215)
-        condMarkEmissive[s]     = JsonUtil.GetIntValue(f, "slot." + s + ".condMarkEmissive", 16777215)
-        condMarkEmissiveMult[s] = JsonUtil.GetFloatValue(f, "slot." + s + ".condMarkEmissiveMult", 1.0)
-        condMarkAlpha[s]        = JsonUtil.GetIntValue(f, "slot." + s + ".condMarkAlpha", 100)
-        condHaloTint[s]         = JsonUtil.GetIntValue(f, "slot." + s + ".condHaloTint", 16777215)
-        condHaloEmissive[s]     = JsonUtil.GetIntValue(f, "slot." + s + ".condHaloEmissive", 16777215)
-        condHaloEmissiveMult[s] = JsonUtil.GetFloatValue(f, "slot." + s + ".condHaloEmissiveMult", 1.0)
-        condHaloAlpha[s]        = JsonUtil.GetIntValue(f, "slot." + s + ".condHaloAlpha", 100)
-        cooldownMin[s]          = JsonUtil.GetIntValue(f, "slot." + s + ".cooldownMin", 0)
+        condEntryId[s]      = JsonUtil.GetStringValue(f, "slot." + s + ".condEntryId", "")
+        condTint[s]         = JsonUtil.GetIntValue(f, "slot." + s + ".condTint", 16777215)
+        condEmissive[s]     = JsonUtil.GetIntValue(f, "slot." + s + ".condEmissive", 16777215)
+        condEmissiveMult[s] = JsonUtil.GetFloatValue(f, "slot." + s + ".condEmissiveMult", 1.0)
+        condAlpha[s]        = JsonUtil.GetIntValue(f, "slot." + s + ".condAlpha", 100)
+        cooldownMin[s]      = JsonUtil.GetIntValue(f, "slot." + s + ".cooldownMin", 0)
         cooldownMode[s]         = JsonUtil.GetIntValue(f, "slot." + s + ".cooldownMode", 0)
         int e = 0
         int maxE = MAX_EFFECTS_PER_SLOT()
@@ -1083,49 +1323,82 @@ State checkingAroused
 EndState
 
 ; ── Overlay drawing ───────────────────────────────────────────────────────────
+; Resolves the active visual pack + the slot's picked entryId, then stamps
+; each of the entry's layers into consecutive overlay slots (OverlaySlot,
+; OverlaySlot+1, ...). Per-layer JSON pre-multipliers bias each layer's
+; emissive intensity / alpha relative to the shared per-slot sliders.
+;
+; Trailing slots that the previous entry used but the new one doesn't are
+; cleared so leftover textures don't bleed through after a tier change.
+
+int Function _maxLayerSlots()
+    ; NiOverride exposes 6 body overlay slots (ovl0..ovl5). Clamp to what's
+    ; reachable from OverlaySlot upward.
+    int rem = 6 - OverlaySlot
+    if rem < 1
+        rem = 1
+    endif
+    if rem > 6
+        rem = 6
+    endif
+    return rem
+EndFunction
+
 function drawOverlay(actor akTarget, int idx)
-    if condTextureNum == None
+    if condEntryId == None
         return
     endif
     bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
     string Area = "Body"
 
-    int texNum = condTextureNum[idx]
-    if texNum == 0
-        texNum = condTextureNum[0]
+    string packId  = activeVisualPackId
+    string entryId = condEntryId[idx]
+    if entryId == "" && idx > 0
+        entryId = condEntryId[0]
     endif
 
-    string prefix = texPrefix(texNum)
-
-    if condUseGlow[idx]
-        string texGlow = texturePathGlow + prefix + texNum + ".dds"
-        string texNorm = texturePathNormal + prefix + texNum + ".dds"
-        applyOverlay(akTarget, isFemale, Area, OverlaySlot,     texNorm, condMarkTint[idx], condMarkEmissive[idx], true,  condMarkEmissiveMult[idx], condMarkAlpha[idx] * 0.01)
-        applyOverlay(akTarget, isFemale, Area, OverlaySlot + 1, texGlow, condHaloTint[idx], condHaloEmissive[idx], true,  condHaloEmissiveMult[idx], condHaloAlpha[idx] * 0.01)
-    else
-        string texNorm = texturePathNormal + prefix + texNum + ".dds"
-        applyOverlay(akTarget, isFemale, Area, OverlaySlot,     texNorm, condMarkTint[idx], 0, false, 0.0, condMarkAlpha[idx] * 0.01)
-        clearOverlay(akTarget, isFemale, Area, OverlaySlot + 1)
+    int max = _maxLayerSlots()
+    int layerN = 0
+    if packId != "" && entryId != ""
+        layerN = GetEntryLayerCount(packId, entryId)
+        if layerN > max
+            layerN = max
+        endif
     endif
+
+    int tint     = condTint[idx]
+    int emissive = condEmissive[idx]
+    float emMult = condEmissiveMult[idx]
+    float alpha  = (condAlpha[idx] as float) * 0.01
+
+    int i = 0
+    while i < layerN
+        string tex   = GetEntryLayerTexture(packId, entryId, i)
+        float layEm  = GetEntryLayerEmissiveMult(packId, entryId, i)
+        float layAl  = GetEntryLayerAlphaMult(packId, entryId, i)
+        applyOverlay(akTarget, isFemale, Area, OverlaySlot + i, tex, tint, emissive, emMult * layEm, alpha * layAl)
+        i += 1
+    endwhile
+    ; Clear unused trailing slots (previous entry may have had more layers).
+    while i < max
+        clearOverlay(akTarget, isFemale, Area, OverlaySlot + i)
+        i += 1
+    endwhile
 
     CurrentOverlaySlot = OverlaySlot
 endFunction
-
-string Function texPrefix(int num)
-    if num < 10
-        return "00"
-    elseIf num < 100
-        return "0"
-    endif
-    return ""
-EndFunction
 
 function setRedraw()
     forceRedraw = true
 endFunction
 
 ; ── NiOverride wrappers ───────────────────────────────────────────────────────
-Function applyOverlay(actor Target, bool isFemale, string Area, int Slot, string Texture, int Tint, int Emissive, bool isGlow, float Intensity, float Alpha)
+; applyOverlay: stamps Texture into ovlSlot with per-layer effective emissive
+; intensity (caller pre-multiplies condEmissiveMult by the layer's bias).
+; Falloff (param 2) is set to 5.0 when intensity > 0 ("glow on"), else 0.0
+; — same convention as before.
+
+Function applyOverlay(actor Target, bool isFemale, string Area, int Slot, string Texture, int Tint, int Emissive, float Intensity, float Alpha)
     string Node = Area + " [ovl" + Slot + "]"
     if !NiOverride.HasOverlays(Target)
         NiOverride.AddOverlays(Target)
@@ -1135,7 +1408,7 @@ Function applyOverlay(actor Target, bool isFemale, string Area, int Slot, string
     NiOverride.AddNodeOverrideInt(Target, isFemale, Node, 0, -1, Emissive, true)
     NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 1, -1, Intensity, true)
     NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 8, -1, Alpha, true)
-    if isGlow
+    if Intensity > 0.0
         NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 5.0, true)
     else
         NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 0.0, true)
@@ -1160,6 +1433,10 @@ EndFunction
 
 function removeOverlay(actor akTarget)
     bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
-    clearOverlay(akTarget, isFemale, "Body", CurrentOverlaySlot)
-    clearOverlay(akTarget, isFemale, "Body", CurrentOverlaySlot + 1)
+    int max = _maxLayerSlots()
+    int i = 0
+    while i < max
+        clearOverlay(akTarget, isFemale, "Body", CurrentOverlaySlot + i)
+        i += 1
+    endwhile
 endFunction

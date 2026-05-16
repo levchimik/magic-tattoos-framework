@@ -4,18 +4,12 @@ import Debug
 
 ; ── Runtime ───────────────────────────────────────────────────────────────────
 int selectedCondition = 0
-int lewdMarksLastNumber = 96
-
-string texturePathNormalRM = "actors\\character\\overlays\\lewdmarks\\"
-string texturePathGlowRM   = "actors\\character\\overlays\\lewdmarks-glow\\"
-string texturePathNormalST = "actors\\character\\slavetats\\lewdmarks\\"
-string texturePathGlowST   = "actors\\character\\slavetats\\lewdmarks-glow\\"
 
 sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 14
+    return 16
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -76,47 +70,54 @@ event OnVersionUpdate(int Version)
     ; via StartGameEnabled). Each migration block bumps _migrationLevel so the
     ; same block never runs twice even if OVU fires repeatedly.
     int ml = MainQuest._migrationLevel
-    if ml >= 15
+    if ml >= 16
         return
     endif
-    if ml < 4 && CurrentVersion < 4
-        ; Fresh init for v0.0.2 plugin-system schema
-        MainQuest.condPluginId         = new string[8]
-        MainQuest.condParam            = new int[8]
-        MainQuest.condTextureNum       = new int[8]
-        MainQuest.condUseGlow          = new bool[8]
-        MainQuest.condMarkTint         = new int[8]
-        MainQuest.condMarkEmissive     = new int[8]
-        MainQuest.condMarkEmissiveMult = new float[8]
-        MainQuest.condMarkAlpha        = new int[8]
-        MainQuest.condHaloTint         = new int[8]
-        MainQuest.condHaloEmissive     = new int[8]
-        MainQuest.condHaloEmissiveMult = new float[8]
-        MainQuest.condHaloAlpha        = new int[8]
+    if ml < 16 && CurrentVersion < 16
+        ; v0.0.21: visual-pack rewrite.
+        ;   - condTextureNum / condUseGlow / condMark*/condHalo* all replaced
+        ;     by condEntryId + 4 shared visual params per slot.
+        ;   - useSlaveTats toggle replaced by activeVisualPackId string.
+        ;   - Pre-release: wipe legacy state, no migration of values.
+        MainQuest.condPluginId     = new string[8]
+        MainQuest.condParam        = new int[8]
+        MainQuest.condEntryId      = new string[8]
+        MainQuest.condTint         = new int[8]
+        MainQuest.condEmissive     = new int[8]
+        MainQuest.condEmissiveMult = new float[8]
+        MainQuest.condAlpha        = new int[8]
 
         MainQuest.ModActive          = false
         MainQuest.updateInterval     = 2.0
         MainQuest.OverlaySlot        = 2
         MainQuest.CurrentOverlaySlot = 2
 
-        ; Default slot (index 0)
-        MainQuest.condTextureNum[0]   = 3
-        MainQuest.condMarkAlpha[0]    = 100
-        MainQuest.condMarkTint[0]     = 16777215
-        MainQuest.condMarkEmissive[0] = 16777215
+        ; Pick the RaceMenu pack as the default if it's available; otherwise
+        ; leave blank — picker on the General page will fill it in.
+        MainQuest.LoadVisualCatalogs()
+        if MainQuest.FindVisualPackIndex("lme.racemenu-lewdmarks") >= 0
+            MainQuest.activeVisualPackId = "lme.racemenu-lewdmarks"
+        elseif MainQuest.GetVisualPackCount() > 0
+            MainQuest.activeVisualPackId = MainQuest.GetVisualPackIdAt(0)
+        else
+            MainQuest.activeVisualPackId = ""
+        endif
 
-        ; Condition slots 1-7 — glow on, warm white defaults
+        ; Default slot (index 0) — solid mark, no glow.
+        MainQuest.condEntryId[0]      = "003"
+        MainQuest.condTint[0]         = 16777215
+        MainQuest.condEmissive[0]     = 16777215
+        MainQuest.condEmissiveMult[0] = 0.0
+        MainQuest.condAlpha[0]        = 100
+
+        ; Condition slots 1-7 — glow on, warm white defaults.
         int i = 1
         while i < 8
-            MainQuest.condUseGlow[i]          = true
-            MainQuest.condMarkTint[i]         = 16777215
-            MainQuest.condMarkAlpha[i]        = 70
-            MainQuest.condMarkEmissive[i]     = 16777215
-            MainQuest.condMarkEmissiveMult[i] = 2.5
-            MainQuest.condHaloTint[i]         = 15231909
-            MainQuest.condHaloAlpha[i]        = 100
-            MainQuest.condHaloEmissive[i]     = 11337843
-            MainQuest.condHaloEmissiveMult[i] = 3.0
+            MainQuest.condEntryId[i]      = ""        ; inherit slot 0 by default
+            MainQuest.condTint[i]         = 16777215
+            MainQuest.condEmissive[i]     = 11337843  ; warm amber
+            MainQuest.condEmissiveMult[i] = 2.5
+            MainQuest.condAlpha[i]        = 80
             i += 1
         endwhile
     endif
@@ -180,7 +181,7 @@ event OnVersionUpdate(int Version)
         Pages[3] = "Menu Options"
         Pages[4] = "Presets"
     endif
-    MainQuest._migrationLevel = 15
+    MainQuest._migrationLevel = 16
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -372,7 +373,8 @@ function drawGeneralPage()
     AddHeaderOption("General")
     AddToggleOptionST("GEN_MOD_ACTIVE",      "Enable",                MainQuest.ModActive)
     AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{1}")
-    AddToggleOptionST("GEN_USE_SLAVETATS",   "Use SlaveTats textures", MainQuest.useSlaveTats)
+    AddMenuOptionST("GEN_VISUAL_PACK", "Visual pack", _activeVisualPackLabel())
+    AddTextOptionST("GEN_RELOAD_VISUALS", "Reload visual packs", "(" + MainQuest.GetVisualPackCount() + " loaded)")
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
 endFunction
 
@@ -511,8 +513,7 @@ function drawConditionsPage()
         AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
         AddHeaderOption("Default slot")
         AddSliderOptionST("SLOT_OVERLAY_SLOT", "Overlay slot",   MainQuest.OverlaySlot)
-        AddSliderOptionST("SLOT_TEXTURE_NUM",  "Texture number", MainQuest.condTextureNum[0])
-        AddToggleOptionST("SLOT_USE_GLOW",     "Use glow",       MainQuest.condUseGlow[0])
+        AddMenuOptionST("SLOT_VISUAL_ENTRY",   "Texture",        _slotEntryLabel(0))
     else
         string key = MainQuest.condPluginId[idx]
         sd_LME_Plugin p = None
@@ -537,8 +538,7 @@ function drawConditionsPage()
             endif
         endif
 
-        AddSliderOptionST("SLOT_TEXTURE_NUM", "Texture (0 = Default)", MainQuest.condTextureNum[idx])
-        AddToggleOptionST("SLOT_USE_GLOW",    "Use glow",               MainQuest.condUseGlow[idx])
+        AddMenuOptionST("SLOT_VISUAL_ENTRY", "Texture (blank = Default)", _slotEntryLabel(idx))
 
         int cdMin = MainQuest.cooldownMin[idx]
         AddHeaderOption("Cooldown")
@@ -554,17 +554,11 @@ function drawConditionsPage()
     _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM")
 
     SetCursorPosition(1)
-    AddHeaderOption("Mark colors")
-    AddColorOptionST("SLOT_MARK_TINT",          "Tint",              MainQuest.condMarkTint[idx])
-    AddColorOptionST("SLOT_MARK_EMISSIVE",       "Emission color",    MainQuest.condMarkEmissive[idx])
-    AddSliderOptionST("SLOT_MARK_EMISSIVE_MULT", "Emission strength", MainQuest.condMarkEmissiveMult[idx], "{1}")
-    AddSliderOptionST("SLOT_MARK_ALPHA",          "Opacity",          MainQuest.condMarkAlpha[idx], "{0}%")
-
-    AddHeaderOption("Halo colors")
-    AddColorOptionST("SLOT_HALO_TINT",          "Tint",              MainQuest.condHaloTint[idx])
-    AddColorOptionST("SLOT_HALO_EMISSIVE",       "Emission color",    MainQuest.condHaloEmissive[idx])
-    AddSliderOptionST("SLOT_HALO_EMISSIVE_MULT", "Emission strength", MainQuest.condHaloEmissiveMult[idx], "{1}")
-    AddSliderOptionST("SLOT_HALO_ALPHA",          "Opacity",          MainQuest.condHaloAlpha[idx], "{0}%")
+    AddHeaderOption("Visuals")
+    AddColorOptionST("SLOT_TINT",           "Tint",              MainQuest.condTint[idx])
+    AddColorOptionST("SLOT_EMISSIVE",        "Emission color",    MainQuest.condEmissive[idx])
+    AddSliderOptionST("SLOT_EMISSIVE_MULT",  "Emission strength", MainQuest.condEmissiveMult[idx], "{1}")
+    AddSliderOptionST("SLOT_ALPHA",          "Opacity",           MainQuest.condAlpha[idx], "{0}%")
 endFunction
 
 ; ╔══════════════════════════════════════════════════════════════════════════╗
@@ -610,22 +604,91 @@ state GEN_UPDATE_INTERVAL
     endEvent
 endState
 
-state GEN_USE_SLAVETATS
+string Function _activeVisualPackLabel()
+    string pid = MainQuest.activeVisualPackId
+    if pid == ""
+        if MainQuest.GetVisualPackCount() == 0
+            return "(no packs found)"
+        endif
+        return "(not set)"
+    endif
+    int idx = MainQuest.FindVisualPackIndex(pid)
+    if idx < 0
+        return "Unknown (" + pid + ")"
+    endif
+    return MainQuest.GetVisualPackLabelAt(idx)
+EndFunction
+
+state GEN_RELOAD_VISUALS
     event OnSelectST()
-        bool v = !MainQuest.useSlaveTats
-        MainQuest.useSlaveTats = v
-        SetToggleOptionValueST(v)
-        toggleTextureSet(v)
+        MainQuest.ForceReloadVisualCatalogs()
+        int idx = MainQuest.FindVisualPackIndex("lme.racemenu-lewdmarks")
+        if MainQuest.activeVisualPackId == "" || MainQuest.FindVisualPackIndex(MainQuest.activeVisualPackId) < 0
+            if idx >= 0
+                MainQuest.activeVisualPackId = "lme.racemenu-lewdmarks"
+            elseif MainQuest.GetVisualPackCount() > 0
+                MainQuest.activeVisualPackId = MainQuest.GetVisualPackIdAt(0)
+            endif
+        endif
+        SetTextOptionValueST("(" + MainQuest.GetVisualPackCount() + " loaded)")
         MainQuest.setRedraw()
-    endEvent
-    event OnDefaultST()
-        MainQuest.useSlaveTats = false
-        SetToggleOptionValueST(false)
-        toggleTextureSet(false)
-        MainQuest.setRedraw()
+        ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Use SlaveTats texture paths instead of RaceMenu overlay paths.")
+        SetInfoText("Re-scan Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/ for pack JSONs. Shows a toast with the load result.")
+    endEvent
+endState
+
+state GEN_VISUAL_PACK
+    event OnMenuOpenST()
+        int n = MainQuest.GetVisualPackCount()
+        if n <= 0
+            string[] empty = new string[1]
+            empty[0] = "(no packs found)"
+            SetMenuDialogStartIndex(0)
+            SetMenuDialogDefaultIndex(0)
+            SetMenuDialogOptions(empty)
+            return
+        endif
+        string[] opts = _newOpts(n)
+        int sel = 0
+        int i = 0
+        while i < n
+            opts[i] = MainQuest.GetVisualPackLabelAt(i)
+            if MainQuest.GetVisualPackIdAt(i) == MainQuest.activeVisualPackId
+                sel = i
+            endif
+            i += 1
+        endwhile
+        SetMenuDialogStartIndex(sel)
+        SetMenuDialogDefaultIndex(0)
+        SetMenuDialogOptions(opts)
+    endEvent
+    event OnMenuAcceptST(int index)
+        int n = MainQuest.GetVisualPackCount()
+        if index < 0 || index >= n
+            return
+        endif
+        MainQuest.activeVisualPackId = MainQuest.GetVisualPackIdAt(index)
+        SetMenuOptionValueST(_activeVisualPackLabel())
+        MainQuest.setRedraw()
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        int idx = MainQuest.FindVisualPackIndex("lme.racemenu-lewdmarks")
+        if idx >= 0
+            MainQuest.activeVisualPackId = "lme.racemenu-lewdmarks"
+        elseif MainQuest.GetVisualPackCount() > 0
+            MainQuest.activeVisualPackId = MainQuest.GetVisualPackIdAt(0)
+        else
+            MainQuest.activeVisualPackId = ""
+        endif
+        SetMenuOptionValueST(_activeVisualPackLabel())
+        MainQuest.setRedraw()
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Which tattoo pack to draw from. Packs are JSON files under Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/.")
     endEvent
 endState
 
@@ -822,60 +885,116 @@ state SLOT_COND_PARAM
     endEvent
 endState
 
-state SLOT_TEXTURE_NUM
-    event OnSliderOpenST()
-        int idx = selectedCondition
-        SetSliderDialogStartValue(MainQuest.condTextureNum[idx])
-        SetSliderDialogInterval(1)
-        if idx == 0
-            SetSliderDialogDefaultValue(3)
-            SetSliderDialogRange(1, lewdMarksLastNumber)
+; ── Per-slot entry picker (texture choice within the active visual pack) ────
+string Function _slotEntryLabel(int slot)
+    string entryId = MainQuest.condEntryId[slot]
+    if entryId == ""
+        if slot == 0
+            return "(not set)"
+        endif
+        return "(inherit Default)"
+    endif
+    string pid = MainQuest.activeVisualPackId
+    if pid == ""
+        return entryId
+    endif
+    string lbl = ""
+    int n = MainQuest.GetPackEntryCount(pid)
+    int i = 0
+    while i < n
+        if MainQuest.GetPackEntryIdAt(pid, i) == entryId
+            lbl = MainQuest.GetPackEntryLabelAt(pid, i)
+            i = n
         else
-            SetSliderDialogDefaultValue(0)
-            SetSliderDialogRange(0, lewdMarksLastNumber)
+            i += 1
         endif
-    endEvent
-    event OnSliderAcceptST(float value)
-        MainQuest.condTextureNum[selectedCondition] = value as int
-        SetSliderOptionValueST(value as int)
-        MainQuest.setRedraw()
-    endEvent
-    event OnDefaultST()
-        int defVal = 0
-        if selectedCondition == 0
-            defVal = 3
-        endif
-        MainQuest.condTextureNum[selectedCondition] = defVal
-        SetSliderOptionValueST(defVal)
-        MainQuest.setRedraw()
-    endEvent
-    event OnHighlightST()
-        if selectedCondition == 0
-            SetInfoText("Base LewdMark texture number (1-96). Condition slots can override this.")
-        else
-            SetInfoText("Override texture number for this slot. Set 0 to use the Default slot's texture.")
-        endif
-    endEvent
-endState
+    endwhile
+    if lbl == ""
+        return entryId
+    endif
+    return lbl
+EndFunction
 
-state SLOT_USE_GLOW
-    event OnSelectST()
-        bool v = !MainQuest.condUseGlow[selectedCondition]
-        MainQuest.condUseGlow[selectedCondition] = v
-        SetToggleOptionValueST(v)
+state SLOT_VISUAL_ENTRY
+    event OnMenuOpenST()
+        string pid = MainQuest.activeVisualPackId
+        int n = 0
+        if pid != ""
+            n = MainQuest.GetPackEntryCount(pid)
+        endif
+        ; Condition slots get a leading "(inherit Default)" option at index 0;
+        ; the Default slot doesn't (it has nothing to inherit from).
+        bool allowInherit = (selectedCondition > 0)
+        int total = n
+        if allowInherit
+            total += 1
+        endif
+        if total <= 0
+            string[] empty = new string[1]
+            empty[0] = "(no entries)"
+            SetMenuDialogStartIndex(0)
+            SetMenuDialogDefaultIndex(0)
+            SetMenuDialogOptions(empty)
+            return
+        endif
+        string[] opts = _newOpts(total)
+        int sel = 0
+        int writeIdx = 0
+        if allowInherit
+            opts[0] = "(inherit Default)"
+            if MainQuest.condEntryId[selectedCondition] == ""
+                sel = 0
+            endif
+            writeIdx = 1
+        endif
+        int i = 0
+        while i < n
+            opts[writeIdx] = MainQuest.GetPackEntryLabelAt(pid, i)
+            if MainQuest.GetPackEntryIdAt(pid, i) == MainQuest.condEntryId[selectedCondition]
+                sel = writeIdx
+            endif
+            writeIdx += 1
+            i += 1
+        endwhile
+        SetMenuDialogStartIndex(sel)
+        SetMenuDialogDefaultIndex(0)
+        SetMenuDialogOptions(opts)
+    endEvent
+    event OnMenuAcceptST(int index)
+        string pid = MainQuest.activeVisualPackId
+        bool allowInherit = (selectedCondition > 0)
+        if index < 0
+            return
+        endif
+        if allowInherit && index == 0
+            MainQuest.condEntryId[selectedCondition] = ""
+        else
+            int entryIdx = index
+            if allowInherit
+                entryIdx -= 1
+            endif
+            if entryIdx >= 0 && entryIdx < MainQuest.GetPackEntryCount(pid)
+                MainQuest.condEntryId[selectedCondition] = MainQuest.GetPackEntryIdAt(pid, entryIdx)
+            endif
+        endif
+        SetMenuOptionValueST(_slotEntryLabel(selectedCondition))
         MainQuest.setRedraw()
     endEvent
     event OnDefaultST()
-        bool defVal = false
-        if selectedCondition > 0
-            defVal = true
+        if selectedCondition == 0
+            MainQuest.condEntryId[0] = "003"
+        else
+            MainQuest.condEntryId[selectedCondition] = ""
         endif
-        MainQuest.condUseGlow[selectedCondition] = defVal
-        SetToggleOptionValueST(defVal)
+        SetMenuOptionValueST(_slotEntryLabel(selectedCondition))
         MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
-        SetInfoText("Show glowing texture variant and halo when this slot is active.")
+        if selectedCondition == 0
+            SetInfoText("Texture used by the Default slot. Picks from entries in the active visual pack.")
+        else
+            SetInfoText("Texture used by this condition slot. (inherit Default) falls back to the Default slot's pick.")
+        endif
     endEvent
 endState
 
@@ -1254,54 +1373,61 @@ state SLOT_EFFECT_4_PARAM
 endState
 
 ; ── Visual states (shared across all slots via selectedCondition) ─────────────
+; One set of 4 sliders/pickers — applied uniformly to every layer of the
+; entry chosen via SLOT_VISUAL_ENTRY. Per-layer biases (e.g. "this glow
+; layer is 2× brighter") live in the visual pack JSON.
 
-state SLOT_MARK_TINT
+state SLOT_TINT
     event OnColorOpenST()
-        SetColorDialogStartColor(MainQuest.condMarkTint[selectedCondition])
+        SetColorDialogStartColor(MainQuest.condTint[selectedCondition])
+        SetColorDialogDefaultColor(16777215)
+    endEvent
+    event OnColorAcceptST(int color)
+        MainQuest.condTint[selectedCondition] = color
+        SetColorOptionValueST(color)
+        MainQuest.setRedraw()
+    endEvent
+    event OnDefaultST()
+        MainQuest.condTint[selectedCondition] = 16777215
+        SetColorOptionValueST(16777215)
+        MainQuest.setRedraw()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Tint color applied to every layer of the picked texture.")
+    endEvent
+endState
+
+state SLOT_EMISSIVE
+    event OnColorOpenST()
+        SetColorDialogStartColor(MainQuest.condEmissive[selectedCondition])
         if selectedCondition > 0
-            SetColorDialogDefaultColor(16777215)
+            SetColorDialogDefaultColor(11337843)
         else
             SetColorDialogDefaultColor(16777215)
         endif
     endEvent
     event OnColorAcceptST(int color)
-        MainQuest.condMarkTint[selectedCondition] = color
+        MainQuest.condEmissive[selectedCondition] = color
         SetColorOptionValueST(color)
         MainQuest.setRedraw()
     endEvent
     event OnDefaultST()
-        MainQuest.condMarkTint[selectedCondition] = 16777215
-        SetColorOptionValueST(16777215)
+        int defVal = 16777215
+        if selectedCondition > 0
+            defVal = 11337843
+        endif
+        MainQuest.condEmissive[selectedCondition] = defVal
+        SetColorOptionValueST(defVal)
         MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
-        SetInfoText("Tint color applied to the mark texture.")
+        SetInfoText("Emission (glow) color for the texture.")
     endEvent
 endState
 
-state SLOT_MARK_EMISSIVE
-    event OnColorOpenST()
-        SetColorDialogStartColor(MainQuest.condMarkEmissive[selectedCondition])
-        SetColorDialogDefaultColor(16777215)
-    endEvent
-    event OnColorAcceptST(int color)
-        MainQuest.condMarkEmissive[selectedCondition] = color
-        SetColorOptionValueST(color)
-        MainQuest.setRedraw()
-    endEvent
-    event OnDefaultST()
-        MainQuest.condMarkEmissive[selectedCondition] = 16777215
-        SetColorOptionValueST(16777215)
-        MainQuest.setRedraw()
-    endEvent
-    event OnHighlightST()
-        SetInfoText("Emission (glow) color for the mark.")
-    endEvent
-endState
-
-state SLOT_MARK_EMISSIVE_MULT
+state SLOT_EMISSIVE_MULT
     event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condMarkEmissiveMult[selectedCondition])
+        SetSliderDialogStartValue(MainQuest.condEmissiveMult[selectedCondition])
         if selectedCondition > 0
             SetSliderDialogDefaultValue(2.5)
         else
@@ -1311,7 +1437,7 @@ state SLOT_MARK_EMISSIVE_MULT
         SetSliderDialogInterval(0.5)
     endEvent
     event OnSliderAcceptST(float value)
-        MainQuest.condMarkEmissiveMult[selectedCondition] = value
+        MainQuest.condEmissiveMult[selectedCondition] = value
         SetSliderOptionValueST(value, "{1}")
         MainQuest.setRedraw()
     endEvent
@@ -1320,20 +1446,20 @@ state SLOT_MARK_EMISSIVE_MULT
         if selectedCondition > 0
             defVal = 2.5
         endif
-        MainQuest.condMarkEmissiveMult[selectedCondition] = defVal
+        MainQuest.condEmissiveMult[selectedCondition] = defVal
         SetSliderOptionValueST(defVal, "{1}")
         MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
-        SetInfoText("Glow intensity for the mark.")
+        SetInfoText("Master glow intensity. 0 = no glow. Per-layer multipliers in the visual pack JSON bias each layer relative to this.")
     endEvent
 endState
 
-state SLOT_MARK_ALPHA
+state SLOT_ALPHA
     event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condMarkAlpha[selectedCondition])
+        SetSliderDialogStartValue(MainQuest.condAlpha[selectedCondition])
         if selectedCondition > 0
-            SetSliderDialogDefaultValue(70)
+            SetSliderDialogDefaultValue(80)
         else
             SetSliderDialogDefaultValue(100)
         endif
@@ -1341,137 +1467,21 @@ state SLOT_MARK_ALPHA
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
-        MainQuest.condMarkAlpha[selectedCondition] = value as int
+        MainQuest.condAlpha[selectedCondition] = value as int
         SetSliderOptionValueST(value, "{0}%")
         MainQuest.setRedraw()
     endEvent
     event OnDefaultST()
         int defVal = 100
         if selectedCondition > 0
-            defVal = 70
+            defVal = 80
         endif
-        MainQuest.condMarkAlpha[selectedCondition] = defVal
+        MainQuest.condAlpha[selectedCondition] = defVal
         SetSliderOptionValueST(defVal, "{0}%")
         MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
-        SetInfoText("Opacity of the mark.")
-    endEvent
-endState
-
-state SLOT_HALO_TINT
-    event OnColorOpenST()
-        SetColorDialogStartColor(MainQuest.condHaloTint[selectedCondition])
-        if selectedCondition > 0
-            SetColorDialogDefaultColor(15231909)
-        else
-            SetColorDialogDefaultColor(0)
-        endif
-    endEvent
-    event OnColorAcceptST(int color)
-        MainQuest.condHaloTint[selectedCondition] = color
-        SetColorOptionValueST(color)
-        MainQuest.setRedraw()
-    endEvent
-    event OnDefaultST()
-        int defVal = 0
-        if selectedCondition > 0
-            defVal = 15231909
-        endif
-        MainQuest.condHaloTint[selectedCondition] = defVal
-        SetColorOptionValueST(defVal)
-        MainQuest.setRedraw()
-    endEvent
-    event OnHighlightST()
-        SetInfoText("Tint color for the halo layer.")
-    endEvent
-endState
-
-state SLOT_HALO_EMISSIVE
-    event OnColorOpenST()
-        SetColorDialogStartColor(MainQuest.condHaloEmissive[selectedCondition])
-        if selectedCondition > 0
-            SetColorDialogDefaultColor(11337843)
-        else
-            SetColorDialogDefaultColor(0)
-        endif
-    endEvent
-    event OnColorAcceptST(int color)
-        MainQuest.condHaloEmissive[selectedCondition] = color
-        SetColorOptionValueST(color)
-        MainQuest.setRedraw()
-    endEvent
-    event OnDefaultST()
-        int defVal = 0
-        if selectedCondition > 0
-            defVal = 11337843
-        endif
-        MainQuest.condHaloEmissive[selectedCondition] = defVal
-        SetColorOptionValueST(defVal)
-        MainQuest.setRedraw()
-    endEvent
-    event OnHighlightST()
-        SetInfoText("Emission (glow) color for the halo.")
-    endEvent
-endState
-
-state SLOT_HALO_EMISSIVE_MULT
-    event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condHaloEmissiveMult[selectedCondition])
-        if selectedCondition > 0
-            SetSliderDialogDefaultValue(3.0)
-        else
-            SetSliderDialogDefaultValue(0.0)
-        endif
-        SetSliderDialogRange(0.0, 25.0)
-        SetSliderDialogInterval(0.5)
-    endEvent
-    event OnSliderAcceptST(float value)
-        MainQuest.condHaloEmissiveMult[selectedCondition] = value
-        SetSliderOptionValueST(value, "{1}")
-        MainQuest.setRedraw()
-    endEvent
-    event OnDefaultST()
-        float defVal = 0.0
-        if selectedCondition > 0
-            defVal = 3.0
-        endif
-        MainQuest.condHaloEmissiveMult[selectedCondition] = defVal
-        SetSliderOptionValueST(defVal, "{1}")
-        MainQuest.setRedraw()
-    endEvent
-    event OnHighlightST()
-        SetInfoText("Glow intensity for the halo.")
-    endEvent
-endState
-
-state SLOT_HALO_ALPHA
-    event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condHaloAlpha[selectedCondition])
-        if selectedCondition > 0
-            SetSliderDialogDefaultValue(100)
-        else
-            SetSliderDialogDefaultValue(0)
-        endif
-        SetSliderDialogRange(0, 100)
-        SetSliderDialogInterval(1)
-    endEvent
-    event OnSliderAcceptST(float value)
-        MainQuest.condHaloAlpha[selectedCondition] = value as int
-        SetSliderOptionValueST(value, "{0}%")
-        MainQuest.setRedraw()
-    endEvent
-    event OnDefaultST()
-        int defVal = 0
-        if selectedCondition > 0
-            defVal = 100
-        endif
-        MainQuest.condHaloAlpha[selectedCondition] = defVal
-        SetSliderOptionValueST(defVal, "{0}%")
-        MainQuest.setRedraw()
-    endEvent
-    event OnHighlightST()
-        SetInfoText("Opacity of the halo.")
+        SetInfoText("Master opacity. Per-layer multipliers in the visual pack JSON bias each layer relative to this.")
     endEvent
 endState
 
@@ -1862,16 +1872,6 @@ string[] Function _newOpts(int n)
 EndFunction
 
 
-
-function toggleTextureSet(bool useST)
-    if useST
-        MainQuest.texturePathNormal = texturePathNormalST
-        MainQuest.texturePathGlow   = texturePathGlowST
-    else
-        MainQuest.texturePathNormal = texturePathNormalRM
-        MainQuest.texturePathGlow   = texturePathGlowRM
-    endif
-endFunction
 
 state TOGGLE_1
     event OnSelectST()
