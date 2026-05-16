@@ -73,6 +73,28 @@ int[]    Property _sCooldownMin        Auto Hidden
 int[]    Property _sCooldownMode       Auto Hidden
 string   _scratchLoadedFor = ""
 
+; ── NPC pulse roster (v0.0.33) ───────────────────────────────────────────────
+; Cap 8 actors (hardcoded for now, MCM-tunable later). Pulse params and
+; per-layer emissive multipliers are SNAPSHOTTED at roster-add time so the
+; 20Hz hot path is JsonUtil-free — just float reads and NiOverride writes.
+; NPC pulse therefore does NOT live-update from MCM slider drags the way
+; player pulse does. Updates require taking the actor in/out of the roster
+; (which happens naturally on tier change).
+Form[]  Property _rosterActor       Auto Hidden
+float[] Property _rosterPulseRate   Auto Hidden
+int[]   Property _rosterPulseDepth  Auto Hidden
+float[] Property _rosterPulsePause  Auto Hidden
+int[]   Property _rosterTier        Auto Hidden
+int[]   Property _rosterLayerN      Auto Hidden
+bool[]  Property _rosterIsFemale    Auto Hidden
+float[] Property _rosterStartRT     Auto Hidden
+float[] Property _rosterLayerEmMult Auto Hidden  ; 8 slots × 4 layers
+int     Property _rosterCount = 0   Auto Hidden
+
+int Function ROSTER_CAP() global
+    return 8
+EndFunction
+
 int Function MAX_LAYERS_PER_SLOT() global
     return 4
 EndFunction
@@ -171,6 +193,7 @@ Function _onTrackedActorKilled(Actor victim)
     if preset != "" && prevTier > 0 && _loadPresetToScratch(preset)
         _deactivateSlotEffectsForActor(victim, prevTier, true)
     endif
+    _rosterRemoveActor(victim)
     _setActorKilled(victim, true)
     _setActorTier(victim, 0)
     ; Draw the default-slot tier (the bare baseline) so the corpse keeps a
@@ -1757,11 +1780,22 @@ State checkingAroused
             else
                 influenceTracking = false
             endif
+
+            ; ── Step 5: tracked NPC rotation. Baseline: full pass each slow
+            ; tick. Step 6 introduces MAX_EVALS_PER_TICK + distance gate.
+            _processTrackedActorsSlowTick(0)
         endif
 
-        ; Pulse step (independent of slow eval — runs every fast tick).
+        ; Pulse step. Fires if either the player has an active pulse tier
+        ; OR the NPC roster has anyone on it.
+        bool wantFast = (_pulseTier >= 0) || (_rosterCount > 0)
         if _pulseTier >= 0
             _applyPulse()
+        endif
+        if _rosterCount > 0
+            _applyPulseRoster()
+        endif
+        if wantFast
             RegisterForSingleUpdate(PULSE_INTERVAL())
         else
             float remain = _nextSlowRT - now
@@ -2011,6 +2045,7 @@ Function RemoveTrackedActor(Actor target)
             _deactivateSlotEffectsForActor(target, tier, true)
         endif
     endif
+    _rosterRemoveActor(target)
     removeOverlayForActor(target)
     StorageUtil.FormListRemove(self, "mtf.tracked", target, true)
     _clearAllActorState(target)
@@ -2543,6 +2578,7 @@ Function EvalAndDrawActor(Actor target)
     endif
     int prevTier = _getActorTier(target)
     int newTier  = evaluateTierForActor(target, true)
+    float rtNow  = Utility.GetCurrentRealTime()
     if newTier != prevTier
         if prevTier > 0
             _deactivateSlotEffectsForActor(target, prevTier, true)
@@ -2552,14 +2588,330 @@ Function EvalAndDrawActor(Actor target)
             _activateSlotEffectsForActor(target, newTier, true)
         endif
         _setActorTier(target, newTier)
-        _setActorPulseStartRT(target, Utility.GetCurrentRealTime())
+        _setActorPulseStartRT(target, rtNow)
     else
         drawOverlayForActor(target, newTier, true)
     endif
     if newTier > 0
         _tickSlotEffectsForActor(target, newTier, true)
     endif
+    ; Roster: snapshot or evict for pulse depending on new tier.
+    if newTier > 0 && _g_pulseRate(newTier, true) > 0.0 && _g_pulseDepth(newTier, true) > 0
+        _rosterAddOrUpdate(target, newTier, rtNow)
+    else
+        _rosterRemoveActor(target)
+    endif
     if DebugMode
         Notification("MTF: " + prevTier + " -> " + newTier + " (preset=" + preset + ")")
     endif
+EndFunction
+
+; ═════════════════════════════════════════════════════════════════════════════
+; NPC PULSE ROSTER + SLOW-TICK ROTATION (v0.0.33 step 5)
+; ═════════════════════════════════════════════════════════════════════════════
+
+Function _ensureRosterArrays()
+    if _rosterActor == None
+        int cap = ROSTER_CAP()
+        _rosterActor       = new Form[8]
+        _rosterPulseRate   = new float[8]
+        _rosterPulseDepth  = new int[8]
+        _rosterPulsePause  = new float[8]
+        _rosterTier        = new int[8]
+        _rosterLayerN      = new int[8]
+        _rosterIsFemale    = new bool[8]
+        _rosterStartRT     = new float[8]
+        _rosterLayerEmMult = new float[32]
+        _rosterCount = 0
+    endif
+EndFunction
+
+int Function _rosterFind(Actor a)
+    if _rosterActor == None || a == None
+        return -1
+    endif
+    int i = 0
+    while i < _rosterCount
+        if (_rosterActor[i] as Actor) == a
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+int Function _rosterEvictFarthestFromPlayer()
+{Returns the slot index that got evicted, or -1 if roster was empty.}
+    if _rosterCount == 0 || PlayerRef == None
+        return -1
+    endif
+    int worst = -1
+    float worstD = -1.0
+    int i = 0
+    while i < _rosterCount
+        Actor a = _rosterActor[i] as Actor
+        if a == None
+            return _rosterRemoveAt(i)
+        endif
+        float d = a.GetDistance(PlayerRef)
+        if d > worstD
+            worstD = d
+            worst = i
+        endif
+        i += 1
+    endwhile
+    if worst >= 0
+        return _rosterRemoveAt(worst)
+    endif
+    return -1
+EndFunction
+
+int Function _rosterRemoveAt(int slot)
+{Compact the roster by moving the last entry into the freed slot.}
+    if slot < 0 || slot >= _rosterCount
+        return -1
+    endif
+    int last = _rosterCount - 1
+    if slot != last
+        _rosterActor[slot]       = _rosterActor[last]
+        _rosterPulseRate[slot]   = _rosterPulseRate[last]
+        _rosterPulseDepth[slot]  = _rosterPulseDepth[last]
+        _rosterPulsePause[slot]  = _rosterPulsePause[last]
+        _rosterTier[slot]        = _rosterTier[last]
+        _rosterLayerN[slot]      = _rosterLayerN[last]
+        _rosterIsFemale[slot]    = _rosterIsFemale[last]
+        _rosterStartRT[slot]     = _rosterStartRT[last]
+        int L = 0
+        while L < 4
+            _rosterLayerEmMult[slot * 4 + L] = _rosterLayerEmMult[last * 4 + L]
+            L += 1
+        endwhile
+    endif
+    _rosterActor[last] = None
+    _rosterCount = last
+    return slot
+EndFunction
+
+Function _rosterRemoveActor(Actor a)
+    int s = _rosterFind(a)
+    if s >= 0
+        _rosterRemoveAt(s)
+    endif
+EndFunction
+
+Function _rosterAddOrUpdate(Actor a, int tier, float startRT)
+{Snapshot pulse params from the scratch buffer into the roster. Caller must
+ have loaded the actor's preset into scratch before calling. If the actor is
+ already on the roster, refresh its snapshot. If the roster is full, evict
+ the farthest-from-player.}
+    _ensureRosterArrays()
+    if a == None || tier < 0 || tier >= 8
+        return
+    endif
+    float rate  = _g_pulseRate(tier, true)
+    int   depth = _g_pulseDepth(tier, true)
+    if rate <= 0.0 || depth <= 0
+        _rosterRemoveActor(a)
+        return
+    endif
+    string packId  = _g_resolvePackId(tier, true)
+    string entryId = _g_resolveEntryId(tier, true)
+    int layerN = 0
+    if packId != "" && packId != "<none>" && entryId != ""
+        layerN = GetEntryLayerCount(packId, entryId)
+        int max = _maxLayerSlots()
+        if layerN > max
+            layerN = max
+        endif
+        int maxLayers = MAX_LAYERS_PER_SLOT()
+        if layerN > maxLayers
+            layerN = maxLayers
+        endif
+    endif
+    if layerN <= 0
+        _rosterRemoveActor(a)
+        return
+    endif
+
+    int slot = _rosterFind(a)
+    if slot < 0
+        if _rosterCount >= ROSTER_CAP()
+            _rosterEvictFarthestFromPlayer()
+        endif
+        slot = _rosterCount
+        _rosterCount += 1
+    endif
+
+    _rosterActor[slot]      = a as Form
+    _rosterPulseRate[slot]  = rate
+    _rosterPulseDepth[slot] = depth
+    _rosterPulsePause[slot] = _g_pulsePause(tier, true)
+    _rosterTier[slot]       = tier
+    _rosterLayerN[slot]     = layerN
+    _rosterIsFemale[slot]   = a.GetLeveledActorBase().GetSex() as bool
+    _rosterStartRT[slot]    = startRT
+    int maxL = MAX_LAYERS_PER_SLOT()
+    int L = 0
+    while L < layerN
+        int lidx = tier * maxL + L
+        _rosterLayerEmMult[slot * 4 + L] = _g_layerEmissiveMult(lidx, true)
+        L += 1
+    endwhile
+EndFunction
+
+Function _applyPulseRoster()
+{Hot path. One pass over the roster. Per-slot:
+   t = now - rosterStart
+   wave = (in cycle) 0.5 - 0.5·cos(2π·rate·tMod), (in pause) 0
+   mult = (1 - depth%) + depth% · wave
+   write NiOverride intensity = baseEmMult · mult on each cached layer.}
+    if _rosterCount <= 0
+        return
+    endif
+    float now = Utility.GetCurrentRealTime()
+    int baseSlot = OverlaySlot
+    int i = 0
+    while i < _rosterCount
+        Actor a = _rosterActor[i] as Actor
+        if a == None
+            ; Stale (e.g. actor garbage-collected). Compact and retry slot.
+            _rosterRemoveAt(i)
+        else
+            float rate  = _rosterPulseRate[i]
+            float depthF = (_rosterPulseDepth[i] as float) * 0.01
+            float pause = _rosterPulsePause[i]
+            float t = now - _rosterStartRT[i]
+            float wave
+            float floorM = 1.0 - depthF
+            if pause > 0.0 && rate > 0.0
+                float cycle = 1.0 / rate
+                float period = cycle + pause
+                float tMod = t - (((t / period) as int) as float) * period
+                if tMod < cycle
+                    wave = 0.5 - 0.5 * Math.Cos(tMod * rate * 360.0)
+                else
+                    wave = 0.0
+                endif
+            else
+                wave = 0.5 - 0.5 * Math.Cos(t * rate * 360.0)
+            endif
+            float mult = floorM + depthF * wave
+            if mult < 0.0
+                mult = 0.0
+            endif
+            bool isFemale = _rosterIsFemale[i]
+            int layerN = _rosterLayerN[i]
+            int L = 0
+            while L < layerN
+                float baseEm = _rosterLayerEmMult[i * 4 + L]
+                float pulsed = baseEm * mult
+                string Node = "Body [ovl" + (baseSlot + L) + "]"
+                NiOverride.AddNodeOverrideFloat(a, isFemale, Node, 1, -1, pulsed, true)
+                L += 1
+            endwhile
+            NiOverride.ApplyNodeOverrides(a)
+            i += 1
+        endif
+    endwhile
+EndFunction
+
+; ── Tracked actor evaluation (full pass — Step 6 adds stagger + distance) ──
+int _rotIdx = 0
+
+Function _processTrackedActorOnce(Actor target)
+{Eval, draw, lifecycle one tracked actor. Updates roster membership for
+ pulse on tier transition.}
+    if target == None
+        return
+    endif
+    if _getActorSuspended(target)
+        return
+    endif
+    if _getActorKilled(target)
+        return
+    endif
+    string preset = GetActorPreset(target)
+    if preset == "" || !_loadPresetToScratch(preset)
+        return
+    endif
+    int prev = _getActorTier(target)
+    int now  = evaluateTierForActor(target, true)
+    if now != prev
+        if prev > 0
+            _deactivateSlotEffectsForActor(target, prev, true)
+            ; Arm cooldown (mode 0) on the slot we just left.
+            if _g_cooldownMode(prev, true) == 0
+                int mins = _g_cooldownMin(prev, true)
+                if mins > 0
+                    _setActorCooldown(target, prev, Utility.GetCurrentGameTime() + (mins as float) / 1440.0)
+                endif
+            endif
+        endif
+        drawOverlayForActor(target, now, true)
+        if now > 0
+            _activateSlotEffectsForActor(target, now, true)
+            if _g_cooldownMode(now, true) == 1
+                int mins2 = _g_cooldownMin(now, true)
+                if mins2 > 0
+                    _setActorCooldown(target, now, Utility.GetCurrentGameTime() + (mins2 as float) / 1440.0)
+                endif
+            endif
+        endif
+        _setActorTier(target, now)
+        float rtNow = Utility.GetCurrentRealTime()
+        _setActorPulseStartRT(target, rtNow)
+        ; Roster: add (or update) if pulse on the new tier; otherwise remove.
+        if now > 0 && _g_pulseRate(now, true) > 0.0 && _g_pulseDepth(now, true) > 0
+            _rosterAddOrUpdate(target, now, rtNow)
+        else
+            _rosterRemoveActor(target)
+        endif
+    endif
+    if now > 0
+        _tickSlotEffectsForActor(target, now, true)
+    endif
+EndFunction
+
+Function _processTrackedActorsSlowTick(int maxThisTick)
+{Round-robin walk of the tracked list. Up to maxThisTick actors get
+ evaluated per call. State persists across calls via _rotIdx, so a long
+ list eventually completes a full sweep over multiple slow ticks.
+ maxThisTick <= 0 means "all of them this tick" (Step 5 baseline).}
+    int total = GetTrackedCount()
+    if total <= 0
+        return
+    endif
+    if maxThisTick <= 0
+        maxThisTick = total
+    elseif maxThisTick > total
+        maxThisTick = total
+    endif
+    if _rotIdx < 0 || _rotIdx >= total
+        _rotIdx = 0
+    endif
+    int processed = 0
+    int idx = _rotIdx
+    while processed < maxThisTick
+        Actor a = GetTrackedAt(idx)
+        if a == None
+            ; Stale FormList entry. Drop and shift rotation.
+            StorageUtil.FormListRemoveAt(self, "mtf.tracked", idx)
+            total = GetTrackedCount()
+            if total <= 0
+                _rotIdx = 0
+                return
+            endif
+            if idx >= total
+                idx = 0
+            endif
+        else
+            _processTrackedActorOnce(a)
+            idx += 1
+            if idx >= total
+                idx = 0
+            endif
+            processed += 1
+        endif
+    endwhile
+    _rotIdx = idx
 EndFunction
