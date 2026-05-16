@@ -20,16 +20,21 @@ per-effect parameters.
 | **Magic Tattoos Framework** | `MagicTattoosFramework.esp` (ESL) | base | core engine, MCM, built-in conditions (magicka/stamina/combat/hits), built-in effects (drains, stagger, magic cost penalty) |
 | **MTF Plugin — FMR** | `MTF_Plugin_FMR.esp` (ESL) | optional | pregnancy / ovulation conditions from Fertility Mode |
 | **MTF Plugin — SLA** | `MTF_Plugin_SLA.esp` (ESL) | optional | arousal condition + exposure/aura effects from SexLab Aroused |
+| **MTF Content — LewdMarks** | — (no ESP) | optional | example pack: JSON catalogs for LewdMarks RaceMenu / SlaveTats textures |
 
-All three ESPs are flagged ESL — zero regular-plugin slots consumed.
+All three framework ESPs are flagged ESL — zero regular-plugin slots consumed.
+The base mod ships with no content; install at least one content pack (or
+run effects-only by picking "(no texture)" per slot in the MCM).
 
 ## Requirements
 
 **Base mod:**
 - RaceMenu / SKEE (NiOverride)
 - PapyrusUtil (StorageUtil + JsonUtil)
-- A tattoo content pack (LewdMarks RaceMenu/SlaveTats overlays ship bundled
-  as an example pack)
+- (Optional) A tattoo content pack. "MTF Content — LewdMarks" ships
+  separately and references LewdMarks RaceMenu/SlaveTats textures by
+  SavageDomain. Without any pack the framework still runs — pick
+  "(no texture)" per slot to use it as an effects-only condition driver.
 
 **Optional addons:**
 - Fertility Mode Reloaded (for `MTF_Plugin_FMR.esp`)

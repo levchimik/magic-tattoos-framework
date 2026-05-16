@@ -146,8 +146,20 @@ string Function ResolveSlotEntryId(int slot)
     if condEntryId == None
         return ""
     endif
+    ; "<none>" is an explicit "no texture" sentinel — never inherits, and
+    ; resolves to "" so the overlay code skips drawing layers.
+    if condEntryId[slot] == "<none>"
+        return ""
+    endif
     if slot > 0 && condPackId != None && condPackId[slot] == ""
-        return condEntryId[0]
+        ; Inherit-pack slot with no explicit entry override → inherit entry too.
+        ; But if Default itself has "<none>" set, that resolves to "".
+        if condEntryId[slot] == ""
+            if condEntryId[0] == "<none>"
+                return ""
+            endif
+            return condEntryId[0]
+        endif
     endif
     return condEntryId[slot]
 EndFunction
