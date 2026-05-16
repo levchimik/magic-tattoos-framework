@@ -158,6 +158,44 @@ Event OnInit()
     EnsureArrays()
 EndEvent
 
+; ── Lifecycle callbacks (called from MTF_HitListener via PO3 events) ───────
+Function _onTrackedActorKilled(Actor victim)
+{Tracked actor died → revert to tier 0 and back out active effects so any
+ lingering applied magnitudes (drains, cost penalty) come off the corpse.
+ mtf.killed prevents evaluation from re-triggering on the corpse.}
+    if victim == None || !IsTrackedActor(victim)
+        return
+    endif
+    int prevTier = _getActorTier(victim)
+    string preset = GetActorPreset(victim)
+    if preset != "" && prevTier > 0 && _loadPresetToScratch(preset)
+        _deactivateSlotEffectsForActor(victim, prevTier, true)
+    endif
+    _setActorKilled(victim, true)
+    _setActorTier(victim, 0)
+    ; Draw the default-slot tier (the bare baseline) so the corpse keeps a
+    ; clean overlay rather than a stale combat-tier glow.
+    if preset != "" && _loadPresetToScratch(preset)
+        drawOverlayForActor(victim, 0, true)
+    else
+        removeOverlayForActor(victim)
+    endif
+EndFunction
+
+Function _onTrackedActorAttached(Actor target)
+    if target == None || !IsTrackedActor(target)
+        return
+    endif
+    _setActorSuspended(target, false)
+EndFunction
+
+Function _onTrackedActorDetached(Actor target)
+    if target == None || !IsTrackedActor(target)
+        return
+    endif
+    _setActorSuspended(target, true)
+EndFunction
+
 Function _hotkeyAddCrosshairTarget()
 {Called by MTF_HitListener.OnKeyDown when the player presses the bound
  subject hotkey. Walks Game.GetCurrentCrosshairRef and adds it as a

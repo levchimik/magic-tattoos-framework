@@ -109,10 +109,59 @@ EndFunction
 
 Event OnPlayerLoadGame()
     RefreshSubjectHotkey()
+    _registerLifecycleEvents()
 EndEvent
 
 Event OnInit()
     RefreshSubjectHotkey()
+    _registerLifecycleEvents()
+EndEvent
+
+; ── PO3 PapyrusExtender lifecycle events ────────────────────────────────────
+; The PO3 OnActorKilled / OnObjectLoaded / OnObjectUnloaded events fire on
+; any ReferenceAlias registered with the global PO3_Events_Alias helpers,
+; regardless of which actor the alias is forced onto. We use the player
+; alias as a convenient host. Form type 43 = Actor.
+
+int Function FORMTYPE_ACTOR() global
+    return 43
+EndFunction
+
+Function _registerLifecycleEvents()
+    PO3_Events_Alias.RegisterForActorKilled(self)
+    PO3_Events_Alias.RegisterForObjectLoaded(self, FORMTYPE_ACTOR())
+EndFunction
+
+Event OnActorKilled(Actor akVictim, Actor akKiller)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    h._onTrackedActorKilled(akVictim)
+EndEvent
+
+Event OnObjectLoaded(ObjectReference akRef, int aiFormType)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    Actor a = akRef as Actor
+    if a == None
+        return
+    endif
+    h._onTrackedActorAttached(a)
+EndEvent
+
+Event OnObjectUnloaded(ObjectReference akRef, int aiFormType)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    Actor a = akRef as Actor
+    if a == None
+        return
+    endif
+    h._onTrackedActorDetached(a)
 EndEvent
 
 Event OnKeyDown(int keyCode)
