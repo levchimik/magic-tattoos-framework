@@ -8,6 +8,7 @@ Scriptname sd_LME_Plugin_SLA extends sd_LME_Plugin
  Effects:
    0  exposure.self      — increase target's SLA exposure by `param` per game-hour
    1  exposure.aura      — increase nearby NPCs' SLA exposure by `param` per game-hour
+   2  arousal.burst.self — one-shot: add `param` exposure on self on switch
 
  Settings:
    0  radius_m           — pheromone aura scan radius, meters (default 22)
@@ -102,7 +103,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 2
+    return 3
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -110,6 +111,8 @@ string Function GetEffectId(int idx)
         return "exposure.self"
     elseif idx == 1
         return "exposure.aura"
+    elseif idx == 2
+        return "arousal.burst.self"
     endif
     return ""
 EndFunction
@@ -119,6 +122,8 @@ string Function GetEffectLabel(int idx)
         return "Self Arousal +/hour"
     elseif idx == 1
         return "Pheromone Aura +/hour"
+    elseif idx == 2
+        return "[!] Arousal Burst"
     endif
     return ""
 EndFunction
@@ -128,6 +133,8 @@ string Function GetEffectParamLabel(int idx)
         return "Exposure delta on self per game-hour"
     elseif idx == 1
         return "Exposure delta on nearby NPCs per game-hour"
+    elseif idx == 2
+        return "Burst exposure added to self on switch"
     endif
     return ""
 EndFunction
@@ -139,7 +146,21 @@ int Function GetEffectParamMax(int idx)
     return 100
 EndFunction
 int Function GetEffectParamDefault(int idx)
+    if idx == 2
+        return 25
+    endif
     return 5
+EndFunction
+
+Function onActivate(int idx, Actor target, int param)
+    if idx != 2 || SLAFramework == None || target == None || param <= 0
+        return
+    endif
+    int cur = SLAFramework.GetActorExposure(target)
+    if cur < 0
+        return
+    endif
+    SLAFramework.SetActorExposure(target, cur + param)
 EndFunction
 
 Function onGameTime(int idx, Actor target, int param)

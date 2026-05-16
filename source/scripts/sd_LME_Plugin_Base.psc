@@ -19,11 +19,16 @@ Scriptname sd_LME_Plugin_Base extends sd_LME_Plugin
    13 combat.hit.magic.shock— On Combat Hit (shock spell)
 
  Effects (idx → id):
-   0  drain.magickaRate  — drain `param`% of current MagickaRateMult
-   1  drain.carryWeight  — drain `param`% of current CarryWeight
-   2  drain.sneak        — drain `param`% of current Sneak
-   3  burst.magicka      — one-shot: subtract `param`% of current Magicka on switch
-   4  burst.stamina      — one-shot: subtract `param`% of current Stamina on switch
+   0  drain.magickaRate     — drain `param`% of current MagickaRateMult
+   1  drain.carryWeight     — drain `param`% of current CarryWeight
+   2  drain.sneak           — drain `param`% of current Sneak
+   3  burst.magicka         — one-shot: subtract `param`% of current Magicka on switch
+   4  burst.stamina         — one-shot: subtract `param`% of current Stamina on switch
+   5  drain.speedMult       — drain `param`% of current SpeedMult (movement)
+   6  drain.staminaRate     — drain `param`% of current StaminaRateMult (regen)
+   7  drain.attackDamageMult— drain `param`% of current AttackDamageMult (outgoing)
+   8  drain.damageResist    — drain `param`% of current DamageResist (armor)
+   9  burst.stagger         — one-shot: play stagger animation on switch (no param)
 
  Hit detection is event-driven: sd_LME_HitListener (a ReferenceAlias on
  LME_MainQuest forced to the player) calls _onHit(classIdx) on every hit.
@@ -31,9 +36,13 @@ Scriptname sd_LME_Plugin_Base extends sd_LME_Plugin
  counter increment per check and roll the slot's chance%. The result
  stays "armed" for HIT_VISIBLE_SECONDS so the mark is visible briefly.}
 
-float Property _appliedMana = 0.0 Auto Hidden
-float Property _appliedCarry = 0.0 Auto Hidden
-float Property _appliedSneak = 0.0 Auto Hidden
+float Property _appliedMana       = 0.0 Auto Hidden
+float Property _appliedCarry      = 0.0 Auto Hidden
+float Property _appliedSneak      = 0.0 Auto Hidden
+float Property _appliedSpeed      = 0.0 Auto Hidden
+float Property _appliedStamRate   = 0.0 Auto Hidden
+float Property _appliedAtkDmg     = 0.0 Auto Hidden
+float Property _appliedDmgResist  = 0.0 Auto Hidden
 
 ; Hit-class counter storage uses PapyrusUtil StorageUtil (see MainQuest).
 ; Auto Hidden array properties added post-release do not get attached to
@@ -304,7 +313,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 5
+    return 10
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -318,6 +327,16 @@ string Function GetEffectId(int idx)
         return "burst.magicka"
     elseif idx == 4
         return "burst.stamina"
+    elseif idx == 5
+        return "drain.speedMult"
+    elseif idx == 6
+        return "drain.staminaRate"
+    elseif idx == 7
+        return "drain.attackDamageMult"
+    elseif idx == 8
+        return "drain.damageResist"
+    elseif idx == 9
+        return "burst.stagger"
     endif
     return ""
 EndFunction
@@ -333,6 +352,16 @@ string Function GetEffectLabel(int idx)
         return "[!] Magicka Burst"
     elseif idx == 4
         return "[!] Stamina Burst"
+    elseif idx == 5
+        return "Movement Speed Penalty"
+    elseif idx == 6
+        return "Stamina Regen Penalty"
+    elseif idx == 7
+        return "Attack Damage Penalty"
+    elseif idx == 8
+        return "Armor Penalty"
+    elseif idx == 9
+        return "[!] Stagger"
     endif
     return ""
 EndFunction
@@ -348,6 +377,16 @@ string Function GetEffectParamLabel(int idx)
         return "Burst drain % of current Magicka"
     elseif idx == 4
         return "Burst drain % of current Stamina"
+    elseif idx == 5
+        return "Drain % of current SpeedMult"
+    elseif idx == 6
+        return "Drain % of current StaminaRateMult"
+    elseif idx == 7
+        return "Drain % of current AttackDamageMult"
+    elseif idx == 8
+        return "Drain % of current DamageResist (armor)"
+    elseif idx == 9
+        return ""
     endif
     return ""
 EndFunction
@@ -361,8 +400,14 @@ EndFunction
 int Function GetEffectParamDefault(int idx)
     if idx == 3 || idx == 4
         return 50
+    elseif idx == 9
+        return 0
     endif
     return 25
+EndFunction
+
+bool Function _isDrain(int idx)
+    return idx <= 2 || (idx >= 5 && idx <= 8)
 EndFunction
 
 string Function _avNameFor(int idx)
@@ -372,6 +417,14 @@ string Function _avNameFor(int idx)
         return "CarryWeight"
     elseif idx == 2
         return "Sneak"
+    elseif idx == 5
+        return "SpeedMult"
+    elseif idx == 6
+        return "StaminaRateMult"
+    elseif idx == 7
+        return "AttackDamageMult"
+    elseif idx == 8
+        return "DamageResist"
     endif
     return ""
 EndFunction
@@ -383,6 +436,14 @@ float Function _getApplied(int idx)
         return _appliedCarry
     elseif idx == 2
         return _appliedSneak
+    elseif idx == 5
+        return _appliedSpeed
+    elseif idx == 6
+        return _appliedStamRate
+    elseif idx == 7
+        return _appliedAtkDmg
+    elseif idx == 8
+        return _appliedDmgResist
     endif
     return 0.0
 EndFunction
@@ -394,6 +455,14 @@ Function _setApplied(int idx, float v)
         _appliedCarry = v
     elseif idx == 2
         _appliedSneak = v
+    elseif idx == 5
+        _appliedSpeed = v
+    elseif idx == 6
+        _appliedStamRate = v
+    elseif idx == 7
+        _appliedAtkDmg = v
+    elseif idx == 8
+        _appliedDmgResist = v
     endif
 EndFunction
 
@@ -433,23 +502,27 @@ Function _burstDrain(string av, Actor target, int param)
 EndFunction
 
 Function onActivate(int idx, Actor target, int param)
-    if idx <= 2
+    if _isDrain(idx)
         _recompute(idx, target, param)
     elseif idx == 3
         _burstDrain("Magicka", target, param)
     elseif idx == 4
         _burstDrain("Stamina", target, param)
+    elseif idx == 9
+        if target != None
+            Debug.SendAnimationEvent(target, "staggerStart")
+        endif
     endif
 EndFunction
 
 Function onDeactivate(int idx, Actor target, int param)
-    if idx <= 2
+    if _isDrain(idx)
         _recompute(idx, target, 0)
     endif
 EndFunction
 
 Function onTick(int idx, Actor target, int param)
-    if idx <= 2
+    if _isDrain(idx)
         _recompute(idx, target, param)
     endif
 EndFunction
