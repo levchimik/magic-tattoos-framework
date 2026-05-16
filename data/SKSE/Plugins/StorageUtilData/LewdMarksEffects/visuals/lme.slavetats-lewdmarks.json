@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "packId": "lme.slavetats-lewdmarks",
   "label": "SlaveTats - LewdMarks",
   "area": "Body",
@@ -12,8 +12,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\001.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\001.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\001.dds"
         }
       ]
     },
@@ -25,8 +24,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\002.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\002.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\002.dds"
         }
       ]
     },
@@ -38,8 +36,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\003.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\003.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\003.dds"
         }
       ]
     },
@@ -51,8 +48,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\004.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\004.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\004.dds"
         }
       ]
     },
@@ -64,8 +60,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\005.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\005.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\005.dds"
         }
       ]
     },
@@ -77,8 +72,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\006.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\006.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\006.dds"
         }
       ]
     },
@@ -90,8 +84,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\007.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\007.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\007.dds"
         }
       ]
     },
@@ -103,8 +96,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\008.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\008.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\008.dds"
         }
       ]
     },
@@ -116,8 +108,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\009.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\009.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\009.dds"
         }
       ]
     },
@@ -129,8 +120,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\010.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\010.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\010.dds"
         }
       ]
     },
@@ -142,8 +132,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\011.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\011.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\011.dds"
         }
       ]
     },
@@ -155,8 +144,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\012.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\012.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\012.dds"
         }
       ]
     },
@@ -168,8 +156,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\013.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\013.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\013.dds"
         }
       ]
     },
@@ -181,8 +168,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\014.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\014.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\014.dds"
         }
       ]
     },
@@ -194,8 +180,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\015.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\015.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\015.dds"
         }
       ]
     },
@@ -207,8 +192,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\016.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\016.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\016.dds"
         }
       ]
     },
@@ -220,8 +204,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\017.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\017.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\017.dds"
         }
       ]
     },
@@ -233,8 +216,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\018.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\018.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\018.dds"
         }
       ]
     },
@@ -246,8 +228,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\019.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\019.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\019.dds"
         }
       ]
     },
@@ -259,8 +240,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\020.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\020.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\020.dds"
         }
       ]
     },
@@ -272,8 +252,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\021.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\021.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\021.dds"
         }
       ]
     },
@@ -285,8 +264,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\022.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\022.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\022.dds"
         }
       ]
     },
@@ -298,8 +276,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\023.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\023.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\023.dds"
         }
       ]
     },
@@ -311,8 +288,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\024.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\024.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\024.dds"
         }
       ]
     },
@@ -324,8 +300,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\025.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\025.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\025.dds"
         }
       ]
     },
@@ -337,8 +312,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\026.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\026.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\026.dds"
         }
       ]
     },
@@ -350,8 +324,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\027.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\027.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\027.dds"
         }
       ]
     },
@@ -363,8 +336,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\028.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\028.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\028.dds"
         }
       ]
     },
@@ -376,8 +348,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\029.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\029.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\029.dds"
         }
       ]
     },
@@ -389,8 +360,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\030.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\030.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\030.dds"
         }
       ]
     },
@@ -402,8 +372,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\031.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\031.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\031.dds"
         }
       ]
     },
@@ -415,8 +384,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\032.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\032.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\032.dds"
         }
       ]
     },
@@ -428,8 +396,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\033.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\033.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\033.dds"
         }
       ]
     },
@@ -441,8 +408,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\034.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\034.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\034.dds"
         }
       ]
     },
@@ -454,8 +420,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\035.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\035.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\035.dds"
         }
       ]
     },
@@ -467,8 +432,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\036.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\036.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\036.dds"
         }
       ]
     },
@@ -480,8 +444,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\037.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\037.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\037.dds"
         }
       ]
     },
@@ -493,8 +456,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\038.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\038.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\038.dds"
         }
       ]
     },
@@ -506,8 +468,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\039.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\039.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\039.dds"
         }
       ]
     },
@@ -519,8 +480,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\040.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\040.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\040.dds"
         }
       ]
     },
@@ -532,8 +492,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\041.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\041.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\041.dds"
         }
       ]
     },
@@ -545,8 +504,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\042.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\042.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\042.dds"
         }
       ]
     },
@@ -558,8 +516,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\043.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\043.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\043.dds"
         }
       ]
     },
@@ -571,8 +528,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\044.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\044.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\044.dds"
         }
       ]
     },
@@ -584,8 +540,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\045.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\045.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\045.dds"
         }
       ]
     },
@@ -597,8 +552,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\046.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\046.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\046.dds"
         }
       ]
     },
@@ -610,8 +564,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\047.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\047.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\047.dds"
         }
       ]
     },
@@ -623,8 +576,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\048.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\048.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\048.dds"
         }
       ]
     },
@@ -636,8 +588,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\049.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\049.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\049.dds"
         }
       ]
     },
@@ -649,8 +600,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\050.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\050.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\050.dds"
         }
       ]
     },
@@ -662,8 +612,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\051.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\051.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\051.dds"
         }
       ]
     },
@@ -675,8 +624,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\052.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\052.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\052.dds"
         }
       ]
     },
@@ -688,8 +636,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\053.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\053.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\053.dds"
         }
       ]
     },
@@ -701,8 +648,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\054.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\054.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\054.dds"
         }
       ]
     },
@@ -714,8 +660,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\055.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\055.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\055.dds"
         }
       ]
     },
@@ -727,8 +672,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\056.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\056.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\056.dds"
         }
       ]
     },
@@ -740,8 +684,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\057.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\057.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\057.dds"
         }
       ]
     },
@@ -753,8 +696,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\058.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\058.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\058.dds"
         }
       ]
     },
@@ -766,8 +708,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\059.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\059.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\059.dds"
         }
       ]
     },
@@ -779,8 +720,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\060.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\060.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\060.dds"
         }
       ]
     },
@@ -792,8 +732,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\061.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\061.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\061.dds"
         }
       ]
     },
@@ -805,8 +744,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\062.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\062.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\062.dds"
         }
       ]
     },
@@ -818,8 +756,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\063.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\063.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\063.dds"
         }
       ]
     },
@@ -831,8 +768,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\064.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\064.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\064.dds"
         }
       ]
     },
@@ -844,8 +780,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\065.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\065.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\065.dds"
         }
       ]
     },
@@ -857,8 +792,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\066.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\066.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\066.dds"
         }
       ]
     },
@@ -870,8 +804,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\067.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\067.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\067.dds"
         }
       ]
     },
@@ -883,8 +816,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\068.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\068.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\068.dds"
         }
       ]
     },
@@ -896,8 +828,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\069.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\069.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\069.dds"
         }
       ]
     },
@@ -909,8 +840,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\070.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\070.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\070.dds"
         }
       ]
     },
@@ -922,8 +852,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\071.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\071.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\071.dds"
         }
       ]
     },
@@ -935,8 +864,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\072.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\072.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\072.dds"
         }
       ]
     },
@@ -948,8 +876,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\073.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\073.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\073.dds"
         }
       ]
     },
@@ -961,8 +888,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\074.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\074.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\074.dds"
         }
       ]
     },
@@ -974,8 +900,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\075.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\075.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\075.dds"
         }
       ]
     },
@@ -987,8 +912,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\076.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\076.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\076.dds"
         }
       ]
     },
@@ -1000,8 +924,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\077.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\077.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\077.dds"
         }
       ]
     },
@@ -1013,8 +936,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\078.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\078.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\078.dds"
         }
       ]
     },
@@ -1026,8 +948,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\079.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\079.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\079.dds"
         }
       ]
     },
@@ -1039,8 +960,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\080.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\080.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\080.dds"
         }
       ]
     },
@@ -1052,8 +972,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\081.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\081.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\081.dds"
         }
       ]
     },
@@ -1065,8 +984,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\082.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\082.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\082.dds"
         }
       ]
     },
@@ -1078,8 +996,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\083.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\083.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\083.dds"
         }
       ]
     },
@@ -1091,8 +1008,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\084.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\084.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\084.dds"
         }
       ]
     },
@@ -1104,8 +1020,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\085.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\085.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\085.dds"
         }
       ]
     },
@@ -1117,8 +1032,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\086.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\086.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\086.dds"
         }
       ]
     },
@@ -1130,8 +1044,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\087.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\087.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\087.dds"
         }
       ]
     },
@@ -1143,8 +1056,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\088.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\088.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\088.dds"
         }
       ]
     },
@@ -1156,8 +1068,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\089.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\089.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\089.dds"
         }
       ]
     },
@@ -1169,8 +1080,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\090.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\090.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\090.dds"
         }
       ]
     },
@@ -1182,8 +1092,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\091.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\091.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\091.dds"
         }
       ]
     },
@@ -1195,8 +1104,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\092.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\092.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\092.dds"
         }
       ]
     },
@@ -1208,8 +1116,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\093.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\093.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\093.dds"
         }
       ]
     },
@@ -1221,8 +1128,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\094.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\094.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\094.dds"
         }
       ]
     },
@@ -1234,8 +1140,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\095.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\095.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\095.dds"
         }
       ]
     },
@@ -1247,8 +1152,7 @@
           "texture": "actors\\character\\slavetats\\LewdMarks\\096.dds"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\096.dds",
-          "emissiveMult": 2
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\096.dds"
         }
       ]
     }

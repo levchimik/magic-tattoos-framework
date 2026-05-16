@@ -9,7 +9,7 @@ sd_LME_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 16
+    return 17
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -70,55 +70,80 @@ event OnVersionUpdate(int Version)
     ; via StartGameEnabled). Each migration block bumps _migrationLevel so the
     ; same block never runs twice even if OVU fires repeatedly.
     int ml = MainQuest._migrationLevel
-    if ml >= 16
+    if ml >= 17
         return
     endif
-    if ml < 16 && CurrentVersion < 16
-        ; v0.0.21: visual-pack rewrite.
-        ;   - condTextureNum / condUseGlow / condMark*/condHalo* all replaced
-        ;     by condEntryId + 4 shared visual params per slot.
-        ;   - useSlaveTats toggle replaced by activeVisualPackId string.
+    if ml < 17 && CurrentVersion < 17
+        ; v0.0.22: per-slot pack + per-layer visuals.
+        ;   - activeVisualPackId global -> condPackId[8] per slot.
+        ;   - 4 shared per-slot visual params -> per-layer arrays (size 8 * 4).
         ;   - Pre-release: wipe legacy state, no migration of values.
-        MainQuest.condPluginId     = new string[8]
-        MainQuest.condParam        = new int[8]
-        MainQuest.condEntryId      = new string[8]
-        MainQuest.condTint         = new int[8]
-        MainQuest.condEmissive     = new int[8]
-        MainQuest.condEmissiveMult = new float[8]
-        MainQuest.condAlpha        = new int[8]
+        MainQuest.condPluginId          = new string[8]
+        MainQuest.condParam             = new int[8]
+        MainQuest.condPackId            = new string[8]
+        MainQuest.condEntryId           = new string[8]
+        MainQuest.condLayerTint         = new int[32]
+        MainQuest.condLayerEmissive     = new int[32]
+        MainQuest.condLayerEmissiveMult = new float[32]
+        MainQuest.condLayerAlpha        = new int[32]
 
         MainQuest.ModActive          = false
         MainQuest.updateInterval     = 2.0
         MainQuest.OverlaySlot        = 2
         MainQuest.CurrentOverlaySlot = 2
 
-        ; Pick the RaceMenu pack as the default if it's available; otherwise
-        ; leave blank — picker on the General page will fill it in.
         MainQuest.LoadVisualCatalogs()
+        ; Default slot (idx 0): pick RaceMenu pack + entry 003 if available.
+        string defPack = ""
         if MainQuest.FindVisualPackIndex("lme.racemenu-lewdmarks") >= 0
-            MainQuest.activeVisualPackId = "lme.racemenu-lewdmarks"
+            defPack = "lme.racemenu-lewdmarks"
         elseif MainQuest.GetVisualPackCount() > 0
-            MainQuest.activeVisualPackId = MainQuest.GetVisualPackIdAt(0)
-        else
-            MainQuest.activeVisualPackId = ""
+            defPack = MainQuest.GetVisualPackIdAt(0)
         endif
+        MainQuest.condPackId[0]  = defPack
+        MainQuest.condEntryId[0] = "003"
 
-        ; Default slot (index 0) — solid mark, no glow.
-        MainQuest.condEntryId[0]      = "003"
-        MainQuest.condTint[0]         = 16777215
-        MainQuest.condEmissive[0]     = 16777215
-        MainQuest.condEmissiveMult[0] = 0.0
-        MainQuest.condAlpha[0]        = 100
+        ; Per-layer defaults: layer 0 = opaque white mark, no glow.
+        ;                     layer 1 = warm glow (off by default — emissiveMult=0).
+        ; All 8 slots get identical layer defaults; user customizes per slot.
+        int s = 0
+        while s < 8
+            ; slot 0 (Default) keeps its packId; slots 1-7 inherit (packId == "").
+            if s > 0
+                MainQuest.condPackId[s]  = ""
+                MainQuest.condEntryId[s] = ""
+            endif
 
-        ; Condition slots 1-7 — glow on, warm white defaults.
-        int i = 1
-        while i < 8
-            MainQuest.condEntryId[i]      = ""        ; inherit slot 0 by default
-            MainQuest.condTint[i]         = 16777215
-            MainQuest.condEmissive[i]     = 11337843  ; warm amber
-            MainQuest.condEmissiveMult[i] = 2.5
-            MainQuest.condAlpha[i]        = 80
-            i += 1
+            ; Layer 0 (base mark)
+            int li0 = s * 4 + 0
+            MainQuest.condLayerTint[li0]         = 16777215   ; white
+            MainQuest.condLayerEmissive[li0]     = 16777215
+            MainQuest.condLayerEmissiveMult[li0] = 0.0        ; no glow on base
+            MainQuest.condLayerAlpha[li0]        = 100
+
+            ; Layer 1 (glow halo)
+            int li1 = s * 4 + 1
+            MainQuest.condLayerTint[li1]         = 16777215
+            MainQuest.condLayerEmissive[li1]     = 11337843   ; warm amber
+            MainQuest.condLayerEmissiveMult[li1] = 0.0
+            MainQuest.condLayerAlpha[li1]        = 80
+            if s > 0
+                ; condition slots get glow by default to stand out from Default
+                MainQuest.condLayerEmissiveMult[li1] = 2.5
+            endif
+
+            ; Layers 2-3 fully transparent so trailing-slot clear is moot
+            int Li = 2
+            while Li < 4
+                int liN = s * 4 + Li
+                MainQuest.condLayerTint[liN]         = 16777215
+                MainQuest.condLayerEmissive[liN]     = 16777215
+                MainQuest.condLayerEmissiveMult[liN] = 0.0
+                MainQuest.condLayerAlpha[liN]        = 100
+                Li += 1
+            endwhile
+
+            s += 1
         endwhile
     endif
     if ml < 7 && CurrentVersion < 7
@@ -181,7 +206,7 @@ event OnVersionUpdate(int Version)
         Pages[3] = "Menu Options"
         Pages[4] = "Presets"
     endif
-    MainQuest._migrationLevel = 16
+    MainQuest._migrationLevel = 17
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -373,7 +398,7 @@ function drawGeneralPage()
     AddHeaderOption("General")
     AddToggleOptionST("GEN_MOD_ACTIVE",      "Enable",                MainQuest.ModActive)
     AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{1}")
-    AddMenuOptionST("GEN_VISUAL_PACK", "Visual pack", _activeVisualPackLabel())
+    AddSliderOptionST("SLOT_OVERLAY_SLOT",   "Overlay slot",          MainQuest.OverlaySlot)
     AddTextOptionST("GEN_RELOAD_VISUALS", "Reload visual packs", "(" + MainQuest.GetVisualPackCount() + " loaded)")
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
 endFunction
@@ -512,8 +537,8 @@ function drawConditionsPage()
     if idx == 0
         AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
         AddHeaderOption("Default slot")
-        AddSliderOptionST("SLOT_OVERLAY_SLOT", "Overlay slot",   MainQuest.OverlaySlot)
-        AddMenuOptionST("SLOT_VISUAL_ENTRY",   "Texture",        _slotEntryLabel(0))
+        AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(0))
+        AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(0))
     else
         string key = MainQuest.condPluginId[idx]
         sd_LME_Plugin p = None
@@ -538,7 +563,8 @@ function drawConditionsPage()
             endif
         endif
 
-        AddMenuOptionST("SLOT_VISUAL_ENTRY", "Texture (blank = Default)", _slotEntryLabel(idx))
+        AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(idx))
+        AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(idx))
 
         int cdMin = MainQuest.cooldownMin[idx]
         AddHeaderOption("Cooldown")
@@ -554,11 +580,31 @@ function drawConditionsPage()
     _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM")
 
     SetCursorPosition(1)
-    AddHeaderOption("Visuals")
-    AddColorOptionST("SLOT_TINT",           "Tint",              MainQuest.condTint[idx])
-    AddColorOptionST("SLOT_EMISSIVE",        "Emission color",    MainQuest.condEmissive[idx])
-    AddSliderOptionST("SLOT_EMISSIVE_MULT",  "Emission strength", MainQuest.condEmissiveMult[idx], "{1}")
-    AddSliderOptionST("SLOT_ALPHA",          "Opacity",           MainQuest.condAlpha[idx], "{0}%")
+    AddHeaderOption("Visuals (per layer)")
+    ; Determine layer count from the resolved (slot or inherited) entry.
+    ; If unresolved, show all MAX_LAYERS rows so user can still tweak.
+    string resPack  = MainQuest.ResolveSlotPackId(idx)
+    string resEntry = MainQuest.ResolveSlotEntryId(idx)
+    int layerN = sd_LME_MainQuest.MAX_LAYERS_PER_SLOT()
+    if resPack != "" && resEntry != ""
+        int lc = MainQuest.GetEntryLayerCount(resPack, resEntry)
+        if lc > 0 && lc < layerN
+            layerN = lc
+        endif
+    endif
+    ; Per-layer visuals always read from the LAYOUT slot (idx), not the
+    ; inheritance target — letting a condition slot keep its own colors
+    ; even when it inherits pack+entry.
+    int L = 0
+    while L < layerN
+        int li = idx * sd_LME_MainQuest.MAX_LAYERS_PER_SLOT() + L
+        AddHeaderOption("Layer " + L)
+        AddColorOptionST("SLOT_L" + L + "_TINT",      "Tint",              MainQuest.condLayerTint[li])
+        AddColorOptionST("SLOT_L" + L + "_EMISSIVE",  "Emission color",    MainQuest.condLayerEmissive[li])
+        AddSliderOptionST("SLOT_L" + L + "_EM_MULT",  "Emission strength", MainQuest.condLayerEmissiveMult[li], "{1}")
+        AddSliderOptionST("SLOT_L" + L + "_ALPHA",    "Opacity",           MainQuest.condLayerAlpha[li], "{0}%")
+        L += 1
+    endwhile
 endFunction
 
 ; ╔══════════════════════════════════════════════════════════════════════════╗
@@ -604,91 +650,15 @@ state GEN_UPDATE_INTERVAL
     endEvent
 endState
 
-string Function _activeVisualPackLabel()
-    string pid = MainQuest.activeVisualPackId
-    if pid == ""
-        if MainQuest.GetVisualPackCount() == 0
-            return "(no packs found)"
-        endif
-        return "(not set)"
-    endif
-    int idx = MainQuest.FindVisualPackIndex(pid)
-    if idx < 0
-        return "Unknown (" + pid + ")"
-    endif
-    return MainQuest.GetVisualPackLabelAt(idx)
-EndFunction
-
 state GEN_RELOAD_VISUALS
     event OnSelectST()
         MainQuest.ForceReloadVisualCatalogs()
-        int idx = MainQuest.FindVisualPackIndex("lme.racemenu-lewdmarks")
-        if MainQuest.activeVisualPackId == "" || MainQuest.FindVisualPackIndex(MainQuest.activeVisualPackId) < 0
-            if idx >= 0
-                MainQuest.activeVisualPackId = "lme.racemenu-lewdmarks"
-            elseif MainQuest.GetVisualPackCount() > 0
-                MainQuest.activeVisualPackId = MainQuest.GetVisualPackIdAt(0)
-            endif
-        endif
         SetTextOptionValueST("(" + MainQuest.GetVisualPackCount() + " loaded)")
         MainQuest.setRedraw()
         ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Re-scan Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/ for pack JSONs. Shows a toast with the load result.")
-    endEvent
-endState
-
-state GEN_VISUAL_PACK
-    event OnMenuOpenST()
-        int n = MainQuest.GetVisualPackCount()
-        if n <= 0
-            string[] empty = new string[1]
-            empty[0] = "(no packs found)"
-            SetMenuDialogStartIndex(0)
-            SetMenuDialogDefaultIndex(0)
-            SetMenuDialogOptions(empty)
-            return
-        endif
-        string[] opts = _newOpts(n)
-        int sel = 0
-        int i = 0
-        while i < n
-            opts[i] = MainQuest.GetVisualPackLabelAt(i)
-            if MainQuest.GetVisualPackIdAt(i) == MainQuest.activeVisualPackId
-                sel = i
-            endif
-            i += 1
-        endwhile
-        SetMenuDialogStartIndex(sel)
-        SetMenuDialogDefaultIndex(0)
-        SetMenuDialogOptions(opts)
-    endEvent
-    event OnMenuAcceptST(int index)
-        int n = MainQuest.GetVisualPackCount()
-        if index < 0 || index >= n
-            return
-        endif
-        MainQuest.activeVisualPackId = MainQuest.GetVisualPackIdAt(index)
-        SetMenuOptionValueST(_activeVisualPackLabel())
-        MainQuest.setRedraw()
-        ForcePageReset()
-    endEvent
-    event OnDefaultST()
-        int idx = MainQuest.FindVisualPackIndex("lme.racemenu-lewdmarks")
-        if idx >= 0
-            MainQuest.activeVisualPackId = "lme.racemenu-lewdmarks"
-        elseif MainQuest.GetVisualPackCount() > 0
-            MainQuest.activeVisualPackId = MainQuest.GetVisualPackIdAt(0)
-        else
-            MainQuest.activeVisualPackId = ""
-        endif
-        SetMenuOptionValueST(_activeVisualPackLabel())
-        MainQuest.setRedraw()
-        ForcePageReset()
-    endEvent
-    event OnHighlightST()
-        SetInfoText("Which tattoo pack to draw from. Packs are JSON files under Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/.")
+        SetInfoText("Re-scan Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/ for pack JSONs.")
     endEvent
 endState
 
@@ -894,7 +864,7 @@ string Function _slotEntryLabel(int slot)
         endif
         return "(inherit Default)"
     endif
-    string pid = MainQuest.activeVisualPackId
+    string pid = MainQuest.ResolveSlotPackId(slot)
     if pid == ""
         return entryId
     endif
@@ -915,16 +885,132 @@ string Function _slotEntryLabel(int slot)
     return lbl
 EndFunction
 
+string Function _slotPackLabel(int slot)
+    string pid = MainQuest.condPackId[slot]
+    if pid == ""
+        if slot == 0
+            if MainQuest.GetVisualPackCount() == 0
+                return "(no packs found)"
+            endif
+            return "(not set)"
+        endif
+        return "(inherit Default)"
+    endif
+    int idx = MainQuest.FindVisualPackIndex(pid)
+    if idx < 0
+        return "Unknown (" + pid + ")"
+    endif
+    return MainQuest.GetVisualPackLabelAt(idx)
+EndFunction
+
+state SLOT_PACK_PICK
+    event OnMenuOpenST()
+        int n = MainQuest.GetVisualPackCount()
+        bool allowInherit = (selectedCondition > 0)
+        int total = n
+        if allowInherit
+            total += 1
+        endif
+        if total <= 0
+            string[] empty = new string[1]
+            empty[0] = "(no packs found)"
+            SetMenuDialogStartIndex(0)
+            SetMenuDialogDefaultIndex(0)
+            SetMenuDialogOptions(empty)
+            return
+        endif
+        string[] opts = _newOpts(total)
+        int sel = 0
+        int writeIdx = 0
+        if allowInherit
+            opts[0] = "(inherit Default)"
+            if MainQuest.condPackId[selectedCondition] == ""
+                sel = 0
+            endif
+            writeIdx = 1
+        endif
+        int i = 0
+        while i < n
+            opts[writeIdx] = MainQuest.GetVisualPackLabelAt(i)
+            if MainQuest.GetVisualPackIdAt(i) == MainQuest.condPackId[selectedCondition]
+                sel = writeIdx
+            endif
+            writeIdx += 1
+            i += 1
+        endwhile
+        SetMenuDialogStartIndex(sel)
+        SetMenuDialogDefaultIndex(0)
+        SetMenuDialogOptions(opts)
+    endEvent
+    event OnMenuAcceptST(int index)
+        bool allowInherit = (selectedCondition > 0)
+        if index < 0
+            return
+        endif
+        string newPack = ""
+        if !(allowInherit && index == 0)
+            int packIdx = index
+            if allowInherit
+                packIdx -= 1
+            endif
+            if packIdx >= 0 && packIdx < MainQuest.GetVisualPackCount()
+                newPack = MainQuest.GetVisualPackIdAt(packIdx)
+            endif
+        endif
+        ; Switching packs invalidates the entry pick — reset to first entry
+        ; of the new pack (or "" if inheriting).
+        if newPack != MainQuest.condPackId[selectedCondition]
+            MainQuest.condPackId[selectedCondition] = newPack
+            if newPack == ""
+                MainQuest.condEntryId[selectedCondition] = ""
+            elseif MainQuest.GetPackEntryCount(newPack) > 0
+                MainQuest.condEntryId[selectedCondition] = MainQuest.GetPackEntryIdAt(newPack, 0)
+            else
+                MainQuest.condEntryId[selectedCondition] = ""
+            endif
+        endif
+        SetMenuOptionValueST(_slotPackLabel(selectedCondition))
+        MainQuest.setRedraw()
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        if selectedCondition == 0
+            int idx = MainQuest.FindVisualPackIndex("lme.racemenu-lewdmarks")
+            if idx >= 0
+                MainQuest.condPackId[0] = "lme.racemenu-lewdmarks"
+            elseif MainQuest.GetVisualPackCount() > 0
+                MainQuest.condPackId[0] = MainQuest.GetVisualPackIdAt(0)
+            else
+                MainQuest.condPackId[0] = ""
+            endif
+        else
+            MainQuest.condPackId[selectedCondition] = ""
+            MainQuest.condEntryId[selectedCondition] = ""
+        endif
+        SetMenuOptionValueST(_slotPackLabel(selectedCondition))
+        MainQuest.setRedraw()
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        if selectedCondition == 0
+            SetInfoText("Visual pack used by the Default slot. Packs are JSON files under Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/.")
+        else
+            SetInfoText("Visual pack for this condition slot. (inherit Default) falls back to the Default slot's pack + texture.")
+        endif
+    endEvent
+endState
+
 state SLOT_VISUAL_ENTRY
     event OnMenuOpenST()
-        string pid = MainQuest.activeVisualPackId
+        string pid = MainQuest.ResolveSlotPackId(selectedCondition)
         int n = 0
         if pid != ""
             n = MainQuest.GetPackEntryCount(pid)
         endif
-        ; Condition slots get a leading "(inherit Default)" option at index 0;
-        ; the Default slot doesn't (it has nothing to inherit from).
-        bool allowInherit = (selectedCondition > 0)
+        ; Condition slots get a leading "(inherit Default)" option at index 0
+        ; ONLY when they also inherit the pack — picking a different pack means
+        ; the slot has its own (pack, entry) and entry inheritance is moot.
+        bool allowInherit = (selectedCondition > 0) && (MainQuest.condPackId[selectedCondition] == "")
         int total = n
         if allowInherit
             total += 1
@@ -961,8 +1047,8 @@ state SLOT_VISUAL_ENTRY
         SetMenuDialogOptions(opts)
     endEvent
     event OnMenuAcceptST(int index)
-        string pid = MainQuest.activeVisualPackId
-        bool allowInherit = (selectedCondition > 0)
+        string pid = MainQuest.ResolveSlotPackId(selectedCondition)
+        bool allowInherit = (selectedCondition > 0) && (MainQuest.condPackId[selectedCondition] == "")
         if index < 0
             return
         endif
@@ -979,6 +1065,7 @@ state SLOT_VISUAL_ENTRY
         endif
         SetMenuOptionValueST(_slotEntryLabel(selectedCondition))
         MainQuest.setRedraw()
+        ForcePageReset()
     endEvent
     event OnDefaultST()
         if selectedCondition == 0
@@ -988,12 +1075,13 @@ state SLOT_VISUAL_ENTRY
         endif
         SetMenuOptionValueST(_slotEntryLabel(selectedCondition))
         MainQuest.setRedraw()
+        ForcePageReset()
     endEvent
     event OnHighlightST()
         if selectedCondition == 0
-            SetInfoText("Texture used by the Default slot. Picks from entries in the active visual pack.")
+            SetInfoText("Texture used by the Default slot. Picks from entries in the slot's visual pack.")
         else
-            SetInfoText("Texture used by this condition slot. (inherit Default) falls back to the Default slot's pick.")
+            SetInfoText("Texture used by this condition slot. (inherit Default) falls back to the Default slot's pick (only available when this slot's pack is inherited).")
         endif
     endEvent
 endState
@@ -1372,116 +1460,309 @@ state SLOT_EFFECT_4_PARAM
     endEvent
 endState
 
-; ── Visual states (shared across all slots via selectedCondition) ─────────────
-; One set of 4 sliders/pickers — applied uniformly to every layer of the
-; entry chosen via SLOT_VISUAL_ENTRY. Per-layer biases (e.g. "this glow
-; layer is 2× brighter") live in the visual pack JSON.
+; ── Per-layer visual states (slot * MAX_LAYERS + layer indexing) ─────────────
+; Each layer of the picked entry gets its own Tint/Emissive/EmissiveMult/Alpha.
+; State blocks below are mechanical wrappers around 4 helper functions that
+; compute the backing-array index from selectedCondition and the layer
+; constant baked into each state.
 
-state SLOT_TINT
+int Function _layerArrIdx(int L)
+    return selectedCondition * sd_LME_MainQuest.MAX_LAYERS_PER_SLOT() + L
+EndFunction
+
+Function _openLayerTint(int L)
+    SetColorDialogStartColor(MainQuest.condLayerTint[_layerArrIdx(L)])
+    SetColorDialogDefaultColor(16777215)
+EndFunction
+Function _acceptLayerTint(int L, int color)
+    MainQuest.condLayerTint[_layerArrIdx(L)] = color
+    SetColorOptionValueST(color)
+    MainQuest.setRedraw()
+EndFunction
+Function _defaultLayerTint(int L)
+    MainQuest.condLayerTint[_layerArrIdx(L)] = 16777215
+    SetColorOptionValueST(16777215)
+    MainQuest.setRedraw()
+EndFunction
+
+Function _openLayerEmissive(int L)
+    SetColorDialogStartColor(MainQuest.condLayerEmissive[_layerArrIdx(L)])
+    SetColorDialogDefaultColor(16777215)
+EndFunction
+Function _acceptLayerEmissive(int L, int color)
+    MainQuest.condLayerEmissive[_layerArrIdx(L)] = color
+    SetColorOptionValueST(color)
+    MainQuest.setRedraw()
+EndFunction
+Function _defaultLayerEmissive(int L)
+    MainQuest.condLayerEmissive[_layerArrIdx(L)] = 16777215
+    SetColorOptionValueST(16777215)
+    MainQuest.setRedraw()
+EndFunction
+
+Function _openLayerEmMult(int L)
+    SetSliderDialogStartValue(MainQuest.condLayerEmissiveMult[_layerArrIdx(L)])
+    SetSliderDialogDefaultValue(0.0)
+    SetSliderDialogRange(0.0, 25.0)
+    SetSliderDialogInterval(0.5)
+EndFunction
+Function _acceptLayerEmMult(int L, float value)
+    MainQuest.condLayerEmissiveMult[_layerArrIdx(L)] = value
+    SetSliderOptionValueST(value, "{1}")
+    MainQuest.setRedraw()
+EndFunction
+Function _defaultLayerEmMult(int L)
+    MainQuest.condLayerEmissiveMult[_layerArrIdx(L)] = 0.0
+    SetSliderOptionValueST(0.0, "{1}")
+    MainQuest.setRedraw()
+EndFunction
+
+Function _openLayerAlpha(int L)
+    SetSliderDialogStartValue(MainQuest.condLayerAlpha[_layerArrIdx(L)])
+    SetSliderDialogDefaultValue(100)
+    SetSliderDialogRange(0, 100)
+    SetSliderDialogInterval(1)
+EndFunction
+Function _acceptLayerAlpha(int L, float value)
+    MainQuest.condLayerAlpha[_layerArrIdx(L)] = value as int
+    SetSliderOptionValueST(value, "{0}%")
+    MainQuest.setRedraw()
+EndFunction
+Function _defaultLayerAlpha(int L)
+    MainQuest.condLayerAlpha[_layerArrIdx(L)] = 100
+    SetSliderOptionValueST(100, "{0}%")
+    MainQuest.setRedraw()
+EndFunction
+
+; ── Layer 0 ──────────────────────────────────────────────────────────────────
+state SLOT_L0_TINT
     event OnColorOpenST()
-        SetColorDialogStartColor(MainQuest.condTint[selectedCondition])
-        SetColorDialogDefaultColor(16777215)
+        _openLayerTint(0)
     endEvent
     event OnColorAcceptST(int color)
-        MainQuest.condTint[selectedCondition] = color
-        SetColorOptionValueST(color)
-        MainQuest.setRedraw()
+        _acceptLayerTint(0, color)
     endEvent
     event OnDefaultST()
-        MainQuest.condTint[selectedCondition] = 16777215
-        SetColorOptionValueST(16777215)
-        MainQuest.setRedraw()
+        _defaultLayerTint(0)
     endEvent
     event OnHighlightST()
-        SetInfoText("Tint color applied to every layer of the picked texture.")
+        SetInfoText("Tint color for layer 0 (typically the base mark texture).")
     endEvent
 endState
-
-state SLOT_EMISSIVE
+state SLOT_L0_EMISSIVE
     event OnColorOpenST()
-        SetColorDialogStartColor(MainQuest.condEmissive[selectedCondition])
-        if selectedCondition > 0
-            SetColorDialogDefaultColor(11337843)
-        else
-            SetColorDialogDefaultColor(16777215)
-        endif
+        _openLayerEmissive(0)
     endEvent
     event OnColorAcceptST(int color)
-        MainQuest.condEmissive[selectedCondition] = color
-        SetColorOptionValueST(color)
-        MainQuest.setRedraw()
+        _acceptLayerEmissive(0, color)
     endEvent
     event OnDefaultST()
-        int defVal = 16777215
-        if selectedCondition > 0
-            defVal = 11337843
-        endif
-        MainQuest.condEmissive[selectedCondition] = defVal
-        SetColorOptionValueST(defVal)
-        MainQuest.setRedraw()
+        _defaultLayerEmissive(0)
     endEvent
     event OnHighlightST()
-        SetInfoText("Emission (glow) color for the texture.")
+        SetInfoText("Emission (glow) color for layer 0.")
+    endEvent
+endState
+state SLOT_L0_EM_MULT
+    event OnSliderOpenST()
+        _openLayerEmMult(0)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptLayerEmMult(0, value)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerEmMult(0)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Glow intensity for layer 0. 0 = no glow.")
+    endEvent
+endState
+state SLOT_L0_ALPHA
+    event OnSliderOpenST()
+        _openLayerAlpha(0)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptLayerAlpha(0, value)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerAlpha(0)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Opacity for layer 0.")
     endEvent
 endState
 
-state SLOT_EMISSIVE_MULT
-    event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condEmissiveMult[selectedCondition])
-        if selectedCondition > 0
-            SetSliderDialogDefaultValue(2.5)
-        else
-            SetSliderDialogDefaultValue(0.0)
-        endif
-        SetSliderDialogRange(0.0, 25.0)
-        SetSliderDialogInterval(0.5)
+; ── Layer 1 ──────────────────────────────────────────────────────────────────
+state SLOT_L1_TINT
+    event OnColorOpenST()
+        _openLayerTint(1)
     endEvent
-    event OnSliderAcceptST(float value)
-        MainQuest.condEmissiveMult[selectedCondition] = value
-        SetSliderOptionValueST(value, "{1}")
-        MainQuest.setRedraw()
+    event OnColorAcceptST(int color)
+        _acceptLayerTint(1, color)
     endEvent
     event OnDefaultST()
-        float defVal = 0.0
-        if selectedCondition > 0
-            defVal = 2.5
-        endif
-        MainQuest.condEmissiveMult[selectedCondition] = defVal
-        SetSliderOptionValueST(defVal, "{1}")
-        MainQuest.setRedraw()
+        _defaultLayerTint(1)
     endEvent
     event OnHighlightST()
-        SetInfoText("Master glow intensity. 0 = no glow. Per-layer multipliers in the visual pack JSON bias each layer relative to this.")
+        SetInfoText("Tint color for layer 1 (typically the glow layer).")
+    endEvent
+endState
+state SLOT_L1_EMISSIVE
+    event OnColorOpenST()
+        _openLayerEmissive(1)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptLayerEmissive(1, color)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerEmissive(1)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Emission (glow) color for layer 1.")
+    endEvent
+endState
+state SLOT_L1_EM_MULT
+    event OnSliderOpenST()
+        _openLayerEmMult(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptLayerEmMult(1, value)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerEmMult(1)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Glow intensity for layer 1. 0 = no glow.")
+    endEvent
+endState
+state SLOT_L1_ALPHA
+    event OnSliderOpenST()
+        _openLayerAlpha(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptLayerAlpha(1, value)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerAlpha(1)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Opacity for layer 1.")
     endEvent
 endState
 
-state SLOT_ALPHA
-    event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condAlpha[selectedCondition])
-        if selectedCondition > 0
-            SetSliderDialogDefaultValue(80)
-        else
-            SetSliderDialogDefaultValue(100)
-        endif
-        SetSliderDialogRange(0, 100)
-        SetSliderDialogInterval(1)
+; ── Layer 2 ──────────────────────────────────────────────────────────────────
+state SLOT_L2_TINT
+    event OnColorOpenST()
+        _openLayerTint(2)
     endEvent
-    event OnSliderAcceptST(float value)
-        MainQuest.condAlpha[selectedCondition] = value as int
-        SetSliderOptionValueST(value, "{0}%")
-        MainQuest.setRedraw()
+    event OnColorAcceptST(int color)
+        _acceptLayerTint(2, color)
     endEvent
     event OnDefaultST()
-        int defVal = 100
-        if selectedCondition > 0
-            defVal = 80
-        endif
-        MainQuest.condAlpha[selectedCondition] = defVal
-        SetSliderOptionValueST(defVal, "{0}%")
-        MainQuest.setRedraw()
+        _defaultLayerTint(2)
     endEvent
     event OnHighlightST()
-        SetInfoText("Master opacity. Per-layer multipliers in the visual pack JSON bias each layer relative to this.")
+        SetInfoText("Tint color for layer 2.")
+    endEvent
+endState
+state SLOT_L2_EMISSIVE
+    event OnColorOpenST()
+        _openLayerEmissive(2)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptLayerEmissive(2, color)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerEmissive(2)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Emission color for layer 2.")
+    endEvent
+endState
+state SLOT_L2_EM_MULT
+    event OnSliderOpenST()
+        _openLayerEmMult(2)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptLayerEmMult(2, value)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerEmMult(2)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Glow intensity for layer 2.")
+    endEvent
+endState
+state SLOT_L2_ALPHA
+    event OnSliderOpenST()
+        _openLayerAlpha(2)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptLayerAlpha(2, value)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerAlpha(2)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Opacity for layer 2.")
+    endEvent
+endState
+
+; ── Layer 3 ──────────────────────────────────────────────────────────────────
+state SLOT_L3_TINT
+    event OnColorOpenST()
+        _openLayerTint(3)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptLayerTint(3, color)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerTint(3)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Tint color for layer 3.")
+    endEvent
+endState
+state SLOT_L3_EMISSIVE
+    event OnColorOpenST()
+        _openLayerEmissive(3)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptLayerEmissive(3, color)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerEmissive(3)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Emission color for layer 3.")
+    endEvent
+endState
+state SLOT_L3_EM_MULT
+    event OnSliderOpenST()
+        _openLayerEmMult(3)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptLayerEmMult(3, value)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerEmMult(3)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Glow intensity for layer 3.")
+    endEvent
+endState
+state SLOT_L3_ALPHA
+    event OnSliderOpenST()
+        _openLayerAlpha(3)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptLayerAlpha(3, value)
+    endEvent
+    event OnDefaultST()
+        _defaultLayerAlpha(3)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Opacity for layer 3.")
     endEvent
 endState
 

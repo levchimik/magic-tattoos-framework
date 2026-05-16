@@ -10,12 +10,11 @@ int Property OverlaySlot = 2 Auto
 int Property CurrentOverlaySlot = 2 Auto
 float Property updateInterval = 2.0 Auto
 
-; ── Visual pack (loaded from JSON catalogs) ─────────────────────────────────
-; activeVisualPackId is the stable packId from the catalog JSON's "packId"
-; field, e.g. "lme.racemenu-lewdmarks". Catalog files live under
+; ── Visual pack catalog cache ───────────────────────────────────────────────
+; Pack list loaded once from JSON files under
 ;   Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/*.json
 ; LoadVisualCatalogs() scans the folder, caches packIds/labels/filenames.
-string Property activeVisualPackId = "" Auto
+; The "active pack" is now per-slot (see condPackId) rather than global.
 string[] Property visualPackIds Auto Hidden
 string[] Property visualPackLabels Auto Hidden
 string[] Property visualPackFiles Auto Hidden   ; JsonUtil path: "LewdMarksEffects/visuals/<basename>"
@@ -26,14 +25,25 @@ bool _visualsLoaded = false
 ; condPluginId: "<pluginId>:<conditionItemId>" composite key; "" = unset.
 string[] Property condPluginId Auto
 int[] Property condParam Auto
-; condEntryId: stable per-pack entry id (e.g. "001"). "" = inherit slot 0.
+; condPackId / condEntryId: stable pack + entry id (e.g. "lme.racemenu-lewdmarks", "001").
+; For slots 1-7, condPackId == "" means "inherit Default's pack+entry".
+; For slot 0, condPackId must be non-empty when a visual pack is desired.
+string[] Property condPackId Auto
 string[] Property condEntryId Auto
-; Shared visual params — applied to every layer of the picked entry.
-; Layer JSON can pre-multiply emissive/alpha per layer.
-int[] Property condTint Auto
-int[] Property condEmissive Auto
-float[] Property condEmissiveMult Auto
-int[] Property condAlpha Auto
+; Per-layer visual params. Indexed by [slot * MAX_LAYERS_PER_SLOT() + layer].
+; Each entry's picked layers consume layer indices 0..layerCount-1.
+int[] Property condLayerTint Auto
+int[] Property condLayerEmissive Auto
+float[] Property condLayerEmissiveMult Auto
+int[] Property condLayerAlpha Auto
+
+int Function MAX_LAYERS_PER_SLOT() global
+    return 4
+EndFunction
+
+int Function _layerIdx(int slot, int layer)
+    return slot * MAX_LAYERS_PER_SLOT() + layer
+EndFunction
 
 ; ── Per-slot effect lists (flat, 8 slots × MAX_EFFECTS_PER_SLOT) ─────────────
 ; effectKey: "<pluginId>:<effectItemId>" or ""; effectParam parallel.
@@ -100,21 +110,44 @@ Function EnsureArrays()
         return
     endif
     Trace("[LME_Main] EnsureArrays: allocating arrays")
-    condPluginId      = new string[8]
-    condParam         = new int[8]
-    condEntryId       = new string[8]
-    condTint          = new int[8]
-    condEmissive      = new int[8]
-    condEmissiveMult  = new float[8]
-    condAlpha         = new int[8]
-    effectKey         = new string[32]    ; 8 slots × 4 effects
-    effectParam       = new int[32]
-    cooldownMin       = new int[8]
-    cooldownMode      = new int[8]
-    cooldownUntilGT   = new float[8]
-    registeredPlugins = new Form[32]
-    pluginCount       = 0
-    _arraysReady      = true
+    condPluginId          = new string[8]
+    condParam             = new int[8]
+    condPackId            = new string[8]
+    condEntryId           = new string[8]
+    condLayerTint         = new int[32]   ; 8 slots × 4 layers
+    condLayerEmissive     = new int[32]
+    condLayerEmissiveMult = new float[32]
+    condLayerAlpha        = new int[32]
+    effectKey             = new string[32]    ; 8 slots × 4 effects
+    effectParam           = new int[32]
+    cooldownMin           = new int[8]
+    cooldownMode          = new int[8]
+    cooldownUntilGT       = new float[8]
+    registeredPlugins     = new Form[32]
+    pluginCount           = 0
+    _arraysReady          = true
+EndFunction
+
+; Inheritance helpers — slots 1-7 with empty condPackId fall back to slot 0.
+string Function ResolveSlotPackId(int slot)
+    if condPackId == None
+        return ""
+    endif
+    string pid = condPackId[slot]
+    if pid == "" && slot > 0
+        return condPackId[0]
+    endif
+    return pid
+EndFunction
+
+string Function ResolveSlotEntryId(int slot)
+    if condEntryId == None
+        return ""
+    endif
+    if slot > 0 && condPackId != None && condPackId[slot] == ""
+        return condEntryId[0]
+    endif
+    return condEntryId[slot]
 EndFunction
 
 ; ─────────────────────────────────────────────────────────────────────────────
@@ -344,24 +377,6 @@ string Function GetEntryLayerTexture(string packId, string entryId, int layer)
     return JsonUtil.GetPathStringValue(f, ".entries[" + idx + "].layers[" + layer + "].texture", "")
 EndFunction
 
-float Function GetEntryLayerEmissiveMult(string packId, string entryId, int layer)
-    string f = _packFileById(packId)
-    int idx = _findEntryIdx(packId, entryId)
-    if f == "" || idx < 0 || layer < 0
-        return 1.0
-    endif
-    return JsonUtil.GetPathFloatValue(f, ".entries[" + idx + "].layers[" + layer + "].emissiveMult", 1.0)
-EndFunction
-
-float Function GetEntryLayerAlphaMult(string packId, string entryId, int layer)
-    string f = _packFileById(packId)
-    int idx = _findEntryIdx(packId, entryId)
-    if f == "" || idx < 0 || layer < 0
-        return 1.0
-    endif
-    return JsonUtil.GetPathFloatValue(f, ".entries[" + idx + "].layers[" + layer + "].alphaMult", 1.0)
-EndFunction
-
 ; Indexed write helpers — `obj.arrayProp[i] = val` syntax can fail to
 ; persist on Papyrus property arrays (writes hit a transient copy, not the
 ; backing storage). Reading the array into a local, mutating, and writing
@@ -463,19 +478,25 @@ bool Function SavePreset(string rawName)
     JsonUtil.ClearAll(f)
     JsonUtil.SetIntValue(f, "valid", 1)
     JsonUtil.SetStringValue(f, "displayName", rawName)
-    JsonUtil.SetIntValue(f, "schemaVersion", 2)
-    JsonUtil.SetStringValue(f, "general.activeVisualPackId", activeVisualPackId)
+    JsonUtil.SetIntValue(f, "schemaVersion", 3)
 
     EnsureArrays()
+    int maxL = MAX_LAYERS_PER_SLOT()
     int s = 0
     while s < 8
         JsonUtil.SetStringValue(f, "slot." + s + ".condPluginId", condPluginId[s])
         JsonUtil.SetIntValue(f, "slot." + s + ".condParam", condParam[s])
+        JsonUtil.SetStringValue(f, "slot." + s + ".condPackId", condPackId[s])
         JsonUtil.SetStringValue(f, "slot." + s + ".condEntryId", condEntryId[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".condTint", condTint[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".condEmissive", condEmissive[s])
-        JsonUtil.SetFloatValue(f, "slot." + s + ".condEmissiveMult", condEmissiveMult[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".condAlpha", condAlpha[s])
+        int L = 0
+        while L < maxL
+            int li = _layerIdx(s, L)
+            JsonUtil.SetIntValue(f,   "slot." + s + ".layer." + L + ".tint",         condLayerTint[li])
+            JsonUtil.SetIntValue(f,   "slot." + s + ".layer." + L + ".emissive",     condLayerEmissive[li])
+            JsonUtil.SetFloatValue(f, "slot." + s + ".layer." + L + ".emissiveMult", condLayerEmissiveMult[li])
+            JsonUtil.SetIntValue(f,   "slot." + s + ".layer." + L + ".alpha",        condLayerAlpha[li])
+            L += 1
+        endwhile
         JsonUtil.SetIntValue(f, "slot." + s + ".cooldownMin", cooldownMin[s])
         JsonUtil.SetIntValue(f, "slot." + s + ".cooldownMode", cooldownMode[s])
         int e = 0
@@ -518,23 +539,28 @@ bool Function LoadPreset(string name)
     if JsonUtil.GetIntValue(f, "valid", 0) != 1
         return false
     endif
-    if JsonUtil.GetIntValue(f, "schemaVersion", 1) < 2
-        ; Preset predates the visual-pack rewrite. Refuse rather than half-load.
+    if JsonUtil.GetIntValue(f, "schemaVersion", 1) < 3
+        ; Preset predates the per-slot pack + per-layer visuals rewrite.
         return false
     endif
     EnsureArrays()
 
-    activeVisualPackId = JsonUtil.GetStringValue(f, "general.activeVisualPackId", "")
-
+    int maxL = MAX_LAYERS_PER_SLOT()
     int s = 0
     while s < 8
         SetCondPluginId(s, JsonUtil.GetStringValue(f, "slot." + s + ".condPluginId", ""))
         SetCondParam(s, JsonUtil.GetIntValue(f, "slot." + s + ".condParam", 0))
-        condEntryId[s]      = JsonUtil.GetStringValue(f, "slot." + s + ".condEntryId", "")
-        condTint[s]         = JsonUtil.GetIntValue(f, "slot." + s + ".condTint", 16777215)
-        condEmissive[s]     = JsonUtil.GetIntValue(f, "slot." + s + ".condEmissive", 16777215)
-        condEmissiveMult[s] = JsonUtil.GetFloatValue(f, "slot." + s + ".condEmissiveMult", 1.0)
-        condAlpha[s]        = JsonUtil.GetIntValue(f, "slot." + s + ".condAlpha", 100)
+        condPackId[s]  = JsonUtil.GetStringValue(f, "slot." + s + ".condPackId", "")
+        condEntryId[s] = JsonUtil.GetStringValue(f, "slot." + s + ".condEntryId", "")
+        int L = 0
+        while L < maxL
+            int li = _layerIdx(s, L)
+            condLayerTint[li]         = JsonUtil.GetIntValue(f,   "slot." + s + ".layer." + L + ".tint",         16777215)
+            condLayerEmissive[li]     = JsonUtil.GetIntValue(f,   "slot." + s + ".layer." + L + ".emissive",     16777215)
+            condLayerEmissiveMult[li] = JsonUtil.GetFloatValue(f, "slot." + s + ".layer." + L + ".emissiveMult", 0.0)
+            condLayerAlpha[li]        = JsonUtil.GetIntValue(f,   "slot." + s + ".layer." + L + ".alpha",        100)
+            L += 1
+        endwhile
         cooldownMin[s]      = JsonUtil.GetIntValue(f, "slot." + s + ".cooldownMin", 0)
         cooldownMode[s]         = JsonUtil.GetIntValue(f, "slot." + s + ".cooldownMode", 0)
         int e = 0
@@ -1351,32 +1377,34 @@ function drawOverlay(actor akTarget, int idx)
     bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
     string Area = "Body"
 
-    string packId  = activeVisualPackId
-    string entryId = condEntryId[idx]
-    if entryId == "" && idx > 0
-        entryId = condEntryId[0]
-    endif
-
+    ; Resolve pack/entry with Default-slot inheritance for conditions 1-7.
+    string packId  = ResolveSlotPackId(idx)
+    string entryId = ResolveSlotEntryId(idx)
+    ; Per-layer visuals are ALWAYS owned by the displayed slot — pack/entry
+    ; can inherit but colors do not. This matches the MCM where each slot
+    ; shows its own per-layer sliders.
     int max = _maxLayerSlots()
+    int maxLayers = MAX_LAYERS_PER_SLOT()
     int layerN = 0
     if packId != "" && entryId != ""
         layerN = GetEntryLayerCount(packId, entryId)
         if layerN > max
             layerN = max
         endif
+        if layerN > maxLayers
+            layerN = maxLayers
+        endif
     endif
-
-    int tint     = condTint[idx]
-    int emissive = condEmissive[idx]
-    float emMult = condEmissiveMult[idx]
-    float alpha  = (condAlpha[idx] as float) * 0.01
 
     int i = 0
     while i < layerN
+        int lidx     = _layerIdx(idx, i)
         string tex   = GetEntryLayerTexture(packId, entryId, i)
-        float layEm  = GetEntryLayerEmissiveMult(packId, entryId, i)
-        float layAl  = GetEntryLayerAlphaMult(packId, entryId, i)
-        applyOverlay(akTarget, isFemale, Area, OverlaySlot + i, tex, tint, emissive, emMult * layEm, alpha * layAl)
+        int tint     = condLayerTint[lidx]
+        int emissive = condLayerEmissive[lidx]
+        float emMult = condLayerEmissiveMult[lidx]
+        float alpha  = (condLayerAlpha[lidx] as float) * 0.01
+        applyOverlay(akTarget, isFemale, Area, OverlaySlot + i, tex, tint, emissive, emMult, alpha)
         i += 1
     endwhile
     ; Clear unused trailing slots (previous entry may have had more layers).

@@ -26,6 +26,8 @@ function pad3(n) {
 }
 
 function buildCatalog(packId, label, normalRoot, glowRoot) {
+    // Each entry is just a list of texture layers. Per-layer visual params
+    // (tint/emissive/alpha) live in the MCM, not in the catalog.
     const entries = [];
     for (let i = 1; i <= COUNT; i++) {
         const id = pad3(i);
@@ -34,12 +36,12 @@ function buildCatalog(packId, label, normalRoot, glowRoot) {
             label: 'Mark ' + id,
             layers: [
                 { texture: normalRoot + id + '.dds' },
-                { texture: glowRoot   + id + '.dds', emissiveMult: 2.0 }
+                { texture: glowRoot   + id + '.dds' }
             ]
         });
     }
     return {
-        schemaVersion: 2,
+        schemaVersion: 3,
         packId,
         label,
         area: 'Body',
