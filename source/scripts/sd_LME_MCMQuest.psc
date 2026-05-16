@@ -1085,7 +1085,11 @@ Function _openEffectParam(int effectIdx)
     SetSliderDialogStartValue(MainQuest.GetSlotEffectParam(selectedCondition, effectIdx))
     SetSliderDialogDefaultValue(p.GetEffectParamDefault(itemIdx))
     SetSliderDialogRange(p.GetEffectParamMin(itemIdx), p.GetEffectParamMax(itemIdx))
-    SetSliderDialogInterval(1)
+    int step = p.GetEffectParamStep(itemIdx)
+    if step < 1
+        step = 1
+    endif
+    SetSliderDialogInterval(step)
 EndFunction
 
 Function _acceptEffectParam(int effectIdx, float value)

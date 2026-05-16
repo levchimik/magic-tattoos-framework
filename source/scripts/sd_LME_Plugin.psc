@@ -122,6 +122,11 @@ int Function GetEffectParamDefault(int idx)
     return 0
 EndFunction
 
+int Function GetEffectParamStep(int idx)
+{SkyUI slider interval. Defaults to 1. Override for coarser steps.}
+    return 1
+EndFunction
+
 Function onActivate(int idx, Actor target, int param)
 {Called when effect `idx` becomes active (slot just became the winning tier).}
 EndFunction

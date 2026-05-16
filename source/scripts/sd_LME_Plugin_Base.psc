@@ -30,6 +30,7 @@ Scriptname sd_LME_Plugin_Base extends sd_LME_Plugin
    8  drain.damageResist    — drain `param`% of current DamageResist (armor)
    9  burst.stagger         — one-shot: play stagger animation on switch (no param)
    10 state.alertNearby     — one-shot: nearby hostile actors within `param`m engage
+   11 magic.costPenalty     — all spells cost `param`% more (5 schools, ability spell)
 
  Hit detection is event-driven: sd_LME_HitListener (a ReferenceAlias on
  LME_MainQuest forced to the player) calls _onHit(classIdx) on every hit.
@@ -44,6 +45,8 @@ float Property _appliedSpeed      = 0.0 Auto Hidden
 float Property _appliedStamRate   = 0.0 Auto Hidden
 float Property _appliedAtkDmg     = 0.0 Auto Hidden
 float Property _appliedDmgResist  = 0.0 Auto Hidden
+float Property _appliedSpellCost  = 0.0 Auto Hidden
+Spell  Property _costPenaltySpell        Auto Hidden
 
 ; Hit-class counter storage uses PapyrusUtil StorageUtil (see MainQuest).
 ; Auto Hidden array properties added post-release do not get attached to
@@ -314,7 +317,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 11
+    return 12
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -340,6 +343,8 @@ string Function GetEffectId(int idx)
         return "burst.stagger"
     elseif idx == 10
         return "state.alertNearby"
+    elseif idx == 11
+        return "magic.costPenalty"
     endif
     return ""
 EndFunction
@@ -367,6 +372,8 @@ string Function GetEffectLabel(int idx)
         return "[!] Stagger"
     elseif idx == 10
         return "[!] Blow Sneak Cover"
+    elseif idx == 11
+        return "Spell Cost Penalty %"
     endif
     return ""
 EndFunction
@@ -394,6 +401,8 @@ string Function GetEffectParamLabel(int idx)
         return ""
     elseif idx == 10
         return "Alert radius (meters)"
+    elseif idx == 11
+        return "Extra spell cost across all schools, % (step 5)"
     endif
     return ""
 EndFunction
@@ -405,6 +414,9 @@ int Function GetEffectParamMin(int idx)
     return 0
 EndFunction
 int Function GetEffectParamMax(int idx)
+    if idx == 11
+        return 400
+    endif
     return 100
 EndFunction
 int Function GetEffectParamDefault(int idx)
@@ -414,8 +426,17 @@ int Function GetEffectParamDefault(int idx)
         return 0
     elseif idx == 10
         return 25
+    elseif idx == 11
+        return 50
     endif
     return 25
+EndFunction
+
+int Function GetEffectParamStep(int idx)
+    if idx == 11
+        return 5
+    endif
+    return 1
 EndFunction
 
 bool Function _isDrain(int idx)
@@ -513,6 +534,47 @@ Function _burstDrain(string av, Actor target, int param)
     target.DamageActorValue(av, amt)
 EndFunction
 
+Spell Function _resolveCostPenaltySpell()
+    if _costPenaltySpell == None
+        _costPenaltySpell = Game.GetFormFromFile(0x815, "LewdMarksEffects.esp") as Spell
+    endif
+    return _costPenaltySpell
+EndFunction
+
+Function _applyCostPenalty(Actor target, int param)
+    if target == None
+        return
+    endif
+    Spell s = _resolveCostPenaltySpell()
+    if s == None
+        return
+    endif
+    ; SetNthEffectMagnitude does not affect already-added abilities;
+    ; must remove → mutate → re-add. Also does not persist across save/load
+    ; — onTick re-applies if _appliedSpellCost drifts from current param.
+    target.RemoveSpell(s)
+    float mag = -(param as float)
+    int i = 0
+    while i < 5
+        s.SetNthEffectMagnitude(i, mag)
+        i += 1
+    endwhile
+    target.AddSpell(s, false)
+    _appliedSpellCost = mag
+EndFunction
+
+Function _removeCostPenalty(Actor target)
+    if target == None
+        return
+    endif
+    Spell s = _resolveCostPenaltySpell()
+    if s == None
+        return
+    endif
+    target.RemoveSpell(s)
+    _appliedSpellCost = 0.0
+EndFunction
+
 Function _alertNearby(Actor target, int paramMeters)
     if target == None || paramMeters <= 0
         return
@@ -549,17 +611,27 @@ Function onActivate(int idx, Actor target, int param)
         endif
     elseif idx == 10
         _alertNearby(target, param)
+    elseif idx == 11
+        _applyCostPenalty(target, param)
     endif
 EndFunction
 
 Function onDeactivate(int idx, Actor target, int param)
     if _isDrain(idx)
         _recompute(idx, target, 0)
+    elseif idx == 11
+        _removeCostPenalty(target)
     endif
 EndFunction
 
 Function onTick(int idx, Actor target, int param)
     if _isDrain(idx)
         _recompute(idx, target, param)
+    elseif idx == 11
+        ; Re-apply if param changed (slider) or after save/load (magnitude
+        ; reverts to ESP default which is 0). Skip when already in sync.
+        if _appliedSpellCost != -(param as float)
+            _applyCostPenalty(target, param)
+        endif
     endif
 EndFunction
