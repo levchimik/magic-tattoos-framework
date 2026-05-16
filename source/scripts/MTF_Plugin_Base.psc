@@ -34,6 +34,9 @@ Scriptname MTF_Plugin_Base extends MTF_Plugin
    28 state.sprinting       — IsSprinting()
    29 state.running         — IsRunning() (but not sprinting)
    30 state.weaponDrawn     — IsWeaponDrawn()
+   31 state.loversEmbrace   — Player has the LoversComfort ability
+                              (vanilla "Lover's Comfort", Skyrim.esm 0xCDA1D —
+                               0xA6CB7 is the MagicEffect, not the Spell)
 
  Effects (idx → id):
    0  drain.magickaRate     — drain `param`% of current MagickaRateMult
@@ -72,6 +75,9 @@ Keyword Property _kwCity        Auto Hidden
 Keyword Property _kwTown        Auto Hidden
 Keyword Property _kwInn         Auto Hidden
 Keyword Property _kwJail        Auto Hidden
+
+; Lazy-resolved spells.
+Spell Property _loversComfort Auto Hidden
 
 Keyword Function _locKw(int idx)
     if idx == 18
@@ -141,7 +147,7 @@ EndFunction
 ; ── Conditions ────────────────────────────────────────────────────────────────
 
 int Function GetConditionCount()
-    return 31
+    return 32
 EndFunction
 
 string Function GetConditionId(int idx)
@@ -207,6 +213,8 @@ string Function GetConditionId(int idx)
         return "state.running"
     elseif idx == 30
         return "state.weaponDrawn"
+    elseif idx == 31
+        return "state.loversEmbrace"
     endif
     return ""
 EndFunction
@@ -274,6 +282,8 @@ string Function GetConditionLabel(int idx)
         return "Running"
     elseif idx == 30
         return "Weapon Drawn"
+    elseif idx == 31
+        return "Lover's Embrace"
     endif
     return ""
 EndFunction
@@ -425,6 +435,14 @@ bool Function checkCondition(int idx, Actor target, int param)
         return target.IsRunning() && !target.IsSprinting()
     elseif idx == 30
         return target.IsWeaponDrawn()
+    elseif idx == 31
+        if _loversComfort == None
+            _loversComfort = Game.GetForm(0x000CDA1D) as Spell
+        endif
+        if _loversComfort == None
+            return false
+        endif
+        return target.HasSpell(_loversComfort)
     endif
     return false
 EndFunction

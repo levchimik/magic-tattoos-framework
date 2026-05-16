@@ -9,7 +9,7 @@ MTF_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 19
+    return 20
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -75,7 +75,19 @@ event OnVersionUpdate(int Version)
     ; applied. Once we ship, the next migration must be a non-destructive
     ; ml<20 block added below this one.
     int ml = MainQuest._migrationLevel
+    if ml >= 20
+        return
+    endif
+    ; v0.0.32 (ml=20): non-destructive pulse-array allocation. Existing
+    ; users keep their slot config; new arrays start at 0 (pulse off).
     if ml >= 19
+        if MainQuest.condPulseRate == None
+            MainQuest.condPulseRate = new float[8]
+        endif
+        if MainQuest.condPulseDepth == None
+            MainQuest.condPulseDepth = new int[8]
+        endif
+        MainQuest._migrationLevel = 20
         return
     endif
 
@@ -98,6 +110,8 @@ event OnVersionUpdate(int Version)
     MainQuest.condLayerEmissive     = new int[32]
     MainQuest.condLayerEmissiveMult = new float[32]
     MainQuest.condLayerAlpha        = new int[32]
+    MainQuest.condPulseRate         = new float[8]
+    MainQuest.condPulseDepth        = new int[8]
     MainQuest.effectKey             = new string[32]
     MainQuest.effectParam           = new int[32]
     MainQuest.effectParam2          = new int[32]
@@ -169,7 +183,7 @@ event OnVersionUpdate(int Version)
         s += 1
     endwhile
 
-    MainQuest._migrationLevel = 19
+    MainQuest._migrationLevel = 20
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -508,6 +522,11 @@ EndFunction
 function drawConditionsPage()
     SetCursorFillMode(TOP_TO_BOTTOM)
 
+    ; Defensive: EnsureArrays now lazy-allocates post-release arrays even
+    ; when _arraysReady is true, but call it here explicitly so any stale
+    ; instance gets patched before we read any of them.
+    MainQuest.EnsureArrays()
+
     int idx = selectedCondition
 
     ; ── LEFT COLUMN: slot config + cooldown + effects ────────────────────────
@@ -587,6 +606,15 @@ function drawConditionsPage()
         AddSliderOptionST("SLOT_L" + L + "_ALPHA",    "Opacity",           MainQuest.condLayerAlpha[li], "{0}%")
         L += 1
     endwhile
+
+    ; ── Pulse (animated emissive) ───────────────────────────────────────
+    ; Only meaningful when the slot has emissive layers to modulate.
+    ; Shown unconditionally so users can dial it in even with pack="<none>"
+    ; (effects-only mode shows no overlay, so pulse is a no-op there).
+    AddHeaderOption("Pulse")
+    AddSliderOptionST("SLOT_PULSE_RATE",  "Rate",  MainQuest.condPulseRate[idx], "{2} Hz")
+    AddSliderOptionST("SLOT_PULSE_DEPTH", "Depth", MainQuest.condPulseDepth[idx], "{0}%")
+    AddSliderOptionST("SLOT_PULSE_PAUSE", "Pause", MainQuest.GetCondPulsePause(idx), "{1} s")
 endFunction
 
 ; ╔══════════════════════════════════════════════════════════════════════════╗
@@ -1201,6 +1229,76 @@ state SLOT_CD_MINUTES
     endEvent
     event OnHighlightST()
         SetInfoText("Minutes of cooldown after this slot deactivates (added to hours).")
+    endEvent
+endState
+
+; ── Per-slot pulse (animated emissive) ──────────────────────────────────────
+; Modulates each layer's emissive intensity as base * (1 + depth% * sin(2π·rate·t)).
+; Rate is in cycles per second; 0 disables pulse for the slot.
+
+state SLOT_PULSE_RATE
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.condPulseRate[selectedCondition])
+        SetSliderDialogDefaultValue(0.0)
+        SetSliderDialogRange(0.0, 5.0)
+        SetSliderDialogInterval(0.05)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.SetCondPulseRate(selectedCondition, value)
+        SetSliderOptionValueST(value, "{2} Hz")
+        MainQuest.setRedraw()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetCondPulseRate(selectedCondition, 0.0)
+        SetSliderOptionValueST(0.0, "{2} Hz")
+        MainQuest.setRedraw()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Pulse cycles per second. 0 disables the animation.")
+    endEvent
+endState
+
+state SLOT_PULSE_DEPTH
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.condPulseDepth[selectedCondition])
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 100)
+        SetSliderDialogInterval(5)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.SetCondPulseDepth(selectedCondition, value as int)
+        SetSliderOptionValueST(value as int, "{0}%")
+        MainQuest.setRedraw()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetCondPulseDepth(selectedCondition, 0)
+        SetSliderOptionValueST(0, "{0}%")
+        MainQuest.setRedraw()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("How far the glow dims from peak. 0% = no pulse, 100% = full off at the trough. Emission strength is the peak.")
+    endEvent
+endState
+
+state SLOT_PULSE_PAUSE
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.GetCondPulsePause(selectedCondition))
+        SetSliderDialogDefaultValue(0.0)
+        SetSliderDialogRange(0.0, 10.0)
+        SetSliderDialogInterval(0.1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.SetCondPulsePause(selectedCondition, value)
+        SetSliderOptionValueST(value, "{1} s")
+        MainQuest.setRedraw()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetCondPulsePause(selectedCondition, 0.0)
+        SetSliderOptionValueST(0.0, "{1} s")
+        MainQuest.setRedraw()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Seconds of hold at the trough (dim) between pulse cycles. 0 = continuous.")
     endEvent
 endState
 

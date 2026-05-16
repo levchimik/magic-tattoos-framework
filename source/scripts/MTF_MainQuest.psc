@@ -36,6 +36,18 @@ int[] Property condLayerTint Auto
 int[] Property condLayerEmissive Auto
 float[] Property condLayerEmissiveMult Auto
 int[] Property condLayerAlpha Auto
+; Per-slot pulse (animated emissive). Rate=0 disables. Modulates each
+; layer's effective emissive intensity as base * (1 + depth% * sin(2π·rate·t))
+; on a dedicated fast tick (PULSE_INTERVAL()). Pause is an optional
+; hold-at-base interval inserted between sine cycles — full cycle takes
+; (1/rate) seconds, then mult stays at 1.0 for `pause` seconds before
+; the next cycle begins.
+float[] Property condPulseRate Auto
+int[]   Property condPulseDepth Auto
+; condPulsePause lives in StorageUtil — see GetCondPulsePause/SetCondPulsePause
+; below. Reason: an Auto property added in a later version doesn't always
+; attach to an already-saved script instance (writes silently no-op).
+; StorageUtil persists in the cosave and sidesteps the trap.
 
 int Function MAX_LAYERS_PER_SLOT() global
     return 4
@@ -91,8 +103,28 @@ bool forceRedraw = false
 int currentTier = -1
 bool influenceTracking = false
 
+; Pulse animation state (transient).
+float _pulseStartRT = 0.0
+float _nextSlowRT = 0.0
+
+; Cached per-tier pulse context: layer count and sex only. Base emissive
+; intensity is read LIVE each tick from condLayerEmissiveMult so MCM
+; slider changes take effect within one pulse tick (50ms) instead of
+; waiting up to one slow tick (~2s) for cache refresh.
+int   _pulseTier = -1
+int   _pulseLayerN = 0
+bool  _pulseIsFemale = false
+
 int Function MAX_EFFECTS_PER_SLOT() global
     return 4
+EndFunction
+
+float Function PULSE_INTERVAL() global
+    ; Fast OnUpdate cadence for pulse animation. 0.05s = 20 Hz, just above
+    ; the practical Papyrus RegisterForSingleUpdate floor (~30ms). Going
+    ; lower won't help — the VM throttles to fUpdateBudgetMS. Only fired
+    ; while the current tier actually has pulse configured.
+    return 0.05
 EndFunction
 
 ; ─────────────────────────────────────────────────────────────────────────────
@@ -106,8 +138,18 @@ bool Property _arraysReady = false Auto Hidden
 int Property _migrationLevel = 0 Auto Hidden
 
 Function EnsureArrays()
-{One-shot allocation — bool guard avoids reading array properties (Papyrus errors on None→Type[] casts).}
+{One-shot allocation — bool guard avoids reading array properties (Papyrus errors on None→Type[] casts).
+ Post-release-added arrays are patched in unconditionally below the guard
+ so upgraders whose _arraysReady is already true still get them allocated.}
     if _arraysReady
+        ; Defensive lazy-allocate for properties added in later versions.
+        ; Cheap: just None-checks per call.
+        if condPulseRate == None
+            condPulseRate = new float[8]
+        endif
+        if condPulseDepth == None
+            condPulseDepth = new int[8]
+        endif
         return
     endif
     Trace("[MTF_Main] EnsureArrays: allocating arrays")
@@ -119,6 +161,8 @@ Function EnsureArrays()
     condLayerEmissive     = new int[32]
     condLayerEmissiveMult = new float[32]
     condLayerAlpha        = new int[32]
+    condPulseRate         = new float[8]
+    condPulseDepth        = new int[8]
     effectKey             = new string[32]    ; 8 slots × 4 effects
     effectParam           = new int[32]
     effectParam2          = new int[32]       ; optional 2nd param per effect slot
@@ -405,6 +449,132 @@ Function SetCondParam(int slot, int val)
     condParam = a
 EndFunction
 
+Function SetCondPulseRate(int slot, float v)
+    float[] a = condPulseRate
+    if a == None || a.Length < 8
+        a = new float[8]
+    endif
+    a[slot] = v
+    condPulseRate = a
+EndFunction
+
+Function SetCondPulseDepth(int slot, int v)
+    int[] a = condPulseDepth
+    if a == None || a.Length < 8
+        a = new int[8]
+    endif
+    a[slot] = v
+    condPulseDepth = a
+EndFunction
+
+float Function GetCondPulsePause(int slot)
+    if slot < 0 || slot >= 8
+        return 0.0
+    endif
+    return StorageUtil.GetFloatValue(self, "mtf.pulse.pause." + slot, 0.0)
+EndFunction
+
+Function SetCondPulsePause(int slot, float v)
+    if slot < 0 || slot >= 8
+        return
+    endif
+    StorageUtil.SetFloatValue(self, "mtf.pulse.pause." + slot, v)
+EndFunction
+
+bool Function _slotHasPulse(int slot)
+    if slot < 0 || slot >= 8
+        return false
+    endif
+    if condPulseRate == None || condPulseDepth == None
+        return false
+    endif
+    return condPulseRate[slot] > 0.0 && condPulseDepth[slot] > 0
+EndFunction
+
+Function _resyncPulseCache(int tier)
+{Snapshot the per-tier overlay context so the fast pulse tick can run
+ with only int/float ops and NiOverride writes — no JsonUtil lookups,
+ no actor base/sex queries. Call from drawOverlay on tier change.}
+    _pulseTier = -1
+    if tier < 0 || tier >= 8 || PlayerRef == None
+        return
+    endif
+    if !_slotHasPulse(tier)
+        return
+    endif
+    string packId  = ResolveSlotPackId(tier)
+    string entryId = ResolveSlotEntryId(tier)
+    if packId == "" || packId == "<none>" || entryId == ""
+        return
+    endif
+    int layerN = GetEntryLayerCount(packId, entryId)
+    int max = _maxLayerSlots()
+    if layerN > max
+        layerN = max
+    endif
+    int maxLayers = MAX_LAYERS_PER_SLOT()
+    if layerN > maxLayers
+        layerN = maxLayers
+    endif
+    if layerN <= 0
+        return
+    endif
+    _pulseIsFemale = PlayerRef.GetLeveledActorBase().GetSex() as bool
+    _pulseLayerN = layerN
+    _pulseTier = tier
+EndFunction
+
+Function _applyPulse()
+{Hot path. Reads cached context only — must stay branch-light.}
+    if _pulseTier < 0 || _pulseLayerN <= 0 || PlayerRef == None
+        return
+    endif
+    float rate  = condPulseRate[_pulseTier]
+    float depth = (condPulseDepth[_pulseTier] as float) * 0.01
+    float pause = GetCondPulsePause(_pulseTier)
+    float t = Utility.GetCurrentRealTime() - _pulseStartRT
+    ; Wave model: emissive strength slider = peak (ceiling). Depth = how
+    ; far it dims down from peak. mult ∈ [1-depth, 1]:
+    ;   cycle start  → mult = 1-depth (trough, dim)
+    ;   cycle middle → mult = 1.0     (peak, full base intensity)
+    ;   cycle end    → mult = 1-depth (trough)
+    ;   pause        → mult = 1-depth (continuous with cycle end)
+    ; Uses (0.5 - 0.5·cos) so the wave starts and ends at the trough.
+    float wave
+    float floor = 1.0 - depth
+    if pause > 0.0 && rate > 0.0
+        float cycle = 1.0 / rate
+        float period = cycle + pause
+        float tMod = t - (((t / period) as int) as float) * period
+        if tMod < cycle
+            wave = 0.5 - 0.5 * Math.Cos(tMod * rate * 360.0)
+        else
+            wave = 0.0
+        endif
+    else
+        ; No pause — continuous rise/fall between trough and peak.
+        wave = 0.5 - 0.5 * Math.Cos(t * rate * 360.0)
+    endif
+    float mult = floor + depth * wave
+    if mult < 0.0
+        mult = 0.0
+    endif
+    int i = 0
+    int baseSlot = OverlaySlot
+    while i < _pulseLayerN
+        ; Read base intensity live each tick so any MCM slider change
+        ; takes effect on the next pulse step (no waiting for cache
+        ; refresh via forceRedraw).
+        int lidx = _pulseTier * 4 + i
+        float baseEm = condLayerEmissiveMult[lidx]
+        float pulsed = baseEm * mult
+        string Node = "Body [ovl" + (baseSlot + i) + "]"
+        NiOverride.AddNodeOverrideFloat(PlayerRef, _pulseIsFemale, Node, 1, -1, pulsed, true)
+        i += 1
+    endwhile
+    NiOverride.ApplyNodeOverrides(PlayerRef)
+EndFunction
+
 ; Hit-class counters (7 classes: ANY/BLUNT/BLADED/RANGED/FIRE/FROST/SHOCK).
 ; Stored via PapyrusUtil StorageUtil. Auto Hidden array properties added
 ; post-release do not get attached to existing script instances and even
@@ -554,7 +724,7 @@ bool Function SavePreset(string rawName)
     JsonUtil.ClearAll(f)
     JsonUtil.SetPathIntValue(f,    ".valid",         1)
     JsonUtil.SetPathStringValue(f, ".displayname",   rawName)
-    JsonUtil.SetPathIntValue(f,    ".schemaversion", 4)
+    JsonUtil.SetPathIntValue(f,    ".schemaversion", 5)
 
     EnsureArrays()
     int maxL = MAX_LAYERS_PER_SLOT()
@@ -568,6 +738,15 @@ bool Function SavePreset(string rawName)
         JsonUtil.SetPathStringValue(f, sp + ".cond.entryid",  condEntryId[s])
         JsonUtil.SetPathIntValue(f,    sp + ".cooldown.min",  cooldownMin[s])
         JsonUtil.SetPathIntValue(f,    sp + ".cooldown.mode", cooldownMode[s])
+        ; Skip pulse rows when disabled — keeps the file readable.
+        float pausePersist = GetCondPulsePause(s)
+        if condPulseRate[s] > 0.0 || condPulseDepth[s] > 0 || pausePersist > 0.0
+            JsonUtil.SetPathFloatValue(f, sp + ".pulse.rate",  condPulseRate[s])
+            JsonUtil.SetPathIntValue(f,   sp + ".pulse.depth", condPulseDepth[s])
+            if pausePersist > 0.0
+                JsonUtil.SetPathFloatValue(f, sp + ".pulse.pause", pausePersist)
+            endif
+        endif
         int L = 0
         while L < maxL
             int li = _layerIdx(s, L)
@@ -639,6 +818,9 @@ bool Function LoadPreset(string name)
         condEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid", "")
         cooldownMin[s]  = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.min",  0)
         cooldownMode[s] = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
+        condPulseRate[s]  = JsonUtil.GetPathFloatValue(f, sp + ".pulse.rate",  0.0)
+        condPulseDepth[s] = JsonUtil.GetPathIntValue(f,   sp + ".pulse.depth", 0)
+        SetCondPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
         int L = 0
         while L < maxL
             int li = _layerIdx(s, L)
@@ -1419,42 +1601,65 @@ State checkingAroused
             removeOverlay(PlayerRef)
         endif
 
-        int newTier = evaluateTier()
-        bool tierChanged = (newTier != currentTier)
+        ; Two cadences share the same OnUpdate:
+        ;   - Slow tick (updateInterval, default 2s): evaluate conditions,
+        ;     redraw on tier change, run effect ticks.
+        ;   - Fast tick (PULSE_INTERVAL, 0.1s): animate emissive pulse.
+        ; We schedule the next OnUpdate based on whichever fires sooner.
+        float now = Utility.GetCurrentRealTime()
+        bool doEval = forceRedraw || (now >= _nextSlowRT)
 
-        if forceRedraw || tierChanged
-            forceRedraw = false
-            if tierChanged && currentTier >= 0
-                _deactivateSlotEffects(currentTier)
-                ; Mode 0: arm cooldown so the slot can't reactivate.
-                if cooldownMode != None && cooldownMode[currentTier] == 0
-                    _armCooldownTimer(currentTier)
+        if doEval
+            _nextSlowRT = now + updateInterval
+            int newTier = evaluateTier()
+            bool tierChanged = (newTier != currentTier)
+
+            if forceRedraw || tierChanged
+                forceRedraw = false
+                if tierChanged && currentTier >= 0
+                    _deactivateSlotEffects(currentTier)
+                    ; Mode 0: arm cooldown so the slot can't reactivate.
+                    if cooldownMode != None && cooldownMode[currentTier] == 0
+                        _armCooldownTimer(currentTier)
+                    endif
+                endif
+                currentTier = newTier
+                drawOverlay(PlayerRef, currentTier)
+                ; Reset pulse phase so the new tier starts cleanly at sin(0)=0.
+                _pulseStartRT = now
+                if tierChanged
+                    _activateSlotEffects(currentTier)
+                    ; Mode 1: arm lock so the slot stays active for the duration.
+                    if currentTier > 0 && cooldownMode != None && cooldownMode[currentTier] == 1
+                        _armCooldownTimer(currentTier)
+                    endif
+                    _notifyTierChange(currentTier)
                 endif
             endif
-            currentTier = newTier
-            drawOverlay(PlayerRef, currentTier)
-            if tierChanged
-                _activateSlotEffects(currentTier)
-                ; Mode 1: arm lock so the slot stays active for the duration.
-                if currentTier > 0 && cooldownMode != None && cooldownMode[currentTier] == 1
-                    _armCooldownTimer(currentTier)
+
+            _tickSlotEffects(currentTier)
+
+            if _slotHasEffects(currentTier)
+                if !influenceTracking
+                    influenceTracking = true
+                    RegisterForSingleUpdateGameTime(1.0)
                 endif
-                _notifyTierChange(currentTier)
+            else
+                influenceTracking = false
             endif
         endif
 
-        _tickSlotEffects(currentTier)
-
-        if _slotHasEffects(currentTier)
-            if !influenceTracking
-                influenceTracking = true
-                RegisterForSingleUpdateGameTime(1.0)
-            endif
+        ; Pulse step (independent of slow eval — runs every fast tick).
+        if _pulseTier >= 0
+            _applyPulse()
+            RegisterForSingleUpdate(PULSE_INTERVAL())
         else
-            influenceTracking = false
+            float remain = _nextSlowRT - now
+            if remain < 0.05
+                remain = 0.05
+            endif
+            RegisterForSingleUpdate(remain)
         endif
-
-        RegisterForSingleUpdate(updateInterval)
     EndEvent
 
     Event OnEndState()
@@ -1528,6 +1733,9 @@ function drawOverlay(actor akTarget, int idx)
     endwhile
 
     CurrentOverlaySlot = OverlaySlot
+    ; Snapshot pulse context for the new tier — fast tick reads cached
+    ; values to avoid per-frame JsonUtil/sex queries.
+    _resyncPulseCache(idx)
 endFunction
 
 function setRedraw()

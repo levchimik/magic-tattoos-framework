@@ -1,7 +1,7 @@
 {
   "valid": 1,
-  "schemaversion": 4,
-  "displayname": "Test v0.0.31",
+  "schemaversion": 5,
+  "displayname": "Test v0.0.32",
   "slot": [
     {
       "cond": {
@@ -52,6 +52,10 @@
         "min": 0,
         "mode": 0
       },
+      "pulse": {
+        "rate": 2.0,
+        "depth": 60
+      },
       "layer": [
         {
           "tint": "#FF0000",
@@ -89,6 +93,10 @@
       "cooldown": {
         "min": 0,
         "mode": 0
+      },
+      "pulse": {
+        "rate": 0.8,
+        "depth": 40
       },
       "layer": [
         {
@@ -271,7 +279,7 @@
     },
     {
       "cond": {
-        "pluginid": "mtf.base:weather.rainy",
+        "pluginid": "mtf.base:state.loversEmbrace",
         "param": 0,
         "packid": "",
         "entryid": "040"
@@ -280,28 +288,32 @@
         "min": 0,
         "mode": 0
       },
+      "pulse": {
+        "rate": 0.5,
+        "depth": 70
+      },
       "layer": [
         {
-          "tint": "#00FFFF",
-          "emissive": "#00FFFF",
+          "tint": "#FF66CC",
+          "emissive": "#FF66CC",
           "emissivemult": 1.5,
           "alpha": 100
         },
         {
-          "tint": "#00FFFF",
-          "emissive": "#00FFFF",
+          "tint": "#FF66CC",
+          "emissive": "#FF66CC",
           "emissivemult": 2.5,
           "alpha": 80
         },
         {
-          "tint": "#00FFFF",
-          "emissive": "#00FFFF",
+          "tint": "#FF66CC",
+          "emissive": "#FF66CC",
           "emissivemult": 0,
           "alpha": 100
         },
         {
-          "tint": "#00FFFF",
-          "emissive": "#00FFFF",
+          "tint": "#FF66CC",
+          "emissive": "#FF66CC",
           "emissivemult": 0,
           "alpha": 100
         }

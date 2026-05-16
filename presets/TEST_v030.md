@@ -1,4 +1,4 @@
-# Test cheat-sheet — v0.0.30 (preset format: v0.0.31 schema v4)
+# Test cheat-sheet — v0.0.32 (preset format: schema v5)
 
 ## Setup
 
@@ -9,12 +9,12 @@
    Note `StorageUtilData`, not `StorageUtil` — that's where `JsonInFolder` scans.
 
 2. In-game: MCM → Magic Tattoos Framework → General → Selected preset → pick
-   "Test v0.0.31" → Load selected.
+   "Test v0.0.32" → Load selected.
 
 3. The 8 slots are now configured. Each new condition gets a distinct color
    so you can see which is firing at a glance.
 
-## Preset format (schema v4 / v0.0.31+)
+## Preset format (schema v5 / v0.0.32+)
 
 Nested JSON tree with hex colors. Hand-authorable:
 
@@ -27,6 +27,7 @@ Nested JSON tree with hex colors. Hand-authorable:
     {
       "cond":     {"pluginid": "mtf.base:health.below", "param": 50, "packid": "", "entryid": "010"},
       "cooldown": {"min": 0, "mode": 0},
+      "pulse":    {"rate": 2.0, "depth": 60},
       "layer":    [{"tint": "#FF0000", "emissive": "#FF0000", "emissivemult": 3.0, "alpha": 100}],
       "effect":   [{"key": "mtf.base:burst.stagger", "param": 0, "param2": 0}]
     },
@@ -39,22 +40,38 @@ Hex colors accept `"#RRGGBB"` or `"RRGGBB"`. Decimal ints still work for
 backwards-compatibility. Effect rows can be omitted entirely if not used.
 Layer arrays under MAX_LAYERS_PER_SLOT (4) are fine — defaults fill in.
 
+`pulse` is optional and may be omitted (= rate 0, disabled). `rate` is
+cycles/sec (0–5 Hz typical); `depth` is 0–100 % — how far the glow dims
+from peak. The slot's emissive strength is the **peak** of the wave;
+depth tells you how dark the trough gets. `pause` (seconds) holds the
+glow at the trough between cycles. Formula:
+`mult = (1 - depth) + depth * (0.5 - 0.5 * cos(2π * rate * t))`
+applied during the cycle window, with `mult = (1 - depth)` during pause.
+Final emissive = `base_emissivemult * mult`. Updates at 20 Hz only while
+a pulsing slot is the active tier.
+
+**Schema bumped to 5 in v0.0.32.** v4 files still load (pulse defaults
+to off); saved files write v5.
+
 ## Cascade (slot 1 highest priority → slot 7 lowest)
 
 | Slot | Condition           | Color   | How to trigger |
 |------|---------------------|---------|----------------|
-| 1    | `health.below 50%`  | red     | `player.modav health -200` (heal back with `+200`) |
-| 2    | `state.weaponDrawn` | orange  | Press R / draw any weapon |
+| 1    | `health.below 50%`  | red ✦   | `player.modav health -200` (heal back with `+200`); fast pulse (2 Hz, 60%) |
+| 2    | `state.weaponDrawn` | orange ✦| Press R / draw any weapon; slow pulse (0.8 Hz, 40%) |
 | 3    | `state.sprinting`   | yellow  | Hold sprint key while moving |
 | 4    | `state.running`     | green   | Move at run speed (not walk, not sprint) |
 | 5    | `location.playerHome` | blue  | `coc breezehome` |
 | 6    | `location.indoors`  | magenta | `coc whiterunbanneredmare` (any non-home interior) |
-| 7    | `weather.rainy`     | cyan    | `fw <rain weather id>` — see below |
+| 7    | `state.loversEmbrace` | pink ✦| `player.addspell CDA1D` (sleep with spouse IRL or via console); heartbeat pulse (0.5 Hz, 70%) |
 | 0    | (default)           | white   | Falls through when nothing else triggers |
 
+✦ = pulse enabled. Watch the glow breathe — depth% is the swing around the
+base emissive intensity, rate Hz is cycles/sec.
+
 Because of the cascade: to test slot 4 (running, green), make sure you're
-not sprinting, not in combat-low-health, weapon sheathed, outdoors,
-clear weather. If you don't move you'll see slot 0 (white).
+not sprinting, not in combat-low-health, weapon sheathed, outdoors, and
+not under Lover's Embrace. If you don't move you'll see slot 0 (white).
 
 ## Console commands
 
@@ -89,6 +106,15 @@ coc whiterunorigin            ; outdoors city
 
 To list locations with a keyword: `help "LocTypePlayerHouse" 0 KYWD`
 then check what holds it — slower than just trying the COC commands.
+
+### Lover's Embrace
+```
+player.addspell CDA1D         ; grant LoversComfort (vanilla "Lover's Comfort")
+player.removespell CDA1D      ; remove it
+```
+Normally acquired by sleeping in the same bed as your married spouse.
+The condition checks `target.HasSpell(LoversComfort)` so the addspell
+shortcut works fine for testing.
 
 ### Weather
 The classification used by the conditions:
