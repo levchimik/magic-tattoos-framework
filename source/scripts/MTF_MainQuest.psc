@@ -49,6 +49,30 @@ int[]   Property condPulseDepth Auto
 ; attach to an already-saved script instance (writes silently no-op).
 ; StorageUtil persists in the cosave and sidesteps the trap.
 
+; ── Scratch preset buffer (v0.0.33) ──────────────────────────────────────────
+; When evaluating a tracked NPC we hot-load the NPC's preset JSON into this
+; parallel set of arrays so the rest of the eval/draw pipeline reads
+; uniformly. The player keeps using cond*/effect*/cooldown* directly. This
+; buffer is transient — re-populated by _loadPresetToScratch on switch.
+; Per-actor scalars (tier, cooldowns, pulse phase, suspended/killed flags)
+; live in StorageUtil keyed on the actor form, NOT here.
+string[] Property _sCondPluginId       Auto Hidden
+int[]    Property _sCondParam          Auto Hidden
+string[] Property _sCondPackId         Auto Hidden
+string[] Property _sCondEntryId        Auto Hidden
+int[]    Property _sCondLayerTint      Auto Hidden
+int[]    Property _sCondLayerEmissive  Auto Hidden
+float[]  Property _sCondLayerEmissiveMult Auto Hidden
+int[]    Property _sCondLayerAlpha     Auto Hidden
+float[]  Property _sCondPulseRate      Auto Hidden
+int[]    Property _sCondPulseDepth     Auto Hidden
+string[] Property _sEffectKey          Auto Hidden
+int[]    Property _sEffectParam        Auto Hidden
+int[]    Property _sEffectParam2       Auto Hidden
+int[]    Property _sCooldownMin        Auto Hidden
+int[]    Property _sCooldownMode       Auto Hidden
+string   _scratchLoadedFor = ""
+
 int Function MAX_LAYERS_PER_SLOT() global
     return 4
 EndFunction
@@ -1690,18 +1714,27 @@ int Function _maxLayerSlots()
 EndFunction
 
 function drawOverlay(actor akTarget, int idx)
-    if condEntryId == None
+    drawOverlayForActor(akTarget, idx, false)
+    ; Pulse cache snapshot stays player-specific in step 2 — NPC pulse
+    ; roster (step 5) introduces its own per-actor pulse state.
+    if akTarget == PlayerRef
+        _resyncPulseCache(idx)
+    endif
+endFunction
+
+function drawOverlayForActor(actor akTarget, int idx, bool useScratch)
+{Stamp overlay layers for one actor at one tier. When useScratch is true the
+ scratch preset buffer (_sCond*) supplies the slot config; otherwise the
+ player-owned cond* arrays do. Trailing slots are cleared like before.}
+    if akTarget == None
         return
     endif
     bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
     string Area = "Body"
 
-    ; Resolve pack/entry with Default-slot inheritance for conditions 1-7.
-    string packId  = ResolveSlotPackId(idx)
-    string entryId = ResolveSlotEntryId(idx)
-    ; Per-layer visuals are ALWAYS owned by the displayed slot — pack/entry
-    ; can inherit but colors do not. This matches the MCM where each slot
-    ; shows its own per-layer sliders.
+    string packId  = _g_resolvePackId(idx, useScratch)
+    string entryId = _g_resolveEntryId(idx, useScratch)
+
     int max = _maxLayerSlots()
     int maxLayers = MAX_LAYERS_PER_SLOT()
     int layerN = 0
@@ -1719,10 +1752,10 @@ function drawOverlay(actor akTarget, int idx)
     while i < layerN
         int lidx     = _layerIdx(idx, i)
         string tex   = GetEntryLayerTexture(packId, entryId, i)
-        int tint     = condLayerTint[lidx]
-        int emissive = condLayerEmissive[lidx]
-        float emMult = condLayerEmissiveMult[lidx]
-        float alpha  = (condLayerAlpha[lidx] as float) * 0.01
+        int tint     = _g_layerTint(lidx, useScratch)
+        int emissive = _g_layerEmissive(lidx, useScratch)
+        float emMult = _g_layerEmissiveMult(lidx, useScratch)
+        float alpha  = (_g_layerAlpha(lidx, useScratch) as float) * 0.01
         applyOverlay(akTarget, isFemale, Area, OverlaySlot + i, tex, tint, emissive, emMult, alpha)
         i += 1
     endwhile
@@ -1732,10 +1765,11 @@ function drawOverlay(actor akTarget, int idx)
         i += 1
     endwhile
 
-    CurrentOverlaySlot = OverlaySlot
-    ; Snapshot pulse context for the new tier — fast tick reads cached
-    ; values to avoid per-frame JsonUtil/sex queries.
-    _resyncPulseCache(idx)
+    ; CurrentOverlaySlot tracks player's chosen base ovl slot. NPC overlays
+    ; share the same base (OverlaySlot) so the same value works for both.
+    if !useScratch
+        CurrentOverlaySlot = OverlaySlot
+    endif
 endFunction
 
 function setRedraw()
@@ -1782,6 +1816,13 @@ Function clearOverlay(actor Target, bool isFemale, string Area, int Slot)
 EndFunction
 
 function removeOverlay(actor akTarget)
+    removeOverlayForActor(akTarget)
+endFunction
+
+function removeOverlayForActor(actor akTarget)
+    if akTarget == None
+        return
+    endif
     bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
     int max = _maxLayerSlots()
     int i = 0
@@ -1790,3 +1831,649 @@ function removeOverlay(actor akTarget)
         i += 1
     endwhile
 endFunction
+
+; ═════════════════════════════════════════════════════════════════════════════
+; NPC SUPPORT (v0.0.33)
+; ═════════════════════════════════════════════════════════════════════════════
+; Tracked-actor list lives in StorageUtil.FormList(self, "mtf.tracked").
+; Per-actor scalars live in StorageUtil on each target form. Preset config
+; is loaded on demand from preset JSON into the _sCond*/_sEffect* scratch
+; buffer (no per-actor snapshot — keeps storage footprint linear in
+; tracked count, not slot/layer/effect cardinality).
+;
+; Step 2 scope: tracked-list machinery, scratch buffer, generalized
+; draw + evaluate + effects dispatch, console smoke-test entry. The
+; slow-tick rotation that walks tracked actors is added in step 5; the
+; player flow is unchanged.
+
+int Function TRACKED_CAP() global
+    return 256
+EndFunction
+
+; New scalars added in v0.0.33 → StorageUtil (Auto property post-release
+; attachment trap).
+string Function GetDefaultSubjectPreset()
+    return StorageUtil.GetStringValue(self, "mtf.subject.default_preset", "")
+EndFunction
+Function SetDefaultSubjectPreset(string name)
+    StorageUtil.SetStringValue(self, "mtf.subject.default_preset", name)
+EndFunction
+
+int Function GetSubjectHotkey()
+    return StorageUtil.GetIntValue(self, "mtf.subject.hotkey", -1)
+EndFunction
+Function SetSubjectHotkey(int code)
+    StorageUtil.SetIntValue(self, "mtf.subject.hotkey", code)
+EndFunction
+
+; ── Tracked-actor list ───────────────────────────────────────────────────────
+int Function GetTrackedCount()
+    return StorageUtil.FormListCount(self, "mtf.tracked")
+EndFunction
+
+Actor Function GetTrackedAt(int idx)
+    return StorageUtil.FormListGet(self, "mtf.tracked", idx) as Actor
+EndFunction
+
+bool Function IsTrackedActor(Actor target)
+    if target == None
+        return false
+    endif
+    return StorageUtil.FormListHas(self, "mtf.tracked", target)
+EndFunction
+
+int Function AddTrackedActor(Actor target, string presetName)
+{Adds target with the given preset. Returns:
+   1  added       0  already tracked (preset updated)
+  -1  is player  -2  None  -3  capacity full  -4  no preset (and no default)}
+    if target == None
+        return -2
+    endif
+    if target == PlayerRef
+        return -1
+    endif
+    if presetName == ""
+        presetName = GetDefaultSubjectPreset()
+        if presetName == ""
+            return -4
+        endif
+    endif
+    if IsTrackedActor(target)
+        SetActorPreset(target, presetName)
+        return 0
+    endif
+    if GetTrackedCount() >= TRACKED_CAP()
+        return -3
+    endif
+    StorageUtil.FormListAdd(self, "mtf.tracked", target, true)
+    SetActorPreset(target, presetName)
+    _setActorTier(target, -1)
+    _setActorPulseStartRT(target, Utility.GetCurrentRealTime())
+    _setActorSuspended(target, false)
+    _setActorKilled(target, false)
+    return 1
+EndFunction
+
+Function RemoveTrackedActor(Actor target)
+    if target == None || !IsTrackedActor(target)
+        return
+    endif
+    int tier = _getActorTier(target)
+    if tier > 0
+        string preset = GetActorPreset(target)
+        if preset != "" && _loadPresetToScratch(preset)
+            _deactivateSlotEffectsForActor(target, tier, true)
+        endif
+    endif
+    removeOverlayForActor(target)
+    StorageUtil.FormListRemove(self, "mtf.tracked", target, true)
+    _clearAllActorState(target)
+EndFunction
+
+Function ClearAllTrackedActors()
+    int n = GetTrackedCount()
+    int i = n - 1
+    while i >= 0
+        Actor a = GetTrackedAt(i)
+        if a != None
+            RemoveTrackedActor(a)
+        else
+            StorageUtil.FormListRemoveAt(self, "mtf.tracked", i)
+        endif
+        i -= 1
+    endwhile
+EndFunction
+
+Function SetActorPreset(Actor target, string name)
+    if target == None
+        return
+    endif
+    StorageUtil.SetStringValue(target, "mtf.preset", name)
+EndFunction
+
+string Function GetActorPreset(Actor target)
+    if target == None
+        return ""
+    endif
+    return StorageUtil.GetStringValue(target, "mtf.preset", "")
+EndFunction
+
+; ── Per-actor scalar state ──────────────────────────────────────────────────
+int Function _getActorTier(Actor target)
+    if target == None
+        return -1
+    endif
+    return StorageUtil.GetIntValue(target, "mtf.tier", -1)
+EndFunction
+Function _setActorTier(Actor target, int tier)
+    if target != None
+        StorageUtil.SetIntValue(target, "mtf.tier", tier)
+    endif
+EndFunction
+
+float Function _getActorCooldown(Actor target, int slot)
+    if target == None
+        return 0.0
+    endif
+    return StorageUtil.GetFloatValue(target, "mtf.cd." + slot, 0.0)
+EndFunction
+Function _setActorCooldown(Actor target, int slot, float gameTime)
+    if target != None
+        StorageUtil.SetFloatValue(target, "mtf.cd." + slot, gameTime)
+    endif
+EndFunction
+
+float Function _getActorPulseStartRT(Actor target)
+    if target == None
+        return 0.0
+    endif
+    return StorageUtil.GetFloatValue(target, "mtf.pulse.start", 0.0)
+EndFunction
+Function _setActorPulseStartRT(Actor target, float t)
+    if target != None
+        StorageUtil.SetFloatValue(target, "mtf.pulse.start", t)
+    endif
+EndFunction
+
+bool Function _getActorSuspended(Actor target)
+    if target == None
+        return false
+    endif
+    return StorageUtil.GetIntValue(target, "mtf.suspended", 0) != 0
+EndFunction
+Function _setActorSuspended(Actor target, bool v)
+    if target != None
+        StorageUtil.SetIntValue(target, "mtf.suspended", v as int)
+    endif
+EndFunction
+
+bool Function _getActorKilled(Actor target)
+    if target == None
+        return false
+    endif
+    return StorageUtil.GetIntValue(target, "mtf.killed", 0) != 0
+EndFunction
+Function _setActorKilled(Actor target, bool v)
+    if target != None
+        StorageUtil.SetIntValue(target, "mtf.killed", v as int)
+    endif
+EndFunction
+
+Function _clearAllActorState(Actor target)
+    if target == None
+        return
+    endif
+    StorageUtil.UnsetStringValue(target, "mtf.preset")
+    StorageUtil.UnsetIntValue(target, "mtf.tier")
+    StorageUtil.UnsetFloatValue(target, "mtf.pulse.start")
+    StorageUtil.UnsetIntValue(target, "mtf.suspended")
+    StorageUtil.UnsetIntValue(target, "mtf.killed")
+    int s = 0
+    while s < 8
+        StorageUtil.UnsetFloatValue(target, "mtf.cd." + s)
+        s += 1
+    endwhile
+    int i = 0
+    while i < 16
+        StorageUtil.UnsetFloatValue(target, "mtf.applied." + i)
+        i += 1
+    endwhile
+    StorageUtil.UnsetFloatValue(target, "mtf.applied.spellcost")
+EndFunction
+
+; ── Scratch buffer ──────────────────────────────────────────────────────────
+Function _ensureScratchArrays()
+    if _sCondPluginId == None
+        _sCondPluginId          = new string[8]
+        _sCondParam             = new int[8]
+        _sCondPackId            = new string[8]
+        _sCondEntryId           = new string[8]
+        _sCondLayerTint         = new int[32]
+        _sCondLayerEmissive     = new int[32]
+        _sCondLayerEmissiveMult = new float[32]
+        _sCondLayerAlpha        = new int[32]
+        _sCondPulseRate         = new float[8]
+        _sCondPulseDepth        = new int[8]
+        _sEffectKey             = new string[32]
+        _sEffectParam           = new int[32]
+        _sEffectParam2          = new int[32]
+        _sCooldownMin           = new int[8]
+        _sCooldownMode          = new int[8]
+    endif
+EndFunction
+
+float Function _getScratchPulsePause(int slot)
+    return StorageUtil.GetFloatValue(self, "mtf.scratch.pulse.pause." + slot, 0.0)
+EndFunction
+Function _setScratchPulsePause(int slot, float v)
+    StorageUtil.SetFloatValue(self, "mtf.scratch.pulse.pause." + slot, v)
+EndFunction
+
+bool Function _loadPresetToScratch(string name)
+{Populate the scratch preset buffer from preset JSON. Skips re-load when
+ already cached for `name`. Returns true on success; pass "" to clear.}
+    _ensureScratchArrays()
+    if name == _scratchLoadedFor
+        return name != ""
+    endif
+    if name == ""
+        _scratchLoadedFor = ""
+        return false
+    endif
+    string f = _presetFile(name)
+    if !JsonUtil.JsonExists(f)
+        return false
+    endif
+    if JsonUtil.GetPathIntValue(f, ".valid", 0) != 1
+        return false
+    endif
+    if JsonUtil.GetPathIntValue(f, ".schemaversion", 1) < 4
+        return false
+    endif
+    int maxL = MAX_LAYERS_PER_SLOT()
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    int s = 0
+    while s < 8
+        string sp = ".slot[" + s + "]"
+        _sCondPluginId[s] = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
+        _sCondParam[s]    = JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0)
+        _sCondPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",   "")
+        _sCondEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid",  "")
+        _sCooldownMin[s]  = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.min",  0)
+        _sCooldownMode[s] = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
+        _sCondPulseRate[s]  = JsonUtil.GetPathFloatValue(f, sp + ".pulse.rate",  0.0)
+        _sCondPulseDepth[s] = JsonUtil.GetPathIntValue(f,   sp + ".pulse.depth", 0)
+        _setScratchPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
+        int L = 0
+        while L < maxL
+            int li = s * maxL + L
+            string lp = sp + ".layer[" + L + "]"
+            _sCondLayerTint[li]         = _readColor(f, lp + ".tint",         16777215)
+            _sCondLayerEmissive[li]     = _readColor(f, lp + ".emissive",     16777215)
+            _sCondLayerEmissiveMult[li] = JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 0.0)
+            _sCondLayerAlpha[li]        = JsonUtil.GetPathIntValue(f,   lp + ".alpha",        100)
+            L += 1
+        endwhile
+        int e = 0
+        while e < maxE
+            int fxI = s * maxE + e
+            string ep = sp + ".effect[" + e + "]"
+            _sEffectKey[fxI]    = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
+            _sEffectParam[fxI]  = JsonUtil.GetPathIntValue(f,    ep + ".param",  0)
+            _sEffectParam2[fxI] = JsonUtil.GetPathIntValue(f,    ep + ".param2", 0)
+            e += 1
+        endwhile
+        s += 1
+    endwhile
+    _scratchLoadedFor = name
+    return true
+EndFunction
+
+string Function GetScratchLoadedFor()
+    return _scratchLoadedFor
+EndFunction
+
+; ── Generalized slot/layer/effect getters ───────────────────────────────────
+; useScratch=true reads the scratch buffer (NPC preset). false reads the
+; player-owned cond*/effect* arrays.
+string Function _g_condPluginId(int slot, bool useScratch)
+    if useScratch
+        if _sCondPluginId == None
+            return ""
+        endif
+        return _sCondPluginId[slot]
+    endif
+    if condPluginId == None
+        return ""
+    endif
+    return condPluginId[slot]
+EndFunction
+
+int Function _g_condParam(int slot, bool useScratch)
+    if useScratch
+        if _sCondParam == None
+            return 0
+        endif
+        return _sCondParam[slot]
+    endif
+    if condParam == None
+        return 0
+    endif
+    return condParam[slot]
+EndFunction
+
+int Function _g_cooldownMode(int slot, bool useScratch)
+    if useScratch
+        if _sCooldownMode == None
+            return 0
+        endif
+        return _sCooldownMode[slot]
+    endif
+    if cooldownMode == None
+        return 0
+    endif
+    return cooldownMode[slot]
+EndFunction
+
+int Function _g_cooldownMin(int slot, bool useScratch)
+    if useScratch
+        if _sCooldownMin == None
+            return 0
+        endif
+        return _sCooldownMin[slot]
+    endif
+    if cooldownMin == None
+        return 0
+    endif
+    return cooldownMin[slot]
+EndFunction
+
+float Function _g_pulseRate(int slot, bool useScratch)
+    if useScratch
+        if _sCondPulseRate == None
+            return 0.0
+        endif
+        return _sCondPulseRate[slot]
+    endif
+    if condPulseRate == None
+        return 0.0
+    endif
+    return condPulseRate[slot]
+EndFunction
+
+int Function _g_pulseDepth(int slot, bool useScratch)
+    if useScratch
+        if _sCondPulseDepth == None
+            return 0
+        endif
+        return _sCondPulseDepth[slot]
+    endif
+    if condPulseDepth == None
+        return 0
+    endif
+    return condPulseDepth[slot]
+EndFunction
+
+float Function _g_pulsePause(int slot, bool useScratch)
+    if useScratch
+        return _getScratchPulsePause(slot)
+    endif
+    return GetCondPulsePause(slot)
+EndFunction
+
+string Function _g_resolvePackId(int slot, bool useScratch)
+    if !useScratch
+        return ResolveSlotPackId(slot)
+    endif
+    if _sCondPackId == None
+        return ""
+    endif
+    string pid = _sCondPackId[slot]
+    if pid == "" && slot > 0
+        return _sCondPackId[0]
+    endif
+    return pid
+EndFunction
+
+string Function _g_resolveEntryId(int slot, bool useScratch)
+    if !useScratch
+        return ResolveSlotEntryId(slot)
+    endif
+    if _sCondEntryId == None
+        return ""
+    endif
+    if slot > 0 && _sCondPackId != None && _sCondPackId[slot] == ""
+        return _sCondEntryId[0]
+    endif
+    return _sCondEntryId[slot]
+EndFunction
+
+int Function _g_layerTint(int lidx, bool useScratch)
+    if useScratch
+        if _sCondLayerTint == None
+            return 16777215
+        endif
+        return _sCondLayerTint[lidx]
+    endif
+    return condLayerTint[lidx]
+EndFunction
+int Function _g_layerEmissive(int lidx, bool useScratch)
+    if useScratch
+        if _sCondLayerEmissive == None
+            return 16777215
+        endif
+        return _sCondLayerEmissive[lidx]
+    endif
+    return condLayerEmissive[lidx]
+EndFunction
+float Function _g_layerEmissiveMult(int lidx, bool useScratch)
+    if useScratch
+        if _sCondLayerEmissiveMult == None
+            return 0.0
+        endif
+        return _sCondLayerEmissiveMult[lidx]
+    endif
+    return condLayerEmissiveMult[lidx]
+EndFunction
+int Function _g_layerAlpha(int lidx, bool useScratch)
+    if useScratch
+        if _sCondLayerAlpha == None
+            return 100
+        endif
+        return _sCondLayerAlpha[lidx]
+    endif
+    return condLayerAlpha[lidx]
+EndFunction
+
+string Function _g_effectKey(int fxIdx, bool useScratch)
+    if useScratch
+        if _sEffectKey == None
+            return ""
+        endif
+        return _sEffectKey[fxIdx]
+    endif
+    if effectKey == None
+        return ""
+    endif
+    return effectKey[fxIdx]
+EndFunction
+int Function _g_effectParam(int fxIdx, bool useScratch)
+    if useScratch
+        if _sEffectParam == None
+            return 0
+        endif
+        return _sEffectParam[fxIdx]
+    endif
+    if effectParam == None
+        return 0
+    endif
+    return effectParam[fxIdx]
+EndFunction
+int Function _g_effectParam2(int fxIdx, bool useScratch)
+    if useScratch
+        if _sEffectParam2 == None
+            return 0
+        endif
+        return _sEffectParam2[fxIdx]
+    endif
+    if effectParam2 == None
+        return 0
+    endif
+    return effectParam2[fxIdx]
+EndFunction
+
+; ── Generalized eval + effect dispatch ──────────────────────────────────────
+int Function evaluateTierForActor(Actor target, bool useScratch)
+    if target == None
+        return 0
+    endif
+    if _getActorKilled(target)
+        return 0
+    endif
+    float now = Utility.GetCurrentGameTime()
+    int i = 1
+    while i < 8
+        string key = _g_condPluginId(i, useScratch)
+        if key != ""
+            float cdEnd
+            if useScratch
+                cdEnd = _getActorCooldown(target, i)
+            else
+                cdEnd = 0.0
+                if cooldownUntilGT != None
+                    cdEnd = cooldownUntilGT[i]
+                endif
+            endif
+            bool timerActive = (now < cdEnd)
+            int mode = _g_cooldownMode(i, useScratch)
+            if mode == 1 && timerActive
+                return i
+            endif
+            bool inCooldown = (mode == 0 && timerActive)
+            if !inCooldown
+                MTF_Plugin p = ResolvePluginByKey(key)
+                if p != None
+                    int itemIdx = _condIdxFor(p, _keyItemId(key))
+                    if itemIdx >= 0 && p.checkCondition(itemIdx, target, _g_condParam(i, useScratch))
+                        return i
+                    endif
+                endif
+            endif
+        endif
+        i += 1
+    endwhile
+    return 0
+EndFunction
+
+Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch)
+    if target == None || slot < 0 || slot >= 8
+        return
+    endif
+    int base = slot * MAX_EFFECTS_PER_SLOT()
+    int e = 0
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while e < maxE
+        string key = _g_effectKey(base + e, useScratch)
+        if key != ""
+            MTF_Plugin p = ResolvePluginByKey(key)
+            if p != None
+                int itemIdx = _effectIdxFor(p, _keyItemId(key))
+                if itemIdx >= 0
+                    p.onActivate(itemIdx, target, _g_effectParam(base + e, useScratch), _g_effectParam2(base + e, useScratch))
+                endif
+            endif
+        endif
+        e += 1
+    endwhile
+EndFunction
+
+Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch)
+    if target == None || slot < 0 || slot >= 8
+        return
+    endif
+    int base = slot * MAX_EFFECTS_PER_SLOT()
+    int e = 0
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while e < maxE
+        string key = _g_effectKey(base + e, useScratch)
+        if key != ""
+            MTF_Plugin p = ResolvePluginByKey(key)
+            if p != None
+                int itemIdx = _effectIdxFor(p, _keyItemId(key))
+                if itemIdx >= 0
+                    p.onDeactivate(itemIdx, target, _g_effectParam(base + e, useScratch), _g_effectParam2(base + e, useScratch))
+                endif
+            endif
+        endif
+        e += 1
+    endwhile
+EndFunction
+
+Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch)
+    if target == None || slot < 0 || slot >= 8
+        return
+    endif
+    int base = slot * MAX_EFFECTS_PER_SLOT()
+    int e = 0
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while e < maxE
+        string key = _g_effectKey(base + e, useScratch)
+        if key != ""
+            MTF_Plugin p = ResolvePluginByKey(key)
+            if p != None
+                int itemIdx = _effectIdxFor(p, _keyItemId(key))
+                if itemIdx >= 0
+                    p.onTick(itemIdx, target, _g_effectParam(base + e, useScratch), _g_effectParam2(base + e, useScratch))
+                endif
+            endif
+        endif
+        e += 1
+    endwhile
+EndFunction
+
+; ── Console smoke-test entry ────────────────────────────────────────────────
+Function EvalAndDrawActor(Actor target)
+{One-shot: load `target`'s preset into scratch, eval current tier, draw the
+ overlay, fire activate/deactivate edges. Useful for console smoke testing
+ before step 5 wires up the slow-tick rotation.}
+    if target == None
+        if DebugMode
+            Notification("MTF: EvalAndDrawActor: None target")
+        endif
+        return
+    endif
+    string preset = GetActorPreset(target)
+    if preset == ""
+        if DebugMode
+            Notification("MTF: target has no preset assigned")
+        endif
+        return
+    endif
+    if !_loadPresetToScratch(preset)
+        if DebugMode
+            Notification("MTF: failed to load preset '" + preset + "'")
+        endif
+        return
+    endif
+    int prevTier = _getActorTier(target)
+    int newTier  = evaluateTierForActor(target, true)
+    if newTier != prevTier
+        if prevTier > 0
+            _deactivateSlotEffectsForActor(target, prevTier, true)
+        endif
+        drawOverlayForActor(target, newTier, true)
+        if newTier > 0
+            _activateSlotEffectsForActor(target, newTier, true)
+        endif
+        _setActorTier(target, newTier)
+        _setActorPulseStartRT(target, Utility.GetCurrentRealTime())
+    else
+        drawOverlayForActor(target, newTier, true)
+    endif
+    if newTier > 0
+        _tickSlotEffectsForActor(target, newTier, true)
+    endif
+    if DebugMode
+        Notification("MTF: " + prevTier + " -> " + newTier + " (preset=" + preset + ")")
+    endif
+EndFunction

@@ -75,7 +75,27 @@ event OnVersionUpdate(int Version)
     ; applied. Once we ship, the next migration must be a non-destructive
     ; ml<20 block added below this one.
     int ml = MainQuest._migrationLevel
+    if ml >= 33
+        return
+    endif
+    ; v0.0.33 (ml=33): non-destructive. Two things:
+    ;   1. Back out any legacy per-quest applied magnitudes on Plugin_Base
+    ;      (mana/carry/sneak/speed/staminaRate/atkDmg/dmgResist/spellCost)
+    ;      now that they live in StorageUtil keyed on the actor. If we
+    ;      didn't, the next _recompute would stack a fresh delta on top of
+    ;      the legacy delta — the player would see the drain double.
+    ;   2. Defensive scratch-buffer allocation (Auto property attach trap
+    ;      protection — these are new in v0.0.33).
     if ml >= 20
+        MTF_Plugin basePlug = MainQuest.FindPlugin("mtf.base")
+        if basePlug != None
+            (basePlug as MTF_Plugin_Base)._migrateLegacyApplied(MainQuest.PlayerRef)
+        endif
+        ; Lazy-allocate the scratch arrays via the host helper. If they
+        ; were declared but never attached, this is a no-op and the
+        ; runtime falls back to per-call allocation in _loadPresetToScratch.
+        MainQuest._ensureScratchArrays()
+        MainQuest._migrationLevel = 33
         return
     endif
     ; v0.0.32 (ml=20): non-destructive pulse-array allocation. Existing
@@ -183,7 +203,7 @@ event OnVersionUpdate(int Version)
         s += 1
     endwhile
 
-    MainQuest._migrationLevel = 20
+    MainQuest._migrationLevel = 33
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
