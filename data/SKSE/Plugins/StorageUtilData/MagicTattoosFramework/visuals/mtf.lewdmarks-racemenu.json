@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
-  "packId": "lme.racemenu-lewdmarks",
-  "label": "RaceMenu Overlays - LewdMarks",
+  "packId": "mtf.lewdmarks-racemenu",
+  "label": "LewdMarks (RaceMenu Overlays)",
   "area": "Body",
   "entries": [
     {

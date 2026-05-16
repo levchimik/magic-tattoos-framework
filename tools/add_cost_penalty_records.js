@@ -1,13 +1,13 @@
-// Adds 5 MGEFs (one per spell school) and 1 Spell to LewdMarksEffects.esp.
+// Adds 5 MGEFs (one per spell school) and 1 Spell to MagicTattoosFramework.esp.
 // The spell is a hidden Ability with 5 Peak Value Modifier effects that
 // each target a school's *Mod actor value, so adding it to the player makes
 // spells from every school cost more (magnitude is mutated at runtime by
-// sd_LME_Plugin_Base).
+// MTF_Plugin_Base).
 //
 // FormIDs: MGEFs at 0x810-0x814, Spell at 0x815 (next free after 0x80F).
 // Usage:
 //   cd "F:/stuff/Skyrim modding"
-//   node "F:/stuff/LewdMarksEffects/tools/add_cost_penalty_records.js"
+//   node "F:/stuff/MagicTattoosFramework/tools/add_cost_penalty_records.js"
 
 const xelib = require('F:/stuff/Skyrim modding/node_modules/xeditlib');
 
@@ -47,7 +47,7 @@ function trySetFlag(h, path, name, on) {
 
 function addMGEF(file, schoolIdx) {
     const [edSuffix, nameSuffix, magicSkill, av] = SCHOOLS[schoolIdx];
-    const edid = `LME_MGEF_Cost_${edSuffix}`;
+    const edid = `MTF_MGEF_Cost_${edSuffix}`;
     log(`Adding MGEF ${edid}`);
 
     const mgefGroup = xelib.addElement(file, 'MGEF');
@@ -86,7 +86,7 @@ function addMGEF(file, schoolIdx) {
 }
 
 function addCostPenaltySpell(file, mgefRecs) {
-    const edid = 'LME_Spell_CostPenalty';
+    const edid = 'MTF_Spell_CostPenalty';
     log(`Adding SPEL ${edid}`);
     const grp = xelib.addElement(file, 'SPEL');
     const rec = xelib.addElement(grp, 'SPEL');
@@ -126,11 +126,11 @@ function addCostPenaltySpell(file, mgefRecs) {
         log('setGamePath...');  xelib.setGamePath('S:/SteamLibrary/steamapps/common/Skyrim Special Edition/');
         log('setGameMode...');  xelib.setGameMode(4); // gmSSE
 
-        const espName = 'LewdMarksEffects.esp';
+        const espName = 'MagicTattoosFramework.esp';
         const dataDir = 'F:/Modlists/Modding Essentials/Stock Game/Data';
         const espPath = `${dataDir}/${espName}`;
 
-        // Loading via load order — LewdMarksEffects.esp must be present in plugins.txt.
+        // Loading via load order — MagicTattoosFramework.esp must be present in plugins.txt.
         log('Loading plugins...');
         xelib.loadPlugins(`Skyrim.esm\n${espName}\n`, true, false);
         await xelib.waitForLoader();

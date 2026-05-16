@@ -1,4 +1,4 @@
-// Generates the two seed visual-catalog JSONs for LewdMarksEffects.
+// Generates the two seed visual-catalog JSONs for MagicTattoosFramework.
 //
 // Each catalog has 96 entries (001..096). Every entry has two layers:
 //   layer 0: base mark texture (no emissive multiplier override)
@@ -6,19 +6,19 @@
 //            base mark when the user picks a single shared emissive value)
 //
 // Output paths (project tree — copy to MO2 mod folder on deploy):
-//   data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/
-//       lme.racemenu-lewdmarks.json
-//       lme.slavetats-lewdmarks.json
+//   data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/
+//       mtf.lewdmarks-racemenu.json
+//       mtf.lewdmarks-slavetats.json
 //
 // Usage:
-//   node F:/stuff/LewdMarksEffects/tools/gen_visual_catalogs.js
+//   node F:/stuff/MagicTattoosFramework/tools/gen_visual_catalogs.js
 
 const fs = require('fs');
 const path = require('path');
 
 const COUNT = 96;
 const OUT_DIR = path.resolve(
-    'F:/stuff/LewdMarksEffects/data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals'
+    'F:/stuff/MagicTattoosFramework/data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals'
 );
 
 function pad3(n) {
@@ -60,18 +60,18 @@ function writeJson(file, obj) {
     // ASCII-only labels — PapyrusUtil's JSON parser silently fails the
     // whole file on multi-byte UTF-8 chars (em-dash, etc.).
     const rm = buildCatalog(
-        'lme.racemenu-lewdmarks',
-        'RaceMenu Overlays - LewdMarks',
+        'mtf.lewdmarks-racemenu',
+        'LewdMarks (RaceMenu Overlays)',
         'actors\\character\\overlays\\lewdmarks\\',
         'actors\\character\\overlays\\lewdmarks-glow\\'
     );
     const st = buildCatalog(
-        'lme.slavetats-lewdmarks',
-        'SlaveTats - LewdMarks',
+        'mtf.lewdmarks-slavetats',
+        'LewdMarks (SlaveTats)',
         'actors\\character\\slavetats\\LewdMarks\\',
         'actors\\character\\slavetats\\LewdMarks-glow\\'
     );
 
-    writeJson(path.join(OUT_DIR, 'lme.racemenu-lewdmarks.json'), rm);
-    writeJson(path.join(OUT_DIR, 'lme.slavetats-lewdmarks.json'), st);
+    writeJson(path.join(OUT_DIR, 'mtf.lewdmarks-racemenu.json'), rm);
+    writeJson(path.join(OUT_DIR, 'mtf.lewdmarks-slavetats.json'), st);
 })();

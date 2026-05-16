@@ -1,4 +1,4 @@
-Scriptname sd_LME_Plugin_FMR extends sd_LME_Plugin
+Scriptname MTF_Plugin_FMR extends MTF_Plugin
 {Conditions and effects backed by Fertility Mode (original or Reloaded).
  Soft-master: lookup at runtime; if Fertility Mode isn't loaded the plugin
  skips registration. Reads the _JSW_BB_Storage script directly so it works
@@ -19,7 +19,7 @@ GlobalVariable Property FMR_EggLife Auto Hidden
 GlobalVariable Property FMR_PregnancyDuration Auto Hidden
 
 string Function GetPluginId()
-    return "lme.fmr"
+    return "mtf.fmr"
 EndFunction
 string Function GetPluginLabel()
     return "Fertility Mode (v3 / Reloaded)"
@@ -48,7 +48,7 @@ Function _tryRegister()
     if !_resolveDeps()
         return
     endif
-    sd_LME_MainQuest host = Game.GetFormFromFile(0x803, "LewdMarksEffects.esp") as sd_LME_MainQuest
+    MTF_MainQuest host = Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
     if host == None || host.registeredPlugins == None
         RegisterForSingleUpdate(1.0)
         return

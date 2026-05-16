@@ -1,4 +1,4 @@
-Scriptname sd_LME_Plugin_SLA extends sd_LME_Plugin
+Scriptname MTF_Plugin_SLA extends MTF_Plugin
 {Conditions and effects backed by SexLab Aroused. Soft-master: lookup at
  runtime; if SLA isn't loaded the plugin skips registration entirely.
 
@@ -20,7 +20,7 @@ int Property pheromoneRadiusM    = 22 Auto Hidden
 int Property pheromoneMaxTargets = 32 Auto Hidden
 
 string Function GetPluginId()
-    return "lme.sla"
+    return "mtf.sla"
 EndFunction
 string Function GetPluginLabel()
     return "SLA (SexLab Aroused)"
@@ -41,7 +41,7 @@ Function _tryRegister()
     if !_resolveDeps()
         return
     endif
-    sd_LME_MainQuest host = Game.GetFormFromFile(0x803, "LewdMarksEffects.esp") as sd_LME_MainQuest
+    MTF_MainQuest host = Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
     if host == None || host.registeredPlugins == None
         RegisterForSingleUpdate(1.0)
         return

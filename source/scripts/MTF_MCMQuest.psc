@@ -1,11 +1,11 @@
-scriptname sd_LME_MCMQuest extends SKI_ConfigBase
+scriptname MTF_MCMQuest extends SKI_ConfigBase
 
 import Debug
 
 ; ── Runtime ───────────────────────────────────────────────────────────────────
 int selectedCondition = 0
 
-sd_LME_MainQuest Property MainQuest Auto
+MTF_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
@@ -23,7 +23,7 @@ string Function _condTypeLabel(string key)
     if key == "" || MainQuest == None
         return "Not set"
     endif
-    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
     if p == None
         return "Unknown (" + key + ")"
     endif
@@ -40,7 +40,7 @@ string Function _condTypeLabel(string key)
 endFunction
 
 event OnConfigInit()
-    ModName = "LewdMarks Effects"
+    ModName = "Magic Tattoos Framework"
     Pages = new String[5]
     Pages[0] = "General"
     Pages[1] = "Conditions"
@@ -52,8 +52,8 @@ endEvent
 
 function _ensureMainQuest()
     if MainQuest == None
-        Quest q = Game.GetFormFromFile(0x803, "LewdMarksEffects.esp") as Quest
-        MainQuest = q as sd_LME_MainQuest
+        Quest q = Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as Quest
+        MainQuest = q as MTF_MainQuest
     endif
     if MainQuest != None
         MainQuest.EnsureArrays()
@@ -95,8 +95,8 @@ event OnVersionUpdate(int Version)
         MainQuest.LoadVisualCatalogs()
         ; Default slot (idx 0): pick RaceMenu pack + entry 003 if available.
         string defPack = ""
-        if MainQuest.FindVisualPackIndex("lme.racemenu-lewdmarks") >= 0
-            defPack = "lme.racemenu-lewdmarks"
+        if MainQuest.FindVisualPackIndex("mtf.lewdmarks-racemenu") >= 0
+            defPack = "mtf.lewdmarks-racemenu"
         elseif MainQuest.GetVisualPackCount() > 0
             defPack = MainQuest.GetVisualPackIdAt(0)
         endif
@@ -242,7 +242,7 @@ Form Function _bindSetting(int slot)
     int seen = 0
     int i = 0
     while i < MainQuest.pluginCount
-        sd_LME_Plugin p = MainQuest.GetPluginAt(i)
+        MTF_Plugin p = MainQuest.GetPluginAt(i)
         if p != None
             int n = p.GetSettingCount()
             if slot < seen + n
@@ -280,7 +280,7 @@ bool Function _bindToggle(int slot)
         int seen = 0
         int i = 0
         while i < MainQuest.pluginCount
-            sd_LME_Plugin p = MainQuest.GetPluginAt(i)
+            MTF_Plugin p = MainQuest.GetPluginAt(i)
             if p != None
                 int cn = p.GetConditionCount()
                 if slot < seen + cn
@@ -301,7 +301,7 @@ bool Function _bindToggle(int slot)
     int seenE = 0
     int j = 0
     while j < MainQuest.pluginCount
-        sd_LME_Plugin p2 = MainQuest.GetPluginAt(j)
+        MTF_Plugin p2 = MainQuest.GetPluginAt(j)
         if p2 != None
             int en = p2.GetEffectCount()
             if eslot < seenE + en
@@ -350,7 +350,7 @@ EndFunction
 Function _setAllItems(bool on)
     int i = 0
     while i < MainQuest.pluginCount
-        sd_LME_Plugin p = MainQuest.GetPluginAt(i)
+        MTF_Plugin p = MainQuest.GetPluginAt(i)
         if p != None
             string pid = p.GetPluginId()
             int cn = p.GetConditionCount()
@@ -410,7 +410,7 @@ function drawPluginsPage()
     AddHeaderOption("Plugins (" + MainQuest.pluginCount + ", " + MainQuest.GetTotalConditionItemCount() + " conditions, " + MainQuest.GetTotalEffectItemCount() + " effects)")
     int i = 0
     while i < MainQuest.pluginCount
-        sd_LME_Plugin p = MainQuest.GetPluginAt(i)
+        MTF_Plugin p = MainQuest.GetPluginAt(i)
         if p != None
             int cn = p.GetConditionCount()
             int en = p.GetEffectCount()
@@ -440,7 +440,7 @@ function drawMenuOptionsPage()
     AddHeaderOption("Conditions")
     int i = 0
     while i < MainQuest.pluginCount
-        sd_LME_Plugin p = MainQuest.GetPluginAt(i)
+        MTF_Plugin p = MainQuest.GetPluginAt(i)
         if p != None
             int cn = p.GetConditionCount()
             if cn > 0
@@ -462,7 +462,7 @@ function drawMenuOptionsPage()
     AddHeaderOption("Effects")
     int j = 0
     while j < MainQuest.pluginCount
-        sd_LME_Plugin p2 = MainQuest.GetPluginAt(j)
+        MTF_Plugin p2 = MainQuest.GetPluginAt(j)
         if p2 != None
             int en = p2.GetEffectCount()
             if en > 0
@@ -487,7 +487,7 @@ Function _openSetting(int slot)
     if f == None
         return
     endif
-    sd_LME_Plugin p = f as sd_LME_Plugin
+    MTF_Plugin p = f as MTF_Plugin
     int idx = _scratchItemIdx
     SetSliderDialogStartValue(p.GetSettingValue(idx))
     SetSliderDialogDefaultValue(p.GetSettingDefault(idx))
@@ -500,7 +500,7 @@ Function _acceptSetting(int slot, float value)
     if f == None
         return
     endif
-    sd_LME_Plugin p = f as sd_LME_Plugin
+    MTF_Plugin p = f as MTF_Plugin
     int idx = _scratchItemIdx
     int v = value as int
     p.SetSettingValue(idx, v)
@@ -512,7 +512,7 @@ Function _defaultSetting(int slot)
     if f == None
         return
     endif
-    sd_LME_Plugin p = f as sd_LME_Plugin
+    MTF_Plugin p = f as MTF_Plugin
     int idx = _scratchItemIdx
     int defV = p.GetSettingDefault(idx)
     p.SetSettingValue(idx, defV)
@@ -525,7 +525,7 @@ Function _highlightSetting(int slot)
         SetInfoText("")
         return
     endif
-    sd_LME_Plugin p = f as sd_LME_Plugin
+    MTF_Plugin p = f as MTF_Plugin
     SetInfoText(p.GetSettingInfo(_scratchItemIdx))
 EndFunction
 
@@ -541,7 +541,7 @@ function drawConditionsPage()
         AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(0))
     else
         string key = MainQuest.condPluginId[idx]
-        sd_LME_Plugin p = None
+        MTF_Plugin p = None
         int itemIdx = -1
         if key != ""
             p = MainQuest.ResolvePluginByKey(key)
@@ -585,7 +585,7 @@ function drawConditionsPage()
     ; If unresolved, show all MAX_LAYERS rows so user can still tweak.
     string resPack  = MainQuest.ResolveSlotPackId(idx)
     string resEntry = MainQuest.ResolveSlotEntryId(idx)
-    int layerN = sd_LME_MainQuest.MAX_LAYERS_PER_SLOT()
+    int layerN = MTF_MainQuest.MAX_LAYERS_PER_SLOT()
     if resPack != "" && resEntry != ""
         int lc = MainQuest.GetEntryLayerCount(resPack, resEntry)
         if lc > 0 && lc < layerN
@@ -597,7 +597,7 @@ function drawConditionsPage()
     ; even when it inherits pack+entry.
     int L = 0
     while L < layerN
-        int li = idx * sd_LME_MainQuest.MAX_LAYERS_PER_SLOT() + L
+        int li = idx * MTF_MainQuest.MAX_LAYERS_PER_SLOT() + L
         AddHeaderOption("Layer " + L)
         AddColorOptionST("SLOT_L" + L + "_TINT",      "Tint",              MainQuest.condLayerTint[li])
         AddColorOptionST("SLOT_L" + L + "_EMISSIVE",  "Emission color",    MainQuest.condLayerEmissive[li])
@@ -658,7 +658,7 @@ state GEN_RELOAD_VISUALS
         ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Re-scan Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/ for pack JSONs.")
+        SetInfoText("Re-scan Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/ for pack JSONs.")
     endEvent
 endState
 
@@ -783,7 +783,7 @@ state SLOT_COND_TYPE
         if newKey == ""
             MainQuest.SetCondParam(slot, 0)
         else
-            sd_LME_Plugin p = MainQuest.ResolvePluginByKey(newKey)
+            MTF_Plugin p = MainQuest.ResolvePluginByKey(newKey)
             int itemIdx = -1
             if p != None
                 itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(newKey))
@@ -811,7 +811,7 @@ endState
 state SLOT_COND_PARAM
     event OnSliderOpenST()
         string key = MainQuest.condPluginId[selectedCondition]
-        sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
         if p == None
             return
         endif
@@ -830,7 +830,7 @@ state SLOT_COND_PARAM
     endEvent
     event OnDefaultST()
         string key = MainQuest.condPluginId[selectedCondition]
-        sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
         int defVal = 0
         if p != None
             int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
@@ -843,7 +843,7 @@ state SLOT_COND_PARAM
     endEvent
     event OnHighlightST()
         string key = MainQuest.condPluginId[selectedCondition]
-        sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
         if p != None
             int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
             if itemIdx >= 0
@@ -975,9 +975,9 @@ state SLOT_PACK_PICK
     endEvent
     event OnDefaultST()
         if selectedCondition == 0
-            int idx = MainQuest.FindVisualPackIndex("lme.racemenu-lewdmarks")
+            int idx = MainQuest.FindVisualPackIndex("mtf.lewdmarks-racemenu")
             if idx >= 0
-                MainQuest.condPackId[0] = "lme.racemenu-lewdmarks"
+                MainQuest.condPackId[0] = "mtf.lewdmarks-racemenu"
             elseif MainQuest.GetVisualPackCount() > 0
                 MainQuest.condPackId[0] = MainQuest.GetVisualPackIdAt(0)
             else
@@ -993,7 +993,7 @@ state SLOT_PACK_PICK
     endEvent
     event OnHighlightST()
         if selectedCondition == 0
-            SetInfoText("Visual pack used by the Default slot. Packs are JSON files under Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/.")
+            SetInfoText("Visual pack used by the Default slot. Packs are JSON files under Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/.")
         else
             SetInfoText("Visual pack for this condition slot. (inherit Default) falls back to the Default slot's pack + texture.")
         endif
@@ -1191,7 +1191,7 @@ string Function _effectTypeLabel(int effectIdx)
     if key == ""
         return "Not set"
     endif
-    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
     if p == None
         return "Unknown (" + key + ")"
     endif
@@ -1213,7 +1213,7 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string para
     if key == ""
         return
     endif
-    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
     if p == None
         return
     endif
@@ -1268,7 +1268,7 @@ Function _acceptEffectType(int effectIdx, int index)
         if keys != None && (index - 1) < n
             newKey = keys[index - 1]
         endif
-        sd_LME_Plugin p = MainQuest.ResolvePluginByKey(newKey)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(newKey)
         if p != None
             int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(newKey))
             if itemIdx >= 0
@@ -1281,7 +1281,7 @@ EndFunction
 
 Function _openEffectParam(int effectIdx)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
-    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
     if p == None
         return
     endif
@@ -1307,7 +1307,7 @@ EndFunction
 
 Function _defaultEffectParam(int effectIdx)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
-    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
     int defVal = 0
     if p != None
         int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
@@ -1321,7 +1321,7 @@ EndFunction
 
 Function _highlightEffectParam(int effectIdx)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
-    sd_LME_Plugin p = MainQuest.ResolvePluginByKey(key)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
     if p != None
         int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
         if itemIdx >= 0
@@ -1467,7 +1467,7 @@ endState
 ; constant baked into each state.
 
 int Function _layerArrIdx(int L)
-    return selectedCondition * sd_LME_MainQuest.MAX_LAYERS_PER_SLOT() + L
+    return selectedCondition * MTF_MainQuest.MAX_LAYERS_PER_SLOT() + L
 EndFunction
 
 Function _openLayerTint(int L)
@@ -2511,7 +2511,7 @@ endState
 ; A single MenuOption lists the saved presets; the user picks one with the
 ; dropdown, then clicks Load or Delete. Save creates a new preset from the
 ; current config. JSON files at
-;   Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/presets/<name>.json
+;   Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets/<name>.json
 
 string[] _scratchPresetNames
 int      _scratchPresetCount = 0
@@ -2564,14 +2564,14 @@ state PRESET_SAVE_AS
             return
         endif
         if MainQuest.SavePreset(a_input)
-            Debug.Notification("LewdMarks: saved preset '" + a_input + "'")
+            Debug.Notification("MTF: saved preset '" + a_input + "'")
             ForcePageReset()
         else
-            Debug.Notification("LewdMarks: invalid preset name")
+            Debug.Notification("MTF: invalid preset name")
         endif
     endEvent
     event OnHighlightST()
-        SetInfoText("Type a name (letters/digits/_/-, max 32). Saves to Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/presets/<name>.json.")
+        SetInfoText("Type a name (letters/digits/_/-, max 32). Saves to Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets/<name>.json.")
     endEvent
 endState
 
@@ -2619,10 +2619,10 @@ state PRESET_LOAD
         endif
         string nm = _scratchPresetNames[_selectedPresetIdx]
         if MainQuest.LoadPreset(nm)
-            Debug.Notification("LewdMarks: loaded preset '" + MainQuest.GetPresetDisplayName(nm) + "'")
+            Debug.Notification("MTF: loaded preset '" + MainQuest.GetPresetDisplayName(nm) + "'")
             ForcePageReset()
         else
-            Debug.Notification("LewdMarks: load failed")
+            Debug.Notification("MTF: load failed")
         endif
     endEvent
     event OnHighlightST()
@@ -2637,7 +2637,7 @@ state PRESET_DEL
         endif
         string nm = _scratchPresetNames[_selectedPresetIdx]
         if MainQuest.DeletePreset(nm)
-            Debug.Notification("LewdMarks: deleted preset '" + MainQuest.GetPresetDisplayName(nm) + "'")
+            Debug.Notification("MTF: deleted preset '" + MainQuest.GetPresetDisplayName(nm) + "'")
             _selectedPresetIdx = -1
             ForcePageReset()
         endif

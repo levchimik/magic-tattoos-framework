@@ -1,6 +1,6 @@
-Scriptname sd_LME_HitListener extends ReferenceAlias
+Scriptname MTF_HitListener extends ReferenceAlias
 {Listens for OnHit events on the player (forced reference) and forwards
- a single weapon/spell class index per hit to sd_LME_Plugin_Base. The
+ a single weapon/spell class index per hit to MTF_Plugin_Base. The
  base plugin maintains per-class hit counters which the combat.hit.*
  conditions consume on each new hit (one roll per hit, per class).
 
@@ -73,7 +73,7 @@ EndFunction
 Event OnHit(ObjectReference akAggressor, Form akSource, Projectile akProjectile, bool abPowerAttack, bool abSneakAttack, bool abBashAttack, bool abHitBlocked)
     _resolveKeywords()
     int cls = _classify(akSource)
-    sd_LME_Plugin_Base p = Game.GetFormFromFile(0x80D, "LewdMarksEffects.esp") as sd_LME_Plugin_Base
+    MTF_Plugin_Base p = Game.GetFormFromFile(0x80D, "MagicTattoosFramework.esp") as MTF_Plugin_Base
     if p == None
         return
     endif

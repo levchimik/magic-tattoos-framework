@@ -1,4 +1,4 @@
-Scriptname sd_LME_MainQuest extends Quest
+Scriptname MTF_MainQuest extends Quest
 
 import Debug
 import Utility
@@ -12,12 +12,12 @@ float Property updateInterval = 2.0 Auto
 
 ; ── Visual pack catalog cache ───────────────────────────────────────────────
 ; Pack list loaded once from JSON files under
-;   Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/*.json
+;   Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/*.json
 ; LoadVisualCatalogs() scans the folder, caches packIds/labels/filenames.
 ; The "active pack" is now per-slot (see condPackId) rather than global.
 string[] Property visualPackIds Auto Hidden
 string[] Property visualPackLabels Auto Hidden
-string[] Property visualPackFiles Auto Hidden   ; JsonUtil path: "LewdMarksEffects/visuals/<basename>"
+string[] Property visualPackFiles Auto Hidden   ; JsonUtil path: "MagicTattoosFramework/visuals/<basename>"
 int Property visualPackCount = 0 Auto Hidden
 bool _visualsLoaded = false
 
@@ -25,7 +25,7 @@ bool _visualsLoaded = false
 ; condPluginId: "<pluginId>:<conditionItemId>" composite key; "" = unset.
 string[] Property condPluginId Auto
 int[] Property condParam Auto
-; condPackId / condEntryId: stable pack + entry id (e.g. "lme.racemenu-lewdmarks", "001").
+; condPackId / condEntryId: stable pack + entry id (e.g. "mtf.lewdmarks-racemenu", "001").
 ; For slots 1-7, condPackId == "" means "inherit Default's pack+entry".
 ; For slot 0, condPackId must be non-empty when a visual pack is desired.
 string[] Property condPackId Auto
@@ -97,7 +97,7 @@ EndFunction
 ; ─────────────────────────────────────────────────────────────────────────────
 
 Event OnInit()
-    Trace("[LME_Main] OnInit")
+    Trace("[MTF_Main] OnInit")
     EnsureArrays()
 EndEvent
 
@@ -109,7 +109,7 @@ Function EnsureArrays()
     if _arraysReady
         return
     endif
-    Trace("[LME_Main] EnsureArrays: allocating arrays")
+    Trace("[MTF_Main] EnsureArrays: allocating arrays")
     condPluginId          = new string[8]
     condParam             = new int[8]
     condPackId            = new string[8]
@@ -154,7 +154,7 @@ EndFunction
 ; Visual catalog (JSON-driven texture packs)
 ; ─────────────────────────────────────────────────────────────────────────────
 ; A "visual pack" is a JSON file under
-;   Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/visuals/
+;   Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/
 ; describing a set of "entries", each with one or more texture "layers".
 ; Picking an entry in MCM stamps that entry's layers into consecutive
 ; NiOverride overlay slots (OverlaySlot + layerIndex). Per-layer
@@ -191,7 +191,7 @@ Function ForceReloadVisualCatalogs()
     int directHits = 0
 
     ; Pass 1: folder scan
-    string[] files = JsonUtil.JsonInFolder("LewdMarksEffects/visuals")
+    string[] files = JsonUtil.JsonInFolder("MagicTattoosFramework/visuals")
     if files != None
         rawCount = files.Length
         int i = 0
@@ -200,11 +200,11 @@ Function ForceReloadVisualCatalogs()
             ; about whether the .json suffix should be on the filename
             ; passed to GetStringValue. Take whichever returns a packId.
             string raw = files[i]
-            string withExt    = "LewdMarksEffects/visuals/" + raw
+            string withExt    = "MagicTattoosFramework/visuals/" + raw
             string withoutExt = withExt
             int dot = StringUtil.Find(raw, ".json")
             if dot > 0
-                withoutExt = "LewdMarksEffects/visuals/" + StringUtil.Substring(raw, 0, dot)
+                withoutExt = "MagicTattoosFramework/visuals/" + StringUtil.Substring(raw, 0, dot)
             endif
             probedCount += 1
             string useFile = withoutExt
@@ -214,7 +214,7 @@ Function ForceReloadVisualCatalogs()
                 pid = JsonUtil.GetPathStringValue(useFile, ".packId", "")
             endif
             string label = JsonUtil.GetPathStringValue(useFile, ".label", pid)
-            Trace("[LME_Main] visual probe raw='" + raw + "' useFile='" + useFile + "' packId='" + pid + "'")
+            Trace("[MTF_Main] visual probe raw='" + raw + "' useFile='" + useFile + "' packId='" + pid + "'")
             if pid != "" && _findPackFileIdx(useFile) < 0
                 visualPackIds[visualPackCount]    = pid
                 visualPackLabels[visualPackCount] = label
@@ -227,8 +227,8 @@ Function ForceReloadVisualCatalogs()
 
     ; Pass 2: hardcoded probe for ship-included packs
     string[] known = new string[2]
-    known[0] = "LewdMarksEffects/visuals/lme.racemenu-lewdmarks"
-    known[1] = "LewdMarksEffects/visuals/lme.slavetats-lewdmarks"
+    known[0] = "MagicTattoosFramework/visuals/mtf.lewdmarks-racemenu"
+    known[1] = "MagicTattoosFramework/visuals/mtf.lewdmarks-slavetats"
     int k = 0
     while k < known.Length && visualPackCount < 32
         string kf = known[k]
@@ -243,7 +243,7 @@ Function ForceReloadVisualCatalogs()
                 endif
             endif
             klabel = JsonUtil.GetPathStringValue(kf, ".label", kpid)
-            Trace("[LME_Main] direct hit '" + kf + "' packId='" + kpid + "'")
+            Trace("[MTF_Main] direct hit '" + kf + "' packId='" + kpid + "'")
             if kpid != ""
                 visualPackIds[visualPackCount]    = kpid
                 visualPackLabels[visualPackCount] = klabel
@@ -256,13 +256,13 @@ Function ForceReloadVisualCatalogs()
     endwhile
 
     _visualsLoaded = true
-    Trace("[LME_Main] LoadVisualCatalogs: folderRaw=" + rawCount + " probed=" + probedCount + " direct=" + directHits + " loaded=" + visualPackCount)
+    Trace("[MTF_Main] LoadVisualCatalogs: folderRaw=" + rawCount + " probed=" + probedCount + " direct=" + directHits + " loaded=" + visualPackCount)
     string sample = "(none)"
     if files != None && files.Length > 0
         sample = files[0]
     endif
-    Notification("LME visuals: folder=" + rawCount + " direct=" + directHits + " loaded=" + visualPackCount)
-    Notification("LME first file: '" + sample + "'")
+    Notification("MTF visuals: folder=" + rawCount + " direct=" + directHits + " loaded=" + visualPackCount)
+    Notification("MTF first file: '" + sample + "'")
 EndFunction
 
 int Function _findPackFileIdx(string f)
@@ -406,37 +406,37 @@ EndFunction
 ; empirically. StorageUtil persists in the cosave, no init-order traps.
 
 Function IncHitCount(int classIdx)
-    int cur = StorageUtil.GetIntValue(self, "lme.hit.count.0", 0)
-    StorageUtil.SetIntValue(self, "lme.hit.count.0", cur + 1)
+    int cur = StorageUtil.GetIntValue(self, "mtf.hit.count.0", 0)
+    StorageUtil.SetIntValue(self, "mtf.hit.count.0", cur + 1)
     if classIdx >= 1 && classIdx <= 6
-        int curC = StorageUtil.GetIntValue(self, "lme.hit.count." + classIdx, 0)
-        StorageUtil.SetIntValue(self, "lme.hit.count." + classIdx, curC + 1)
+        int curC = StorageUtil.GetIntValue(self, "mtf.hit.count." + classIdx, 0)
+        StorageUtil.SetIntValue(self, "mtf.hit.count." + classIdx, curC + 1)
     endif
 EndFunction
 
 int Function GetHitCount(int classIdx)
-    return StorageUtil.GetIntValue(self, "lme.hit.count." + classIdx, 0)
+    return StorageUtil.GetIntValue(self, "mtf.hit.count." + classIdx, 0)
 EndFunction
 
 int Function GetHitRolled(int classIdx)
-    return StorageUtil.GetIntValue(self, "lme.hit.rolled." + classIdx, 0)
+    return StorageUtil.GetIntValue(self, "mtf.hit.rolled." + classIdx, 0)
 EndFunction
 
 Function SetHitRolled(int classIdx, int val)
-    StorageUtil.SetIntValue(self, "lme.hit.rolled." + classIdx, val)
+    StorageUtil.SetIntValue(self, "mtf.hit.rolled." + classIdx, val)
 EndFunction
 
 float Function GetHitArmedRT(int classIdx)
-    return StorageUtil.GetFloatValue(self, "lme.hit.armed." + classIdx, 0.0)
+    return StorageUtil.GetFloatValue(self, "mtf.hit.armed." + classIdx, 0.0)
 EndFunction
 
 Function SetHitArmedRT(int classIdx, float val)
-    StorageUtil.SetFloatValue(self, "lme.hit.armed." + classIdx, val)
+    StorageUtil.SetFloatValue(self, "mtf.hit.armed." + classIdx, val)
 EndFunction
 
 ; ── Presets (PapyrusUtil JsonUtil, cross-save) ──────────────────────────────
 ; One JSON file per preset under
-;   Data/SKSE/Plugins/StorageUtil/LewdMarksEffects/presets/<name>.json
+;   Data/SKSE/Plugins/StorageUtil/MagicTattoosFramework/presets/<name>.json
 ; JsonUtil has no native delete, so each file carries a `valid` int (1=live,
 ; 0=deleted). ListPresets filters by it so the file can stay on disk harmless.
 ; Captures slot config (cond + effects + cooldown + visuals) and each
@@ -444,7 +444,7 @@ EndFunction
 ; are intentionally excluded.
 
 string Function _presetFile(string name)
-    return "LewdMarksEffects/presets/" + name
+    return "MagicTattoosFramework/presets/" + name
 EndFunction
 
 string Function _sanitizePresetName(string raw)
@@ -513,7 +513,7 @@ bool Function SavePreset(string rawName)
     ; Plugin settings — walk registered plugins; key by stable pluginId+settingId.
     int p = 0
     while p < pluginCount
-        sd_LME_Plugin plug = GetPluginAt(p)
+        MTF_Plugin plug = GetPluginAt(p)
         if plug != None
             string pid = plug.GetPluginId()
             int n = plug.GetSettingCount()
@@ -576,7 +576,7 @@ bool Function LoadPreset(string name)
 
     int p = 0
     while p < pluginCount
-        sd_LME_Plugin plug = GetPluginAt(p)
+        MTF_Plugin plug = GetPluginAt(p)
         if plug != None
             string pid = plug.GetPluginId()
             int n = plug.GetSettingCount()
@@ -611,7 +611,7 @@ EndFunction
 string[] Function ListPresets()
 {Returns a fixed-size 64 array. Valid names come first; empty strings after.
  Caller iterates and stops on the first empty string (or use ListPresetsCount).}
-    string[] raw = JsonUtil.JsonInFolder("LewdMarksEffects/presets")
+    string[] raw = JsonUtil.JsonInFolder("MagicTattoosFramework/presets")
     string[] result = new string[64]
     if raw == None || raw.Length == 0
         return result
@@ -702,26 +702,26 @@ Function SetItemEnabled(string key, bool on)
 EndFunction
 
 ; ── Plugin registry ──────────────────────────────────────────────────────────
-Function RegisterPlugin(sd_LME_Plugin p)
-{Called by sd_LME_Plugin._tryRegister(). Idempotent.}
+Function RegisterPlugin(MTF_Plugin p)
+{Called by MTF_Plugin._tryRegister(). Idempotent.}
     if p == None || registeredPlugins == None
         return
     endif
     string pid = p.GetPluginId()
     if pid == ""
-        Trace("[LME_Main] RegisterPlugin REJECTED: empty PluginId on " + p)
+        Trace("[MTF_Main] RegisterPlugin REJECTED: empty PluginId on " + p)
         return
     endif
     if FindPluginIndex(pid) >= 0
         return
     endif
     if pluginCount >= registeredPlugins.Length
-        Trace("[LME_Main] RegisterPlugin REJECTED: registry full (" + pid + ")")
+        Trace("[MTF_Main] RegisterPlugin REJECTED: registry full (" + pid + ")")
         return
     endif
     registeredPlugins[pluginCount] = p as Form
     pluginCount += 1
-    Trace("[LME_Main] Registered '" + pid + "' (" + p.GetPluginLabel() + ", " + p.GetConditionCount() + " conditions, " + p.GetEffectCount() + " effects)")
+    Trace("[MTF_Main] Registered '" + pid + "' (" + p.GetPluginLabel() + ", " + p.GetConditionCount() + " conditions, " + p.GetEffectCount() + " effects)")
 EndFunction
 
 int Function FindPluginIndex(string pid)
@@ -730,7 +730,7 @@ int Function FindPluginIndex(string pid)
     endif
     int i = 0
     while i < pluginCount
-        sd_LME_Plugin slot = registeredPlugins[i] as sd_LME_Plugin
+        MTF_Plugin slot = registeredPlugins[i] as MTF_Plugin
         if slot != None && slot.GetPluginId() == pid
             return i
         endif
@@ -739,19 +739,19 @@ int Function FindPluginIndex(string pid)
     return -1
 EndFunction
 
-sd_LME_Plugin Function FindPlugin(string pid)
+MTF_Plugin Function FindPlugin(string pid)
     int idx = FindPluginIndex(pid)
     if idx < 0
         return None
     endif
-    return registeredPlugins[idx] as sd_LME_Plugin
+    return registeredPlugins[idx] as MTF_Plugin
 EndFunction
 
-sd_LME_Plugin Function GetPluginAt(int idx)
+MTF_Plugin Function GetPluginAt(int idx)
     if idx < 0 || idx >= pluginCount
         return None
     endif
-    return registeredPlugins[idx] as sd_LME_Plugin
+    return registeredPlugins[idx] as MTF_Plugin
 EndFunction
 
 ; ── Key helpers ───────────────────────────────────────────────────────────────
@@ -771,7 +771,7 @@ string Function _keyItemId(string key)
     return StringUtil.Substring(key, sep + 1)
 EndFunction
 
-int Function _condIdxFor(sd_LME_Plugin p, string itemId)
+int Function _condIdxFor(MTF_Plugin p, string itemId)
     if p == None || itemId == ""
         return -1
     endif
@@ -786,7 +786,7 @@ int Function _condIdxFor(sd_LME_Plugin p, string itemId)
     return -1
 EndFunction
 
-int Function _effectIdxFor(sd_LME_Plugin p, string itemId)
+int Function _effectIdxFor(MTF_Plugin p, string itemId)
     if p == None || itemId == ""
         return -1
     endif
@@ -801,7 +801,7 @@ int Function _effectIdxFor(sd_LME_Plugin p, string itemId)
     return -1
 EndFunction
 
-sd_LME_Plugin Function ResolvePluginByKey(string key)
+MTF_Plugin Function ResolvePluginByKey(string key)
     if key == ""
         return None
     endif
@@ -813,7 +813,7 @@ int Function GetTotalConditionItemCount()
     int total = 0
     int i = 0
     while i < pluginCount
-        sd_LME_Plugin p = GetPluginAt(i)
+        MTF_Plugin p = GetPluginAt(i)
         if p != None
             total += p.GetConditionCount()
         endif
@@ -826,7 +826,7 @@ string Function GetGlobalConditionKey(int globalIdx)
     int seen = 0
     int pi = 0
     while pi < pluginCount
-        sd_LME_Plugin p = GetPluginAt(pi)
+        MTF_Plugin p = GetPluginAt(pi)
         if p != None
             int n = p.GetConditionCount()
             if globalIdx < seen + n
@@ -843,7 +843,7 @@ string Function GetGlobalConditionLabel(int globalIdx)
     int seen = 0
     int pi = 0
     while pi < pluginCount
-        sd_LME_Plugin p = GetPluginAt(pi)
+        MTF_Plugin p = GetPluginAt(pi)
         if p != None
             int n = p.GetConditionCount()
             if globalIdx < seen + n
@@ -866,7 +866,7 @@ int Function GetTotalEffectItemCount()
     int total = 0
     int i = 0
     while i < pluginCount
-        sd_LME_Plugin p = GetPluginAt(i)
+        MTF_Plugin p = GetPluginAt(i)
         if p != None
             total += p.GetEffectCount()
         endif
@@ -879,7 +879,7 @@ string Function GetGlobalEffectKey(int globalIdx)
     int seen = 0
     int pi = 0
     while pi < pluginCount
-        sd_LME_Plugin p = GetPluginAt(pi)
+        MTF_Plugin p = GetPluginAt(pi)
         if p != None
             int n = p.GetEffectCount()
             if globalIdx < seen + n
@@ -896,7 +896,7 @@ string Function GetGlobalEffectLabel(int globalIdx)
     int seen = 0
     int pi = 0
     while pi < pluginCount
-        sd_LME_Plugin p = GetPluginAt(pi)
+        MTF_Plugin p = GetPluginAt(pi)
         if p != None
             int n = p.GetEffectCount()
             if globalIdx < seen + n
@@ -1110,7 +1110,7 @@ int Function evaluateTier()
             endif
             bool inCooldown = (mode == 0 && timerActive)
             if !inCooldown
-                sd_LME_Plugin p = ResolvePluginByKey(key)
+                MTF_Plugin p = ResolvePluginByKey(key)
                 if p != None
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
                     if itemIdx >= 0 && p.checkCondition(itemIdx, PlayerRef, condParam[i])
@@ -1148,7 +1148,7 @@ Function _activateSlotEffects(int slot)
     while e < maxE
         string key = effectKey[base + e]
         if key != ""
-            sd_LME_Plugin p = ResolvePluginByKey(key)
+            MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
@@ -1170,7 +1170,7 @@ Function _deactivateSlotEffects(int slot)
     while e < maxE
         string key = effectKey[base + e]
         if key != ""
-            sd_LME_Plugin p = ResolvePluginByKey(key)
+            MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
@@ -1192,7 +1192,7 @@ Function _tickSlotEffects(int slot)
     while e < maxE
         string key = effectKey[base + e]
         if key != ""
-            sd_LME_Plugin p = ResolvePluginByKey(key)
+            MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
@@ -1214,7 +1214,7 @@ Function _gameTickSlotEffects(int slot)
     while e < maxE
         string key = effectKey[base + e]
         if key != ""
-            sd_LME_Plugin p = ResolvePluginByKey(key)
+            MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
@@ -1248,17 +1248,17 @@ Function _notifyTierChange(int tier)
         return
     endif
     if tier <= 0
-        Notification("LewdMarks: condition cleared")
+        Notification("MTF: condition cleared")
         return
     endif
-    string msg = "LewdMarks: Tier " + tier
+    string msg = "MTF: Tier " + tier
     int base = _fxBaseIdx(tier)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
         string key = effectKey[base + e]
         if key != ""
-            sd_LME_Plugin p = ResolvePluginByKey(key)
+            MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0

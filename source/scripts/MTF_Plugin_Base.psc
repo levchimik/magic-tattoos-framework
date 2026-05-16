@@ -1,4 +1,4 @@
-Scriptname sd_LME_Plugin_Base extends sd_LME_Plugin
+Scriptname MTF_Plugin_Base extends MTF_Plugin
 {Built-in conditions and effects that depend only on vanilla Skyrim
  + PO3 PapyrusExtender.
 
@@ -32,8 +32,8 @@ Scriptname sd_LME_Plugin_Base extends sd_LME_Plugin
    10 state.alertNearby     — one-shot: nearby hostile actors within `param`m engage
    11 magic.costPenalty     — all spells cost `param`% more (5 schools, ability spell)
 
- Hit detection is event-driven: sd_LME_HitListener (a ReferenceAlias on
- LME_MainQuest forced to the player) calls _onHit(classIdx) on every hit.
+ Hit detection is event-driven: MTF_HitListener (a ReferenceAlias on
+ MTF_MainQuest forced to the player) calls _onHit(classIdx) on every hit.
  Each class has its own counter; combat.hit.* conditions consume one
  counter increment per check and roll the slot's chance%. The result
  stays "armed" for HIT_VISIBLE_SECONDS so the mark is visible briefly.}
@@ -59,19 +59,19 @@ float Function HIT_VISIBLE_SECONDS() global
 EndFunction
 
 string Function GetPluginId()
-    return "lme.base"
+    return "mtf.base"
 EndFunction
 string Function GetPluginLabel()
     return "Base"
 EndFunction
 
-sd_LME_MainQuest Function _host()
-    return Game.GetFormFromFile(0x803, "LewdMarksEffects.esp") as sd_LME_MainQuest
+MTF_MainQuest Function _host()
+    return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
 EndFunction
 
-; Called by sd_LME_HitListener on each player OnHit event.
+; Called by MTF_HitListener on each player OnHit event.
 Function _onHit(int classIdx)
-    sd_LME_MainQuest h = _host()
+    MTF_MainQuest h = _host()
     if h == None
         return
     endif
@@ -218,7 +218,7 @@ int Function _hitClassFor(int idx)
 EndFunction
 
 bool Function _checkHit(int classIdx, int param)
-    sd_LME_MainQuest h = _host()
+    MTF_MainQuest h = _host()
     if h == None
         return false
     endif
@@ -536,7 +536,7 @@ EndFunction
 
 Spell Function _resolveCostPenaltySpell()
     if _costPenaltySpell == None
-        _costPenaltySpell = Game.GetFormFromFile(0x815, "LewdMarksEffects.esp") as Spell
+        _costPenaltySpell = Game.GetFormFromFile(0x815, "MagicTattoosFramework.esp") as Spell
     endif
     return _costPenaltySpell
 EndFunction

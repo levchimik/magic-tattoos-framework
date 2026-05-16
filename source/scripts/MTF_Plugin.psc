@@ -1,5 +1,5 @@
-Scriptname sd_LME_Plugin extends Quest
-{Abstract base for LewdMarksEffects plugins.
+Scriptname MTF_Plugin extends Quest
+{Abstract base for MagicTattoosFramework plugins.
 
  A plugin script can declare any combination of:
    - Conditions: tier-evaluation predicates, picked per-slot in the MCM.
@@ -18,7 +18,7 @@ Scriptname sd_LME_Plugin extends Quest
 
  Override the methods marked OVERRIDE in your derived script. External
  plugins live in their own ESP/ESL and discover the host via
-   Game.GetFormFromFile(0x803, "LewdMarksEffects.esp")}
+   Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp")}
 
 bool Property _registered = false Auto Hidden
 
@@ -36,7 +36,7 @@ Function _tryRegister()
     if _registered
         return
     endif
-    sd_LME_MainQuest host = Game.GetFormFromFile(0x803, "LewdMarksEffects.esp") as sd_LME_MainQuest
+    MTF_MainQuest host = Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
     if host == None || host.registeredPlugins == None
         RegisterForSingleUpdate(1.0)
         return
@@ -47,7 +47,7 @@ EndFunction
 
 ; ── OVERRIDE: plugin identity ────────────────────────────────────────────────
 string Function GetPluginId()
-{Stable unique plugin id. Convention: "<author>.<plugin>", e.g. "lme.base".}
+{Stable unique plugin id. Convention: "<author>.<plugin>", e.g. "mtf.base".}
     return ""
 EndFunction
 
