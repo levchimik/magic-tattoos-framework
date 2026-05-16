@@ -29,6 +29,7 @@ Scriptname sd_LME_Plugin_Base extends sd_LME_Plugin
    7  drain.attackDamageMult— drain `param`% of current AttackDamageMult (outgoing)
    8  drain.damageResist    — drain `param`% of current DamageResist (armor)
    9  burst.stagger         — one-shot: play stagger animation on switch (no param)
+   10 state.alertNearby     — one-shot: nearby hostile actors within `param`m engage
 
  Hit detection is event-driven: sd_LME_HitListener (a ReferenceAlias on
  LME_MainQuest forced to the player) calls _onHit(classIdx) on every hit.
@@ -313,7 +314,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 10
+    return 11
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -337,6 +338,8 @@ string Function GetEffectId(int idx)
         return "drain.damageResist"
     elseif idx == 9
         return "burst.stagger"
+    elseif idx == 10
+        return "state.alertNearby"
     endif
     return ""
 EndFunction
@@ -362,6 +365,8 @@ string Function GetEffectLabel(int idx)
         return "Armor Penalty"
     elseif idx == 9
         return "[!] Stagger"
+    elseif idx == 10
+        return "[!] Blow Sneak Cover"
     endif
     return ""
 EndFunction
@@ -387,11 +392,16 @@ string Function GetEffectParamLabel(int idx)
         return "Drain % of current DamageResist (armor)"
     elseif idx == 9
         return ""
+    elseif idx == 10
+        return "Alert radius (meters)"
     endif
     return ""
 EndFunction
 
 int Function GetEffectParamMin(int idx)
+    if idx == 10
+        return 1
+    endif
     return 0
 EndFunction
 int Function GetEffectParamMax(int idx)
@@ -402,6 +412,8 @@ int Function GetEffectParamDefault(int idx)
         return 50
     elseif idx == 9
         return 0
+    elseif idx == 10
+        return 25
     endif
     return 25
 EndFunction
@@ -501,6 +513,29 @@ Function _burstDrain(string av, Actor target, int param)
     target.DamageActorValue(av, amt)
 EndFunction
 
+Function _alertNearby(Actor target, int paramMeters)
+    if target == None || paramMeters <= 0
+        return
+    endif
+    float radius = (paramMeters as float) * 70.0
+    Actor[] nearby = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
+    if nearby == None
+        return
+    endif
+    int i = 0
+    while i < nearby.Length
+        Actor a = nearby[i]
+        if a != None && a != target && !a.IsDead()
+            if a.IsHostileToActor(target)
+                if a.GetDistance(target) <= radius
+                    a.StartCombat(target)
+                endif
+            endif
+        endif
+        i += 1
+    endwhile
+EndFunction
+
 Function onActivate(int idx, Actor target, int param)
     if _isDrain(idx)
         _recompute(idx, target, param)
@@ -512,6 +547,8 @@ Function onActivate(int idx, Actor target, int param)
         if target != None
             Debug.SendAnimationEvent(target, "staggerStart")
         endif
+    elseif idx == 10
+        _alertNearby(target, param)
     endif
 EndFunction
 
