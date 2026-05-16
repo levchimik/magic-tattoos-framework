@@ -263,8 +263,10 @@ Function ForceReloadVisualCatalogs()
     if files != None && files.Length > 0
         sample = files[0]
     endif
-    Notification("MTF visuals: folder=" + rawCount + " direct=" + directHits + " loaded=" + visualPackCount)
-    Notification("MTF first file: '" + sample + "'")
+    if DebugMode
+        Notification("MTF visuals: folder=" + rawCount + " direct=" + directHits + " loaded=" + visualPackCount)
+        Notification("MTF first file: '" + sample + "'")
+    endif
 EndFunction
 
 int Function _findPackFileIdx(string f)

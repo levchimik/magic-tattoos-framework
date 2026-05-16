@@ -65,154 +65,107 @@ event OnVersionUpdate(int Version)
         return
     endif
     ; SkyUI's CurrentVersion isn't persisting reliably in this install, so
-    ; OnVersionUpdate would fire on every page reset and re-run the wipes
+    ; OnVersionUpdate would fire on every page reset and re-run the wipe
     ; below. Guard with a persistent counter on MainQuest (which IS persistent
-    ; via StartGameEnabled). Each migration block bumps _migrationLevel so the
-    ; same block never runs twice even if OVU fires repeatedly.
+    ; via StartGameEnabled).
+    ;
+    ; v0.0.27 collapsed the 11-block pre-release migration ladder into a
+    ; single fresh-init wipe. Anyone upgrading from an older pre-release
+    ; (ml<18) gets all arrays reallocated and all defaults applied. Once we
+    ; ship, the next migration must be a non-destructive ml<19 block added
+    ; below this one.
     int ml = MainQuest._migrationLevel
     if ml >= 18
         return
     endif
-    if ml < 17 && CurrentVersion < 17
-        ; v0.0.22: per-slot pack + per-layer visuals.
-        ;   - activeVisualPackId global -> condPackId[8] per slot.
-        ;   - 4 shared per-slot visual params -> per-layer arrays (size 8 * 4).
-        ;   - Pre-release: wipe legacy state, no migration of values.
-        MainQuest.condPluginId          = new string[8]
-        MainQuest.condParam             = new int[8]
-        MainQuest.condPackId            = new string[8]
-        MainQuest.condEntryId           = new string[8]
-        MainQuest.condLayerTint         = new int[32]
-        MainQuest.condLayerEmissive     = new int[32]
-        MainQuest.condLayerEmissiveMult = new float[32]
-        MainQuest.condLayerAlpha        = new int[32]
 
-        MainQuest.ModActive          = false
-        MainQuest.updateInterval     = 2.0
-        MainQuest.OverlaySlot        = 2
-        MainQuest.CurrentOverlaySlot = 2
+    ; Pages: 5-page layout (also set by OnConfigInit; redundant here for the
+    ; sake of upgraders whose Pages array predates the current shape).
+    Pages = new String[5]
+    Pages[0] = "General"
+    Pages[1] = "Conditions"
+    Pages[2] = "Plugins"
+    Pages[3] = "Menu Options"
+    Pages[4] = "Presets"
 
-        MainQuest.LoadVisualCatalogs()
-        ; Default slot (idx 0): pick RaceMenu pack + entry 003 if available.
-        string defPack = ""
-        if MainQuest.FindVisualPackIndex("mtf.lewdmarks-racemenu") >= 0
-            defPack = "mtf.lewdmarks-racemenu"
-        elseif MainQuest.GetVisualPackCount() > 0
-            defPack = MainQuest.GetVisualPackIdAt(0)
+    ; Allocate every state array. EnsureArrays handles fresh installs; this
+    ; block additionally handles upgraders whose existing script instance
+    ; never re-fires OnInit and therefore never allocates new-in-vX arrays.
+    MainQuest.condPluginId          = new string[8]
+    MainQuest.condParam             = new int[8]
+    MainQuest.condPackId            = new string[8]
+    MainQuest.condEntryId           = new string[8]
+    MainQuest.condLayerTint         = new int[32]
+    MainQuest.condLayerEmissive     = new int[32]
+    MainQuest.condLayerEmissiveMult = new float[32]
+    MainQuest.condLayerAlpha        = new int[32]
+    MainQuest.effectKey             = new string[32]
+    MainQuest.effectParam           = new int[32]
+    MainQuest.effectParam2          = new int[32]
+    MainQuest.cooldownMin           = new int[8]
+    MainQuest.cooldownMode          = new int[8]
+    MainQuest.cooldownUntilGT       = new float[8]
+    MainQuest.disabledItems         = new string[64]
+
+    MainQuest.ModActive          = false
+    MainQuest.updateInterval     = 2.0
+    MainQuest.OverlaySlot        = 2
+    MainQuest.CurrentOverlaySlot = 2
+
+    ; Default slot (idx 0): pick the RaceMenu pack + entry 003 if available,
+    ; otherwise fall back to the first registered pack.
+    MainQuest.LoadVisualCatalogs()
+    string defPack = ""
+    if MainQuest.FindVisualPackIndex("mtf.lewdmarks-racemenu") >= 0
+        defPack = "mtf.lewdmarks-racemenu"
+    elseif MainQuest.GetVisualPackCount() > 0
+        defPack = MainQuest.GetVisualPackIdAt(0)
+    endif
+    MainQuest.condPackId[0]  = defPack
+    MainQuest.condEntryId[0] = "003"
+
+    ; Per-layer defaults: layer 0 = opaque white mark, no glow.
+    ;                     layer 1 = warm glow (off by default — emissiveMult=0
+    ;                                          on Default, 2.5 on condition slots).
+    int s = 0
+    while s < 8
+        if s > 0
+            ; slots 1-7 inherit Default's pack+entry until user overrides
+            MainQuest.condPackId[s]  = ""
+            MainQuest.condEntryId[s] = ""
         endif
-        MainQuest.condPackId[0]  = defPack
-        MainQuest.condEntryId[0] = "003"
 
-        ; Per-layer defaults: layer 0 = opaque white mark, no glow.
-        ;                     layer 1 = warm glow (off by default — emissiveMult=0).
-        ; All 8 slots get identical layer defaults; user customizes per slot.
-        int s = 0
-        while s < 8
-            ; slot 0 (Default) keeps its packId; slots 1-7 inherit (packId == "").
-            if s > 0
-                MainQuest.condPackId[s]  = ""
-                MainQuest.condEntryId[s] = ""
-            endif
+        ; Layer 0 (base mark)
+        int li0 = s * 4 + 0
+        MainQuest.condLayerTint[li0]         = 16777215   ; white
+        MainQuest.condLayerEmissive[li0]     = 16777215
+        MainQuest.condLayerEmissiveMult[li0] = 0.0
+        MainQuest.condLayerAlpha[li0]        = 100
 
-            ; Layer 0 (base mark)
-            int li0 = s * 4 + 0
-            MainQuest.condLayerTint[li0]         = 16777215   ; white
-            MainQuest.condLayerEmissive[li0]     = 16777215
-            MainQuest.condLayerEmissiveMult[li0] = 0.0        ; no glow on base
-            MainQuest.condLayerAlpha[li0]        = 100
+        ; Layer 1 (glow halo)
+        int li1 = s * 4 + 1
+        MainQuest.condLayerTint[li1]         = 16777215
+        MainQuest.condLayerEmissive[li1]     = 11337843   ; warm amber
+        MainQuest.condLayerEmissiveMult[li1] = 0.0
+        MainQuest.condLayerAlpha[li1]        = 80
+        if s > 0
+            MainQuest.condLayerEmissiveMult[li1] = 2.5
+        endif
 
-            ; Layer 1 (glow halo)
-            int li1 = s * 4 + 1
-            MainQuest.condLayerTint[li1]         = 16777215
-            MainQuest.condLayerEmissive[li1]     = 11337843   ; warm amber
-            MainQuest.condLayerEmissiveMult[li1] = 0.0
-            MainQuest.condLayerAlpha[li1]        = 80
-            if s > 0
-                ; condition slots get glow by default to stand out from Default
-                MainQuest.condLayerEmissiveMult[li1] = 2.5
-            endif
-
-            ; Layers 2-3 fully transparent so trailing-slot clear is moot
-            int Li = 2
-            while Li < 4
-                int liN = s * 4 + Li
-                MainQuest.condLayerTint[liN]         = 16777215
-                MainQuest.condLayerEmissive[liN]     = 16777215
-                MainQuest.condLayerEmissiveMult[liN] = 0.0
-                MainQuest.condLayerAlpha[liN]        = 100
-                Li += 1
-            endwhile
-
-            s += 1
+        ; Layers 2-3 fully opaque-transparent so trailing-slot clear is moot
+        int Li = 2
+        while Li < 4
+            int liN = s * 4 + Li
+            MainQuest.condLayerTint[liN]         = 16777215
+            MainQuest.condLayerEmissive[liN]     = 16777215
+            MainQuest.condLayerEmissiveMult[liN] = 0.0
+            MainQuest.condLayerAlpha[liN]        = 100
+            Li += 1
         endwhile
-    endif
-    if ml < 7 && CurrentVersion < 7
-        ; v0.0.8: condPluginId now stores composite "<pluginId>:<itemId>" keys.
-        ; All old single-id values are obsolete — wipe them.
-        int slot7 = 0
-        while slot7 < 8
-            MainQuest.SetCondPluginId(slot7, "")
-            MainQuest.SetCondParam(slot7, 0)
-            slot7 += 1
-        endwhile
-    endif
-    if ml < 8 && CurrentVersion < 8
-        ; v0.0.9: side effects moved to effect plugins. Allocate the per-slot
-        ; effect list (8 slots × 4 effects = 32) and wipe any previously-set
-        ; side-effect sliders (their backing arrays no longer exist on MainQuest).
-        MainQuest.effectKey   = new string[32]
-        MainQuest.effectParam = new int[32]
-    endif
-    if ml < 10 && CurrentVersion < 10
-        ; v0.0.10: condition and effect plugins merged. Old plugin IDs
-        ; (lme.base.fx, lme.sla.fx) no longer exist — effect keys using
-        ; them won't resolve. Wipe all per-slot effect picks. Condition
-        ; picks are unchanged (lme.base, lme.fmr, lme.sla survive).
-        int fxI = 0
-        while fxI < 32
-            MainQuest.effectKey[fxI]   = ""
-            MainQuest.effectParam[fxI] = 0
-            fxI += 1
-        endwhile
-    endif
-    if ml < 11 && CurrentVersion < 11
-        ; v0.0.11: per-item enable/disable list. Default = all enabled.
-        MainQuest.disabledItems = new string[64]
-    endif
-    if ml < 12 && CurrentVersion < 12
-        ; v0.0.12: split per-item toggles into their own "Menu Options" page.
-        ; OnConfigInit only sets Pages once per MCM registration, so refresh.
-        Pages = new String[4]
-        Pages[0] = "General"
-        Pages[1] = "Conditions"
-        Pages[2] = "Plugins"
-        Pages[3] = "Menu Options"
-    endif
-    if ml < 13 && CurrentVersion < 13
-        ; v0.0.13: per-slot cooldown (minutes, up to 24h).
-        MainQuest.cooldownMin     = new int[8]
-        MainQuest.cooldownUntilGT = new float[8]
-    endif
-    if ml < 14 && CurrentVersion < 14
-        ; v0.0.14: per-slot cooldown mode (0 = after-deactivate, 1 = lock-on-activate).
-        MainQuest.cooldownMode = new int[8]
-    endif
-    if ml < 15 && CurrentVersion < 15
-        ; v0.0.17: add "Presets" page (5th). OnConfigInit only sets Pages once.
-        Pages = new String[5]
-        Pages[0] = "General"
-        Pages[1] = "Conditions"
-        Pages[2] = "Plugins"
-        Pages[3] = "Menu Options"
-        Pages[4] = "Presets"
-    endif
-    if ml < 18 && CurrentVersion < 18
-        ; v0.0.26: per-slot effect param2. Allocate the new array; existing
-        ; effect picks become param2=0 which the SLA aura interprets as
-        ; "use default 22m". User can re-pick the effect to get the default
-        ; into the slider or just adjust it.
-        MainQuest.effectParam2 = new int[32]
-    endif
+
+        s += 1
+    endwhile
+
     MainQuest._migrationLevel = 18
 endEvent
 
@@ -273,7 +226,6 @@ string Function _toggleStateId(int slot)
 EndFunction
 
 string _scratchToggleKey
-string _scratchToggleLabel
 string _scratchToggleKind   ; "cond" or "effect"
 
 
@@ -293,7 +245,6 @@ bool Function _bindToggle(int slot)
                 if slot < seen + cn
                     int local = slot - seen
                     _scratchToggleKey   = p.GetPluginId() + ":" + p.GetConditionId(local)
-                    _scratchToggleLabel = p.GetConditionLabel(local)
                     _scratchToggleKind  = "cond"
                     return true
                 endif
@@ -314,7 +265,6 @@ bool Function _bindToggle(int slot)
             if eslot < seenE + en
                 int localE = eslot - seenE
                 _scratchToggleKey   = p2.GetPluginId() + ":" + p2.GetEffectId(localE)
-                _scratchToggleLabel = p2.GetEffectLabel(localE)
                 _scratchToggleKind  = "effect"
                 return true
             endif
