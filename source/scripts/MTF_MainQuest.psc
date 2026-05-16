@@ -453,6 +453,76 @@ string Function _presetFile(string name)
     return "MagicTattoosFramework/presets/" + name
 EndFunction
 
+; ── Hex color helpers ────────────────────────────────────────────────────────
+; Tint/emissive on disk are stored as "#RRGGBB" hex strings so the JSON is
+; readable. Loader also accepts a plain int for legacy values / authors
+; who prefer decimal.
+
+string Function _intToHex(int v)
+    if v < 0
+        v = 0
+    elseif v > 16777215
+        v = 16777215
+    endif
+    string digits = "0123456789ABCDEF"
+    string result = ""
+    int i = 0
+    while i < 6
+        int d = v % 16
+        result = StringUtil.Substring(digits, d, 1) + result
+        v = v / 16
+        i += 1
+    endwhile
+    return "#" + result
+EndFunction
+
+int Function _hexCharToInt(string c)
+    string lo = "0123456789abcdef"
+    int idx = StringUtil.Find(lo, c)
+    if idx >= 0 && idx < 16
+        return idx
+    endif
+    string up = "0123456789ABCDEF"
+    return StringUtil.Find(up, c)
+EndFunction
+
+int Function _parseHex(string s)
+    int len = StringUtil.GetLength(s)
+    if len < 6
+        return -1
+    endif
+    int start = 0
+    if StringUtil.Substring(s, 0, 1) == "#"
+        start = 1
+    endif
+    if len - start < 6
+        return -1
+    endif
+    int result = 0
+    int i = 0
+    while i < 6
+        int d = _hexCharToInt(StringUtil.Substring(s, start + i, 1))
+        if d < 0
+            return -1
+        endif
+        result = result * 16 + d
+        i += 1
+    endwhile
+    return result
+EndFunction
+
+int Function _readColor(string f, string path, int default)
+    ; Prefer string ("#RRGGBB" or "RRGGBB"); fall back to int (decimal).
+    string s = JsonUtil.GetPathStringValue(f, path, "")
+    if s != ""
+        int parsed = _parseHex(s)
+        if parsed >= 0
+            return parsed
+        endif
+    endif
+    return JsonUtil.GetPathIntValue(f, path, default)
+EndFunction
+
 string Function _sanitizePresetName(string raw)
     ; Keep only [A-Za-z0-9_-], cap length to 32. Anything else becomes "_".
     if raw == ""
@@ -482,36 +552,42 @@ bool Function SavePreset(string rawName)
     endif
     string f = _presetFile(name)
     JsonUtil.ClearAll(f)
-    JsonUtil.SetIntValue(f, "valid", 1)
-    JsonUtil.SetStringValue(f, "displayName", rawName)
-    JsonUtil.SetIntValue(f, "schemaVersion", 3)
+    JsonUtil.SetPathIntValue(f,    ".valid",         1)
+    JsonUtil.SetPathStringValue(f, ".displayname",   rawName)
+    JsonUtil.SetPathIntValue(f,    ".schemaversion", 4)
 
     EnsureArrays()
     int maxL = MAX_LAYERS_PER_SLOT()
+    int maxE = MAX_EFFECTS_PER_SLOT()
     int s = 0
     while s < 8
-        JsonUtil.SetStringValue(f, "slot." + s + ".condPluginId", condPluginId[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".condParam", condParam[s])
-        JsonUtil.SetStringValue(f, "slot." + s + ".condPackId", condPackId[s])
-        JsonUtil.SetStringValue(f, "slot." + s + ".condEntryId", condEntryId[s])
+        string sp = ".slot[" + s + "]"
+        JsonUtil.SetPathStringValue(f, sp + ".cond.pluginid", condPluginId[s])
+        JsonUtil.SetPathIntValue(f,    sp + ".cond.param",    condParam[s])
+        JsonUtil.SetPathStringValue(f, sp + ".cond.packid",   condPackId[s])
+        JsonUtil.SetPathStringValue(f, sp + ".cond.entryid",  condEntryId[s])
+        JsonUtil.SetPathIntValue(f,    sp + ".cooldown.min",  cooldownMin[s])
+        JsonUtil.SetPathIntValue(f,    sp + ".cooldown.mode", cooldownMode[s])
         int L = 0
         while L < maxL
             int li = _layerIdx(s, L)
-            JsonUtil.SetIntValue(f,   "slot." + s + ".layer." + L + ".tint",         condLayerTint[li])
-            JsonUtil.SetIntValue(f,   "slot." + s + ".layer." + L + ".emissive",     condLayerEmissive[li])
-            JsonUtil.SetFloatValue(f, "slot." + s + ".layer." + L + ".emissiveMult", condLayerEmissiveMult[li])
-            JsonUtil.SetIntValue(f,   "slot." + s + ".layer." + L + ".alpha",        condLayerAlpha[li])
+            string lp = sp + ".layer[" + L + "]"
+            JsonUtil.SetPathStringValue(f, lp + ".tint",         _intToHex(condLayerTint[li]))
+            JsonUtil.SetPathStringValue(f, lp + ".emissive",     _intToHex(condLayerEmissive[li]))
+            JsonUtil.SetPathFloatValue(f,  lp + ".emissivemult", condLayerEmissiveMult[li])
+            JsonUtil.SetPathIntValue(f,    lp + ".alpha",        condLayerAlpha[li])
             L += 1
         endwhile
-        JsonUtil.SetIntValue(f, "slot." + s + ".cooldownMin", cooldownMin[s])
-        JsonUtil.SetIntValue(f, "slot." + s + ".cooldownMode", cooldownMode[s])
         int e = 0
-        int maxE = MAX_EFFECTS_PER_SLOT()
         while e < maxE
             int fxI = s * maxE + e
-            JsonUtil.SetStringValue(f, "slot." + s + ".effect." + e + ".key", effectKey[fxI])
-            JsonUtil.SetIntValue(f, "slot." + s + ".effect." + e + ".param", effectParam[fxI])
-            JsonUtil.SetIntValue(f, "slot." + s + ".effect." + e + ".param2", effectParam2[fxI])
+            ; Skip serializing effect rows with empty key — load uses defaults.
+            if effectKey[fxI] != ""
+                string ep = sp + ".effect[" + e + "]"
+                JsonUtil.SetPathStringValue(f, ep + ".key",    effectKey[fxI])
+                JsonUtil.SetPathIntValue(f,    ep + ".param",  effectParam[fxI])
+                JsonUtil.SetPathIntValue(f,    ep + ".param2", effectParam2[fxI])
+            endif
             e += 1
         endwhile
         s += 1
@@ -527,7 +603,7 @@ bool Function SavePreset(string rawName)
             int si = 0
             while si < n
                 string sid = plug.GetSettingId(si)
-                JsonUtil.SetIntValue(f, "setting." + pid + "." + sid, plug.GetSettingValue(si))
+                JsonUtil.SetPathIntValue(f, ".setting." + pid + "." + sid, plug.GetSettingValue(si))
                 si += 1
             endwhile
         endif
@@ -543,40 +619,45 @@ bool Function LoadPreset(string name)
     if !JsonUtil.JsonExists(f)
         return false
     endif
-    if JsonUtil.GetIntValue(f, "valid", 0) != 1
+    if JsonUtil.GetPathIntValue(f, ".valid", 0) != 1
         return false
     endif
-    if JsonUtil.GetIntValue(f, "schemaVersion", 1) < 3
-        ; Preset predates the per-slot pack + per-layer visuals rewrite.
+    if JsonUtil.GetPathIntValue(f, ".schemaversion", 1) < 4
+        ; Preset predates the v0.0.31 Path-API + hex-color refactor. Loader
+        ; refuses to keep the code simple; re-save in-game to upgrade.
+        Notification("MTF: preset '" + name + "' is on old schema (re-save to upgrade)")
         return false
     endif
     EnsureArrays()
 
     int maxL = MAX_LAYERS_PER_SLOT()
+    int maxE = MAX_EFFECTS_PER_SLOT()
     int s = 0
     while s < 8
-        SetCondPluginId(s, JsonUtil.GetStringValue(f, "slot." + s + ".condPluginId", ""))
-        SetCondParam(s, JsonUtil.GetIntValue(f, "slot." + s + ".condParam", 0))
-        condPackId[s]  = JsonUtil.GetStringValue(f, "slot." + s + ".condPackId", "")
-        condEntryId[s] = JsonUtil.GetStringValue(f, "slot." + s + ".condEntryId", "")
+        string sp = ".slot[" + s + "]"
+        SetCondPluginId(s, JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", ""))
+        SetCondParam(s,    JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0))
+        condPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",  "")
+        condEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid", "")
+        cooldownMin[s]  = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.min",  0)
+        cooldownMode[s] = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
         int L = 0
         while L < maxL
             int li = _layerIdx(s, L)
-            condLayerTint[li]         = JsonUtil.GetIntValue(f,   "slot." + s + ".layer." + L + ".tint",         16777215)
-            condLayerEmissive[li]     = JsonUtil.GetIntValue(f,   "slot." + s + ".layer." + L + ".emissive",     16777215)
-            condLayerEmissiveMult[li] = JsonUtil.GetFloatValue(f, "slot." + s + ".layer." + L + ".emissiveMult", 0.0)
-            condLayerAlpha[li]        = JsonUtil.GetIntValue(f,   "slot." + s + ".layer." + L + ".alpha",        100)
+            string lp = sp + ".layer[" + L + "]"
+            condLayerTint[li]         = _readColor(f, lp + ".tint",         16777215)
+            condLayerEmissive[li]     = _readColor(f, lp + ".emissive",     16777215)
+            condLayerEmissiveMult[li] = JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 0.0)
+            condLayerAlpha[li]        = JsonUtil.GetPathIntValue(f,   lp + ".alpha",        100)
             L += 1
         endwhile
-        cooldownMin[s]      = JsonUtil.GetIntValue(f, "slot." + s + ".cooldownMin", 0)
-        cooldownMode[s]         = JsonUtil.GetIntValue(f, "slot." + s + ".cooldownMode", 0)
         int e = 0
-        int maxE = MAX_EFFECTS_PER_SLOT()
         while e < maxE
             int fxI = s * maxE + e
-            effectKey[fxI]    = JsonUtil.GetStringValue(f, "slot." + s + ".effect." + e + ".key", "")
-            effectParam[fxI]  = JsonUtil.GetIntValue(f,    "slot." + s + ".effect." + e + ".param",  0)
-            effectParam2[fxI] = JsonUtil.GetIntValue(f,    "slot." + s + ".effect." + e + ".param2", 0)
+            string ep = sp + ".effect[" + e + "]"
+            effectKey[fxI]    = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
+            effectParam[fxI]  = JsonUtil.GetPathIntValue(f,    ep + ".param",  0)
+            effectParam2[fxI] = JsonUtil.GetPathIntValue(f,    ep + ".param2", 0)
             e += 1
         endwhile
         s += 1
@@ -592,7 +673,7 @@ bool Function LoadPreset(string name)
             while si < n
                 string sid = plug.GetSettingId(si)
                 int key = -999999
-                int v = JsonUtil.GetIntValue(f, "setting." + pid + "." + sid, key)
+                int v = JsonUtil.GetPathIntValue(f, ".setting." + pid + "." + sid, key)
                 if v != key
                     plug.SetSettingValue(si, v)
                 endif
@@ -632,7 +713,11 @@ string[] Function ListPresets()
         if dot > 0
             nm = StringUtil.Substring(nm, 0, dot)
         endif
-        if JsonUtil.GetIntValue(_presetFile(nm), "valid", 0) == 1
+        ; v4+ presets store .valid via Path API; older v3 presets used a flat
+        ; "valid" int. Accept either so the dropdown shows everything; LoadPreset
+        ; itself refuses v3 with a "re-save to upgrade" notification.
+        string pf = _presetFile(nm)
+        if JsonUtil.GetPathIntValue(pf, ".valid", 0) == 1 || JsonUtil.GetIntValue(pf, "valid", 0) == 1
             result[n] = nm
             n += 1
         endif
@@ -654,7 +739,13 @@ int Function ListPresetsCount()
 EndFunction
 
 string Function GetPresetDisplayName(string name)
-    return JsonUtil.GetStringValue(_presetFile(name), "displayName", name)
+    ; Try v4 Path API key first; fall back to legacy flat key for v3 presets.
+    string f = _presetFile(name)
+    string disp = JsonUtil.GetPathStringValue(f, ".displayname", "")
+    if disp != ""
+        return disp
+    endif
+    return JsonUtil.GetStringValue(f, "displayName", name)
 EndFunction
 
 Function EnsureDisabledArray()

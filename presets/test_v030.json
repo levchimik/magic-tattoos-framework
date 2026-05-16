@@ -1,283 +1,311 @@
 {
-	"float": {
-		"slot.0.layer.0.emissivemult": 0,
-		"slot.0.layer.1.emissivemult": 0,
-		"slot.0.layer.2.emissivemult": 0,
-		"slot.0.layer.3.emissivemult": 0,
-		"slot.1.layer.0.emissivemult": 3,
-		"slot.1.layer.1.emissivemult": 4,
-		"slot.1.layer.2.emissivemult": 0,
-		"slot.1.layer.3.emissivemult": 0,
-		"slot.2.layer.0.emissivemult": 2,
-		"slot.2.layer.1.emissivemult": 3,
-		"slot.2.layer.2.emissivemult": 0,
-		"slot.2.layer.3.emissivemult": 0,
-		"slot.3.layer.0.emissivemult": 2,
-		"slot.3.layer.1.emissivemult": 3,
-		"slot.3.layer.2.emissivemult": 0,
-		"slot.3.layer.3.emissivemult": 0,
-		"slot.4.layer.0.emissivemult": 1.5,
-		"slot.4.layer.1.emissivemult": 2.5,
-		"slot.4.layer.2.emissivemult": 0,
-		"slot.4.layer.3.emissivemult": 0,
-		"slot.5.layer.0.emissivemult": 1.5,
-		"slot.5.layer.1.emissivemult": 2.5,
-		"slot.5.layer.2.emissivemult": 0,
-		"slot.5.layer.3.emissivemult": 0,
-		"slot.6.layer.0.emissivemult": 1.5,
-		"slot.6.layer.1.emissivemult": 2.5,
-		"slot.6.layer.2.emissivemult": 0,
-		"slot.6.layer.3.emissivemult": 0,
-		"slot.7.layer.0.emissivemult": 1.5,
-		"slot.7.layer.1.emissivemult": 2.5,
-		"slot.7.layer.2.emissivemult": 0,
-		"slot.7.layer.3.emissivemult": 0
-	},
-	"int": {
-		"valid": 1,
-		"schemaversion": 3,
-		"slot.0.condparam": 0,
-		"slot.0.cooldownmin": 0,
-		"slot.0.cooldownmode": 0,
-		"slot.0.layer.0.tint": 16777215,
-		"slot.0.layer.0.emissive": 16777215,
-		"slot.0.layer.0.alpha": 100,
-		"slot.0.layer.1.tint": 16777215,
-		"slot.0.layer.1.emissive": 16777215,
-		"slot.0.layer.1.alpha": 80,
-		"slot.0.layer.2.tint": 16777215,
-		"slot.0.layer.2.emissive": 16777215,
-		"slot.0.layer.2.alpha": 100,
-		"slot.0.layer.3.tint": 16777215,
-		"slot.0.layer.3.emissive": 16777215,
-		"slot.0.layer.3.alpha": 100,
-		"slot.0.effect.0.param": 0,
-		"slot.0.effect.0.param2": 0,
-		"slot.0.effect.1.param": 0,
-		"slot.0.effect.1.param2": 0,
-		"slot.0.effect.2.param": 0,
-		"slot.0.effect.2.param2": 0,
-		"slot.0.effect.3.param": 0,
-		"slot.0.effect.3.param2": 0,
-		"slot.1.condparam": 50,
-		"slot.1.cooldownmin": 0,
-		"slot.1.cooldownmode": 0,
-		"slot.1.layer.0.tint": 16711680,
-		"slot.1.layer.0.emissive": 16711680,
-		"slot.1.layer.0.alpha": 100,
-		"slot.1.layer.1.tint": 16711680,
-		"slot.1.layer.1.emissive": 16711680,
-		"slot.1.layer.1.alpha": 80,
-		"slot.1.layer.2.tint": 16711680,
-		"slot.1.layer.2.emissive": 16711680,
-		"slot.1.layer.2.alpha": 100,
-		"slot.1.layer.3.tint": 16711680,
-		"slot.1.layer.3.emissive": 16711680,
-		"slot.1.layer.3.alpha": 100,
-		"slot.1.effect.0.param": 0,
-		"slot.1.effect.0.param2": 0,
-		"slot.1.effect.1.param": 0,
-		"slot.1.effect.1.param2": 0,
-		"slot.1.effect.2.param": 0,
-		"slot.1.effect.2.param2": 0,
-		"slot.1.effect.3.param": 0,
-		"slot.1.effect.3.param2": 0,
-		"slot.2.condparam": 0,
-		"slot.2.cooldownmin": 0,
-		"slot.2.cooldownmode": 0,
-		"slot.2.layer.0.tint": 16753920,
-		"slot.2.layer.0.emissive": 16753920,
-		"slot.2.layer.0.alpha": 100,
-		"slot.2.layer.1.tint": 16753920,
-		"slot.2.layer.1.emissive": 16753920,
-		"slot.2.layer.1.alpha": 80,
-		"slot.2.layer.2.tint": 16753920,
-		"slot.2.layer.2.emissive": 16753920,
-		"slot.2.layer.2.alpha": 100,
-		"slot.2.layer.3.tint": 16753920,
-		"slot.2.layer.3.emissive": 16753920,
-		"slot.2.layer.3.alpha": 100,
-		"slot.2.effect.0.param": 0,
-		"slot.2.effect.0.param2": 0,
-		"slot.2.effect.1.param": 0,
-		"slot.2.effect.1.param2": 0,
-		"slot.2.effect.2.param": 0,
-		"slot.2.effect.2.param2": 0,
-		"slot.2.effect.3.param": 0,
-		"slot.2.effect.3.param2": 0,
-		"slot.3.condparam": 0,
-		"slot.3.cooldownmin": 0,
-		"slot.3.cooldownmode": 0,
-		"slot.3.layer.0.tint": 16776960,
-		"slot.3.layer.0.emissive": 16776960,
-		"slot.3.layer.0.alpha": 100,
-		"slot.3.layer.1.tint": 16776960,
-		"slot.3.layer.1.emissive": 16776960,
-		"slot.3.layer.1.alpha": 80,
-		"slot.3.layer.2.tint": 16776960,
-		"slot.3.layer.2.emissive": 16776960,
-		"slot.3.layer.2.alpha": 100,
-		"slot.3.layer.3.tint": 16776960,
-		"slot.3.layer.3.emissive": 16776960,
-		"slot.3.layer.3.alpha": 100,
-		"slot.3.effect.0.param": 0,
-		"slot.3.effect.0.param2": 0,
-		"slot.3.effect.1.param": 0,
-		"slot.3.effect.1.param2": 0,
-		"slot.3.effect.2.param": 0,
-		"slot.3.effect.2.param2": 0,
-		"slot.3.effect.3.param": 0,
-		"slot.3.effect.3.param2": 0,
-		"slot.4.condparam": 0,
-		"slot.4.cooldownmin": 0,
-		"slot.4.cooldownmode": 0,
-		"slot.4.layer.0.tint": 65280,
-		"slot.4.layer.0.emissive": 65280,
-		"slot.4.layer.0.alpha": 100,
-		"slot.4.layer.1.tint": 65280,
-		"slot.4.layer.1.emissive": 65280,
-		"slot.4.layer.1.alpha": 80,
-		"slot.4.layer.2.tint": 65280,
-		"slot.4.layer.2.emissive": 65280,
-		"slot.4.layer.2.alpha": 100,
-		"slot.4.layer.3.tint": 65280,
-		"slot.4.layer.3.emissive": 65280,
-		"slot.4.layer.3.alpha": 100,
-		"slot.4.effect.0.param": 0,
-		"slot.4.effect.0.param2": 0,
-		"slot.4.effect.1.param": 0,
-		"slot.4.effect.1.param2": 0,
-		"slot.4.effect.2.param": 0,
-		"slot.4.effect.2.param2": 0,
-		"slot.4.effect.3.param": 0,
-		"slot.4.effect.3.param2": 0,
-		"slot.5.condparam": 0,
-		"slot.5.cooldownmin": 0,
-		"slot.5.cooldownmode": 0,
-		"slot.5.layer.0.tint": 255,
-		"slot.5.layer.0.emissive": 255,
-		"slot.5.layer.0.alpha": 100,
-		"slot.5.layer.1.tint": 255,
-		"slot.5.layer.1.emissive": 255,
-		"slot.5.layer.1.alpha": 80,
-		"slot.5.layer.2.tint": 255,
-		"slot.5.layer.2.emissive": 255,
-		"slot.5.layer.2.alpha": 100,
-		"slot.5.layer.3.tint": 255,
-		"slot.5.layer.3.emissive": 255,
-		"slot.5.layer.3.alpha": 100,
-		"slot.5.effect.0.param": 0,
-		"slot.5.effect.0.param2": 0,
-		"slot.5.effect.1.param": 0,
-		"slot.5.effect.1.param2": 0,
-		"slot.5.effect.2.param": 0,
-		"slot.5.effect.2.param2": 0,
-		"slot.5.effect.3.param": 0,
-		"slot.5.effect.3.param2": 0,
-		"slot.6.condparam": 0,
-		"slot.6.cooldownmin": 0,
-		"slot.6.cooldownmode": 0,
-		"slot.6.layer.0.tint": 16711935,
-		"slot.6.layer.0.emissive": 16711935,
-		"slot.6.layer.0.alpha": 100,
-		"slot.6.layer.1.tint": 16711935,
-		"slot.6.layer.1.emissive": 16711935,
-		"slot.6.layer.1.alpha": 80,
-		"slot.6.layer.2.tint": 16711935,
-		"slot.6.layer.2.emissive": 16711935,
-		"slot.6.layer.2.alpha": 100,
-		"slot.6.layer.3.tint": 16711935,
-		"slot.6.layer.3.emissive": 16711935,
-		"slot.6.layer.3.alpha": 100,
-		"slot.6.effect.0.param": 0,
-		"slot.6.effect.0.param2": 0,
-		"slot.6.effect.1.param": 0,
-		"slot.6.effect.1.param2": 0,
-		"slot.6.effect.2.param": 0,
-		"slot.6.effect.2.param2": 0,
-		"slot.6.effect.3.param": 0,
-		"slot.6.effect.3.param2": 0,
-		"slot.7.condparam": 0,
-		"slot.7.cooldownmin": 0,
-		"slot.7.cooldownmode": 0,
-		"slot.7.layer.0.tint": 65535,
-		"slot.7.layer.0.emissive": 65535,
-		"slot.7.layer.0.alpha": 100,
-		"slot.7.layer.1.tint": 65535,
-		"slot.7.layer.1.emissive": 65535,
-		"slot.7.layer.1.alpha": 80,
-		"slot.7.layer.2.tint": 65535,
-		"slot.7.layer.2.emissive": 65535,
-		"slot.7.layer.2.alpha": 100,
-		"slot.7.layer.3.tint": 65535,
-		"slot.7.layer.3.emissive": 65535,
-		"slot.7.layer.3.alpha": 100,
-		"slot.7.effect.0.param": 0,
-		"slot.7.effect.0.param2": 0,
-		"slot.7.effect.1.param": 0,
-		"slot.7.effect.1.param2": 0,
-		"slot.7.effect.2.param": 0,
-		"slot.7.effect.2.param2": 0,
-		"slot.7.effect.3.param": 0,
-		"slot.7.effect.3.param2": 0
-	},
-	"string": {
-		"displayname": "Test v0.0.30",
-		"slot.0.condpluginid": "",
-		"slot.0.condpackid": "mtf.lewdmarks-racemenu",
-		"slot.0.condentryid": "001",
-		"slot.0.effect.0.key": "",
-		"slot.0.effect.1.key": "",
-		"slot.0.effect.2.key": "",
-		"slot.0.effect.3.key": "",
-		"slot.1.condpluginid": "mtf.base:health.below",
-		"slot.1.condpackid": "",
-		"slot.1.condentryid": "010",
-		"slot.1.effect.0.key": "",
-		"slot.1.effect.1.key": "",
-		"slot.1.effect.2.key": "",
-		"slot.1.effect.3.key": "",
-		"slot.2.condpluginid": "mtf.base:state.weaponDrawn",
-		"slot.2.condpackid": "",
-		"slot.2.condentryid": "015",
-		"slot.2.effect.0.key": "",
-		"slot.2.effect.1.key": "",
-		"slot.2.effect.2.key": "",
-		"slot.2.effect.3.key": "",
-		"slot.3.condpluginid": "mtf.base:state.sprinting",
-		"slot.3.condpackid": "",
-		"slot.3.condentryid": "020",
-		"slot.3.effect.0.key": "",
-		"slot.3.effect.1.key": "",
-		"slot.3.effect.2.key": "",
-		"slot.3.effect.3.key": "",
-		"slot.4.condpluginid": "mtf.base:state.running",
-		"slot.4.condpackid": "",
-		"slot.4.condentryid": "025",
-		"slot.4.effect.0.key": "",
-		"slot.4.effect.1.key": "",
-		"slot.4.effect.2.key": "",
-		"slot.4.effect.3.key": "",
-		"slot.5.condpluginid": "mtf.base:location.playerHome",
-		"slot.5.condpackid": "",
-		"slot.5.condentryid": "030",
-		"slot.5.effect.0.key": "",
-		"slot.5.effect.1.key": "",
-		"slot.5.effect.2.key": "",
-		"slot.5.effect.3.key": "",
-		"slot.6.condpluginid": "mtf.base:location.indoors",
-		"slot.6.condpackid": "",
-		"slot.6.condentryid": "035",
-		"slot.6.effect.0.key": "",
-		"slot.6.effect.1.key": "",
-		"slot.6.effect.2.key": "",
-		"slot.6.effect.3.key": "",
-		"slot.7.condpluginid": "mtf.base:weather.rainy",
-		"slot.7.condpackid": "",
-		"slot.7.condentryid": "040",
-		"slot.7.effect.0.key": "",
-		"slot.7.effect.1.key": "",
-		"slot.7.effect.2.key": "",
-		"slot.7.effect.3.key": ""
-	}
+  "valid": 1,
+  "schemaversion": 4,
+  "displayname": "Test v0.0.31",
+  "slot": [
+    {
+      "cond": {
+        "pluginid": "",
+        "param": 0,
+        "packid": "mtf.lewdmarks-racemenu",
+        "entryid": "001"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "layer": [
+        {
+          "tint": "#FFFFFF",
+          "emissive": "#FFFFFF",
+          "emissivemult": 0,
+          "alpha": 100
+        },
+        {
+          "tint": "#FFFFFF",
+          "emissive": "#FFFFFF",
+          "emissivemult": 0,
+          "alpha": 80
+        },
+        {
+          "tint": "#FFFFFF",
+          "emissive": "#FFFFFF",
+          "emissivemult": 0,
+          "alpha": 100
+        },
+        {
+          "tint": "#FFFFFF",
+          "emissive": "#FFFFFF",
+          "emissivemult": 0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:health.below",
+        "param": 50,
+        "packid": "",
+        "entryid": "010"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "layer": [
+        {
+          "tint": "#FF0000",
+          "emissive": "#FF0000",
+          "emissivemult": 3,
+          "alpha": 100
+        },
+        {
+          "tint": "#FF0000",
+          "emissive": "#FF0000",
+          "emissivemult": 4,
+          "alpha": 80
+        },
+        {
+          "tint": "#FF0000",
+          "emissive": "#FF0000",
+          "emissivemult": 0,
+          "alpha": 100
+        },
+        {
+          "tint": "#FF0000",
+          "emissive": "#FF0000",
+          "emissivemult": 0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:state.weaponDrawn",
+        "param": 0,
+        "packid": "",
+        "entryid": "015"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "layer": [
+        {
+          "tint": "#FFA500",
+          "emissive": "#FFA500",
+          "emissivemult": 2,
+          "alpha": 100
+        },
+        {
+          "tint": "#FFA500",
+          "emissive": "#FFA500",
+          "emissivemult": 3,
+          "alpha": 80
+        },
+        {
+          "tint": "#FFA500",
+          "emissive": "#FFA500",
+          "emissivemult": 0,
+          "alpha": 100
+        },
+        {
+          "tint": "#FFA500",
+          "emissive": "#FFA500",
+          "emissivemult": 0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:state.sprinting",
+        "param": 0,
+        "packid": "",
+        "entryid": "020"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "layer": [
+        {
+          "tint": "#FFFF00",
+          "emissive": "#FFFF00",
+          "emissivemult": 2,
+          "alpha": 100
+        },
+        {
+          "tint": "#FFFF00",
+          "emissive": "#FFFF00",
+          "emissivemult": 3,
+          "alpha": 80
+        },
+        {
+          "tint": "#FFFF00",
+          "emissive": "#FFFF00",
+          "emissivemult": 0,
+          "alpha": 100
+        },
+        {
+          "tint": "#FFFF00",
+          "emissive": "#FFFF00",
+          "emissivemult": 0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:state.running",
+        "param": 0,
+        "packid": "",
+        "entryid": "025"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "layer": [
+        {
+          "tint": "#00FF00",
+          "emissive": "#00FF00",
+          "emissivemult": 1.5,
+          "alpha": 100
+        },
+        {
+          "tint": "#00FF00",
+          "emissive": "#00FF00",
+          "emissivemult": 2.5,
+          "alpha": 80
+        },
+        {
+          "tint": "#00FF00",
+          "emissive": "#00FF00",
+          "emissivemult": 0,
+          "alpha": 100
+        },
+        {
+          "tint": "#00FF00",
+          "emissive": "#00FF00",
+          "emissivemult": 0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:location.playerHome",
+        "param": 0,
+        "packid": "",
+        "entryid": "030"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "layer": [
+        {
+          "tint": "#0000FF",
+          "emissive": "#0000FF",
+          "emissivemult": 1.5,
+          "alpha": 100
+        },
+        {
+          "tint": "#0000FF",
+          "emissive": "#0000FF",
+          "emissivemult": 2.5,
+          "alpha": 80
+        },
+        {
+          "tint": "#0000FF",
+          "emissive": "#0000FF",
+          "emissivemult": 0,
+          "alpha": 100
+        },
+        {
+          "tint": "#0000FF",
+          "emissive": "#0000FF",
+          "emissivemult": 0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:location.indoors",
+        "param": 0,
+        "packid": "",
+        "entryid": "035"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "layer": [
+        {
+          "tint": "#FF00FF",
+          "emissive": "#FF00FF",
+          "emissivemult": 1.5,
+          "alpha": 100
+        },
+        {
+          "tint": "#FF00FF",
+          "emissive": "#FF00FF",
+          "emissivemult": 2.5,
+          "alpha": 80
+        },
+        {
+          "tint": "#FF00FF",
+          "emissive": "#FF00FF",
+          "emissivemult": 0,
+          "alpha": 100
+        },
+        {
+          "tint": "#FF00FF",
+          "emissive": "#FF00FF",
+          "emissivemult": 0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:weather.rainy",
+        "param": 0,
+        "packid": "",
+        "entryid": "040"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "layer": [
+        {
+          "tint": "#00FFFF",
+          "emissive": "#00FFFF",
+          "emissivemult": 1.5,
+          "alpha": 100
+        },
+        {
+          "tint": "#00FFFF",
+          "emissive": "#00FFFF",
+          "emissivemult": 2.5,
+          "alpha": 80
+        },
+        {
+          "tint": "#00FFFF",
+          "emissive": "#00FFFF",
+          "emissivemult": 0,
+          "alpha": 100
+        },
+        {
+          "tint": "#00FFFF",
+          "emissive": "#00FFFF",
+          "emissivemult": 0,
+          "alpha": 100
+        }
+      ]
+    }
+  ]
 }

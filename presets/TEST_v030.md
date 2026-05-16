@@ -1,15 +1,43 @@
-# Test cheat-sheet — v0.0.30
+# Test cheat-sheet — v0.0.30 (preset format: v0.0.31 schema v4)
 
 ## Setup
 
-1. Deploy preset (already done if you used the bash one-liner below):
+1. Deploy preset:
    ```
-   <MO2 mod>/SKSE/Plugins/StorageUtil/MagicTattoosFramework/presets/test_v030.json
+   <MO2 mod>/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets/test_v030.json
    ```
+   Note `StorageUtilData`, not `StorageUtil` — that's where `JsonInFolder` scans.
+
 2. In-game: MCM → Magic Tattoos Framework → General → Selected preset → pick
-   "Test v0.0.30" → Load selected.
+   "Test v0.0.31" → Load selected.
+
 3. The 8 slots are now configured. Each new condition gets a distinct color
    so you can see which is firing at a glance.
+
+## Preset format (schema v4 / v0.0.31+)
+
+Nested JSON tree with hex colors. Hand-authorable:
+
+```json
+{
+  "valid": 1,
+  "schemaversion": 4,
+  "displayname": "My Preset",
+  "slot": [
+    {
+      "cond":     {"pluginid": "mtf.base:health.below", "param": 50, "packid": "", "entryid": "010"},
+      "cooldown": {"min": 0, "mode": 0},
+      "layer":    [{"tint": "#FF0000", "emissive": "#FF0000", "emissivemult": 3.0, "alpha": 100}],
+      "effect":   [{"key": "mtf.base:burst.stagger", "param": 0, "param2": 0}]
+    },
+    ...
+  ]
+}
+```
+
+Hex colors accept `"#RRGGBB"` or `"RRGGBB"`. Decimal ints still work for
+backwards-compatibility. Effect rows can be omitted entirely if not used.
+Layer arrays under MAX_LAYERS_PER_SLOT (4) are fine — defaults fill in.
 
 ## Cascade (slot 1 highest priority → slot 7 lowest)
 
