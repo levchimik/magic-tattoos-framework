@@ -47,11 +47,12 @@ endFunction
 
 event OnConfigInit()
     ModName = "LewdMarks Effects"
-    Pages = new String[4]
+    Pages = new String[5]
     Pages[0] = "General"
     Pages[1] = "Conditions"
     Pages[2] = "Plugins"
     Pages[3] = "Menu Options"
+    Pages[4] = "Presets"
     _ensureMainQuest()
 endEvent
 
@@ -75,7 +76,7 @@ event OnVersionUpdate(int Version)
     ; via StartGameEnabled). Each migration block bumps _migrationLevel so the
     ; same block never runs twice even if OVU fires repeatedly.
     int ml = MainQuest._migrationLevel
-    if ml >= 14
+    if ml >= 15
         return
     endif
     if ml < 4 && CurrentVersion < 4
@@ -170,7 +171,16 @@ event OnVersionUpdate(int Version)
         ; v0.0.14: per-slot cooldown mode (0 = after-deactivate, 1 = lock-on-activate).
         MainQuest.cooldownMode = new int[8]
     endif
-    MainQuest._migrationLevel = 14
+    if ml < 15 && CurrentVersion < 15
+        ; v0.0.17: add "Presets" page (5th). OnConfigInit only sets Pages once.
+        Pages = new String[5]
+        Pages[0] = "General"
+        Pages[1] = "Conditions"
+        Pages[2] = "Plugins"
+        Pages[3] = "Menu Options"
+        Pages[4] = "Presets"
+    endif
+    MainQuest._migrationLevel = 15
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -184,6 +194,8 @@ event OnPageReset(string page)
         drawPluginsPage()
     elseif page == "Menu Options"
         drawMenuOptionsPage()
+    elseif page == "Presets"
+        drawPresetsPage()
     endif
 endEvent
 
@@ -2207,5 +2219,145 @@ state TOGGLE_32
     endEvent
     event OnHighlightST()
         _highlightToggle(31)
+    endEvent
+endState
+
+; ── Presets page ─────────────────────────────────────────────────────────────
+; A single MenuOption lists the saved presets; the user picks one with the
+; dropdown, then clicks Load or Delete. Save creates a new preset from the
+; current config. JSON files at
+;   Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/presets/<name>.json
+
+string[] _scratchPresetNames
+int      _scratchPresetCount = 0
+int      _selectedPresetIdx = -1
+
+function _refreshPresetNames()
+    _scratchPresetNames = MainQuest.ListPresets()
+    _scratchPresetCount = MainQuest.ListPresetsCount()
+    if _scratchPresetCount == 0
+        _selectedPresetIdx = -1
+        return
+    endif
+    if _selectedPresetIdx < 0 || _selectedPresetIdx >= _scratchPresetCount
+        _selectedPresetIdx = 0
+    endif
+endFunction
+
+string function _currentPresetLabel()
+    if _scratchPresetCount == 0 || _selectedPresetIdx < 0 || _selectedPresetIdx >= _scratchPresetCount
+        return "(none)"
+    endif
+    return MainQuest.GetPresetDisplayName(_scratchPresetNames[_selectedPresetIdx])
+endFunction
+
+function drawPresetsPage()
+    SetCursorFillMode(LEFT_TO_RIGHT)
+    _refreshPresetNames()
+
+    AddHeaderOption("Save")
+    AddInputOptionST("PRESET_SAVE_AS", "Save current as...", "(type a name)")
+
+    AddHeaderOption("Load / Delete")
+    AddMenuOptionST("PRESET_PICK", "Selected preset", _currentPresetLabel())
+    int loadFlag = OPTION_FLAG_NONE
+    int delFlag  = OPTION_FLAG_NONE
+    if _scratchPresetCount == 0 || _selectedPresetIdx < 0
+        loadFlag = OPTION_FLAG_DISABLED
+        delFlag  = OPTION_FLAG_DISABLED
+    endif
+    AddTextOptionST("PRESET_LOAD", "Load selected",   "", loadFlag)
+    AddTextOptionST("PRESET_DEL",  "Delete selected", "", delFlag)
+endFunction
+
+state PRESET_SAVE_AS
+    event OnInputOpenST()
+        SetInputDialogStartText("")
+    endEvent
+    event OnInputAcceptST(string a_input)
+        if a_input == ""
+            return
+        endif
+        if MainQuest.SavePreset(a_input)
+            Debug.Notification("LewdMarks: saved preset '" + a_input + "'")
+            ForcePageReset()
+        else
+            Debug.Notification("LewdMarks: invalid preset name")
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Type a name (letters/digits/_/-, max 32). Saves to Data/SKSE/Plugins/StorageUtilData/LewdMarksEffects/presets/<name>.json.")
+    endEvent
+endState
+
+state PRESET_PICK
+    event OnMenuOpenST()
+        if _scratchPresetCount == 0
+            string[] empty = new string[1]
+            empty[0] = "(no presets)"
+            SetMenuDialogOptions(empty)
+            SetMenuDialogStartIndex(0)
+            return
+        endif
+        string[] disp = new string[64]
+        int i = 0
+        while i < _scratchPresetCount
+            disp[i] = MainQuest.GetPresetDisplayName(_scratchPresetNames[i])
+            i += 1
+        endwhile
+        ; Note: disp has empty strings beyond _scratchPresetCount but SkyUI
+        ; ignores trailing empties in the dropdown.
+        SetMenuDialogOptions(disp)
+        int si = _selectedPresetIdx
+        if si < 0
+            si = 0
+        endif
+        SetMenuDialogStartIndex(si)
+        SetMenuDialogDefaultIndex(0)
+    endEvent
+    event OnMenuAcceptST(int a_index)
+        if _scratchPresetCount == 0 || a_index < 0 || a_index >= _scratchPresetCount
+            return
+        endif
+        _selectedPresetIdx = a_index
+        SetMenuOptionValueST(_currentPresetLabel())
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Pick a preset, then use Load or Delete below.")
+    endEvent
+endState
+
+state PRESET_LOAD
+    event OnSelectST()
+        if _selectedPresetIdx < 0 || _selectedPresetIdx >= _scratchPresetCount
+            return
+        endif
+        string nm = _scratchPresetNames[_selectedPresetIdx]
+        if MainQuest.LoadPreset(nm)
+            Debug.Notification("LewdMarks: loaded preset '" + MainQuest.GetPresetDisplayName(nm) + "'")
+            ForcePageReset()
+        else
+            Debug.Notification("LewdMarks: load failed")
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Apply the selected preset to all slots + plugin settings.")
+    endEvent
+endState
+
+state PRESET_DEL
+    event OnSelectST()
+        if _selectedPresetIdx < 0 || _selectedPresetIdx >= _scratchPresetCount
+            return
+        endif
+        string nm = _scratchPresetNames[_selectedPresetIdx]
+        if MainQuest.DeletePreset(nm)
+            Debug.Notification("LewdMarks: deleted preset '" + MainQuest.GetPresetDisplayName(nm) + "'")
+            _selectedPresetIdx = -1
+            ForcePageReset()
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Remove the selected preset.")
     endEvent
 endState

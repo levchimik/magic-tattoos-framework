@@ -172,6 +172,217 @@ Function SetHitArmedRT(int classIdx, float val)
     StorageUtil.SetFloatValue(self, "lme.hit.armed." + classIdx, val)
 EndFunction
 
+; ── Presets (PapyrusUtil JsonUtil, cross-save) ──────────────────────────────
+; One JSON file per preset under
+;   Data/SKSE/Plugins/StorageUtil/LewdMarksEffects/presets/<name>.json
+; JsonUtil has no native delete, so each file carries a `valid` int (1=live,
+; 0=deleted). ListPresets filters by it so the file can stay on disk harmless.
+; Captures slot config (cond + effects + cooldown + visuals) and each
+; registered plugin's per-plugin Setting values. Globals (ModActive, etc.)
+; are intentionally excluded.
+
+string Function _presetFile(string name)
+    return "LewdMarksEffects/presets/" + name
+EndFunction
+
+string Function _sanitizePresetName(string raw)
+    ; Keep only [A-Za-z0-9_-], cap length to 32. Anything else becomes "_".
+    if raw == ""
+        return ""
+    endif
+    string allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+    string out = ""
+    int i = 0
+    int maxL = 32
+    int rawLen = StringUtil.GetLength(raw)
+    while i < rawLen && i < maxL
+        string ch = StringUtil.Substring(raw, i, 1)
+        if StringUtil.Find(allowed, ch) >= 0
+            out += ch
+        else
+            out += "_"
+        endif
+        i += 1
+    endwhile
+    return out
+EndFunction
+
+bool Function SavePreset(string rawName)
+    string name = _sanitizePresetName(rawName)
+    if name == ""
+        return false
+    endif
+    string f = _presetFile(name)
+    JsonUtil.ClearAll(f)
+    JsonUtil.SetIntValue(f, "valid", 1)
+    JsonUtil.SetStringValue(f, "displayName", rawName)
+    JsonUtil.SetIntValue(f, "schemaVersion", 1)
+
+    EnsureArrays()
+    int s = 0
+    while s < 8
+        JsonUtil.SetStringValue(f, "slot." + s + ".condPluginId", condPluginId[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".condParam", condParam[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".condTextureNum", condTextureNum[s])
+        if condUseGlow[s]
+            JsonUtil.SetIntValue(f, "slot." + s + ".condUseGlow", 1)
+        else
+            JsonUtil.SetIntValue(f, "slot." + s + ".condUseGlow", 0)
+        endif
+        JsonUtil.SetIntValue(f, "slot." + s + ".condMarkTint", condMarkTint[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".condMarkEmissive", condMarkEmissive[s])
+        JsonUtil.SetFloatValue(f, "slot." + s + ".condMarkEmissiveMult", condMarkEmissiveMult[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".condMarkAlpha", condMarkAlpha[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".condHaloTint", condHaloTint[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".condHaloEmissive", condHaloEmissive[s])
+        JsonUtil.SetFloatValue(f, "slot." + s + ".condHaloEmissiveMult", condHaloEmissiveMult[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".condHaloAlpha", condHaloAlpha[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".cooldownMin", cooldownMin[s])
+        JsonUtil.SetIntValue(f, "slot." + s + ".cooldownMode", cooldownMode[s])
+        int e = 0
+        int maxE = MAX_EFFECTS_PER_SLOT()
+        while e < maxE
+            int fxI = s * maxE + e
+            JsonUtil.SetStringValue(f, "slot." + s + ".effect." + e + ".key", effectKey[fxI])
+            JsonUtil.SetIntValue(f, "slot." + s + ".effect." + e + ".param", effectParam[fxI])
+            e += 1
+        endwhile
+        s += 1
+    endwhile
+
+    ; Plugin settings — walk registered plugins; key by stable pluginId+settingId.
+    int p = 0
+    while p < pluginCount
+        sd_LME_Plugin plug = GetPluginAt(p)
+        if plug != None
+            string pid = plug.GetPluginId()
+            int n = plug.GetSettingCount()
+            int si = 0
+            while si < n
+                string sid = plug.GetSettingId(si)
+                JsonUtil.SetIntValue(f, "setting." + pid + "." + sid, plug.GetSettingValue(si))
+                si += 1
+            endwhile
+        endif
+        p += 1
+    endwhile
+
+    JsonUtil.Save(f)
+    return true
+EndFunction
+
+bool Function LoadPreset(string name)
+    string f = _presetFile(name)
+    if !JsonUtil.JsonExists(f)
+        return false
+    endif
+    if JsonUtil.GetIntValue(f, "valid", 0) != 1
+        return false
+    endif
+    EnsureArrays()
+
+    int s = 0
+    while s < 8
+        SetCondPluginId(s, JsonUtil.GetStringValue(f, "slot." + s + ".condPluginId", ""))
+        SetCondParam(s, JsonUtil.GetIntValue(f, "slot." + s + ".condParam", 0))
+        condTextureNum[s]       = JsonUtil.GetIntValue(f, "slot." + s + ".condTextureNum", 0)
+        condUseGlow[s]          = JsonUtil.GetIntValue(f, "slot." + s + ".condUseGlow", 0) == 1
+        condMarkTint[s]         = JsonUtil.GetIntValue(f, "slot." + s + ".condMarkTint", 16777215)
+        condMarkEmissive[s]     = JsonUtil.GetIntValue(f, "slot." + s + ".condMarkEmissive", 16777215)
+        condMarkEmissiveMult[s] = JsonUtil.GetFloatValue(f, "slot." + s + ".condMarkEmissiveMult", 1.0)
+        condMarkAlpha[s]        = JsonUtil.GetIntValue(f, "slot." + s + ".condMarkAlpha", 100)
+        condHaloTint[s]         = JsonUtil.GetIntValue(f, "slot." + s + ".condHaloTint", 16777215)
+        condHaloEmissive[s]     = JsonUtil.GetIntValue(f, "slot." + s + ".condHaloEmissive", 16777215)
+        condHaloEmissiveMult[s] = JsonUtil.GetFloatValue(f, "slot." + s + ".condHaloEmissiveMult", 1.0)
+        condHaloAlpha[s]        = JsonUtil.GetIntValue(f, "slot." + s + ".condHaloAlpha", 100)
+        cooldownMin[s]          = JsonUtil.GetIntValue(f, "slot." + s + ".cooldownMin", 0)
+        cooldownMode[s]         = JsonUtil.GetIntValue(f, "slot." + s + ".cooldownMode", 0)
+        int e = 0
+        int maxE = MAX_EFFECTS_PER_SLOT()
+        while e < maxE
+            int fxI = s * maxE + e
+            effectKey[fxI]   = JsonUtil.GetStringValue(f, "slot." + s + ".effect." + e + ".key", "")
+            effectParam[fxI] = JsonUtil.GetIntValue(f, "slot." + s + ".effect." + e + ".param", 0)
+            e += 1
+        endwhile
+        s += 1
+    endwhile
+
+    int p = 0
+    while p < pluginCount
+        sd_LME_Plugin plug = GetPluginAt(p)
+        if plug != None
+            string pid = plug.GetPluginId()
+            int n = plug.GetSettingCount()
+            int si = 0
+            while si < n
+                string sid = plug.GetSettingId(si)
+                int key = -999999
+                int v = JsonUtil.GetIntValue(f, "setting." + pid + "." + sid, key)
+                if v != key
+                    plug.SetSettingValue(si, v)
+                endif
+                si += 1
+            endwhile
+        endif
+        p += 1
+    endwhile
+
+    forceRedraw = true
+    return true
+EndFunction
+
+bool Function DeletePreset(string name)
+    string f = _presetFile(name)
+    if !JsonUtil.JsonExists(f)
+        return false
+    endif
+    JsonUtil.SetIntValue(f, "valid", 0)
+    JsonUtil.Save(f)
+    return true
+EndFunction
+
+string[] Function ListPresets()
+{Returns a fixed-size 64 array. Valid names come first; empty strings after.
+ Caller iterates and stops on the first empty string (or use ListPresetsCount).}
+    string[] raw = JsonUtil.JsonInFolder("LewdMarksEffects/presets")
+    string[] result = new string[64]
+    if raw == None || raw.Length == 0
+        return result
+    endif
+    int n = 0
+    int i = 0
+    while i < raw.Length && n < 64
+        string nm = raw[i]
+        int dot = StringUtil.Find(nm, ".json")
+        if dot > 0
+            nm = StringUtil.Substring(nm, 0, dot)
+        endif
+        if JsonUtil.GetIntValue(_presetFile(nm), "valid", 0) == 1
+            result[n] = nm
+            n += 1
+        endif
+        i += 1
+    endwhile
+    return result
+EndFunction
+
+int Function ListPresetsCount()
+    string[] r = ListPresets()
+    if r == None
+        return 0
+    endif
+    int i = 0
+    while i < r.Length && r[i] != ""
+        i += 1
+    endwhile
+    return i
+EndFunction
+
+string Function GetPresetDisplayName(string name)
+    return JsonUtil.GetStringValue(_presetFile(name), "displayName", name)
+EndFunction
+
 Function EnsureDisabledArray()
     if _disabledReady
         return

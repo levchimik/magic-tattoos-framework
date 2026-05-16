@@ -52,6 +52,23 @@ int Function AddColorOptionST(string a_stateName, string a_text, int a_color, in
     return 0
 EndFunction
 
+int Function AddInputOptionST(string a_stateName, string a_text, string a_value, int a_flags = 0)
+    return 0
+EndFunction
+
+int Function AddTextOptionST(string a_stateName, string a_text, string a_value, int a_flags = 0)
+    return 0
+EndFunction
+
+Function SetTextOptionValueST(string a_value, bool a_noUpdate = false, string a_stateName = "")
+EndFunction
+
+Function SetInputOptionValueST(string a_value, bool a_noUpdate = false, string a_stateName = "")
+EndFunction
+
+Function SetInputDialogStartText(string a_text)
+EndFunction
+
 Function SetToggleOptionValueST(bool a_checked, bool a_noUpdate = false, string a_stateName = "")
 EndFunction
 
@@ -123,4 +140,13 @@ Event OnColorOpenST()
 EndEvent
 
 Event OnColorAcceptST(int a_color)
+EndEvent
+
+Event OnInputOpenST()
+EndEvent
+
+Event OnInputAcceptST(string a_input)
+EndEvent
+
+Event OnHighlightST()
 EndEvent
