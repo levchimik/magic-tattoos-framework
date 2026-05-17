@@ -110,12 +110,49 @@ EndFunction
 Event OnPlayerLoadGame()
     RefreshSubjectHotkey()
     _registerLifecycleEvents()
+    _ensureDebugSpell()
+    _autoEnableTestBranch()
 EndEvent
 
 Event OnInit()
     RefreshSubjectHotkey()
     _registerLifecycleEvents()
+    _ensureDebugSpell()
+    _autoEnableTestBranch()
 EndEvent
+
+Function _ensureDebugSpell()
+{Idempotent: gives the player MTF_Spell_DebugApply once per save so the
+ console workflow `player.cast <id> <npcRefId>` is always available.}
+    Spell s = Game.GetFormFromFile(0x81A, "MagicTattoosFramework.esp") as Spell
+    if s == None
+        return
+    endif
+    Actor p = Game.GetPlayer()
+    if p != None && !p.HasSpell(s)
+        p.AddSpell(s, false)
+    endif
+EndFunction
+
+Function _autoEnableTestBranch()
+{Test-branch convenience: ensure Enable+Debug are ON every save load AND
+ force the host into checkingAroused state so the OnUpdate loop fires.
+ Without the GotoState the slow-tick rotation never runs — ModActive is
+ just a flag; the state machine is what drives the loop. Revert before
+ shipping.}
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    if !h.ModActive
+        h.ModActive = true
+    endif
+    if !h.DebugMode
+        h.DebugMode = true
+    endif
+    h.setRedraw()
+    h.GotoState("checkingAroused")
+EndFunction
 
 ; ── PO3 PapyrusExtender lifecycle events ────────────────────────────────────
 ; The PO3 OnActorKilled / OnObjectLoaded / OnObjectUnloaded events fire on

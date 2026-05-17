@@ -56,21 +56,28 @@ int[]   Property condPulseDepth Auto
 ; buffer is transient — re-populated by _loadPresetToScratch on switch.
 ; Per-actor scalars (tier, cooldowns, pulse phase, suspended/killed flags)
 ; live in StorageUtil keyed on the actor form, NOT here.
-string[] Property _sCondPluginId       Auto Hidden
-int[]    Property _sCondParam          Auto Hidden
-string[] Property _sCondPackId         Auto Hidden
-string[] Property _sCondEntryId        Auto Hidden
-int[]    Property _sCondLayerTint      Auto Hidden
-int[]    Property _sCondLayerEmissive  Auto Hidden
-float[]  Property _sCondLayerEmissiveMult Auto Hidden
-int[]    Property _sCondLayerAlpha     Auto Hidden
-float[]  Property _sCondPulseRate      Auto Hidden
-int[]    Property _sCondPulseDepth     Auto Hidden
-string[] Property _sEffectKey          Auto Hidden
-int[]    Property _sEffectParam        Auto Hidden
-int[]    Property _sEffectParam2       Auto Hidden
-int[]    Property _sCooldownMin        Auto Hidden
-int[]    Property _sCooldownMode       Auto Hidden
+; NOTE: These were Auto Hidden Properties. Indexed writes to property
+; arrays in Papyrus hit a transient copy (see the SetCondPluginId helper
+; comment for the same bug on the player slot arrays). The _loadPresetToScratch
+; loop's `_sCondPluginId[s] = ...` was silently no-oping, and reads later
+; returned whatever transient snapshot Papyrus reused — including a stale
+; JSON path string from a different array. Switching to script-level vars
+; gives us real backing storage and fixes NPC condition eval entirely.
+string[] _sCondPluginId
+int[]    _sCondParam
+string[] _sCondPackId
+string[] _sCondEntryId
+int[]    _sCondLayerTint
+int[]    _sCondLayerEmissive
+float[]  _sCondLayerEmissiveMult
+int[]    _sCondLayerAlpha
+float[]  _sCondPulseRate
+int[]    _sCondPulseDepth
+string[] _sEffectKey
+int[]    _sEffectParam
+int[]    _sEffectParam2
+int[]    _sCooldownMin
+int[]    _sCooldownMode
 string   _scratchLoadedFor = ""
 
 ; ── NPC pulse roster (v0.0.33) ───────────────────────────────────────────────
@@ -193,6 +200,11 @@ EndFunction
 Event OnInit()
     Trace("[MTF_Main] OnInit")
     EnsureArrays()
+    ; Test-branch convenience: auto-enable mod + debug toasts on new game so
+    ; we don't have to walk through MCM > General every iteration. Revert
+    ; before shipping.
+    ModActive = true
+    DebugMode = true
 EndEvent
 
 ; ── Lifecycle callbacks (called from MTF_HitListener via PO3 events) ───────
@@ -1686,6 +1698,40 @@ bool Function _slotHasEffects(int slot)
     return false
 EndFunction
 
+Function _notifyTierChangeForActor(Actor target, int tier, bool useScratch)
+{Debug-only toast for NPC tier transitions. Reads effect labels from
+ scratch (preset loaded for `target`) so the message matches what
+ actually got applied. Same format as the player notification but
+ prefixed with the actor's display name so we can distinguish them
+ in NotificationLog.}
+    if !DebugMode || target == None
+        return
+    endif
+    string nm = target.GetDisplayName()
+    if tier <= 0
+        Notification("MTF: " + nm + " - condition cleared")
+        return
+    endif
+    string msg = "MTF: " + nm + " - Tier " + tier
+    int base = _fxBaseIdx(tier)
+    int e = 0
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while e < maxE
+        string key = _g_effectKey(base + e, useScratch)
+        if key != ""
+            MTF_Plugin p = ResolvePluginByKey(key)
+            if p != None
+                int itemIdx = _effectIdxFor(p, _keyItemId(key))
+                if itemIdx >= 0
+                    msg += " - " + p.GetEffectLabel(itemIdx) + " " + _g_effectParam(base + e, useScratch)
+                endif
+            endif
+        endif
+        e += 1
+    endwhile
+    Notification(msg)
+EndFunction
+
 Function _notifyTierChange(int tier)
 {Debug-only toast describing the new tier and its configured effects.}
     if !DebugMode
@@ -2180,6 +2226,9 @@ EndFunction
 
 ; ── Scratch buffer ──────────────────────────────────────────────────────────
 Function _ensureScratchArrays()
+    ; Allocate once. Re-allocating each call would WIPE the cached preset
+    ; data — _loadPresetToScratch's cache check returns early without
+    ; re-loading, so the second eval tick would see empty arrays.
     if _sCondPluginId == None
         _sCondPluginId          = new string[8]
         _sCondParam             = new int[8]
@@ -2229,39 +2278,75 @@ bool Function _loadPresetToScratch(string name)
     endif
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
+    ; Build into LOCAL arrays inside the loop, then assign each whole array
+    ; back to the script-level vars at the end. Indexed writes to script-
+    ; level array vars on quest scripts can hit transient copies just like
+    ; properties (same Papyrus quirk). Whole-array reference assignment is
+    ; the only pattern that reliably persists.
+    string[] localCondPluginId    = new string[8]
+    int[]    localCondParam       = new int[8]
+    string[] localCondPackId      = new string[8]
+    string[] localCondEntryId     = new string[8]
+    int[]    localCooldownMin     = new int[8]
+    int[]    localCooldownMode    = new int[8]
+    float[]  localPulseRate       = new float[8]
+    int[]    localPulseDepth      = new int[8]
+    int[]    localLayerTint       = new int[32]
+    int[]    localLayerEmissive   = new int[32]
+    float[]  localLayerEmMult     = new float[32]
+    int[]    localLayerAlpha      = new int[32]
+    string[] localEffectKey       = new string[32]
+    int[]    localEffectParam     = new int[32]
+    int[]    localEffectParam2    = new int[32]
     int s = 0
     while s < 8
         string sp = ".slot[" + s + "]"
-        _sCondPluginId[s] = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
-        _sCondParam[s]    = JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0)
-        _sCondPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",   "")
-        _sCondEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid",  "")
-        _sCooldownMin[s]  = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.min",  0)
-        _sCooldownMode[s] = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
-        _sCondPulseRate[s]  = JsonUtil.GetPathFloatValue(f, sp + ".pulse.rate",  0.0)
-        _sCondPulseDepth[s] = JsonUtil.GetPathIntValue(f,   sp + ".pulse.depth", 0)
+        localCondPluginId[s] = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
+        localCondParam[s]    = JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0)
+        localCondPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",   "")
+        localCondEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid",  "")
+        localCooldownMin[s]  = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.min",  0)
+        localCooldownMode[s] = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
+        localPulseRate[s]    = JsonUtil.GetPathFloatValue(f,  sp + ".pulse.rate",   0.0)
+        localPulseDepth[s]   = JsonUtil.GetPathIntValue(f,    sp + ".pulse.depth",  0)
         _setScratchPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
         int L = 0
         while L < maxL
             int li = s * maxL + L
             string lp = sp + ".layer[" + L + "]"
-            _sCondLayerTint[li]         = _readColor(f, lp + ".tint",         16777215)
-            _sCondLayerEmissive[li]     = _readColor(f, lp + ".emissive",     16777215)
-            _sCondLayerEmissiveMult[li] = JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 0.0)
-            _sCondLayerAlpha[li]        = JsonUtil.GetPathIntValue(f,   lp + ".alpha",        100)
+            localLayerTint[li]     = _readColor(f, lp + ".tint",         16777215)
+            localLayerEmissive[li] = _readColor(f, lp + ".emissive",     16777215)
+            localLayerEmMult[li]   = JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 0.0)
+            localLayerAlpha[li]    = JsonUtil.GetPathIntValue(f,   lp + ".alpha",        100)
             L += 1
         endwhile
         int e = 0
         while e < maxE
             int fxI = s * maxE + e
             string ep = sp + ".effect[" + e + "]"
-            _sEffectKey[fxI]    = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
-            _sEffectParam[fxI]  = JsonUtil.GetPathIntValue(f,    ep + ".param",  0)
-            _sEffectParam2[fxI] = JsonUtil.GetPathIntValue(f,    ep + ".param2", 0)
+            localEffectKey[fxI]    = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
+            localEffectParam[fxI]  = JsonUtil.GetPathIntValue(f,    ep + ".param",  0)
+            localEffectParam2[fxI] = JsonUtil.GetPathIntValue(f,    ep + ".param2", 0)
             e += 1
         endwhile
         s += 1
     endwhile
+    ; Whole-array reference assignments — the safe pattern.
+    _sCondPluginId          = localCondPluginId
+    _sCondParam             = localCondParam
+    _sCondPackId            = localCondPackId
+    _sCondEntryId           = localCondEntryId
+    _sCooldownMin           = localCooldownMin
+    _sCooldownMode          = localCooldownMode
+    _sCondPulseRate         = localPulseRate
+    _sCondPulseDepth        = localPulseDepth
+    _sCondLayerTint         = localLayerTint
+    _sCondLayerEmissive     = localLayerEmissive
+    _sCondLayerEmissiveMult = localLayerEmMult
+    _sCondLayerAlpha        = localLayerAlpha
+    _sEffectKey             = localEffectKey
+    _sEffectParam           = localEffectParam
+    _sEffectParam2          = localEffectParam2
     _scratchLoadedFor = name
     return true
 EndFunction
@@ -2898,6 +2983,7 @@ Function _processTrackedActorOnce(Actor target)
         else
             _rosterRemoveActor(target)
         endif
+        _notifyTierChangeForActor(target, now, true)
     endif
     if now > 0
         _tickSlotEffectsForActor(target, now, true)

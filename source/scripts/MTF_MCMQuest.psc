@@ -2918,30 +2918,14 @@ EndFunction
 int _subjectsPage = 0
 int _currentSubjectAbsIdx = -1   ; absolute idx into the tracked list
 
-; Cached preset names list — built fresh on every Subjects page open.
-string[] _subjPresetNames
-int _subjPresetCount = 0
-
 Function _refreshSubjectPresets()
-    if _subjPresetNames == None
-        _subjPresetNames = new string[64]
-    endif
-    int i = 0
-    while i < _subjPresetNames.Length
-        _subjPresetNames[i] = ""
-        i += 1
-    endwhile
-    string[] raw = MainQuest.ListPresets()
-    _subjPresetCount = 0
-    if raw == None
-        return
-    endif
-    int j = 0
-    while j < raw.Length && _subjPresetCount < _subjPresetNames.Length && raw[j] != ""
-        _subjPresetNames[_subjPresetCount] = raw[j]
-        _subjPresetCount += 1
-        j += 1
-    endwhile
+{Subjects originally cached its own preset list (_scratchPresetNames / _scratchPresetCount),
+ but `MainQuest.ListPresets()` returns None when called from inside this script's
+ state event handlers (Papyrus cross-script array-return quirk; same call works
+ fine from drawGeneralPage). Workaround: delegate to General's _refreshPresetNames
+ and use its _scratchPresetNames / _scratchPresetCount, which are populated from
+ the same source but via a code path that doesn't hit the bug.}
+    _refreshPresetNames()
 EndFunction
 
 function drawSubjectsPage()
@@ -3051,12 +3035,12 @@ Function _subjectRowSelect()
 
     ; Build action options: [preset1..N, "—", "Remove subject", "Cancel"]
     _refreshSubjectPresets()
-    int presetN = _subjPresetCount
+    int presetN = _scratchPresetCount
     int total = presetN + 3
     string[] opts = Utility.CreateStringArray(total)
     int i = 0
     while i < presetN
-        opts[i] = MainQuest.GetPresetDisplayName(_subjPresetNames[i])
+        opts[i] = MainQuest.GetPresetDisplayName(_scratchPresetNames[i])
         i += 1
     endwhile
     opts[presetN]     = "—"
@@ -3071,7 +3055,7 @@ Function _subjectRowAccept(int index)
         return
     endif
     Actor a = MainQuest.GetTrackedAt(_currentSubjectAbsIdx)
-    int presetN = _subjPresetCount
+    int presetN = _scratchPresetCount
     if index < 0 || index == presetN || index == presetN + 2
         ; Cancel / separator
         _currentSubjectAbsIdx = -1
@@ -3085,7 +3069,7 @@ Function _subjectRowAccept(int index)
             StorageUtil.FormListRemoveAt(MainQuest, "mtf.tracked", _currentSubjectAbsIdx)
         endif
     elseif index >= 0 && index < presetN
-        string nm = _subjPresetNames[index]
+        string nm = _scratchPresetNames[index]
         if a != None
             MainQuest.SetActorPreset(a, nm)
             MainQuest.EvalAndDrawActor(a)
@@ -3115,7 +3099,10 @@ state SUBJ_HOTKEY
         MainQuest.SetSubjectHotkey(newKeyCode)
         ; The hotkey is held by MTF_HitListener (alias on player). Forward
         ; the registration change to it.
-        ReferenceAlias al = (MainQuest as Quest).GetAlias(0) as ReferenceAlias
+        ; PlayerAlias is at alias ID 1 (NextAliasID=2 in the ESP). Using
+        ; GetAlias(0) silently returned None — RefreshSubjectHotkey was never
+        ; called, RegisterForKey never ran, OnKeyDown never fired.
+        ReferenceAlias al = (MainQuest as Quest).GetAlias(1) as ReferenceAlias
         if al != None
             (al as MTF_HitListener).RefreshSubjectHotkey()
         endif
@@ -3129,12 +3116,12 @@ endState
 state SUBJ_DEFAULT_PRESET
     event OnMenuOpenST()
         _refreshSubjectPresets()
-        int n = _subjPresetCount
+        int n = _scratchPresetCount
         string[] opts = Utility.CreateStringArray(n + 1)
         opts[0] = "(none)"
         int i = 0
         while i < n
-            opts[i + 1] = MainQuest.GetPresetDisplayName(_subjPresetNames[i])
+            opts[i + 1] = MainQuest.GetPresetDisplayName(_scratchPresetNames[i])
             i += 1
         endwhile
         int curIdx = 0
@@ -3142,7 +3129,7 @@ state SUBJ_DEFAULT_PRESET
         if cur != ""
             int j = 0
             while j < n
-                if _subjPresetNames[j] == cur
+                if _scratchPresetNames[j] == cur
                     curIdx = j + 1
                 endif
                 j += 1
@@ -3157,8 +3144,8 @@ state SUBJ_DEFAULT_PRESET
             MainQuest.SetDefaultSubjectPreset("")
         else
             int p = index - 1
-            if p < _subjPresetCount
-                MainQuest.SetDefaultSubjectPreset(_subjPresetNames[p])
+            if p < _scratchPresetCount
+                MainQuest.SetDefaultSubjectPreset(_scratchPresetNames[p])
             endif
         endif
         SetMenuOptionValueST(_defaultSubjectPresetLabel())

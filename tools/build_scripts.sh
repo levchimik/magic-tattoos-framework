@@ -10,6 +10,7 @@ CAPRICA="F:/stuff/Skyrim modding/tools/Caprica/Caprica.exe"
 FLAGS="S:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data/Source/Scripts/TESV_Papyrus_Flags.flg"
 SRC="$PROJ/source/scripts"
 DEPS="$PROJ/_deps"
+DEPLOY="F:/Modlists/Modding Essentials/mods/MagicTattoosFramework/scripts"
 
 cd "$SRC"
 
@@ -25,3 +26,14 @@ for t in "${targets[@]}"; do
     "$CAPRICA" --game skyrim -f "$FLAGS" -i ".;$DEPS" -o . "$f"
 done
 echo "Build OK"
+
+# Deploy to MO2 so the running game / next launch picks up changes.
+# Without this, source/scripts/*.pex stays current but the game keeps
+# loading the stale copies under MO2 — exactly the trap that ate a
+# couple of test cycles on 2026-05-17.
+if [[ -d "$DEPLOY" ]]; then
+    cp -u "$SRC"/*.pex "$DEPLOY/"
+    echo "Deployed to $DEPLOY"
+else
+    echo "WARNING: deploy dir not found, skipping: $DEPLOY"
+fi
