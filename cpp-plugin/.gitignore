@@ -1,0 +1,16 @@
+build/
+install/
+out/
+.vs/
+CMakeUserPresets.json
+*.user
+
+# Cloned by build.bat — not vendored in our repo.
+extern/
+
+# vcpkg manifest install output — regenerated on every build.
+vcpkg_installed/
+
+# Reference dump of SKEE headers (expired6978/SKSE64Plugins/skee64).
+# Used as documentation while authoring skee_interface.h; not part of build.
+_skee_ref/
