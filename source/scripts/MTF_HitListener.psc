@@ -79,3 +79,136 @@ Event OnHit(ObjectReference akAggressor, Form akSource, Projectile akProjectile,
     endif
     p._onHit(cls)
 EndEvent
+
+; ── Subject-hotkey forwarding ────────────────────────────────────────────────
+; ReferenceAlias scripts can RegisterForKey; the host Quest (MTF_MainQuest)
+; can't. We hold the registration here and forward OnKeyDown into the host.
+
+MTF_MainQuest Function _host()
+    return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
+EndFunction
+
+Function RefreshSubjectHotkey()
+{Re-bind the player's RegisterForKey to the host's GetSubjectHotkey().
+ Called by OnInit (via alias OnPlayerLoadGame), by MCM on hotkey change,
+ and by the version migration block.}
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int wanted = h.GetSubjectHotkey()
+    int prev   = StorageUtil.GetIntValue(h, "mtf.subject.hotkey.registered", -1)
+    if prev >= 0 && prev != wanted
+        UnregisterForKey(prev)
+    endif
+    if wanted >= 0
+        RegisterForKey(wanted)
+    endif
+    StorageUtil.SetIntValue(h, "mtf.subject.hotkey.registered", wanted)
+EndFunction
+
+Event OnPlayerLoadGame()
+    RefreshSubjectHotkey()
+    _registerLifecycleEvents()
+    _ensureDebugSpell()
+    _autoEnableTestBranch()
+EndEvent
+
+Event OnInit()
+    RefreshSubjectHotkey()
+    _registerLifecycleEvents()
+    _ensureDebugSpell()
+    _autoEnableTestBranch()
+EndEvent
+
+Function _ensureDebugSpell()
+{Idempotent: gives the player MTF_Spell_DebugApply once per save so the
+ console workflow `player.cast <id> <npcRefId>` is always available.}
+    Spell s = Game.GetFormFromFile(0x81A, "MagicTattoosFramework.esp") as Spell
+    if s == None
+        return
+    endif
+    Actor p = Game.GetPlayer()
+    if p != None && !p.HasSpell(s)
+        p.AddSpell(s, false)
+    endif
+EndFunction
+
+Function _autoEnableTestBranch()
+{Test-branch convenience: ensure Enable+Debug are ON every save load AND
+ force the host into checkingAroused state so the OnUpdate loop fires.
+ Without the GotoState the slow-tick rotation never runs — ModActive is
+ just a flag; the state machine is what drives the loop. Revert before
+ shipping.}
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    if !h.ModActive
+        h.ModActive = true
+    endif
+    if !h.DebugMode
+        h.DebugMode = true
+    endif
+    h.setRedraw()
+    h.GotoState("checkingAroused")
+EndFunction
+
+; ── PO3 PapyrusExtender lifecycle events ────────────────────────────────────
+; The PO3 OnActorKilled / OnObjectLoaded / OnObjectUnloaded events fire on
+; any ReferenceAlias registered with the global PO3_Events_Alias helpers,
+; regardless of which actor the alias is forced onto. We use the player
+; alias as a convenient host. Form type 43 = Actor.
+
+int Function FORMTYPE_ACTOR() global
+    return 43
+EndFunction
+
+Function _registerLifecycleEvents()
+    PO3_Events_Alias.RegisterForActorKilled(self)
+    PO3_Events_Alias.RegisterForObjectLoaded(self, FORMTYPE_ACTOR())
+EndFunction
+
+Event OnActorKilled(Actor akVictim, Actor akKiller)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    h._onTrackedActorKilled(akVictim)
+EndEvent
+
+Event OnObjectLoaded(ObjectReference akRef, int aiFormType)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    Actor a = akRef as Actor
+    if a == None
+        return
+    endif
+    h._onTrackedActorAttached(a)
+EndEvent
+
+Event OnObjectUnloaded(ObjectReference akRef, int aiFormType)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    Actor a = akRef as Actor
+    if a == None
+        return
+    endif
+    h._onTrackedActorDetached(a)
+EndEvent
+
+Event OnKeyDown(int keyCode)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int wanted = h.GetSubjectHotkey()
+    if wanted < 0 || keyCode != wanted
+        return
+    endif
+    h._hotkeyAddCrosshairTarget()
+EndEvent

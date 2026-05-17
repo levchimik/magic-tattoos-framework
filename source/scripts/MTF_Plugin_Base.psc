@@ -58,6 +58,10 @@ Scriptname MTF_Plugin_Base extends MTF_Plugin
  counter increment per check and roll the slot's chance%. The result
  stays "armed" for HIT_VISIBLE_SECONDS so the mark is visible briefly.}
 
+; LEGACY (pre-v0.0.33): per-quest applied state. Replaced by per-actor
+; StorageUtil keyed on target. Properties retained for save-file
+; compatibility and one-shot migration in _migrateLegacyApplied.
+; Do NOT read or write these from new code — use _getApplied/_setApplied.
 float Property _appliedMana       = 0.0 Auto Hidden
 float Property _appliedCarry      = 0.0 Auto Hidden
 float Property _appliedSneak      = 0.0 Auto Hidden
@@ -66,6 +70,8 @@ float Property _appliedStamRate   = 0.0 Auto Hidden
 float Property _appliedAtkDmg     = 0.0 Auto Hidden
 float Property _appliedDmgResist  = 0.0 Auto Hidden
 float Property _appliedSpellCost  = 0.0 Auto Hidden
+bool  Property _legacyMigrated    = false Auto Hidden
+
 Spell  Property _costPenaltySpell        Auto Hidden
 
 ; Lazy-resolved location keywords (Skyrim.esm, no master needed).
@@ -643,40 +649,25 @@ string Function _avNameFor(int idx)
     return ""
 EndFunction
 
-float Function _getApplied(int idx)
-    if idx == 0
-        return _appliedMana
-    elseif idx == 1
-        return _appliedCarry
-    elseif idx == 2
-        return _appliedSneak
-    elseif idx == 5
-        return _appliedSpeed
-    elseif idx == 6
-        return _appliedStamRate
-    elseif idx == 7
-        return _appliedAtkDmg
-    elseif idx == 8
-        return _appliedDmgResist
+; Per-actor applied state via StorageUtil. Keys: "mtf.applied.<idx>".
+; Previously stored on the plugin quest itself as _appliedMana/Carry/etc.;
+; moved to per-actor storage in v0.0.33 so different NPCs can carry
+; independent applied magnitudes without thrashing each other.
+float Function _getApplied(int idx, Actor target)
+    if target == None
+        return 0.0
     endif
-    return 0.0
+    return StorageUtil.GetFloatValue(target, "mtf.applied." + idx, 0.0)
 EndFunction
 
-Function _setApplied(int idx, float v)
-    if idx == 0
-        _appliedMana = v
-    elseif idx == 1
-        _appliedCarry = v
-    elseif idx == 2
-        _appliedSneak = v
-    elseif idx == 5
-        _appliedSpeed = v
-    elseif idx == 6
-        _appliedStamRate = v
-    elseif idx == 7
-        _appliedAtkDmg = v
-    elseif idx == 8
-        _appliedDmgResist = v
+Function _setApplied(int idx, Actor target, float v)
+    if target == None
+        return
+    endif
+    if v == 0.0
+        StorageUtil.UnsetFloatValue(target, "mtf.applied." + idx)
+    else
+        StorageUtil.SetFloatValue(target, "mtf.applied." + idx, v)
     endif
 EndFunction
 
@@ -685,22 +676,22 @@ Function _recompute(int idx, Actor target, int param)
     if av == "" || target == None
         return
     endif
-    float prev = _getApplied(idx)
+    float prev = _getApplied(idx, target)
     if prev != 0.0
         target.ModActorValue(av, prev)
     endif
     if param <= 0
-        _setApplied(idx, 0.0)
+        _setApplied(idx, target, 0.0)
         return
     endif
     float current = target.GetActorValue(av)
     if current <= 0.0
-        _setApplied(idx, 0.0)
+        _setApplied(idx, target, 0.0)
         return
     endif
     float amt = current * param / 100.0
     target.ModActorValue(av, -amt)
-    _setApplied(idx, amt)
+    _setApplied(idx, target, amt)
 EndFunction
 
 Function _burstDrain(string av, Actor target, int param)
@@ -732,7 +723,14 @@ Function _applyCostPenalty(Actor target, int param)
     endif
     ; SetNthEffectMagnitude does not affect already-added abilities;
     ; must remove → mutate → re-add. Also does not persist across save/load
-    ; — onTick re-applies if _appliedSpellCost drifts from current param.
+    ; — onTick re-applies if applied magnitude drifts from current param.
+    ;
+    ; NOTE: SetNthEffectMagnitude mutates the *shared* spell form. If two
+    ; actors have this effect with different params, the most recent
+    ; activation's magnitude is what every actor's instance of the ability
+    ; will use until re-applied. Per-actor `mtf.applied.spellcost` tracking
+    ; keeps onTick stable per actor, but cross-actor magnitude conflicts are
+    ; a known limitation (would need per-actor cloned spell forms to fix).
     target.RemoveSpell(s)
     float mag = -(param as float)
     int i = 0
@@ -741,7 +739,7 @@ Function _applyCostPenalty(Actor target, int param)
         i += 1
     endwhile
     target.AddSpell(s, false)
-    _appliedSpellCost = mag
+    StorageUtil.SetFloatValue(target, "mtf.applied.spellcost", mag)
 EndFunction
 
 Function _removeCostPenalty(Actor target)
@@ -753,7 +751,7 @@ Function _removeCostPenalty(Actor target)
         return
     endif
     target.RemoveSpell(s)
-    _appliedSpellCost = 0.0
+    StorageUtil.UnsetFloatValue(target, "mtf.applied.spellcost")
 EndFunction
 
 Function _alertNearby(Actor target, int paramMeters)
@@ -811,8 +809,62 @@ Function onTick(int idx, Actor target, int param, int param2)
     elseif idx == 11
         ; Re-apply if param changed (slider) or after save/load (magnitude
         ; reverts to ESP default which is 0). Skip when already in sync.
-        if _appliedSpellCost != -(param as float)
+        float applied = StorageUtil.GetFloatValue(target, "mtf.applied.spellcost", 0.0)
+        if applied != -(param as float)
             _applyCostPenalty(target, param)
         endif
     endif
+EndFunction
+
+; ── Legacy migration (v0.0.32 → v0.0.33) ─────────────────────────────────────
+; Pre-v0.0.33, applied magnitudes lived on this script's quest as plain
+; floats (_appliedMana, _appliedCarry, …). v0.0.33 moves them to per-actor
+; StorageUtil so NPC subjects can carry independent state. On the version
+; bump there's a one-shot: any leftover magnitude that was modded onto the
+; *player's* actor values via those legacy floats must be backed out from
+; the player and the legacy floats zeroed, otherwise on first recompute
+; under the new code prev=0 (new key empty) and we'd stack a fresh delta on
+; top of the already-applied legacy delta. Called by MTF_MainQuest version
+; migration. Safe to call repeatedly — _legacyMigrated guards re-runs.
+Function _migrateLegacyApplied(Actor player)
+    if _legacyMigrated
+        return
+    endif
+    if player == None
+        return
+    endif
+    _migrateLegacyOne(0, "MagickaRateMult",  _appliedMana,      player)
+    _migrateLegacyOne(1, "CarryWeight",      _appliedCarry,     player)
+    _migrateLegacyOne(2, "Sneak",            _appliedSneak,     player)
+    _migrateLegacyOne(5, "SpeedMult",        _appliedSpeed,     player)
+    _migrateLegacyOne(6, "StaminaRateMult",  _appliedStamRate,  player)
+    _migrateLegacyOne(7, "AttackDamageMult", _appliedAtkDmg,    player)
+    _migrateLegacyOne(8, "DamageResist",     _appliedDmgResist, player)
+
+    ; Spell-cost: back out any in-flight magnitude by removing the spell;
+    ; onTick re-applies cleanly under per-actor tracking next loop.
+    if _appliedSpellCost != 0.0
+        Spell s = _resolveCostPenaltySpell()
+        if s != None
+            player.RemoveSpell(s)
+        endif
+        _appliedSpellCost = 0.0
+    endif
+
+    _appliedMana      = 0.0
+    _appliedCarry     = 0.0
+    _appliedSneak     = 0.0
+    _appliedSpeed     = 0.0
+    _appliedStamRate  = 0.0
+    _appliedAtkDmg    = 0.0
+    _appliedDmgResist = 0.0
+    _legacyMigrated   = true
+EndFunction
+
+Function _migrateLegacyOne(int idx, string av, float legacyVal, Actor player)
+    if legacyVal == 0.0
+        return
+    endif
+    player.ModActorValue(av, legacyVal)
+    StorageUtil.UnsetFloatValue(player, "mtf.applied." + idx)
 EndFunction

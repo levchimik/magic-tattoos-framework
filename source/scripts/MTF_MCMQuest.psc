@@ -41,11 +41,12 @@ endFunction
 
 event OnConfigInit()
     ModName = "Magic Tattoos Framework"
-    Pages = new String[4]
+    Pages = new String[5]
     Pages[0] = "General"
     Pages[1] = "Conditions"
-    Pages[2] = "Plugins"
-    Pages[3] = "Menu Options"
+    Pages[2] = "Subjects"
+    Pages[3] = "Plugins"
+    Pages[4] = "Menu Options"
     _ensureMainQuest()
 endEvent
 
@@ -75,7 +76,27 @@ event OnVersionUpdate(int Version)
     ; applied. Once we ship, the next migration must be a non-destructive
     ; ml<20 block added below this one.
     int ml = MainQuest._migrationLevel
+    if ml >= 33
+        return
+    endif
+    ; v0.0.33 (ml=33): non-destructive. Two things:
+    ;   1. Back out any legacy per-quest applied magnitudes on Plugin_Base
+    ;      (mana/carry/sneak/speed/staminaRate/atkDmg/dmgResist/spellCost)
+    ;      now that they live in StorageUtil keyed on the actor. If we
+    ;      didn't, the next _recompute would stack a fresh delta on top of
+    ;      the legacy delta — the player would see the drain double.
+    ;   2. Defensive scratch-buffer allocation (Auto property attach trap
+    ;      protection — these are new in v0.0.33).
     if ml >= 20
+        MTF_Plugin basePlug = MainQuest.FindPlugin("mtf.base")
+        if basePlug != None
+            (basePlug as MTF_Plugin_Base)._migrateLegacyApplied(MainQuest.PlayerRef)
+        endif
+        ; Lazy-allocate the scratch arrays via the host helper. If they
+        ; were declared but never attached, this is a no-op and the
+        ; runtime falls back to per-call allocation in _loadPresetToScratch.
+        MainQuest._ensureScratchArrays()
+        MainQuest._migrationLevel = 33
         return
     endif
     ; v0.0.32 (ml=20): non-destructive pulse-array allocation. Existing
@@ -93,11 +114,12 @@ event OnVersionUpdate(int Version)
 
     ; Pages: 5-page layout (also set by OnConfigInit; redundant here for the
     ; sake of upgraders whose Pages array predates the current shape).
-    Pages = new String[4]
+    Pages = new String[5]
     Pages[0] = "General"
     Pages[1] = "Conditions"
-    Pages[2] = "Plugins"
-    Pages[3] = "Menu Options"
+    Pages[2] = "Subjects"
+    Pages[3] = "Plugins"
+    Pages[4] = "Menu Options"
 
     ; Allocate every state array. EnsureArrays handles fresh installs; this
     ; block additionally handles upgraders whose existing script instance
@@ -183,7 +205,7 @@ event OnVersionUpdate(int Version)
         s += 1
     endwhile
 
-    MainQuest._migrationLevel = 20
+    MainQuest._migrationLevel = 33
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -193,6 +215,8 @@ event OnPageReset(string page)
         drawGeneralPage()
     elseIf page == "Conditions"
         drawConditionsPage()
+    elseif page == "Subjects"
+        drawSubjectsPage()
     elseif page == "Plugins"
         drawPluginsPage()
     elseif page == "Menu Options"
@@ -2874,5 +2898,488 @@ state PRESET_DEL
     endEvent
     event OnHighlightST()
         SetInfoText("Remove the selected preset.")
+    endEvent
+endState
+
+; ═════════════════════════════════════════════════════════════════════════════
+; SUBJECTS PAGE (v0.0.33)
+; ═════════════════════════════════════════════════════════════════════════════
+; Header: hotkey, default-preset dropdown.
+; Body:   paginated list of tracked actors. Each row is ONE menu option;
+;         clicking opens a combined picker [<preset1>, ..., <presetN>, —,
+;         Remove subject, Cancel]. The "—" item is a separator and isn't
+;         selectable in practice — picking it falls through as Cancel.
+; Footer: clear-all + counter.
+
+int Function SUBJECTS_PAGE_SIZE() global
+    return 16
+EndFunction
+
+int _subjectsPage = 0
+int _currentSubjectAbsIdx = -1   ; absolute idx into the tracked list
+
+Function _refreshSubjectPresets()
+{Subjects originally cached its own preset list (_scratchPresetNames / _scratchPresetCount),
+ but `MainQuest.ListPresets()` returns None when called from inside this script's
+ state event handlers (Papyrus cross-script array-return quirk; same call works
+ fine from drawGeneralPage). Workaround: delegate to General's _refreshPresetNames
+ and use its _scratchPresetNames / _scratchPresetCount, which are populated from
+ the same source but via a code path that doesn't hit the bug.}
+    _refreshPresetNames()
+EndFunction
+
+function drawSubjectsPage()
+    SetCursorFillMode(TOP_TO_BOTTOM)
+    _refreshSubjectPresets()
+    int total = MainQuest.GetTrackedCount()
+    int pageSize = SUBJECTS_PAGE_SIZE()
+    int maxPage = 0
+    if total > 0
+        maxPage = (total - 1) / pageSize
+    endif
+    if _subjectsPage > maxPage
+        _subjectsPage = maxPage
+    endif
+    if _subjectsPage < 0
+        _subjectsPage = 0
+    endif
+
+    ; ── Left column: header + tracked actor rows ────────────────────────────
+    AddHeaderOption("Subjects (" + total + ")")
+    AddKeyMapOptionST("SUBJ_HOTKEY", "Add-target hotkey", MainQuest.GetSubjectHotkey())
+    AddMenuOptionST("SUBJ_DEFAULT_PRESET", "Default preset for new subjects", _defaultSubjectPresetLabel())
+
+    int firstFlag = OPTION_FLAG_NONE
+    int lastFlag  = OPTION_FLAG_NONE
+    if _subjectsPage == 0
+        firstFlag = OPTION_FLAG_DISABLED
+    endif
+    if _subjectsPage >= maxPage
+        lastFlag = OPTION_FLAG_DISABLED
+    endif
+    AddTextOptionST("SUBJ_PAGE_PREV", "  ← Previous page", "(page " + (_subjectsPage + 1) + " of " + (maxPage + 1) + ")", firstFlag)
+    AddTextOptionST("SUBJ_PAGE_NEXT", "  Next page →", "", lastFlag)
+
+    int rowStart = _subjectsPage * pageSize
+    int r = 0
+    while r < pageSize
+        int absIdx = rowStart + r
+        if absIdx >= total
+            ; pad the column with empty filler so right column stays aligned
+            AddEmptyOption()
+        else
+            Actor a = MainQuest.GetTrackedAt(absIdx)
+            string label
+            string val
+            if a == None
+                label = "<stale subject>"
+                val = "[click: remove]"
+            else
+                string nm = a.GetDisplayName()
+                if nm == ""
+                    nm = "Actor 0x" + a.GetFormID()
+                endif
+                int tier = MainQuest._getActorTier(a)
+                string ps = MainQuest.GetActorPreset(a)
+                if ps == ""
+                    ps = "(none)"
+                endif
+                label = nm
+                val = "T" + tier + " · " + ps
+            endif
+            AddTextOptionST(_subjectRowStateId(r), label, val)
+        endif
+        r += 1
+    endwhile
+
+    ; ── Right column: bulk + counter info ──────────────────────────────────
+    SetCursorPosition(1)
+    AddHeaderOption("Bulk")
+    int clearFlag = OPTION_FLAG_NONE
+    if total == 0
+        clearFlag = OPTION_FLAG_DISABLED
+    endif
+    AddTextOptionST("SUBJ_CLEAR_ALL", "Clear all subjects", "(" + total + ")", clearFlag)
+endFunction
+
+string Function _defaultSubjectPresetLabel()
+    string n = MainQuest.GetDefaultSubjectPreset()
+    if n == ""
+        return "(not set)"
+    endif
+    return MainQuest.GetPresetDisplayName(n)
+EndFunction
+
+string Function _subjectRowStateId(int row)
+    return "SUBJ_ROW_" + row
+EndFunction
+
+int Function _subjectRowIdxFromState(string st)
+    if StringUtil.Find(st, "SUBJ_ROW_") != 0
+        return -1
+    endif
+    string tail = StringUtil.Substring(st, 9, StringUtil.GetLength(st) - 9)
+    return tail as int
+EndFunction
+
+Function _subjectRowSelect()
+    int row = _subjectRowIdxFromState(GetState())
+    if row < 0
+        return
+    endif
+    int abs = _subjectsPage * SUBJECTS_PAGE_SIZE() + row
+    if abs >= MainQuest.GetTrackedCount()
+        return
+    endif
+    _currentSubjectAbsIdx = abs
+
+    ; Build action options: [preset1..N, "—", "Remove subject", "Cancel"]
+    _refreshSubjectPresets()
+    int presetN = _scratchPresetCount
+    int total = presetN + 3
+    string[] opts = Utility.CreateStringArray(total)
+    int i = 0
+    while i < presetN
+        opts[i] = MainQuest.GetPresetDisplayName(_scratchPresetNames[i])
+        i += 1
+    endwhile
+    opts[presetN]     = "—"
+    opts[presetN + 1] = "Remove subject"
+    opts[presetN + 2] = "Cancel"
+    SetMenuDialogOptions(opts)
+    SetMenuDialogDefaultIndex(presetN + 2)
+EndFunction
+
+Function _subjectRowAccept(int index)
+    if _currentSubjectAbsIdx < 0
+        return
+    endif
+    Actor a = MainQuest.GetTrackedAt(_currentSubjectAbsIdx)
+    int presetN = _scratchPresetCount
+    if index < 0 || index == presetN || index == presetN + 2
+        ; Cancel / separator
+        _currentSubjectAbsIdx = -1
+        return
+    endif
+    if index == presetN + 1
+        ; Remove subject
+        if a != None
+            MainQuest.RemoveTrackedActor(a)
+        else
+            StorageUtil.FormListRemoveAt(MainQuest, "mtf.tracked", _currentSubjectAbsIdx)
+        endif
+    elseif index >= 0 && index < presetN
+        string nm = _scratchPresetNames[index]
+        if a != None
+            MainQuest.SetActorPreset(a, nm)
+            MainQuest.EvalAndDrawActor(a)
+        endif
+    endif
+    _currentSubjectAbsIdx = -1
+    ForcePageReset()
+EndFunction
+
+Function _subjectRowHighlight()
+    int row = _subjectRowIdxFromState(GetState())
+    int abs = _subjectsPage * SUBJECTS_PAGE_SIZE() + row
+    if abs >= MainQuest.GetTrackedCount()
+        SetInfoText("")
+        return
+    endif
+    Actor a = MainQuest.GetTrackedAt(abs)
+    if a == None
+        SetInfoText("Stale subject reference — click to clean up.")
+        return
+    endif
+    SetInfoText("Click to change preset or remove. Preset: " + MainQuest.GetActorPreset(a) + " · Tier: " + MainQuest._getActorTier(a))
+EndFunction
+
+state SUBJ_HOTKEY
+    event OnKeyMapChangeST(int newKeyCode, string conflictControl, string conflictName)
+        MainQuest.SetSubjectHotkey(newKeyCode)
+        ; The hotkey is held by MTF_HitListener (alias on player). Forward
+        ; the registration change to it.
+        ; PlayerAlias is at alias ID 1 (NextAliasID=2 in the ESP). Using
+        ; GetAlias(0) silently returned None — RefreshSubjectHotkey was never
+        ; called, RegisterForKey never ran, OnKeyDown never fired.
+        ReferenceAlias al = (MainQuest as Quest).GetAlias(1) as ReferenceAlias
+        if al != None
+            (al as MTF_HitListener).RefreshSubjectHotkey()
+        endif
+        SetKeyMapOptionValueST(newKeyCode)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Press this key while pointing at an actor to add them as a tracked subject (uses the default preset).")
+    endEvent
+endState
+
+state SUBJ_DEFAULT_PRESET
+    event OnMenuOpenST()
+        _refreshSubjectPresets()
+        int n = _scratchPresetCount
+        string[] opts = Utility.CreateStringArray(n + 1)
+        opts[0] = "(none)"
+        int i = 0
+        while i < n
+            opts[i + 1] = MainQuest.GetPresetDisplayName(_scratchPresetNames[i])
+            i += 1
+        endwhile
+        int curIdx = 0
+        string cur = MainQuest.GetDefaultSubjectPreset()
+        if cur != ""
+            int j = 0
+            while j < n
+                if _scratchPresetNames[j] == cur
+                    curIdx = j + 1
+                endif
+                j += 1
+            endwhile
+        endif
+        SetMenuDialogOptions(opts)
+        SetMenuDialogStartIndex(curIdx)
+        SetMenuDialogDefaultIndex(0)
+    endEvent
+    event OnMenuAcceptST(int index)
+        if index <= 0
+            MainQuest.SetDefaultSubjectPreset("")
+        else
+            int p = index - 1
+            if p < _scratchPresetCount
+                MainQuest.SetDefaultSubjectPreset(_scratchPresetNames[p])
+            endif
+        endif
+        SetMenuOptionValueST(_defaultSubjectPresetLabel())
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Preset applied to new subjects added via hotkey or 'Add at crosshair'.")
+    endEvent
+endState
+
+state SUBJ_PAGE_PREV
+    event OnSelectST()
+        if _subjectsPage > 0
+            _subjectsPage -= 1
+            ForcePageReset()
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Previous page of tracked subjects.")
+    endEvent
+endState
+
+state SUBJ_PAGE_NEXT
+    event OnSelectST()
+        int total = MainQuest.GetTrackedCount()
+        int maxPage = 0
+        if total > 0
+            maxPage = (total - 1) / SUBJECTS_PAGE_SIZE()
+        endif
+        if _subjectsPage < maxPage
+            _subjectsPage += 1
+            ForcePageReset()
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Next page of tracked subjects.")
+    endEvent
+endState
+
+state SUBJ_CLEAR_ALL
+    event OnSelectST()
+        if MainQuest.GetTrackedCount() == 0
+            return
+        endif
+        string[] opts = Utility.CreateStringArray(2)
+        opts[0] = "Yes, clear all"
+        opts[1] = "Cancel"
+        SetMenuDialogOptions(opts)
+        SetMenuDialogDefaultIndex(1)
+    endEvent
+    event OnMenuAcceptST(int index)
+        if index == 0
+            MainQuest.ClearAllTrackedActors()
+            ForcePageReset()
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Remove every tracked subject and clear their overlays.")
+    endEvent
+endState
+
+; ── Per-row states (16 of them) — all delegate to the dispatchers above ─────
+state SUBJ_ROW_0
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_1
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_2
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_3
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_4
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_5
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_6
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_7
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_8
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_9
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_10
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_11
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_12
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_13
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_14
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
+    endEvent
+endState
+state SUBJ_ROW_15
+    event OnSelectST()
+        _subjectRowSelect()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _subjectRowAccept(index)
+    endEvent
+    event OnHighlightST()
+        _subjectRowHighlight()
     endEvent
 endState

@@ -150,3 +150,18 @@ EndEvent
 
 Event OnHighlightST()
 EndEvent
+; Augment for missing key-map / empty-option / force-page-reset declarations.
+; Appended to _deps/SKI_ConfigBase.psc to keep the existing stub's default-flag
+; signatures intact (the full SkyUI source dropped those defaults).
+int Function AddKeyMapOptionST(string a_stateName, string a_text, int a_keyCode, int a_flags = 0)
+EndFunction
+int Function AddKeyMapOption(string a_text, int a_keyCode, int a_flags = 0)
+EndFunction
+Function SetKeyMapOptionValueST(int a_keyCode, bool a_noUpdate = false, string a_stateName = "")
+EndFunction
+int Function AddEmptyOption()
+EndFunction
+Function ForcePageReset()
+EndFunction
+Event OnKeyMapChangeST(int newKeyCode, string conflictControl, string conflictName)
+EndEvent
