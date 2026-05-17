@@ -99,15 +99,9 @@ event OnVersionUpdate(int Version)
         MainQuest._migrationLevel = 33
         return
     endif
-    ; v0.0.32 (ml=20): non-destructive pulse-array allocation. Existing
-    ; users keep their slot config; new arrays start at 0 (pulse off).
+    ; v0.0.32 (ml=20): pulse rate/depth used to be Auto arrays here; they're
+    ; now StorageUtil-backed, no allocation needed.
     if ml >= 19
-        if MainQuest.condPulseRate == None
-            MainQuest.condPulseRate = new float[8]
-        endif
-        if MainQuest.condPulseDepth == None
-            MainQuest.condPulseDepth = new int[8]
-        endif
         MainQuest._migrationLevel = 20
         return
     endif
@@ -132,8 +126,6 @@ event OnVersionUpdate(int Version)
     MainQuest.condLayerEmissive     = new int[32]
     MainQuest.condLayerEmissiveMult = new float[32]
     MainQuest.condLayerAlpha        = new int[32]
-    MainQuest.condPulseRate         = new float[8]
-    MainQuest.condPulseDepth        = new int[8]
     MainQuest.effectKey             = new string[32]
     MainQuest.effectParam           = new int[32]
     MainQuest.effectParam2          = new int[32]
@@ -579,6 +571,10 @@ function drawConditionsPage()
             else
                 AddTextOption(p.GetConditionLabel(itemIdx), "(no parameter)", OPTION_FLAG_DISABLED)
             endif
+            string param2Label = p.GetConditionParam2Label(itemIdx)
+            if param2Label != ""
+                AddSliderOptionST("SLOT_COND_PARAM2", param2Label, MainQuest.GetCondParam2(idx), p.GetConditionParam2Format(itemIdx))
+            endif
         endif
 
         int cdMin = MainQuest.cooldownMin[idx]
@@ -636,8 +632,8 @@ function drawConditionsPage()
     ; Shown unconditionally so users can dial it in even with pack="<none>"
     ; (effects-only mode shows no overlay, so pulse is a no-op there).
     AddHeaderOption("Pulse")
-    AddSliderOptionST("SLOT_PULSE_RATE",  "Rate",  MainQuest.condPulseRate[idx], "{2} Hz")
-    AddSliderOptionST("SLOT_PULSE_DEPTH", "Depth", MainQuest.condPulseDepth[idx], "{0}%")
+    AddSliderOptionST("SLOT_PULSE_RATE",  "Rate",  MainQuest.GetCondPulseRate(idx), "{2} Hz")
+    AddSliderOptionST("SLOT_PULSE_DEPTH", "Depth", MainQuest.GetCondPulseDepth(idx), "{0}%")
     AddSliderOptionST("SLOT_PULSE_PAUSE", "Pause", MainQuest.GetCondPulsePause(idx), "{1} s")
     AddMenuOptionST("SLOT_PULSE_WAVEFORM", "Waveform", _waveformLabel(MainQuest.GetCondWaveform(idx)))
 endFunction
@@ -824,6 +820,7 @@ state SLOT_COND_TYPE
         MainQuest.SetCondPluginId(slot, newKey)
         if newKey == ""
             MainQuest.SetCondParam(slot, 0)
+            MainQuest.SetCondParam2(slot, 0)
         else
             MTF_Plugin p = MainQuest.ResolvePluginByKey(newKey)
             int itemIdx = -1
@@ -832,8 +829,10 @@ state SLOT_COND_TYPE
             endif
             if itemIdx >= 0
                 MainQuest.SetCondParam(slot, p.GetConditionParamDefault(itemIdx))
+                MainQuest.SetCondParam2(slot, p.GetConditionParam2Default(itemIdx))
             else
                 MainQuest.SetCondParam(slot, 0)
+                MainQuest.SetCondParam2(slot, 0)
             endif
         endif
         SetMenuOptionValueST(_condTypeLabel(newKey))
@@ -842,6 +841,7 @@ state SLOT_COND_TYPE
     event OnDefaultST()
         MainQuest.SetCondPluginId(selectedCondition, "")
         MainQuest.SetCondParam(selectedCondition, 0)
+        MainQuest.SetCondParam2(selectedCondition, 0)
         SetMenuOptionValueST(_condTypeLabel(""))
         ForcePageReset()
     endEvent
@@ -894,6 +894,64 @@ state SLOT_COND_PARAM
             endif
         endif
         SetInfoText("Threshold value for the selected condition.")
+    endEvent
+endState
+
+state SLOT_COND_PARAM2
+    event OnSliderOpenST()
+        string key = MainQuest.condPluginId[selectedCondition]
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        if p == None
+            return
+        endif
+        int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+        if itemIdx < 0
+            return
+        endif
+        SetSliderDialogStartValue(MainQuest.GetCondParam2(selectedCondition))
+        SetSliderDialogDefaultValue(p.GetConditionParam2Default(itemIdx))
+        SetSliderDialogRange(p.GetConditionParam2Min(itemIdx), p.GetConditionParam2Max(itemIdx))
+        SetSliderDialogInterval(p.GetConditionParam2Step(itemIdx))
+    endEvent
+    event OnSliderAcceptST(float value)
+        string key = MainQuest.condPluginId[selectedCondition]
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        string fmt = "{0}"
+        if p != None
+            int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                fmt = p.GetConditionParam2Format(itemIdx)
+            endif
+        endif
+        MainQuest.SetCondParam2(selectedCondition, value as int)
+        SetSliderOptionValueST(value as int, fmt)
+    endEvent
+    event OnDefaultST()
+        string key = MainQuest.condPluginId[selectedCondition]
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        int defVal = 0
+        string fmt = "{0}"
+        if p != None
+            int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                defVal = p.GetConditionParam2Default(itemIdx)
+                fmt = p.GetConditionParam2Format(itemIdx)
+            endif
+        endif
+        MainQuest.SetCondParam2(selectedCondition, defVal)
+        SetSliderOptionValueST(defVal, fmt)
+    endEvent
+    event OnHighlightST()
+        string key = MainQuest.condPluginId[selectedCondition]
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        if p != None
+            int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                SetInfoText(p.GetConditionParam2Label(itemIdx))
+                return
+            endif
+        endif
+        SetInfoText("Second parameter for the selected condition.")
     endEvent
 endState
 
@@ -1270,7 +1328,7 @@ endState
 
 state SLOT_PULSE_RATE
     event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condPulseRate[selectedCondition])
+        SetSliderDialogStartValue(MainQuest.GetCondPulseRate(selectedCondition))
         SetSliderDialogDefaultValue(0.0)
         SetSliderDialogRange(0.0, 5.0)
         SetSliderDialogInterval(0.05)
@@ -1292,7 +1350,7 @@ endState
 
 state SLOT_PULSE_DEPTH
     event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.condPulseDepth[selectedCondition])
+        SetSliderDialogStartValue(MainQuest.GetCondPulseDepth(selectedCondition))
         SetSliderDialogDefaultValue(0)
         SetSliderDialogRange(0, 100)
         SetSliderDialogInterval(5)

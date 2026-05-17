@@ -87,8 +87,35 @@ int Function GetConditionParamDefault(int idx)
     return 0
 EndFunction
 
+; Optional 2nd per-slot parameter. Conditions that need a second knob
+; (e.g. time.range with from/till hours) override these. If
+; GetConditionParam2Label returns "", the MCM hides the 2nd slider and
+; checkCondition can ignore param2 (it'll be 0).
+
+string Function GetConditionParam2Label(int idx)
+{Slider label for the optional 2nd param. Return "" if condition has no 2nd param.}
+    return ""
+EndFunction
+int Function GetConditionParam2Min(int idx)
+    return 0
+EndFunction
+int Function GetConditionParam2Max(int idx)
+    return 100
+EndFunction
+int Function GetConditionParam2Default(int idx)
+    return 0
+EndFunction
+int Function GetConditionParam2Step(int idx)
+    return 1
+EndFunction
+string Function GetConditionParam2Format(int idx)
+    return "{0}"
+EndFunction
+
 bool Function checkCondition(int idx, Actor target, int param)
-{Return true when condition `idx` is currently satisfied for `target`.}
+{Return true when condition `idx` is currently satisfied for `target`.
+ Use `_host().GetEvalParam2()` to read the second per-slot parameter when
+ your condition declares one via GetConditionParam2Label.}
     return false
 EndFunction
 

@@ -85,6 +85,26 @@ Keyword Property _kwJail        Auto Hidden
 ; Lazy-resolved spells.
 Spell Property _loversComfort Auto Hidden
 
+; Lazy-resolved factions (vanilla Skyrim.esm).
+Faction Property _facCurrentFollower  Auto Hidden
+Faction Property _facThievesGuild     Auto Hidden
+Faction Property _facDarkBrotherhood  Auto Hidden
+Faction Property _facCompanionsCircle Auto Hidden
+
+; Lazy-resolved keywords for magiceffect.kw.* and worn.* conditions.
+Keyword Property _kwMgefFire        Auto Hidden
+Keyword Property _kwMgefFrost       Auto Hidden
+Keyword Property _kwMgefShock       Auto Hidden
+Keyword Property _kwMgefInvisibility Auto Hidden
+Keyword Property _kwArmorHeavy      Auto Hidden
+Keyword Property _kwArmorLight      Auto Hidden
+
+; Lazy-resolved races.
+Race Property _raceWerewolf Auto Hidden
+
+; Cached gold form (Skyrim.esm 0xF).
+Form Property _goldForm Auto Hidden
+
 Keyword Function _locKw(int idx)
     if idx == 18
         if _kwPlayerHouse == None
@@ -153,7 +173,7 @@ EndFunction
 ; ── Conditions ────────────────────────────────────────────────────────────────
 
 int Function GetConditionCount()
-    return 32
+    return 46
 EndFunction
 
 string Function GetConditionId(int idx)
@@ -221,6 +241,34 @@ string Function GetConditionId(int idx)
         return "state.weaponDrawn"
     elseif idx == 31
         return "state.loversEmbrace"
+    elseif idx == 32
+        return "state.sneaking"
+    elseif idx == 33
+        return "state.swimming"
+    elseif idx == 34
+        return "state.mounted"
+    elseif idx == 35
+        return "state.bleedingOut"
+    elseif idx == 36
+        return "time.range"
+    elseif idx == 37
+        return "faction.playerFollower"
+    elseif idx == 38
+        return "magiceffect.kw.fire"
+    elseif idx == 39
+        return "magiceffect.kw.frost"
+    elseif idx == 40
+        return "magiceffect.kw.shock"
+    elseif idx == 41
+        return "magiceffect.kw.invisibility"
+    elseif idx == 42
+        return "followers.any"
+    elseif idx == 43
+        return "gold.aboveThousand"
+    elseif idx == 44
+        return "worn.heavyArmor"
+    elseif idx == 45
+        return "worn.lightArmor"
     endif
     return ""
 EndFunction
@@ -290,6 +338,34 @@ string Function GetConditionLabel(int idx)
         return "Weapon Drawn"
     elseif idx == 31
         return "Lover's Embrace"
+    elseif idx == 32
+        return "Sneaking"
+    elseif idx == 33
+        return "Swimming"
+    elseif idx == 34
+        return "Mounted"
+    elseif idx == 35
+        return "Bleeding Out"
+    elseif idx == 36
+        return "Time of Day Range"
+    elseif idx == 37
+        return "Is Player's Follower"
+    elseif idx == 38
+        return "Burning (fire MGEF)"
+    elseif idx == 39
+        return "Frozen (frost MGEF)"
+    elseif idx == 40
+        return "Shocked (shock MGEF)"
+    elseif idx == 41
+        return "Invisible"
+    elseif idx == 42
+        return "Has Active Follower"
+    elseif idx == 43
+        return "Gold >= N x 1000"
+    elseif idx == 44
+        return "Wearing Heavy Armor"
+    elseif idx == 45
+        return "Wearing Light Armor"
     endif
     return ""
 EndFunction
@@ -301,6 +377,12 @@ string Function GetConditionParamLabel(int idx)
         return "Scan radius (meters)"
     elseif idx >= 7 && idx <= 13
         return "Chance % per hit"
+    elseif idx == 36
+        return "From (hour)"
+    elseif idx == 42
+        return "Scan radius (meters)"
+    elseif idx == 43
+        return "Gold threshold (x 1000)"
     endif
     return ""
 EndFunction
@@ -310,11 +392,18 @@ int Function GetConditionParamMin(int idx)
         return 1
     elseif idx >= 7 && idx <= 13
         return 1
+    elseif idx == 42
+        return 1
     endif
     return 0
 EndFunction
 
 int Function GetConditionParamMax(int idx)
+    if idx == 36
+        return 24
+    elseif idx == 43
+        return 1000
+    endif
     return 100
 EndFunction
 
@@ -329,8 +418,89 @@ int Function GetConditionParamDefault(int idx)
         return 25
     elseif idx >= 7 && idx <= 13
         return 25
+    elseif idx == 36
+        return 6   ; Day starts at 6h
+    elseif idx == 42
+        return 80
+    elseif idx == 43
+        return 5
     endif
     return 0
+EndFunction
+
+; Second parameter for time.range (till hour).
+string Function GetConditionParam2Label(int idx)
+    if idx == 36
+        return "Till (hour, wrap if < From)"
+    endif
+    return ""
+EndFunction
+int Function GetConditionParam2Min(int idx)
+    return 0
+EndFunction
+int Function GetConditionParam2Max(int idx)
+    if idx == 36
+        return 24
+    endif
+    return 100
+EndFunction
+int Function GetConditionParam2Default(int idx)
+    if idx == 36
+        return 20  ; Day ends at 20h
+    endif
+    return 0
+EndFunction
+
+bool Function _checkSlot(Actor target, int slotMask, Keyword kw)
+    Form f = target.GetWornForm(slotMask)
+    return f != None && f.HasKeyword(kw)
+EndFunction
+
+bool Function _wornHasArmorKw(Actor target, Keyword kw)
+    if target == None || kw == None
+        return false
+    endif
+    if _checkSlot(target, 0x00000004, kw)
+        return true
+    endif
+    if _checkSlot(target, 0x00000008, kw)
+        return true
+    endif
+    if _checkSlot(target, 0x00000080, kw)
+        return true
+    endif
+    if _checkSlot(target, 0x00001000, kw)
+        return true
+    endif
+    if _checkSlot(target, 0x00000040, kw)
+        return true
+    endif
+    if _checkSlot(target, 0x00000010, kw)
+        return true
+    endif
+    return false
+EndFunction
+
+bool Function _scanNearbyFollower(Actor target, int paramMeters)
+    float radius = (paramMeters as float) * 70.0
+    if radius <= 0.0
+        return false
+    endif
+    Actor[] nearby = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
+    if nearby == None
+        return false
+    endif
+    int i = 0
+    while i < nearby.Length
+        Actor a = nearby[i]
+        if a != None && a != target && !a.IsDead() && a.IsPlayerTeammate()
+            if a.GetDistance(target) <= radius
+                return true
+            endif
+        endif
+        i += 1
+    endwhile
+    return false
 EndFunction
 
 float Function _avPercent(Actor target, string av)
@@ -449,6 +619,70 @@ bool Function checkCondition(int idx, Actor target, int param)
             return false
         endif
         return target.HasSpell(_loversComfort)
+    elseif idx == 32
+        return target.IsSneaking()
+    elseif idx == 33
+        return target.IsSwimming()
+    elseif idx == 34
+        return target.IsOnMount()
+    elseif idx == 35
+        return target.IsBleedingOut()
+    elseif idx == 36
+        ; time.range — param=from hour, param2=till hour. Wraps if from > till.
+        float t36 = Utility.GetCurrentGameTime()
+        float h36 = (t36 - Math.Floor(t36)) * 24.0
+        int fromH = param
+        int tillH = _host().GetEvalParam2()
+        if fromH == tillH
+            return false
+        elseif fromH < tillH
+            return h36 >= fromH as float && h36 < tillH as float
+        else
+            ; Wrap-around (e.g. 22-6 = night)
+            return h36 >= fromH as float || h36 < tillH as float
+        endif
+    elseif idx == 37
+        if _facCurrentFollower == None
+            _facCurrentFollower = Game.GetForm(0x0005C84D) as Faction
+        endif
+        return _facCurrentFollower != None && target.IsInFaction(_facCurrentFollower)
+    elseif idx == 38
+        if _kwMgefFire == None
+            _kwMgefFire = Game.GetForm(0x0001CEAD) as Keyword
+        endif
+        return _kwMgefFire != None && target.HasMagicEffectWithKeyword(_kwMgefFire)
+    elseif idx == 39
+        if _kwMgefFrost == None
+            _kwMgefFrost = Game.GetForm(0x0001CEAE) as Keyword
+        endif
+        return _kwMgefFrost != None && target.HasMagicEffectWithKeyword(_kwMgefFrost)
+    elseif idx == 40
+        if _kwMgefShock == None
+            _kwMgefShock = Game.GetForm(0x0001CEAF) as Keyword
+        endif
+        return _kwMgefShock != None && target.HasMagicEffectWithKeyword(_kwMgefShock)
+    elseif idx == 41
+        ; Use the Invisibility actor value (set by ANY source — potion, spell,
+        ; racial). HasMagicEffectWithKeyword(MagicInvisibility) misses some
+        ; effects since not all invisibility-applying effects carry the keyword.
+        return target.GetActorValue("Invisibility") > 0.0
+    elseif idx == 42
+        return _scanNearbyFollower(target, param)
+    elseif idx == 43
+        if _goldForm == None
+            _goldForm = Game.GetForm(0x0000000F)
+        endif
+        return _goldForm != None && target.GetItemCount(_goldForm) >= (param * 1000)
+    elseif idx == 44
+        if _kwArmorHeavy == None
+            _kwArmorHeavy = Game.GetForm(0x0006BBD2) as Keyword
+        endif
+        return _kwArmorHeavy != None && _wornHasArmorKw(target, _kwArmorHeavy)
+    elseif idx == 45
+        if _kwArmorLight == None
+            _kwArmorLight = Game.GetForm(0x0006BBD3) as Keyword
+        endif
+        return _kwArmorLight != None && _wornHasArmorKw(target, _kwArmorLight)
     endif
     return false
 EndFunction

@@ -42,15 +42,13 @@ int[] Property condLayerAlpha Auto
 ; hold-at-base interval inserted between sine cycles — full cycle takes
 ; (1/rate) seconds, then mult stays at 1.0 for `pause` seconds before
 ; the next cycle begins.
-float[] Property condPulseRate Auto
-int[]   Property condPulseDepth Auto
-; condPulsePause lives in StorageUtil — see GetCondPulsePause/SetCondPulsePause
-; condWaveform: per-tier waveform name. Empty string → built-in cosine.
-; Named entry resolves to MagicTattoosFramework/waveforms/<name>.json.
-string[] Property condWaveform Auto
-; below. Reason: an Auto property added in a later version doesn't always
-; attach to an already-saved script instance (writes silently no-op).
-; StorageUtil persists in the cosave and sidesteps the trap.
+; condPulseRate, condPulseDepth, condWaveform live in StorageUtil — see
+; GetCondPulseRate/SetCondPulseRate, GetCondPulseDepth/SetCondPulseDepth,
+; GetCondWaveform/SetCondWaveform. Reason: Auto properties added in a later
+; version don't always attach to an already-saved script instance — and on a
+; fresh load, reading them throws "Cannot cast from None to <Type>[]" because
+; the backing slot is None-typed rather than default-typed. StorageUtil
+; persists in the cosave and sidesteps both traps.
 
 ; ── Scratch preset buffer (v0.0.33) ──────────────────────────────────────────
 ; When evaluating a tracked NPC we hot-load the NPC's preset JSON into this
@@ -302,21 +300,9 @@ bool Property _arraysReady = false Auto Hidden
 int Property _migrationLevel = 0 Auto Hidden
 
 Function EnsureArrays()
-{One-shot allocation — bool guard avoids reading array properties (Papyrus errors on None→Type[] casts).
- Post-release-added arrays are patched in unconditionally below the guard
- so upgraders whose _arraysReady is already true still get them allocated.}
+{One-shot allocation. Pulse rate/depth/waveform are NOT Auto arrays — they
+ live in StorageUtil per-slot and don't need allocation here.}
     if _arraysReady
-        ; Defensive lazy-allocate for properties added in later versions.
-        ; Cheap: just None-checks per call.
-        if condPulseRate == None
-            condPulseRate = new float[8]
-        endif
-        if condPulseDepth == None
-            condPulseDepth = new int[8]
-        endif
-        if condWaveform == None
-            condWaveform = new string[8]
-        endif
         return
     endif
     Trace("[MTF_Main] EnsureArrays: allocating arrays")
@@ -328,9 +314,6 @@ Function EnsureArrays()
     condLayerEmissive     = new int[32]
     condLayerEmissiveMult = new float[32]
     condLayerAlpha        = new int[32]
-    condPulseRate         = new float[8]
-    condPulseDepth        = new int[8]
-    condWaveform          = new string[8]
     effectKey             = new string[32]    ; 8 slots × 4 effects
     effectParam           = new int[32]
     effectParam2          = new int[32]       ; optional 2nd param per effect slot
@@ -617,22 +600,61 @@ Function SetCondParam(int slot, int val)
     condParam = a
 EndFunction
 
-Function SetCondPulseRate(int slot, float v)
-    float[] a = condPulseRate
-    if a == None || a.Length < 8
-        a = new float[8]
+; ── Per-slot second condition parameter (StorageUtil-backed) ─────────────────
+; Optional 2nd knob for conditions that need two values (e.g. time.range
+; from/till). StorageUtil-backed to dodge the Auto-property attachment trap.
+int Function GetCondParam2(int slot)
+    if slot < 0 || slot >= 8
+        return 0
     endif
-    a[slot] = v
-    condPulseRate = a
+    return StorageUtil.GetIntValue(self, "mtf.cond.param2." + slot, 0)
+EndFunction
+
+Function SetCondParam2(int slot, int val)
+    if slot < 0 || slot >= 8
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.cond.param2." + slot, val)
+EndFunction
+
+; ── Evaluation-time scratch for current slot's param2 ────────────────────────
+; evaluateTier sets this just before calling plugin.checkCondition so that
+; the plugin (which gets only `param` via the call) can read param2 via
+; _host().GetEvalParam2(). Scoped per-evaluation; not persistent.
+Function _setEvalParam2(int val)
+    StorageUtil.SetIntValue(self, "mtf.evalParam2", val)
+EndFunction
+
+int Function GetEvalParam2()
+    return StorageUtil.GetIntValue(self, "mtf.evalParam2", 0)
+EndFunction
+
+float Function GetCondPulseRate(int slot)
+    if slot < 0 || slot >= 8
+        return 0.0
+    endif
+    return StorageUtil.GetFloatValue(self, "mtf.cond.pulse.rate." + slot, 0.0)
+EndFunction
+
+Function SetCondPulseRate(int slot, float v)
+    if slot < 0 || slot >= 8
+        return
+    endif
+    StorageUtil.SetFloatValue(self, "mtf.cond.pulse.rate." + slot, v)
+EndFunction
+
+int Function GetCondPulseDepth(int slot)
+    if slot < 0 || slot >= 8
+        return 0
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.pulse.depth." + slot, 0)
 EndFunction
 
 Function SetCondPulseDepth(int slot, int v)
-    int[] a = condPulseDepth
-    if a == None || a.Length < 8
-        a = new int[8]
+    if slot < 0 || slot >= 8
+        return
     endif
-    a[slot] = v
-    condPulseDepth = a
+    StorageUtil.SetIntValue(self, "mtf.cond.pulse.depth." + slot, v)
 EndFunction
 
 float Function GetCondPulsePause(int slot)
@@ -650,19 +672,21 @@ Function SetCondPulsePause(int slot, float v)
 EndFunction
 
 string Function GetCondWaveform(int slot)
-    if slot < 0 || slot >= 8 || condWaveform == None
+    if slot < 0 || slot >= 8
         return ""
     endif
-    return condWaveform[slot]
+    return StorageUtil.GetStringValue(self, "mtf.cond.pulse.waveform." + slot, "")
 EndFunction
 
 Function SetCondWaveform(int slot, string name)
-    string[] a = condWaveform
-    if a == None || a.Length < 8
-        a = new string[8]
+    if slot < 0 || slot >= 8
+        return
     endif
-    a[slot] = name
-    condWaveform = a
+    if name == ""
+        StorageUtil.UnsetStringValue(self, "mtf.cond.pulse.waveform." + slot)
+    else
+        StorageUtil.SetStringValue(self, "mtf.cond.pulse.waveform." + slot, name)
+    endif
 EndFunction
 
 int Function WAVE_LUT_SIZE() global
@@ -808,10 +832,7 @@ bool Function _slotHasPulse(int slot)
     if slot < 0 || slot >= 8
         return false
     endif
-    if condPulseRate == None || condPulseDepth == None
-        return false
-    endif
-    return condPulseRate[slot] > 0.0 && condPulseDepth[slot] > 0
+    return GetCondPulseRate(slot) > 0.0 && GetCondPulseDepth(slot) > 0
 EndFunction
 
 Function _resyncPulseCache(int tier)
@@ -865,8 +886,8 @@ Function _applyPulse()
         return
     endif
 
-    int depthPct = condPulseDepth[_pulseTier]
-    float rate   = condPulseRate[_pulseTier]
+    int depthPct = GetCondPulseDepth(_pulseTier)
+    float rate   = GetCondPulseRate(_pulseTier)
     float pause  = GetCondPulsePause(_pulseTier)
 
     ; Snapshot live per-layer emissive ceilings (length == _pulseLayerN).
@@ -1045,16 +1066,22 @@ bool Function SavePreset(string rawName)
         string sp = ".slot[" + s + "]"
         JsonUtil.SetPathStringValue(f, sp + ".cond.pluginid", condPluginId[s])
         JsonUtil.SetPathIntValue(f,    sp + ".cond.param",    condParam[s])
+        int p2 = GetCondParam2(s)
+        if p2 != 0
+            JsonUtil.SetPathIntValue(f, sp + ".cond.param2", p2)
+        endif
         JsonUtil.SetPathStringValue(f, sp + ".cond.packid",   condPackId[s])
         JsonUtil.SetPathStringValue(f, sp + ".cond.entryid",  condEntryId[s])
         JsonUtil.SetPathIntValue(f,    sp + ".cooldown.min",  cooldownMin[s])
         JsonUtil.SetPathIntValue(f,    sp + ".cooldown.mode", cooldownMode[s])
         ; Skip pulse rows when disabled — keeps the file readable.
+        float rateS  = GetCondPulseRate(s)
+        int   depthS = GetCondPulseDepth(s)
         float pausePersist = GetCondPulsePause(s)
         string waveName = GetCondWaveform(s)
-        if condPulseRate[s] > 0.0 || condPulseDepth[s] > 0 || pausePersist > 0.0 || waveName != ""
-            JsonUtil.SetPathFloatValue(f, sp + ".pulse.rate",  condPulseRate[s])
-            JsonUtil.SetPathIntValue(f,   sp + ".pulse.depth", condPulseDepth[s])
+        if rateS > 0.0 || depthS > 0 || pausePersist > 0.0 || waveName != ""
+            JsonUtil.SetPathFloatValue(f, sp + ".pulse.rate",  rateS)
+            JsonUtil.SetPathIntValue(f,   sp + ".pulse.depth", depthS)
             if pausePersist > 0.0
                 JsonUtil.SetPathFloatValue(f, sp + ".pulse.pause", pausePersist)
             endif
@@ -1129,12 +1156,13 @@ bool Function LoadPreset(string name)
         string sp = ".slot[" + s + "]"
         SetCondPluginId(s, JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", ""))
         SetCondParam(s,    JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0))
+        SetCondParam2(s,   JsonUtil.GetPathIntValue(f,    sp + ".cond.param2",   0))
         condPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",  "")
         condEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid", "")
         cooldownMin[s]  = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.min",  0)
         cooldownMode[s] = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
-        condPulseRate[s]  = JsonUtil.GetPathFloatValue(f, sp + ".pulse.rate",  0.0)
-        condPulseDepth[s] = JsonUtil.GetPathIntValue(f,   sp + ".pulse.depth", 0)
+        SetCondPulseRate(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.rate",  0.0))
+        SetCondPulseDepth(s, JsonUtil.GetPathIntValue(f,   sp + ".pulse.depth", 0))
         SetCondPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
         SetCondWaveform(s, JsonUtil.GetPathStringValue(f, sp + ".pulse.waveform", ""))
         int L = 0
@@ -1761,8 +1789,11 @@ int Function evaluateTier()
                 MTF_Plugin p = ResolvePluginByKey(key)
                 if p != None
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
-                    if itemIdx >= 0 && p.checkCondition(itemIdx, PlayerRef, condParam[i])
-                        return i
+                    if itemIdx >= 0
+                        _setEvalParam2(GetCondParam2(i))
+                        if p.checkCondition(itemIdx, PlayerRef, condParam[i])
+                            return i
+                        endif
                     endif
                 endif
             endif
@@ -2619,10 +2650,7 @@ float Function _g_pulseRate(int slot, bool useScratch)
         endif
         return _sCondPulseRate[slot]
     endif
-    if condPulseRate == None
-        return 0.0
-    endif
-    return condPulseRate[slot]
+    return GetCondPulseRate(slot)
 EndFunction
 
 int Function _g_pulseDepth(int slot, bool useScratch)
@@ -2632,10 +2660,7 @@ int Function _g_pulseDepth(int slot, bool useScratch)
         endif
         return _sCondPulseDepth[slot]
     endif
-    if condPulseDepth == None
-        return 0
-    endif
-    return condPulseDepth[slot]
+    return GetCondPulseDepth(slot)
 EndFunction
 
 float Function _g_pulsePause(int slot, bool useScratch)
@@ -2778,8 +2803,18 @@ int Function evaluateTierForActor(Actor target, bool useScratch)
                 MTF_Plugin p = ResolvePluginByKey(key)
                 if p != None
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
-                    if itemIdx >= 0 && p.checkCondition(itemIdx, target, _g_condParam(i, useScratch))
-                        return i
+                    if itemIdx >= 0
+                        ; Param2: only wired for the player path (non-scratch).
+                        ; NPC tracked-subject scratch presets don't carry
+                        ; param2 yet — reset to 0 so a stale value can't leak.
+                        if useScratch
+                            _setEvalParam2(0)
+                        else
+                            _setEvalParam2(GetCondParam2(i))
+                        endif
+                        if p.checkCondition(itemIdx, target, _g_condParam(i, useScratch))
+                            return i
+                        endif
                     endif
                 endif
             endif
