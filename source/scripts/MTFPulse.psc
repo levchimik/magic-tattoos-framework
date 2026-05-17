@@ -15,9 +15,11 @@ Scriptname MTFPulse Native Hidden
 ;   emMults     — per-layer ceiling emissive multipliers (length == layerCount).
 ;   baseOverlaySlot — NiOverride body overlay base index (typically 0 or 2).
 ;   isFemale    — sex flag for NiOverride node lookups.
+;   waveLUT     — 64-entry [0,1]→[0,1] waveform sampled across one cycle.
+;                 Empty or wrong-length array → C++ falls back to cosine.
 Function SetActorPulse(Actor aktor, Float rate, Int depthPct, Float pause, \
                        Int layerCount, Float startTime, Float[] emMults, \
-                       Int baseOverlaySlot, Bool isFemale) Global Native
+                       Int baseOverlaySlot, Bool isFemale, Float[] waveLUT) Global Native
 
 ; Remove an actor from the pulse roster.
 Function ClearActor(Actor aktor) Global Native

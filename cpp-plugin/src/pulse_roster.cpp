@@ -165,18 +165,39 @@ namespace MTFPulse {
             const float t      = now - e.start_time;
             const float depth  = e.depth;
             const float floorM = 1.0f - depth;
+
+            // Sample the waveform at the current phase. With pause > 0 the
+            // wave runs for one cycle then holds at 0 for `pause` seconds
+            // before starting again — matches the Papyrus implementation
+            // and the wave_lut covers exactly one cycle, not the dwell.
+            auto sample = [&](float phase) -> float {
+                if (e.has_wave_lut) {
+                    // Wrap phase into [0,1) then bilinear-blend the two
+                    // adjacent LUT samples.
+                    phase -= std::floor(phase);
+                    const float fi   = phase * static_cast<float>(PulseEntry::kWaveLUTSize);
+                    const auto  i0   = static_cast<std::size_t>(fi) % PulseEntry::kWaveLUTSize;
+                    const auto  i1   = (i0 + 1) % PulseEntry::kWaveLUTSize;
+                    const float frac = fi - std::floor(fi);
+                    return e.wave_lut[i0] + (e.wave_lut[i1] - e.wave_lut[i0]) * frac;
+                }
+                return 0.5f - 0.5f * std::cos(phase * 2.0f * std::numbers::pi_v<float>);
+            };
+
             float wave;
             if (e.pause > 0.0f && e.rate > 0.0f) {
                 const float cycle  = 1.0f / e.rate;
                 const float period = cycle + e.pause;
                 const float tMod   = t - std::floor(t / period) * period;
                 if (tMod < cycle) {
-                    wave = 0.5f - 0.5f * std::cos(tMod * e.rate * 2.0f * std::numbers::pi_v<float>);
+                    wave = sample(tMod * e.rate);
                 } else {
                     wave = 0.0f;
                 }
+            } else if (e.rate > 0.0f) {
+                wave = sample(t * e.rate);
             } else {
-                wave = 0.5f - 0.5f * std::cos(t * e.rate * 2.0f * std::numbers::pi_v<float>);
+                wave = 0.0f;
             }
             const float pulsed = floorM + depth * wave;
 

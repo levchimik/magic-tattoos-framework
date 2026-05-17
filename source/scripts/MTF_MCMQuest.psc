@@ -639,7 +639,15 @@ function drawConditionsPage()
     AddSliderOptionST("SLOT_PULSE_RATE",  "Rate",  MainQuest.condPulseRate[idx], "{2} Hz")
     AddSliderOptionST("SLOT_PULSE_DEPTH", "Depth", MainQuest.condPulseDepth[idx], "{0}%")
     AddSliderOptionST("SLOT_PULSE_PAUSE", "Pause", MainQuest.GetCondPulsePause(idx), "{1} s")
+    AddMenuOptionST("SLOT_PULSE_WAVEFORM", "Waveform", _waveformLabel(MainQuest.GetCondWaveform(idx)))
 endFunction
+
+string Function _waveformLabel(string name)
+    if name == ""
+        return "Cosine (built-in)"
+    endif
+    return name
+EndFunction
 
 ; ╔══════════════════════════════════════════════════════════════════════════╗
 ; ║  GENERAL PAGE STATES                                                    ║
@@ -1323,6 +1331,59 @@ state SLOT_PULSE_PAUSE
     endEvent
     event OnHighlightST()
         SetInfoText("Seconds of hold at the trough (dim) between pulse cycles. 0 = continuous.")
+    endEvent
+endState
+
+state SLOT_PULSE_WAVEFORM
+    event OnMenuOpenST()
+        string[] files = MainQuest.ListWaveforms()
+        int fileCount = MainQuest.ListWaveformsCount()
+        ; Size the option array EXACTLY to the count we have. Padding with
+        ; duplicate labels (a prior approach to dodge the SkyUI "None"
+        ; sentinel quirk) ends up showing 27 phantom rows in the dropdown.
+        int total = fileCount + 1
+        string[] opts = Utility.CreateStringArray(total, "")
+        opts[0] = "Cosine (built-in)"
+        int i = 0
+        while i < fileCount
+            opts[i + 1] = files[i]
+            i += 1
+        endwhile
+
+        ; Pre-select the currently saved waveform.
+        string cur = MainQuest.GetCondWaveform(selectedCondition)
+        int startIdx = 0
+        if cur != ""
+            int k = 1
+            while k < total && opts[k] != cur
+                k += 1
+            endwhile
+            if k < total
+                startIdx = k
+            endif
+        endif
+        SetMenuDialogStartIndex(startIdx)
+        SetMenuDialogDefaultIndex(0)
+        SetMenuDialogOptions(opts)
+    endEvent
+    event OnMenuAcceptST(int index)
+        string[] files = MainQuest.ListWaveforms()
+        int fileCount = MainQuest.ListWaveformsCount()
+        string chosen = ""
+        if index >= 1 && (index - 1) < fileCount
+            chosen = files[index - 1]
+        endif
+        MainQuest.SetCondWaveform(selectedCondition, chosen)
+        SetMenuOptionValueST(_waveformLabel(chosen))
+        MainQuest.setRedraw()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetCondWaveform(selectedCondition, "")
+        SetMenuOptionValueST(_waveformLabel(""))
+        MainQuest.setRedraw()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Curve shape for one pulse cycle. Built-in cosine is the default; JSON files under MagicTattoosFramework/waveforms/ are listed here.")
     endEvent
 endState
 

@@ -45,6 +45,9 @@ int[] Property condLayerAlpha Auto
 float[] Property condPulseRate Auto
 int[]   Property condPulseDepth Auto
 ; condPulsePause lives in StorageUtil — see GetCondPulsePause/SetCondPulsePause
+; condWaveform: per-tier waveform name. Empty string → built-in cosine.
+; Named entry resolves to MagicTattoosFramework/waveforms/<name>.json.
+string[] Property condWaveform Auto
 ; below. Reason: an Auto property added in a later version doesn't always
 ; attach to an already-saved script instance (writes silently no-op).
 ; StorageUtil persists in the cosave and sidesteps the trap.
@@ -73,6 +76,7 @@ float[]  _sCondLayerEmissiveMult
 int[]    _sCondLayerAlpha
 float[]  _sCondPulseRate
 int[]    _sCondPulseDepth
+string[] _sCondWaveform
 string[] _sEffectKey
 int[]    _sEffectParam
 int[]    _sEffectParam2
@@ -310,6 +314,9 @@ Function EnsureArrays()
         if condPulseDepth == None
             condPulseDepth = new int[8]
         endif
+        if condWaveform == None
+            condWaveform = new string[8]
+        endif
         return
     endif
     Trace("[MTF_Main] EnsureArrays: allocating arrays")
@@ -323,6 +330,7 @@ Function EnsureArrays()
     condLayerAlpha        = new int[32]
     condPulseRate         = new float[8]
     condPulseDepth        = new int[8]
+    condWaveform          = new string[8]
     effectKey             = new string[32]    ; 8 slots × 4 effects
     effectParam           = new int[32]
     effectParam2          = new int[32]       ; optional 2nd param per effect slot
@@ -641,6 +649,161 @@ Function SetCondPulsePause(int slot, float v)
     StorageUtil.SetFloatValue(self, "mtf.pulse.pause." + slot, v)
 EndFunction
 
+string Function GetCondWaveform(int slot)
+    if slot < 0 || slot >= 8 || condWaveform == None
+        return ""
+    endif
+    return condWaveform[slot]
+EndFunction
+
+Function SetCondWaveform(int slot, string name)
+    string[] a = condWaveform
+    if a == None || a.Length < 8
+        a = new string[8]
+    endif
+    a[slot] = name
+    condWaveform = a
+EndFunction
+
+int Function WAVE_LUT_SIZE() global
+{Resolution of one pulse cycle. Picked so a 1Hz cycle samples at ~64 Hz —
+ well above visual flicker frequency, well below per-frame jitter. C++
+ plugin uses the same constant; keep them in sync.}
+    return 64
+EndFunction
+
+string Function _waveformFile(string name)
+    return "MagicTattoosFramework/waveforms/" + name
+EndFunction
+
+Float[] Function _builtinCosLUT()
+    int N = WAVE_LUT_SIZE()
+    Float[] lut = Utility.CreateFloatArray(N, 0.0)
+    int i = 0
+    while i < N
+        float phase = (i as float) / (N as float)
+        lut[i] = 0.5 - 0.5 * Math.Cos(phase * 360.0)
+        i += 1
+    endwhile
+    return lut
+EndFunction
+
+Float[] Function _buildWaveformLUT(string name)
+{Build a 64-entry [0,1]→[0,1] pulse curve sampled across one cycle. Falls
+ back to cosine when name is empty, the JSON is missing, or the kind is
+ unrecognised. Supported kinds: cos, triangle, square (shape=duty),
+ sawtooth, keyframes (.points[].t/.v, lerped, up to 16 points).}
+    int N = WAVE_LUT_SIZE()
+    if name == ""
+        return _builtinCosLUT()
+    endif
+    string file = _waveformFile(name)
+    if !JsonUtil.JsonExists(file)
+        return _builtinCosLUT()
+    endif
+    string kind = JsonUtil.GetPathStringValue(file, ".kind", "cos")
+    float shape = JsonUtil.GetPathFloatValue(file, ".shape", 0.5)
+    Float[] lut = Utility.CreateFloatArray(N, 0.0)
+    int i = 0
+    if kind == "cos" || kind == ""
+        while i < N
+            float phase = (i as float) / (N as float)
+            lut[i] = 0.5 - 0.5 * Math.Cos(phase * 360.0)
+            i += 1
+        endwhile
+    elseif kind == "triangle"
+        while i < N
+            float phase = (i as float) / (N as float)
+            float v
+            if phase < 0.5
+                v = phase * 2.0
+            else
+                v = 2.0 - phase * 2.0
+            endif
+            lut[i] = v
+            i += 1
+        endwhile
+    elseif kind == "square"
+        float duty = shape
+        if duty <= 0.0 || duty >= 1.0
+            duty = 0.5
+        endif
+        while i < N
+            float phase = (i as float) / (N as float)
+            if phase < duty
+                lut[i] = 1.0
+            else
+                lut[i] = 0.0
+            endif
+            i += 1
+        endwhile
+    elseif kind == "sawtooth"
+        while i < N
+            lut[i] = (i as float) / (N as float)
+            i += 1
+        endwhile
+    elseif kind == "keyframes"
+        Float[] tArr = Utility.CreateFloatArray(16, -1.0)
+        Float[] vArr = Utility.CreateFloatArray(16, 0.0)
+        int np = 0
+        int k = 0
+        bool done = false
+        while k < 16 && !done
+            string pp = ".points[" + k + "]"
+            float tk = JsonUtil.GetPathFloatValue(file, pp + ".t", -1.0)
+            if tk < 0.0
+                done = true
+            else
+                tArr[np] = tk
+                vArr[np] = JsonUtil.GetPathFloatValue(file, pp + ".v", 0.0)
+                np += 1
+                k += 1
+            endif
+        endwhile
+        if np < 2
+            return _builtinCosLUT()
+        endif
+        while i < N
+            float phase = (i as float) / (N as float)
+            int seg = 0
+            while seg < np - 1 && tArr[seg + 1] < phase
+                seg += 1
+            endwhile
+            if seg >= np - 1
+                lut[i] = vArr[np - 1]
+            else
+                float t0 = tArr[seg]
+                float t1 = tArr[seg + 1]
+                float v0 = vArr[seg]
+                float v1 = vArr[seg + 1]
+                if t1 <= t0
+                    lut[i] = v0
+                else
+                    float a = (phase - t0) / (t1 - t0)
+                    lut[i] = v0 + (v1 - v0) * a
+                endif
+            endif
+            i += 1
+        endwhile
+    else
+        return _builtinCosLUT()
+    endif
+    return lut
+EndFunction
+
+Float[] Function _waveformLUTForTier(int tier, bool useScratch)
+{Resolve waveform name for a tier and return its LUT.}
+    string name = ""
+    if useScratch
+        if _sCondWaveform != None && tier >= 0 && tier < 8
+            name = _sCondWaveform[tier]
+        endif
+    else
+        name = GetCondWaveform(tier)
+    endif
+    return _buildWaveformLUT(name)
+EndFunction
+
 bool Function _slotHasPulse(int slot)
     if slot < 0 || slot >= 8
         return false
@@ -717,9 +880,10 @@ Function _applyPulse()
         i += 1
     endwhile
 
+    Float[] lut = _waveformLUTForTier(_pulseTier, false)
     MTFPulse.SetActorPulse(PlayerRef, rate, depthPct, pause, \
                            _pulseLayerN, _pulseStartRT, emMults, \
-                           OverlaySlot, _pulseIsFemale)
+                           OverlaySlot, _pulseIsFemale, lut)
 EndFunction
 
 ; Hit-class counters (7 classes: ANY/BLUNT/BLADED/RANGED/FIRE/FROST/SHOCK).
@@ -887,11 +1051,15 @@ bool Function SavePreset(string rawName)
         JsonUtil.SetPathIntValue(f,    sp + ".cooldown.mode", cooldownMode[s])
         ; Skip pulse rows when disabled — keeps the file readable.
         float pausePersist = GetCondPulsePause(s)
-        if condPulseRate[s] > 0.0 || condPulseDepth[s] > 0 || pausePersist > 0.0
+        string waveName = GetCondWaveform(s)
+        if condPulseRate[s] > 0.0 || condPulseDepth[s] > 0 || pausePersist > 0.0 || waveName != ""
             JsonUtil.SetPathFloatValue(f, sp + ".pulse.rate",  condPulseRate[s])
             JsonUtil.SetPathIntValue(f,   sp + ".pulse.depth", condPulseDepth[s])
             if pausePersist > 0.0
                 JsonUtil.SetPathFloatValue(f, sp + ".pulse.pause", pausePersist)
+            endif
+            if waveName != ""
+                JsonUtil.SetPathStringValue(f, sp + ".pulse.waveform", waveName)
             endif
         endif
         int L = 0
@@ -968,6 +1136,7 @@ bool Function LoadPreset(string name)
         condPulseRate[s]  = JsonUtil.GetPathFloatValue(f, sp + ".pulse.rate",  0.0)
         condPulseDepth[s] = JsonUtil.GetPathIntValue(f,   sp + ".pulse.depth", 0)
         SetCondPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
+        SetCondWaveform(s, JsonUtil.GetPathStringValue(f, sp + ".pulse.waveform", ""))
         int L = 0
         while L < maxL
             int li = _layerIdx(s, L)
@@ -1051,6 +1220,42 @@ EndFunction
 
 int Function ListPresetsCount()
     string[] r = ListPresets()
+    if r == None
+        return 0
+    endif
+    int i = 0
+    while i < r.Length && r[i] != ""
+        i += 1
+    endwhile
+    return i
+EndFunction
+
+string[] Function ListWaveforms()
+{Enumerate JSONs in MagicTattoosFramework/waveforms/. Fixed-size 32 array;
+ valid names first, empty strings after. The "" slot is the "use built-in
+ cosine" sentinel and is always offered as the first option by MCM.}
+    string[] raw = JsonUtil.JsonInFolder("MagicTattoosFramework/waveforms")
+    string[] result = new string[32]
+    if raw == None || raw.Length == 0
+        return result
+    endif
+    int n = 0
+    int i = 0
+    while i < raw.Length && n < 32
+        string nm = raw[i]
+        int dot = StringUtil.Find(nm, ".json")
+        if dot > 0
+            nm = StringUtil.Substring(nm, 0, dot)
+        endif
+        result[n] = nm
+        n += 1
+        i += 1
+    endwhile
+    return result
+EndFunction
+
+int Function ListWaveformsCount()
+    string[] r = ListWaveforms()
     if r == None
         return 0
     endif
@@ -2233,6 +2438,7 @@ Function _ensureScratchArrays()
         _sCondLayerAlpha        = new int[32]
         _sCondPulseRate         = new float[8]
         _sCondPulseDepth        = new int[8]
+        _sCondWaveform          = new string[8]
         _sEffectKey             = new string[32]
         _sEffectParam           = new int[32]
         _sEffectParam2          = new int[32]
@@ -2284,6 +2490,7 @@ bool Function _loadPresetToScratch(string name)
     int[]    localCooldownMode    = new int[8]
     float[]  localPulseRate       = new float[8]
     int[]    localPulseDepth      = new int[8]
+    string[] localWaveform        = new string[8]
     int[]    localLayerTint       = new int[32]
     int[]    localLayerEmissive   = new int[32]
     float[]  localLayerEmMult     = new float[32]
@@ -2302,6 +2509,7 @@ bool Function _loadPresetToScratch(string name)
         localCooldownMode[s] = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
         localPulseRate[s]    = JsonUtil.GetPathFloatValue(f,  sp + ".pulse.rate",   0.0)
         localPulseDepth[s]   = JsonUtil.GetPathIntValue(f,    sp + ".pulse.depth",  0)
+        localWaveform[s]     = JsonUtil.GetPathStringValue(f, sp + ".pulse.waveform", "")
         _setScratchPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
         int L = 0
         while L < maxL
@@ -2333,6 +2541,7 @@ bool Function _loadPresetToScratch(string name)
     _sCooldownMode          = localCooldownMode
     _sCondPulseRate         = localPulseRate
     _sCondPulseDepth        = localPulseDepth
+    _sCondWaveform          = localWaveform
     _sCondLayerTint         = localLayerTint
     _sCondLayerEmissive     = localLayerEmissive
     _sCondLayerEmissiveMult = localLayerEmMult
@@ -2865,9 +3074,10 @@ Function _rosterAddOrUpdate(Actor a, int tier, float startRT)
     ; Push snapshot to the MTFPulse C++ roster — same contract the player
     ; path uses in _applyPulse. C++ owns the per-frame wave + NiOverride
     ; writes; we keep the Papyrus mirror only for distance-based eviction.
+    Float[] lut = _waveformLUTForTier(tier, true)
     MTFPulse.SetActorPulse(a, rate, depth, _rosterPulsePause[slot], \
                            layerN, startRT, emMults, \
-                           OverlaySlot, isFemale)
+                           OverlaySlot, isFemale, lut)
 EndFunction
 
 ; ── Tracked actor evaluation (full pass — Step 6 adds stagger + distance) ──

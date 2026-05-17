@@ -23,7 +23,8 @@ namespace MTFPulse::Papyrus {
             float                     start_time,
             std::vector<float>        em_mults,
             std::int32_t              base_overlay_slot,
-            bool                      is_female)
+            bool                      is_female,
+            std::vector<float>        wave_lut)
         {
             if (!actor) {
                 spdlog::warn("SetActorPulse called with null actor");
@@ -43,6 +44,12 @@ namespace MTFPulse::Papyrus {
             e.is_female    = is_female;
             for (std::int32_t i = 0; i < e.layer_count && i < static_cast<std::int32_t>(em_mults.size()); ++i) {
                 e.layer_base_em_mult[static_cast<std::size_t>(i)] = em_mults[static_cast<std::size_t>(i)];
+            }
+            if (wave_lut.size() == PulseEntry::kWaveLUTSize) {
+                std::copy(wave_lut.begin(), wave_lut.end(), e.wave_lut.begin());
+                e.has_wave_lut = true;
+            } else {
+                e.has_wave_lut = false;
             }
             Roster::Instance().Set(actor, e);
         }

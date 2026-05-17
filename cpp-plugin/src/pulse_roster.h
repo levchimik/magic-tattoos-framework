@@ -21,6 +21,13 @@ namespace MTFPulse {
         std::int32_t    layer_count{ 0 };
         bool            is_female{ false };
         std::array<float, 4> layer_base_em_mult{};  // emissive intensity ceiling per layer
+
+        // Waveform LUT, sampled across one full cycle (phase 0..1). When
+        // has_wave_lut is false, Tick falls back to a cosine wave (same
+        // shape the plugin shipped with before custom waveforms landed).
+        static constexpr std::size_t kWaveLUTSize = 64;
+        std::array<float, kWaveLUTSize> wave_lut{};
+        bool            has_wave_lut{ false };
     };
 
     class Roster
