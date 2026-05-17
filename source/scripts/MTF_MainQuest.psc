@@ -1835,14 +1835,13 @@ State checkingAroused
             _processTrackedActorsSlowTick(MAX_EVALS_PER_TICK())
         endif
 
-        ; Pulse step. Fires if either the player has an active pulse tier
-        ; OR the NPC roster has anyone on it.
-        bool wantFast = (_pulseTier >= 0) || (_rosterCount > 0)
+        ; Pulse step. Player path resyncs to native at 10 Hz so MCM slider
+        ; edits to rate/depth/emMult propagate within 100 ms. NPC roster
+        ; entries are pushed once on _rosterAddOrUpdate — the MTFPulse C++
+        ; plugin owns their per-frame wave; we don't loop over them here.
+        bool wantFast = (_pulseTier >= 0)
         if _pulseTier >= 0
             _applyPulse()
-        endif
-        if _rosterCount > 0
-            _applyPulseRoster()
         endif
         if wantFast
             RegisterForSingleUpdate(PULSE_INTERVAL())
@@ -2766,6 +2765,12 @@ int Function _rosterRemoveAt(int slot)
     if slot < 0 || slot >= _rosterCount
         return -1
     endif
+    ; Drop the C++ pulse entry for the actor leaving this slot, before the
+    ; compaction overwrites _rosterActor[slot] with the last entry.
+    Actor removed = _rosterActor[slot] as Actor
+    if removed != None
+        MTFPulse.ClearActor(removed)
+    endif
     int last = _rosterCount - 1
     if slot != last
         _rosterActor[slot]       = _rosterActor[last]
@@ -2843,71 +2848,26 @@ Function _rosterAddOrUpdate(Actor a, int tier, float startRT)
     _rosterPulsePause[slot] = _g_pulsePause(tier, true)
     _rosterTier[slot]       = tier
     _rosterLayerN[slot]     = layerN
-    _rosterIsFemale[slot]   = a.GetLeveledActorBase().GetSex() as bool
+    bool isFemale = a.GetLeveledActorBase().GetSex() as bool
+    _rosterIsFemale[slot]   = isFemale
     _rosterStartRT[slot]    = startRT
     int maxL = MAX_LAYERS_PER_SLOT()
+    Float[] emMults = Utility.CreateFloatArray(layerN)
     int L = 0
     while L < layerN
         int lidx = tier * maxL + L
-        _rosterLayerEmMult[slot * 4 + L] = _g_layerEmissiveMult(lidx, true)
+        float em = _g_layerEmissiveMult(lidx, true)
+        _rosterLayerEmMult[slot * 4 + L] = em
+        emMults[L] = em
         L += 1
     endwhile
-EndFunction
 
-Function _applyPulseRoster()
-{Hot path. One pass over the roster. Per-slot:
-   t = now - rosterStart
-   wave = (in cycle) 0.5 - 0.5·cos(2π·rate·tMod), (in pause) 0
-   mult = (1 - depth%) + depth% · wave
-   write NiOverride intensity = baseEmMult · mult on each cached layer.}
-    if _rosterCount <= 0
-        return
-    endif
-    float now = Utility.GetCurrentRealTime()
-    int baseSlot = OverlaySlot
-    int i = 0
-    while i < _rosterCount
-        Actor a = _rosterActor[i] as Actor
-        if a == None
-            ; Stale (e.g. actor garbage-collected). Compact and retry slot.
-            _rosterRemoveAt(i)
-        else
-            float rate  = _rosterPulseRate[i]
-            float depthF = (_rosterPulseDepth[i] as float) * 0.01
-            float pause = _rosterPulsePause[i]
-            float t = now - _rosterStartRT[i]
-            float wave
-            float floorM = 1.0 - depthF
-            if pause > 0.0 && rate > 0.0
-                float cycle = 1.0 / rate
-                float period = cycle + pause
-                float tMod = t - (((t / period) as int) as float) * period
-                if tMod < cycle
-                    wave = 0.5 - 0.5 * Math.Cos(tMod * rate * 360.0)
-                else
-                    wave = 0.0
-                endif
-            else
-                wave = 0.5 - 0.5 * Math.Cos(t * rate * 360.0)
-            endif
-            float mult = floorM + depthF * wave
-            if mult < 0.0
-                mult = 0.0
-            endif
-            bool isFemale = _rosterIsFemale[i]
-            int layerN = _rosterLayerN[i]
-            int L = 0
-            while L < layerN
-                float baseEm = _rosterLayerEmMult[i * 4 + L]
-                float pulsed = baseEm * mult
-                string Node = "Body [ovl" + (baseSlot + L) + "]"
-                NiOverride.AddNodeOverrideFloat(a, isFemale, Node, 1, -1, pulsed, true)
-                L += 1
-            endwhile
-            NiOverride.ApplyNodeOverrides(a)
-            i += 1
-        endif
-    endwhile
+    ; Push snapshot to the MTFPulse C++ roster — same contract the player
+    ; path uses in _applyPulse. C++ owns the per-frame wave + NiOverride
+    ; writes; we keep the Papyrus mirror only for distance-based eviction.
+    MTFPulse.SetActorPulse(a, rate, depth, _rosterPulsePause[slot], \
+                           layerN, startRT, emMults, \
+                           OverlaySlot, isFemale)
 EndFunction
 
 ; ── Tracked actor evaluation (full pass — Step 6 adds stagger + distance) ──
