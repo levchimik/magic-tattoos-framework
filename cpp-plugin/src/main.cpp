@@ -9,9 +9,11 @@
 // is intentionally ignorant of conditions, presets, cooldowns — those stay
 // in Papyrus where they're fine.
 
+#include "frame_hook.h"
 #include "log.h"
 #include "papyrus.h"
 #include "pulse_roster.h"
+#include "skee_bridge.h"
 
 #include <RE/Skyrim.h>
 #include <SKSE/SKSE.h>
@@ -31,12 +33,24 @@ namespace {
                 if (auto* vm = RE::BSScript::Internal::VirtualMachine::GetSingleton()) {
                     Papyrus::Register(vm);
                 }
+                // Frame hook: vtable swap on PlayerCharacter::Update.
+                // (Previous attempt used write_branch on a function entry
+                // which crashed — write_branch is for call-site redirects,
+                // not function prologues. See frame_hook.cpp for details.)
+                frame_hook::Install();
                 break;
 
             case SKSE::MessagingInterface::kPostLoad:
-                // TODO: handshake with SKEE/NiOverride here once we add real
-                // NiOverride writes inside Roster::Tick.
                 spdlog::info("kPostLoad");
+                break;
+
+            case SKSE::MessagingInterface::kPostPostLoad:
+                // SKEE registers its InterfaceExchange listener on its OWN
+                // kPostLoad, so dispatching at our kPostLoad races with it.
+                // kPostPostLoad fires after every plugin's kPostLoad has run,
+                // guaranteeing SKEE is ready to respond.
+                spdlog::info("kPostPostLoad — initialising SKEE bridge");
+                skee_bridge::Init();
                 break;
 
             default:
@@ -44,30 +58,30 @@ namespace {
         }
     }
 
-    // Per-frame tick. SKSE doesn't ship a generic OnFrame hook; the standard
-    // approach is to install a Hooks::Install() that detours the game's
-    // BSInputDeviceManager::PollInputDevices (called once per frame) or to
-    // use UI::OnFrameUpdate. For tonight: stub the tick at the messaging
-    // boundary so the plugin loads cleanly. Wiring a real frame hook is the
-    // next focused task — TODO before testing pulse output.
+    // Per-frame tick: NOT WIRED YET.
     //
-    // Placeholder: call Roster::Tick() from a SKSE main-thread task once
-    // per frame via TaskInterface AddTask in a loop self-rescheduling at
-    // ~16ms cadence. Crude but compatible with all builds.
-
-    void ScheduleNextFrameTick()
-    {
-        auto* taskInterface = SKSE::GetTaskInterface();
-        if (!taskInterface) {
-            return;
-        }
-        taskInterface->AddTask([] {
-            Roster::Instance().Tick();
-            ScheduleNextFrameTick();
-        });
-    }
+    // A previous version used SKSE::TaskInterface::AddTask self-rescheduling
+    // (each tick queues the next one). That froze the game — SKSE drains its
+    // task queue in-place, so a task that re-arms itself becomes an infinite
+    // loop on the main thread.
+    //
+    // The correct path is a BSInputDeviceManager::PollInputDevices detour
+    // (the canonical per-frame hook in SKSE plugins). Coming next; for now
+    // the plugin loads, registers natives, and the roster sits idle — usable
+    // for smoke-testing Papyrus → MTFPulse calls without any frame work.
 
 }  // namespace
+
+// SKSE plugin metadata. Without this, SKSE refuses to load the DLL ("no
+// version data" in skse64.log). Must live in a translation unit at global
+// scope. Address-library-independent because we don't currently touch any
+// runtime offsets — once we add a per-frame hook we'll switch to a pinned
+// runtime version list.
+SKSEPluginInfo(
+    .Version = REL::Version{ 0, 0, 1, 0 },
+    .Name = "MTFPulse",
+    .Author = "MTF",
+)
 
 SKSEPluginLoad(const SKSE::LoadInterface* skse)
 {
@@ -86,6 +100,5 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
         messaging->RegisterListener(OnSKSEMessage);
     }
 
-    ScheduleNextFrameTick();
     return true;
 }

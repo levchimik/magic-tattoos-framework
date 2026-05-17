@@ -525,54 +525,41 @@ Function _resyncPulseCache(int tier)
 EndFunction
 
 Function _applyPulse()
-{Hot path. Reads cached context only — must stay branch-light.}
+{Hot path. Forwards the player's pulse parameters into the MTFPulse C++
+ roster. C++ does the per-frame wave math + NiOverride writes at full
+ frame rate via the PlayerCharacter::Update vtable hook in MTFPulse.dll.
+
+ This function still runs at the OnUpdate fast tick (~10 Hz) so MCM
+ slider edits to rate / depth / pause / per-layer emissive multiplier
+ propagate to the roster within 100 ms.
+
+ If the MTFPulse plugin isn't loaded, the natives log a Papyrus warning
+ once and the visual is just "no pulse" — graceful degradation.}
     if _pulseTier < 0 || _pulseLayerN <= 0 || PlayerRef == None
+        ; Make sure we don't leave a stale roster entry writing emissive
+        ; values to a node we've stopped tracking.
+        MTFPulse.ClearActor(PlayerRef)
         return
     endif
-    float rate  = condPulseRate[_pulseTier]
-    float depth = (condPulseDepth[_pulseTier] as float) * 0.01
-    float pause = GetCondPulsePause(_pulseTier)
-    float t = Utility.GetCurrentRealTime() - _pulseStartRT
-    ; Wave model: emissive strength slider = peak (ceiling). Depth = how
-    ; far it dims down from peak. mult ∈ [1-depth, 1]:
-    ;   cycle start  → mult = 1-depth (trough, dim)
-    ;   cycle middle → mult = 1.0     (peak, full base intensity)
-    ;   cycle end    → mult = 1-depth (trough)
-    ;   pause        → mult = 1-depth (continuous with cycle end)
-    ; Uses (0.5 - 0.5·cos) so the wave starts and ends at the trough.
-    float wave
-    float floor = 1.0 - depth
-    if pause > 0.0 && rate > 0.0
-        float cycle = 1.0 / rate
-        float period = cycle + pause
-        float tMod = t - (((t / period) as int) as float) * period
-        if tMod < cycle
-            wave = 0.5 - 0.5 * Math.Cos(tMod * rate * 360.0)
-        else
-            wave = 0.0
-        endif
-    else
-        ; No pause — continuous rise/fall between trough and peak.
-        wave = 0.5 - 0.5 * Math.Cos(t * rate * 360.0)
-    endif
-    float mult = floor + depth * wave
-    if mult < 0.0
-        mult = 0.0
-    endif
+
+    int depthPct = condPulseDepth[_pulseTier]
+    float rate   = condPulseRate[_pulseTier]
+    float pause  = GetCondPulsePause(_pulseTier)
+
+    ; Snapshot live per-layer emissive ceilings (length == _pulseLayerN).
+    ; MCM slider changes to condLayerEmissiveMult[] become visible on the
+    ; next call to SetActorPulse — i.e. within this 10 Hz window.
+    Float[] emMults = Utility.CreateFloatArray(_pulseLayerN)
     int i = 0
-    int baseSlot = OverlaySlot
     while i < _pulseLayerN
-        ; Read base intensity live each tick so any MCM slider change
-        ; takes effect on the next pulse step (no waiting for cache
-        ; refresh via forceRedraw).
         int lidx = _pulseTier * 4 + i
-        float baseEm = condLayerEmissiveMult[lidx]
-        float pulsed = baseEm * mult
-        string Node = "Body [ovl" + (baseSlot + i) + "]"
-        NiOverride.AddNodeOverrideFloat(PlayerRef, _pulseIsFemale, Node, 1, -1, pulsed, true)
+        emMults[i] = condLayerEmissiveMult[lidx]
         i += 1
     endwhile
-    NiOverride.ApplyNodeOverrides(PlayerRef)
+
+    MTFPulse.SetActorPulse(PlayerRef, rate, depthPct, pause, \
+                           _pulseLayerN, _pulseStartRT, emMults, \
+                           OverlaySlot, _pulseIsFemale)
 EndFunction
 
 ; Hit-class counters (7 classes: ANY/BLUNT/BLADED/RANGED/FIRE/FROST/SHOCK).
@@ -1789,4 +1776,11 @@ function removeOverlay(actor akTarget)
         clearOverlay(akTarget, isFemale, "Body", CurrentOverlaySlot + i)
         i += 1
     endwhile
+    ; Make sure the MTFPulse C++ roster doesn't keep pulsing emissive
+    ; on a slot we just cleared. Also kill the cached pulse context so
+    ; the next _applyPulse tick is a no-op until a new tier draws.
+    if akTarget == PlayerRef
+        _pulseTier = -1
+    endif
+    MTFPulse.ClearActor(akTarget)
 endFunction

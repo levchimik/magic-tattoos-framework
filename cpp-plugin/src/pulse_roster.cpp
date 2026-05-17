@@ -1,8 +1,10 @@
 #include "pulse_roster.h"
 #include "log.h"
+#include "skee_bridge.h"
 
 #include <cmath>
 #include <numbers>
+#include <cstdio>
 
 namespace MTFPulse {
 
@@ -148,9 +150,12 @@ namespace MTFPulse {
         const auto now_pt          = std::chrono::steady_clock::now();
         const float now            = std::chrono::duration<float>(now_pt - t_origin).count();
 
-        // TODO: SKEE/NiOverride interface to write emissive intensity per
-        // body overlay node. We need to talk to po3 NiOverride via SKSE
-        // messaging. Stubbed for now — pulse math runs but writes are no-ops.
+        // Bail early if SKEE didn't initialise — no point computing waves
+        // we can't write. The bridge logs the failure once at startup.
+        if (!skee_bridge::IsReady()) {
+            return;
+        }
+
         for (std::size_t i = 0; i < count_; ++i) {
             auto& e = entries_[i];
             auto* actor = e.actor.get().get();
@@ -173,8 +178,21 @@ namespace MTFPulse {
             } else {
                 wave = 0.5f - 0.5f * std::cos(t * e.rate * 2.0f * std::numbers::pi_v<float>);
             }
-            const float mult = floorM + depth * wave;
-            (void)mult;  // TODO: write NiOverride emissive multiplier
+            const float pulsed = floorM + depth * wave;
+
+            // One write per active layer: nodes are named "Body [ovlN]"
+            // where N = base_slot + layer_index (matches MTF_MainQuest's
+            // applyOverlay format). The per-layer base emissive multiplier
+            // is the ceiling — pulse modulates between (1-depth)*ceiling
+            // and 1.0*ceiling.
+            char node[32];
+            for (std::int32_t li = 0; li < e.layer_count; ++li) {
+                std::snprintf(node, sizeof(node), "Body [ovl%d]",
+                              static_cast<int>(e.base_slot + li));
+                const float layerCeiling = e.layer_base_em_mult[static_cast<std::size_t>(li)];
+                const float final_mult   = pulsed * layerCeiling;
+                skee_bridge::WriteEmissiveMult(actor, e.is_female, node, final_mult);
+            }
         }
     }
 

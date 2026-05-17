@@ -29,6 +29,11 @@ add_library(${PROJECT_NAME} SHARED
     src/pulse_roster.h
     src/papyrus.cpp
     src/papyrus.h
+    src/skee_bridge.cpp
+    src/skee_bridge.h
+    src/skee_interface.h
+    src/frame_hook.cpp
+    src/frame_hook.h
     src/log.h
 )
 
