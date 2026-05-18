@@ -110,20 +110,50 @@ EndFunction
 Event OnPlayerLoadGame()
     RefreshSubjectHotkey()
     _registerLifecycleEvents()
-    _ensureDebugSpell()
+    _ensureApplyTattooSpell()
+    _cleanupLegacySpells()
     _autoEnableTestBranch()
 EndEvent
+
+; One-time cleanup of MTF spells that older code AddSpell'd onto the player
+; before we switched to DoCombatSpellApply. Removes Frost/Lightning/Flame
+; Cloak, Slow Time, and Detect All from the player's spell list. Safe to
+; run every load — RemoveSpell is a no-op if the spell isn't present.
+Function _cleanupLegacySpells()
+    Actor p = Game.GetPlayer()
+    if p == None
+        return
+    endif
+    int[] ids = new int[4]
+    ids[0] = 0x847  ; FlameCloak
+    ids[1] = 0x84B  ; FrostCloak
+    ids[2] = 0x84F  ; LightningCloak
+    ids[3] = 0x843  ; SlowTime
+    ; NOTE: 0x841 DetectAll is now intentionally AddSpell'd by the queue drain
+    ; because DetectLife archetype only engages via full Cast() (which needs
+    ; the caster to know the spell). Removing it here would just have the
+    ; next tick re-add it.
+    ; NOTE: 0x81A ApplyTattoo is also AddSpell'd by _ensureApplyTattooSpell — keep.
+    int i = 0
+    while i < ids.Length
+        Spell s = Game.GetFormFromFile(ids[i], "MagicTattoosFramework.esp") as Spell
+        if s != None && p.HasSpell(s)
+            p.RemoveSpell(s)
+        endif
+        i += 1
+    endwhile
+EndFunction
 
 Event OnInit()
     RefreshSubjectHotkey()
     _registerLifecycleEvents()
-    _ensureDebugSpell()
+    _ensureApplyTattooSpell()
     _autoEnableTestBranch()
 EndEvent
 
-Function _ensureDebugSpell()
-{Idempotent: gives the player MTF_Spell_DebugApply once per save so the
- console workflow `player.cast <id> <npcRefId>` is always available.}
+Function _ensureApplyTattooSpell()
+{Idempotent: gives the player MTF_Spell_ApplyTattoo once per save so the
+ spell is always available for in-world preset application.}
     Spell s = Game.GetFormFromFile(0x81A, "MagicTattoosFramework.esp") as Spell
     if s == None
         return
@@ -151,6 +181,15 @@ Function _autoEnableTestBranch()
         h.DebugMode = true
     endif
     h.setRedraw()
+    ; Force OnBeginState to re-fire (which calls RegisterForSingleUpdate).
+    ; State persists across save/load, but RegisterForSingleUpdate TIMERS do
+    ; not. If we don't cycle, GotoState("checkingAroused") is a no-op when
+    ; the quest is already in that state — and OnUpdate then never re-fires
+    ; after a save/load, breaking _tickSlotEffects (slowTime, detectAll,
+    ; cloak refreshes all rely on this).
+    if h.GetState() == "checkingAroused"
+        h.GotoState("")
+    endif
     h.GotoState("checkingAroused")
 EndFunction
 

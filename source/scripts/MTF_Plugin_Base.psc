@@ -1,62 +1,5 @@
 Scriptname MTF_Plugin_Base extends MTF_Plugin
-{Built-in conditions and effects that depend only on vanilla Skyrim
- + PO3 PapyrusExtender.
-
- Conditions (idx → id):
-   0  magicka               — Above Magicka %
-   1  magicka.below         — Below Magicka %
-   2  stamina               — Above Stamina %
-   3  stamina.below         — Below Stamina %
-   4  combat.in             — In Combat
-   5  combat.alerted        — Enemies Alerted (combat state 1 or 2)
-   6  combat.hostile        — Hostile Nearby
-   7  combat.hit            — On Combat Hit (any source)
-   8  combat.hit.blunt      — On Combat Hit (mace/warhammer/fist)
-   9  combat.hit.bladed     — On Combat Hit (sword/dagger/axe)
-   10 combat.hit.ranged     — On Combat Hit (bow/crossbow)
-   11 combat.hit.magic.fire — On Combat Hit (fire spell)
-   12 combat.hit.magic.frost— On Combat Hit (frost spell)
-   13 combat.hit.magic.shock— On Combat Hit (shock spell)
-   14 health                — Above Health %
-   15 health.below          — Below Health %
-   16 location.indoors      — Player is in an interior cell
-   17 location.outdoors     — Player is in an exterior cell
-   18 location.playerHome   — Current location has LocTypePlayerHouse
-   19 location.dungeon      — Current location has LocTypeDungeon
-   20 location.city         — Current location has LocTypeCity
-   21 location.town         — Current location has LocTypeTown
-   22 location.inn          — Current location has LocTypeInn
-   23 location.jail         — Current location has LocTypeJail
-   24 weather.pleasant      — Active weather classification == 0 (sunny/clear)
-   25 weather.cloudy        — Active weather classification == 1
-   26 weather.rainy         — Active weather classification == 2
-   27 weather.snowy         — Active weather classification == 3
-   28 state.sprinting       — IsSprinting()
-   29 state.running         — IsRunning() (but not sprinting)
-   30 state.weaponDrawn     — IsWeaponDrawn()
-   31 state.loversEmbrace   — Player has the LoversComfort ability
-                              (vanilla "Lover's Comfort", Skyrim.esm 0xCDA1D —
-                               0xA6CB7 is the MagicEffect, not the Spell)
-
- Effects (idx → id):
-   0  drain.magickaRate     — drain `param`% of current MagickaRateMult
-   1  drain.carryWeight     — drain `param`% of current CarryWeight
-   2  drain.sneak           — drain `param`% of current Sneak
-   3  burst.magicka         — one-shot: subtract `param`% of current Magicka on switch
-   4  burst.stamina         — one-shot: subtract `param`% of current Stamina on switch
-   5  drain.speedMult       — drain `param`% of current SpeedMult (movement)
-   6  drain.staminaRate     — drain `param`% of current StaminaRateMult (regen)
-   7  drain.attackDamageMult— drain `param`% of current AttackDamageMult (outgoing)
-   8  drain.damageResist    — drain `param`% of current DamageResist (armor)
-   9  burst.stagger         — one-shot: play stagger animation on switch (no param)
-   10 state.alertNearby     — one-shot: nearby hostile actors within `param`m engage
-   11 magic.costPenalty     — all spells cost `param`% more (5 schools, ability spell)
-
- Hit detection is event-driven: MTF_HitListener (a ReferenceAlias on
- MTF_MainQuest forced to the player) calls _onHit(classIdx) on every hit.
- Each class has its own counter; combat.hit.* conditions consume one
- counter increment per check and roll the slot's chance%. The result
- stays "armed" for HIT_VISIBLE_SECONDS so the mark is visible briefly.}
+{Built-in conditions and effects. See GetConditionId/GetEffectId.}
 
 ; LEGACY (pre-v0.0.33): per-quest applied state. Replaced by per-actor
 ; StorageUtil keyed on target. Properties retained for save-file
@@ -73,6 +16,151 @@ float Property _appliedSpellCost  = 0.0 Auto Hidden
 bool  Property _legacyMigrated    = false Auto Hidden
 
 Spell  Property _costPenaltySpell        Auto Hidden
+Spell  Property _fleshSpell               Auto Hidden
+Spell  Property _waterBreathingSpell      Auto Hidden
+Spell  Property _waterWalkingSpell        Auto Hidden
+Spell  Property _resistFireSpell          Auto Hidden
+Spell  Property _resistFrostSpell         Auto Hidden
+Spell  Property _resistShockSpell         Auto Hidden
+Spell  Property _resistMagicSpell         Auto Hidden
+Spell  Property _muffleSpell              Auto Hidden
+Spell  Property _detectAllSpell           Auto Hidden
+Spell  Property _slowTimeSpell            Auto Hidden
+Spell  Property _flameCloakSpell          Auto Hidden
+Spell  Property _flameCloakDmgSpell       Auto Hidden
+Spell  Property _frostCloakSpell          Auto Hidden
+Spell  Property _frostCloakDmgSpell       Auto Hidden
+Spell  Property _lightningCloakSpell      Auto Hidden
+Spell  Property _lightningCloakDmgSpell   Auto Hidden
+
+; Override OnUpdate to handle (a) plugin registration (parent behavior) and
+; (b) deferred cloak Cast(). Cast() engages the cloak archetype's periodic
+; damage dispatch but freezes MCM if called from the MCM thread. Deferring
+; via RegisterForSingleUpdate runs Cast on the Quest's update thread after
+; MCM returns control to the user.
+Event OnUpdate()
+    _tryRegister()
+    ; Drain the pending-Cast queue. Stored via StorageUtil FormLists (NOT
+    ; script-level vars) because plain Papyrus vars added to a script after
+    ; a save was made don't always attach to the saved instance — writes
+    ; silently no-op. StorageUtil is independent of script-instance storage.
+    int n = StorageUtil.FormListCount(self, "mtf.pendCast.spells")
+    int actN = StorageUtil.FormListCount(self, "mtf.pendCast.actors")
+    if actN < n
+        n = actN
+    endif
+    if n > 0
+        Debug.Notification("[MTF] queue drain: " + n + " spell(s)")
+    endif
+    Spell daSpell = _resolveDetectAllSpell()
+    int i = 0
+    while i < n
+        Spell s = StorageUtil.FormListGet(self, "mtf.pendCast.spells", i) as Spell
+        Actor t = StorageUtil.FormListGet(self, "mtf.pendCast.actors", i) as Actor
+        if s != None && t != None
+            if s == daSpell
+                ; DetectLife archetype runtime — the engine loop that scans
+                ; actors within Magnitude feet and paints HitShader on each
+                ; through walls — only engages via the full Cast() pipeline.
+                ; DoCombatSpellApply applies the MGEF but the engine then
+                ; falls back to "paint HitShader on the spell target" (the
+                ; caster, for Self spells), so the player glows red and
+                ; everyone else stays invisible. Cast() needs the caster to
+                ; know the spell, so AddSpell first.
+                if !t.HasSpell(s)
+                    t.AddSpell(s, false)
+                endif
+                s.Cast(t, None)
+            else
+                ; DoCombatSpellApply applies the spell's magic effects directly,
+                ; no animation, no MCM freeze, no AddSpell needed, no spellbook
+                ; clutter. Unlike Spell.Cast() it doesn't require the caster to
+                ; "know" the spell.
+                t.DoCombatSpellApply(s, t)
+            endif
+        endif
+        i += 1
+    endwhile
+    if n > 0
+        StorageUtil.FormListClear(self, "mtf.pendCast.spells")
+        StorageUtil.FormListClear(self, "mtf.pendCast.actors")
+    endif
+    ; Papyrus-driven cloak damage tick. The engine cloak archetype dispatches
+    ; the inner damage SPL at a hardcoded short radius (~5-12 ft) that ignores
+    ; SetNthEffectArea, so to support large user-configurable radii we
+    ; dispatch the inner SPL ourselves on every active cloak.
+    bool anyCloak = _cloakTickAll()
+    if anyCloak
+        RegisterForSingleUpdate(1.0)
+    endif
+EndEvent
+
+; Returns true if at least one cloak is active and the tick scheduled work.
+bool Function _cloakTickAll()
+    Actor pl = Game.GetPlayer()
+    if pl == None
+        return false
+    endif
+    bool any = false
+    if StorageUtil.GetFloatValue(pl, "mtf.shift.flameCloak.active", 0.0) > 0.5
+        _cloakTickOne(pl, _resolveFlameCloakDmgSpell(), "mtf.shift.flameCloak")
+        any = true
+    endif
+    if StorageUtil.GetFloatValue(pl, "mtf.shift.frostCloak.active", 0.0) > 0.5
+        _cloakTickOne(pl, _resolveFrostCloakDmgSpell(), "mtf.shift.frostCloak")
+        any = true
+    endif
+    if StorageUtil.GetFloatValue(pl, "mtf.shift.lightningCloak.active", 0.0) > 0.5
+        _cloakTickOne(pl, _resolveLightningCloakDmgSpell(), "mtf.shift.lightningCloak")
+        any = true
+    endif
+    return any
+EndFunction
+
+; Per-cloak per-tick dispatch: refresh inner damage SPL magnitude from
+; StorageUtil (in case slider changed mid-fight), then DoCombatSpellApply
+; on every hostile alive actor within paramRadius feet of the source.
+Function _cloakTickOne(Actor source, Spell inner, string key)
+    if source == None || inner == None
+        return
+    endif
+    float dmg = StorageUtil.GetFloatValue(source, key, 0.0)
+    float radFt = StorageUtil.GetFloatValue(source, key + ".radius", 0.0)
+    if dmg <= 0.0 || radFt <= 0.0
+        return
+    endif
+    inner.SetNthEffectMagnitude(0, dmg)
+    float radUnits = radFt * 21.336
+    Actor[] near = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
+    if near == None
+        return
+    endif
+    int i = 0
+    while i < near.Length
+        Actor a = near[i]
+        if a != None && a != source && !a.IsDead()
+            if a.IsHostileToActor(source)
+                if a.GetDistance(source) <= radUnits
+                    source.DoCombatSpellApply(inner, a)
+                endif
+            endif
+        endif
+        i += 1
+    endwhile
+EndFunction
+
+; Append a (spell, target) pair to the pending-Cast queue and schedule the
+; OnUpdate that drains it. Use this anywhere you need to defer Spell.Cast
+; off the MCM thread (Cast() blocks while the game is paused, freezing MCM).
+Function _queueCast(Spell s, Actor t)
+    if s == None || t == None
+        return
+    endif
+    Debug.Notification("[MTF] queueCast spell")
+    StorageUtil.FormListAdd(self, "mtf.pendCast.spells", s)
+    StorageUtil.FormListAdd(self, "mtf.pendCast.actors", t)
+    RegisterForSingleUpdate(0.1)
+EndFunction
 
 ; Lazy-resolved location keywords (Skyrim.esm, no master needed).
 Keyword Property _kwPlayerHouse Auto Hidden
@@ -738,139 +826,397 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 12
+    return 34
 EndFunction
 
 string Function GetEffectId(int idx)
+    if idx < 14
+        return _effectIdLow(idx)
+    endif
+    return _effectIdHigh(idx)
+EndFunction
+
+string Function _effectIdLow(int idx)
     if idx == 0
-        return "drain.magickaRate"
+        return "shift.magickaRate"
     elseif idx == 1
-        return "drain.carryWeight"
+        return "shift.carryWeight"
     elseif idx == 2
-        return "drain.sneak"
+        return "shift.sneak"
     elseif idx == 3
         return "burst.magicka"
     elseif idx == 4
         return "burst.stamina"
     elseif idx == 5
-        return "drain.speedMult"
+        return "shift.speedMult"
     elseif idx == 6
-        return "drain.staminaRate"
+        return "shift.staminaRate"
     elseif idx == 7
-        return "drain.attackDamageMult"
+        return "shift.attackDamageMult"
     elseif idx == 8
-        return "drain.damageResist"
+        return "shift.damageResist"
     elseif idx == 9
         return "burst.stagger"
     elseif idx == 10
         return "state.alertNearby"
     elseif idx == 11
-        return "magic.costPenalty"
+        return "shift.magicCost"
+    elseif idx == 12
+        return "shift.healRate"
+    elseif idx == 13
+        return "shift.magickaPool"
+    endif
+    return ""
+EndFunction
+
+string Function _effectIdHigh(int idx)
+    if idx == 14
+        return "shift.staminaPool"
+    elseif idx == 15
+        return "shift.weaponSpeed"
+    elseif idx == 16
+        return "shift.unarmedDamage"
+    elseif idx == 17
+        return "shift.criticalChance"
+    elseif idx == 18
+        return "shift.bowSpeed"
+    elseif idx == 19
+        return "shift.resistFire"
+    elseif idx == 20
+        return "shift.resistFrost"
+    elseif idx == 21
+        return "shift.resistShock"
+    elseif idx == 22
+        return "shift.resistMagic"
+    elseif idx == 23
+        return "toggle.muffle"
+    elseif idx == 24
+        return "toggle.waterBreathing"
+    elseif idx == 25
+        return "toggle.waterWalking"
+    elseif idx == 26
+        return "burst.health"
+    elseif idx == 27
+        return "burst.bounty"
+    elseif idx == 28
+        return "spell.flesh"
+    elseif idx == 29
+        return "spell.detectAll"
+    elseif idx == 30
+        return "spell.slowTime"
+    elseif idx == 31
+        return "spell.flameCloak"
+    elseif idx == 32
+        return "spell.frostCloak"
+    elseif idx == 33
+        return "spell.lightningCloak"
     endif
     return ""
 EndFunction
 
 string Function GetEffectLabel(int idx)
+    if idx < 14
+        return _effectLabelLow(idx)
+    endif
+    return _effectLabelHigh(idx)
+EndFunction
+
+string Function _effectLabelLow(int idx)
     if idx == 0
-        return "Mana Siphon"
+        return "Magicka Regen Shift"
     elseif idx == 1
-        return "Carry Weight Penalty"
+        return "Carry Weight Shift"
     elseif idx == 2
-        return "Sneak Penalty"
+        return "Sneak Shift"
     elseif idx == 3
         return "[!] Magicka Burst"
     elseif idx == 4
         return "[!] Stamina Burst"
     elseif idx == 5
-        return "Movement Speed Penalty"
+        return "Movement Speed Shift"
     elseif idx == 6
-        return "Stamina Regen Penalty"
+        return "Stamina Regen Shift"
     elseif idx == 7
-        return "Attack Damage Penalty"
+        return "Attack Damage Shift"
     elseif idx == 8
-        return "Armor Penalty"
+        return "Armor Shift"
     elseif idx == 9
         return "[!] Stagger"
     elseif idx == 10
         return "[!] Blow Sneak Cover"
     elseif idx == 11
-        return "Spell Cost Penalty %"
+        return "Spell Cost Shift %"
+    elseif idx == 12
+        return "Health Regen Shift"
+    elseif idx == 13
+        return "Magicka Pool Shift"
+    endif
+    return ""
+EndFunction
+
+string Function _effectLabelHigh(int idx)
+    if idx == 14
+        return "Stamina Pool Shift"
+    elseif idx == 15
+        return "Weapon Speed Shift"
+    elseif idx == 16
+        return "Unarmed Damage Shift"
+    elseif idx == 17
+        return "Critical Chance Shift"
+    elseif idx == 18
+        return "Bow Speed Shift"
+    elseif idx == 19
+        return "Fire Resist Shift"
+    elseif idx == 20
+        return "Frost Resist Shift"
+    elseif idx == 21
+        return "Shock Resist Shift"
+    elseif idx == 22
+        return "Magic Resist Shift"
+    elseif idx == 23
+        return "[+] Muffle"
+    elseif idx == 24
+        return "[+] Water Breathing"
+    elseif idx == 25
+        return "[+] Water Walking"
+    elseif idx == 26
+        return "[!] Health Burst"
+    elseif idx == 27
+        return "[!] Bounty Change"
+    elseif idx == 28
+        return "[+] Flesh (Armor)"
+    elseif idx == 29
+        return "[+] Detect All (radius)"
+    elseif idx == 30
+        return "[+] Slow Time"
+    elseif idx == 31
+        return "[+] Flame Cloak"
+    elseif idx == 32
+        return "[+] Frost Cloak"
+    elseif idx == 33
+        return "[+] Lightning Cloak"
     endif
     return ""
 EndFunction
 
 string Function GetEffectParamLabel(int idx)
+    if idx < 14
+        return _effectParamLabelLow(idx)
+    endif
+    return _effectParamLabelHigh(idx)
+EndFunction
+
+string Function _effectParamLabelLow(int idx)
     if idx == 0
-        return "Drain % of current MagickaRateMult"
+        return "Shift % of current MagickaRateMult (+ buff, - drain)"
     elseif idx == 1
-        return "Drain % of current CarryWeight"
+        return "Shift % of current CarryWeight (+ buff, - drain)"
     elseif idx == 2
-        return "Drain % of current Sneak"
+        return "Shift % of current Sneak (+ buff, - drain)"
     elseif idx == 3
-        return "Burst drain % of current Magicka"
+        return "Burst % of base Magicka (+ restore, - damage)"
     elseif idx == 4
-        return "Burst drain % of current Stamina"
+        return "Burst % of base Stamina (+ restore, - damage)"
     elseif idx == 5
-        return "Drain % of current SpeedMult"
+        return "Shift % of current SpeedMult (+ buff, - drain)"
     elseif idx == 6
-        return "Drain % of current StaminaRateMult"
+        return "Shift % of current StaminaRateMult (+ buff, - drain)"
     elseif idx == 7
-        return "Drain % of current AttackDamageMult"
+        return "Shift % of current AttackDamageMult (+ buff, - drain)"
     elseif idx == 8
-        return "Drain % of current DamageResist (armor)"
+        return "Shift % of current DamageResist (+ buff, - drain)"
     elseif idx == 9
         return ""
     elseif idx == 10
-        return "Alert radius (meters)"
+        return "Alert radius (feet)"
     elseif idx == 11
-        return "Extra spell cost across all schools, % (step 5)"
+        return "Spell cost shift % across all schools (+ discount, - penalty)"
+    elseif idx == 12
+        return "Shift % of current HealRateMult (+ buff, - drain)"
+    elseif idx == 13
+        return "Shift % of current Magicka (+ buff, - drain)"
+    endif
+    return ""
+EndFunction
+
+string Function _effectParamLabelHigh(int idx)
+    if idx == 14
+        return "Shift % of current Stamina (+ buff, - drain)"
+    elseif idx == 15
+        return "Shift % of current WeaponSpeedMult (+ buff, - drain)"
+    elseif idx == 16
+        return "Unarmed damage shift (points; + buff, - drain)"
+    elseif idx == 17
+        return "Critical chance shift (points; + buff, - drain)"
+    elseif idx == 18
+        return "Bow speed bonus shift (units; + faster draw, - slower)"
+    elseif idx == 19
+        return "Fire resist shift (points; + resist, - weakness)"
+    elseif idx == 20
+        return "Frost resist shift (points; + resist, - weakness)"
+    elseif idx == 21
+        return "Shock resist shift (points; + resist, - weakness)"
+    elseif idx == 22
+        return "Magic resist shift (points; + resist, - weakness)"
+    elseif idx == 23 || idx == 24 || idx == 25
+        return ""
+    elseif idx == 26
+        return "Burst % of base Health (+ restore, - damage)"
+    elseif idx == 27
+        return "Bounty change (gold; + add, - remove)"
+    elseif idx == 28
+        return "Armor rating points"
+    elseif idx == 29
+        return "Detect radius (feet)"
+    elseif idx == 30
+        return "Time speed % (lower = slower; 100 = normal)"
+    elseif idx == 31 || idx == 32 || idx == 33
+        return "Damage per second"
     endif
     return ""
 EndFunction
 
 int Function GetEffectParamMin(int idx)
-    if idx == 10
+    if idx == 9 || idx == 23 || idx == 24 || idx == 25
+        return 0
+    elseif idx == 10 || idx == 29
+        return 5
+    elseif idx == 11
+        return -400
+    elseif idx == 27
+        return -10000
+    elseif idx == 28
+        return 0
+    elseif idx == 30
+        return 5
+    elseif idx == 31 || idx == 32 || idx == 33
         return 1
     endif
-    return 0
+    return -100
 EndFunction
 int Function GetEffectParamMax(int idx)
-    if idx == 11
+    if idx == 9 || idx == 23 || idx == 24 || idx == 25
+        return 0
+    elseif idx == 10
+        return 300
+    elseif idx == 11
         return 400
+    elseif idx == 27
+        return 10000
+    elseif idx == 28
+        return 500
+    elseif idx == 29
+        return 500
+    elseif idx == 30
+        return 100
+    elseif idx == 31 || idx == 32 || idx == 33
+        return 200
     endif
     return 100
 EndFunction
 int Function GetEffectParamDefault(int idx)
-    if idx == 3 || idx == 4
+    if idx == 10
+        return 80
+    elseif idx == 28
+        return 100
+    elseif idx == 29
+        return 100
+    elseif idx == 30
         return 50
-    elseif idx == 9
-        return 0
-    elseif idx == 10
-        return 25
-    elseif idx == 11
-        return 50
+    elseif idx == 31 || idx == 32 || idx == 33
+        return 8
     endif
-    return 25
+    return 0
 EndFunction
 
 int Function GetEffectParamStep(int idx)
     if idx == 11
         return 5
+    elseif idx == 27
+        return 50
+    elseif idx == 10
+        return 5
+    elseif idx == 28
+        return 10
+    elseif idx == 29
+        return 10
+    elseif idx == 30
+        return 5
+    elseif idx == 31 || idx == 32 || idx == 33
+        return 1
     endif
     return 1
 EndFunction
 
-bool Function _isDrain(int idx)
-    return idx <= 2 || (idx >= 5 && idx <= 8)
+string Function GetEffectParam2Label(int idx)
+    ; Cloak radius slider (idx 31-33). Outer spell Area is written via
+    ; SetNthEffectArea in _applyCloak, converting feet → game units.
+    if idx == 31 || idx == 32 || idx == 33
+        return "Radius (feet)"
+    endif
+    return ""
+EndFunction
+int Function GetEffectParam2Min(int idx)
+    if idx == 31 || idx == 32 || idx == 33
+        return 3
+    endif
+    return 0
+EndFunction
+int Function GetEffectParam2Max(int idx)
+    if idx == 31 || idx == 32 || idx == 33
+        return 100
+    endif
+    return 100
+EndFunction
+int Function GetEffectParam2Default(int idx)
+    if idx == 31 || idx == 32 || idx == 33
+        return 5
+    endif
+    return 0
+EndFunction
+int Function GetEffectParam2Step(int idx)
+    return 1
+EndFunction
+
+; Signed-convention classifiers. Positive param = buff, negative = penalty.
+; Applied magnitudes stored in mtf.shift.<idx> on the target so
+; deactivate/recompute can roll them back precisely.
+bool Function _isPctShift(int idx)
+    ; 16 (UnarmedDamage), 17 (CriticalChance), 18 (BowSpeedBonus) are abs shifts
+    ; because their AVs default to 0 on most races — pct math gives 0.
+    return idx <= 2 || (idx >= 5 && idx <= 8) || (idx >= 12 && idx <= 15)
+EndFunction
+
+bool Function _isAbsShift(int idx)
+    return (idx >= 16 && idx <= 22)
+EndFunction
+
+bool Function _isToggle(int idx)
+    return idx >= 23 && idx <= 25
+EndFunction
+
+bool Function _isBurstAV(int idx)
+    return idx == 3 || idx == 4 || idx == 26
 EndFunction
 
 string Function _avNameFor(int idx)
+    if idx < 14
+        return _avNameForLow(idx)
+    endif
+    return _avNameForHigh(idx)
+EndFunction
+
+string Function _avNameForLow(int idx)
     if idx == 0
         return "MagickaRateMult"
     elseif idx == 1
         return "CarryWeight"
     elseif idx == 2
         return "Sneak"
+    elseif idx == 3
+        return "Magicka"
+    elseif idx == 4
+        return "Stamina"
     elseif idx == 5
         return "SpeedMult"
     elseif idx == 6
@@ -879,19 +1225,55 @@ string Function _avNameFor(int idx)
         return "AttackDamageMult"
     elseif idx == 8
         return "DamageResist"
+    elseif idx == 12
+        return "HealRateMult"
+    elseif idx == 13
+        return "Magicka"
     endif
     return ""
 EndFunction
 
-; Per-actor applied state via StorageUtil. Keys: "mtf.applied.<idx>".
-; Previously stored on the plugin quest itself as _appliedMana/Carry/etc.;
-; moved to per-actor storage in v0.0.33 so different NPCs can carry
-; independent applied magnitudes without thrashing each other.
+string Function _avNameForHigh(int idx)
+    if idx == 14
+        return "Stamina"
+    elseif idx == 15
+        return "WeaponSpeedMult"
+    elseif idx == 16
+        return "UnarmedDamage"
+    elseif idx == 17
+        return "CriticalChance"
+    elseif idx == 18
+        return "BowSpeedBonus"
+    elseif idx == 19
+        return "ResistFire"
+    elseif idx == 20
+        return "ResistFrost"
+    elseif idx == 21
+        return "ResistShock"
+    elseif idx == 22
+        return "ResistMagic"
+    elseif idx == 23
+        return "Muffled"
+    elseif idx == 24
+        return "WaterBreathing"
+    elseif idx == 25
+        return "WaterWalking"
+    elseif idx == 26
+        return "Health"
+    endif
+    return ""
+EndFunction
+
+; Per-actor applied state via StorageUtil. Keys: "mtf.shift.<idx>" (signed).
+; Stores the SIGNED amount we applied via ModActorValue. Deactivate/recompute
+; reverts by ModActorValue(av, -prev). Per-actor so NPC subjects don't thrash
+; each other. (Pre-v0.0.35 used "mtf.applied.<idx>" with positive magnitude;
+; those orphaned entries are harmless under the signed convention.)
 float Function _getApplied(int idx, Actor target)
     if target == None
         return 0.0
     endif
-    return StorageUtil.GetFloatValue(target, "mtf.applied." + idx, 0.0)
+    return StorageUtil.GetFloatValue(target, "mtf.shift." + idx, 0.0)
 EndFunction
 
 Function _setApplied(int idx, Actor target, float v)
@@ -899,45 +1281,281 @@ Function _setApplied(int idx, Actor target, float v)
         return
     endif
     if v == 0.0
-        StorageUtil.UnsetFloatValue(target, "mtf.applied." + idx)
+        StorageUtil.UnsetFloatValue(target, "mtf.shift." + idx)
     else
-        StorageUtil.SetFloatValue(target, "mtf.applied." + idx, v)
+        StorageUtil.SetFloatValue(target, "mtf.shift." + idx, v)
     endif
 EndFunction
 
-Function _recompute(int idx, Actor target, int param)
+; pct shift: signed `param` % of CURRENT AV.
+Function _recomputeShift(int idx, Actor target, int param)
     string av = _avNameFor(idx)
     if av == "" || target == None
         return
     endif
     float prev = _getApplied(idx, target)
     if prev != 0.0
-        target.ModActorValue(av, prev)
+        target.ModActorValue(av, -prev)
     endif
-    if param <= 0
+    if param == 0
         _setApplied(idx, target, 0.0)
         return
     endif
     float current = target.GetActorValue(av)
+    ; Allow buff (positive param) even when current<=0 — useful for ResistFire
+    ; etc. starting at 0. But pct shift would multiply by 0; only abs shifts
+    ; can buff a zero baseline. So bail here for pct.
     if current <= 0.0
         _setApplied(idx, target, 0.0)
         return
     endif
     float amt = current * param / 100.0
-    target.ModActorValue(av, -amt)
+    target.ModActorValue(av, amt)
     _setApplied(idx, target, amt)
 EndFunction
 
-Function _burstDrain(string av, Actor target, int param)
-    if target == None || param <= 0
+; abs shift: signed `param` in AV points (no scaling).
+Function _recomputeAbsShift(int idx, Actor target, int param)
+    if target == None
         return
     endif
-    float current = target.GetActorValue(av)
-    if current <= 0.0
+    ; Engine-managed Resist* AVs ignore direct ModActorValue. Route through
+    ; an Ability spell with ValueModifier archetype (vanilla AbResistFire
+    ; pattern). Magnitude is set per-cast, signed via SetNthEffectMagnitude.
+    if idx >= 19 && idx <= 22
+        _absShiftSpell(_resolveResistSpell(idx), target, param, idx)
         return
     endif
-    float amt = current * param / 100.0
-    target.DamageActorValue(av, amt)
+    string av = _avNameFor(idx)
+    if av == ""
+        return
+    endif
+    float prev = _getApplied(idx, target)
+    if prev != 0.0
+        target.ModActorValue(av, -prev)
+    endif
+    if param == 0
+        _setApplied(idx, target, 0.0)
+        return
+    endif
+    float amt = param as float
+    target.ModActorValue(av, amt)
+    _setApplied(idx, target, amt)
+EndFunction
+
+; toggle: bind/unbind sets AV ±1 (or AddSpell/RemoveSpell for engine-managed
+; AVs like WaterBreathing/WaterWalking that don't respond to direct ModAV).
+; `param` is ignored; `on` = activate.
+Function _recomputeToggle(int idx, Actor target, bool on)
+    if target == None
+        return
+    endif
+    ; Engine-managed AVs need an ability spell (constant-effect ability).
+    ; Direct ModActorValue silently no-ops on Muffled/WaterBreathing/WaterWalking.
+    if idx == 23
+        _toggleSpell(_resolveMuffleSpell(), target, on, idx)
+        return
+    elseif idx == 24
+        _toggleSpell(_resolveWaterBreathingSpell(), target, on, idx)
+        return
+    elseif idx == 25
+        _toggleSpell(_resolveWaterWalkingSpell(), target, on, idx)
+        return
+    endif
+    string av = _avNameFor(idx)
+    if av == ""
+        return
+    endif
+    float prev = _getApplied(idx, target)
+    if on
+        if prev > 0.0
+            return ; already applied
+        endif
+        if prev < 0.0
+            target.ModActorValue(av, -prev)
+        endif
+        target.ModActorValue(av, 1.0)
+        _setApplied(idx, target, 1.0)
+    else
+        if prev != 0.0
+            target.ModActorValue(av, -prev)
+        endif
+        _setApplied(idx, target, 0.0)
+    endif
+EndFunction
+
+Function _toggleSpell(Spell s, Actor target, bool on, int idx)
+    if s == None
+        return
+    endif
+    float prev = _getApplied(idx, target)
+    if on
+        if prev > 0.0
+            return ; already applied
+        endif
+        target.AddSpell(s, false)
+        _setApplied(idx, target, 1.0)
+    else
+        target.RemoveSpell(s)
+        _setApplied(idx, target, 0.0)
+    endif
+EndFunction
+
+Spell Function _resolveWaterBreathingSpell()
+    if _waterBreathingSpell == None
+        _waterBreathingSpell = Game.GetFormFromFile(0x833, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _waterBreathingSpell
+EndFunction
+
+Spell Function _resolveWaterWalkingSpell()
+    if _waterWalkingSpell == None
+        _waterWalkingSpell = Game.GetFormFromFile(0x835, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _waterWalkingSpell
+EndFunction
+
+Spell Function _resolveMuffleSpell()
+    if _muffleSpell == None
+        _muffleSpell = Game.GetFormFromFile(0x83F, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _muffleSpell
+EndFunction
+
+; one-shot burst: signed % of BASE AV. + → RestoreActorValue, - → Damage.
+Function _burstDelta(string av, Actor target, int param)
+    if target == None || param == 0 || av == ""
+        return
+    endif
+    float base = target.GetBaseActorValue(av)
+    if base <= 0.0
+        return
+    endif
+    float amt = base * param / 100.0
+    if amt > 0.0
+        target.RestoreActorValue(av, amt)
+    else
+        target.DamageActorValue(av, -amt)
+    endif
+EndFunction
+
+; Apply a signed-magnitude resist via an Ability spell. Removes first to
+; clear stale magnitude, mutates the spell's effect magnitude, then re-adds.
+Function _absShiftSpell(Spell s, Actor target, int param, int idx)
+    if s == None
+        return
+    endif
+    float prev = _getApplied(idx, target)
+    target.RemoveSpell(s)
+    if param == 0
+        _setApplied(idx, target, 0.0)
+        return
+    endif
+    float mag = param as float
+    s.SetNthEffectMagnitude(0, mag)
+    target.AddSpell(s, false)
+    _setApplied(idx, target, mag)
+EndFunction
+
+Spell Function _resolveResistSpell(int idx)
+    if idx == 19
+        if _resistFireSpell == None
+            _resistFireSpell = Game.GetFormFromFile(0x837, "MagicTattoosFramework.esp") as Spell
+        endif
+        return _resistFireSpell
+    elseif idx == 20
+        if _resistFrostSpell == None
+            _resistFrostSpell = Game.GetFormFromFile(0x839, "MagicTattoosFramework.esp") as Spell
+        endif
+        return _resistFrostSpell
+    elseif idx == 21
+        if _resistShockSpell == None
+            _resistShockSpell = Game.GetFormFromFile(0x83B, "MagicTattoosFramework.esp") as Spell
+        endif
+        return _resistShockSpell
+    elseif idx == 22
+        if _resistMagicSpell == None
+            _resistMagicSpell = Game.GetFormFromFile(0x83D, "MagicTattoosFramework.esp") as Spell
+        endif
+        return _resistMagicSpell
+    endif
+    return None
+EndFunction
+
+; one-shot bounty: add signed `param` gold to the crime faction of the hold
+; the actor is currently in. Actor.GetCrimeFaction() is unreliable — it only
+; returns the faction the actor last committed a crime against, which is
+; None for a fresh player. Robust path: walk Location.ParentLocation up the
+; chain until we find one with UnreportedCrimeFaction set (every hold's
+; parent Location has this set to the hold's crime faction).
+Function _modBounty(Actor target, int param)
+    if target == None || param == 0
+        return
+    endif
+    Faction f = _resolveCrimeFaction(target)
+    if f == None
+        f = target.GetCrimeFaction() ; fallback to last-committed
+    endif
+    if f == None
+        return
+    endif
+    f.ModCrimeGold(param, false) ; non-violent bounty bucket
+EndFunction
+
+; Resolves the hold crime faction for the actor's current location. Papyrus
+; doesn't expose Location.GetCrimeFaction(), so we iterate the 9 known hold
+; Locations and use Actor.IsInLocation (which walks the parent chain). All
+; FormIDs verified from Skyrim.esm.
+Faction Function _resolveCrimeFaction(Actor target)
+    if target == None
+        return None
+    endif
+    Faction f
+    f = _checkHold(target, 0x016772, 0x0267EA) ; Whiterun
+    if f != None
+        return f
+    endif
+    f = _checkHold(target, 0x01676A, 0x0267E3) ; Eastmarch
+    if f != None
+        return f
+    endif
+    f = _checkHold(target, 0x01676F, 0x028170) ; Falkreath
+    if f != None
+        return f
+    endif
+    f = _checkHold(target, 0x016770, 0x029DB0) ; Haafingar (Solitude)
+    if f != None
+        return f
+    endif
+    f = _checkHold(target, 0x01676E, 0x02816D) ; Hjaalmarch (Morthal)
+    if f != None
+        return f
+    endif
+    f = _checkHold(target, 0x01676D, 0x02816E) ; Pale (Dawnstar)
+    if f != None
+        return f
+    endif
+    f = _checkHold(target, 0x016769, 0x02816C) ; Reach (Markarth)
+    if f != None
+        return f
+    endif
+    f = _checkHold(target, 0x01676C, 0x02816B) ; Rift (Riften)
+    if f != None
+        return f
+    endif
+    f = _checkHold(target, 0x01676B, 0x02816F) ; Winterhold
+    if f != None
+        return f
+    endif
+    return None
+EndFunction
+
+Faction Function _checkHold(Actor target, int locFID, int factFID)
+    Location loc = Game.GetFormFromFile(locFID, "Skyrim.esm") as Location
+    if loc != None && target.IsInLocation(loc)
+        return Game.GetFormFromFile(factFID, "Skyrim.esm") as Faction
+    endif
+    return None
 EndFunction
 
 Spell Function _resolveCostPenaltySpell()
@@ -955,6 +1573,9 @@ Function _applyCostPenalty(Actor target, int param)
     if s == None
         return
     endif
+    ; Signed convention: positive `param` = discount (negative magnitude on the
+    ; cost-penalty spell), negative `param` = penalty.
+    ;
     ; SetNthEffectMagnitude does not affect already-added abilities;
     ; must remove → mutate → re-add. Also does not persist across save/load
     ; — onTick re-applies if applied magnitude drifts from current param.
@@ -962,18 +1583,18 @@ Function _applyCostPenalty(Actor target, int param)
     ; NOTE: SetNthEffectMagnitude mutates the *shared* spell form. If two
     ; actors have this effect with different params, the most recent
     ; activation's magnitude is what every actor's instance of the ability
-    ; will use until re-applied. Per-actor `mtf.applied.spellcost` tracking
+    ; will use until re-applied. Per-actor `mtf.shift.spellcost` tracking
     ; keeps onTick stable per actor, but cross-actor magnitude conflicts are
     ; a known limitation (would need per-actor cloned spell forms to fix).
     target.RemoveSpell(s)
-    float mag = -(param as float)
+    float mag = -(param as float) ; spell magnitude convention is inverted
     int i = 0
     while i < 5
         s.SetNthEffectMagnitude(i, mag)
         i += 1
     endwhile
     target.AddSpell(s, false)
-    StorageUtil.SetFloatValue(target, "mtf.applied.spellcost", mag)
+    StorageUtil.SetFloatValue(target, "mtf.shift.spellcost", mag)
 EndFunction
 
 Function _removeCostPenalty(Actor target)
@@ -985,14 +1606,256 @@ Function _removeCostPenalty(Actor target)
         return
     endif
     target.RemoveSpell(s)
-    StorageUtil.UnsetFloatValue(target, "mtf.applied.spellcost")
+    StorageUtil.UnsetFloatValue(target, "mtf.shift.spellcost")
 EndFunction
 
-Function _alertNearby(Actor target, int paramMeters)
-    if target == None || paramMeters <= 0
+Spell Function _resolveFleshSpell()
+    if _fleshSpell == None
+        _fleshSpell = Game.GetFormFromFile(0x831, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _fleshSpell
+EndFunction
+
+; Flesh: timed Fire-and-Forget self spell with ValueModifier on DamageResist.
+; Constant-effect abilities can't write to DamageResist (the engine recomputes
+; it from worn armor every frame); a timed spell sneaks in via the normal
+; armor-stack pipeline. Magnitude = armor points. We re-cast on every onTick
+; to refresh the 30s duration so the buff stays active while the tier is on.
+Function _applyFlesh(Actor target, int param)
+    if target == None
         return
     endif
-    float radius = (paramMeters as float) * 70.0
+    Spell s = _resolveFleshSpell()
+    if s == None
+        return
+    endif
+    float mag = param as float
+    ; Constant-effect Ability + PeakValueModifier archetype (like vanilla
+    ; Lord/Steed Stones). Abilities don't appear in the spell menu UI, and
+    ; RemoveSpell cleanly dispels. For magnitude changes, RemoveSpell first
+    ; to clear, then SetNthEffectMagnitude, then AddSpell to re-apply.
+    target.RemoveSpell(s)
+    s.SetNthEffectMagnitude(0, mag)
+    target.AddSpell(s, false)
+    StorageUtil.SetFloatValue(target, "mtf.shift.flesh", mag)
+EndFunction
+
+Function _removeFlesh(Actor target)
+    if target == None
+        return
+    endif
+    Spell s = _resolveFleshSpell()
+    if s == None
+        return
+    endif
+    target.RemoveSpell(s)
+    StorageUtil.UnsetFloatValue(target, "mtf.shift.flesh")
+    StorageUtil.UnsetFloatValue(target, "mtf.shift.flesh.cast")
+EndFunction
+
+; ── Detect All / Slow Time / Cloaks ──────────────────────────────────────────
+
+Spell Function _resolveDetectAllSpell()
+    if _detectAllSpell == None
+        _detectAllSpell = Game.GetFormFromFile(0x841, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _detectAllSpell
+EndFunction
+
+; Detect All: ability + ValueModifier on DetectLifeRange. Magnitude = radius
+; in game units (param in feet × 21.336). Shows ALL nearby actors (alive +
+; dead) through walls. Vanilla werewolf-vision pattern.
+Function _applyDetectAll(Actor target, int paramFeet)
+    if target == None
+        return
+    endif
+    Spell s = _resolveDetectAllSpell()
+    if s == None
+        return
+    endif
+    ; DetectLife archetype is FAF + Duration like Aura Whisper. Magnitude is
+    ; range in feet.
+    float mag = paramFeet as float
+    s.SetNthEffectMagnitude(0, mag)
+    StorageUtil.SetFloatValue(target, "mtf.shift.detectAll", paramFeet as float)
+    StorageUtil.SetFloatValue(target, "mtf.shift.detectAll.cast", Utility.GetCurrentRealTime())
+    ; Dispel first so the periodic refresh produces a fresh 60s instance —
+    ; without this, re-casting while the previous DetectLife is still active
+    ; can be a no-op and the effect ends at original Duration.
+    target.DispelSpell(s)
+    ; Defer Cast via OnUpdate. Same MCM-thread-blocking issue as cloaks.
+    _queueCast(s, target)
+EndFunction
+
+Function _removeDetectAll(Actor target)
+    if target == None
+        return
+    endif
+    Spell s = _resolveDetectAllSpell()
+    if s == None
+        return
+    endif
+    target.DispelSpell(s)
+    target.RemoveSpell(s)
+    StorageUtil.UnsetFloatValue(target, "mtf.shift.detectAll")
+    StorageUtil.UnsetFloatValue(target, "mtf.shift.detectAll.cast")
+EndFunction
+
+Spell Function _resolveSlowTimeSpell()
+    if _slowTimeSpell == None
+        _slowTimeSpell = Game.GetFormFromFile(0x843, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _slowTimeSpell
+EndFunction
+
+; Slow Time: FAF Self spell with SlowTime archetype, Duration 30. Refresh
+; every ~25s via onTick. param = % time speed (lower = slower; vanilla shout
+; uses 30 = 30% normal speed = 70% slowdown).
+Function _applySlowTime(Actor target, int paramPercent)
+    if target == None
+        return
+    endif
+    Spell s = _resolveSlowTimeSpell()
+    if s == None
+        return
+    endif
+    float mag = (paramPercent as float) / 100.0
+    if mag <= 0.0
+        mag = 0.05
+    endif
+    s.SetNthEffectMagnitude(0, mag)
+    StorageUtil.SetFloatValue(target, "mtf.shift.slowTime", paramPercent as float)
+    StorageUtil.SetFloatValue(target, "mtf.shift.slowTime.cast", Utility.GetCurrentRealTime())
+    ; SlowTime archetype ignores a re-cast while the previous instance is
+    ; still ticking, so the periodic refresh would be a no-op and the effect
+    ; would end at the original Duration. Dispel first to force a fresh
+    ; engine instance with a full 30s duration.
+    target.DispelSpell(s)
+    ; Defer Cast via OnUpdate. Calling s.Cast() directly from MCM thread
+    ; blocks the menu until exit; deferring runs Cast on the quest update
+    ; thread instead.
+    _queueCast(s, target)
+EndFunction
+
+Function _removeSlowTime(Actor target)
+    if target == None
+        return
+    endif
+    Spell s = _resolveSlowTimeSpell()
+    if s == None
+        return
+    endif
+    target.DispelSpell(s)
+    StorageUtil.UnsetFloatValue(target, "mtf.shift.slowTime")
+    StorageUtil.UnsetFloatValue(target, "mtf.shift.slowTime.cast")
+EndFunction
+
+Spell Function _resolveFlameCloakSpell()
+    if _flameCloakSpell == None
+        _flameCloakSpell = Game.GetFormFromFile(0x847, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _flameCloakSpell
+EndFunction
+Spell Function _resolveFlameCloakDmgSpell()
+    if _flameCloakDmgSpell == None
+        _flameCloakDmgSpell = Game.GetFormFromFile(0x845, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _flameCloakDmgSpell
+EndFunction
+Spell Function _resolveFrostCloakSpell()
+    if _frostCloakSpell == None
+        _frostCloakSpell = Game.GetFormFromFile(0x84B, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _frostCloakSpell
+EndFunction
+Spell Function _resolveFrostCloakDmgSpell()
+    if _frostCloakDmgSpell == None
+        _frostCloakDmgSpell = Game.GetFormFromFile(0x849, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _frostCloakDmgSpell
+EndFunction
+Spell Function _resolveLightningCloakSpell()
+    if _lightningCloakSpell == None
+        _lightningCloakSpell = Game.GetFormFromFile(0x84F, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _lightningCloakSpell
+EndFunction
+Spell Function _resolveLightningCloakDmgSpell()
+    if _lightningCloakDmgSpell == None
+        _lightningCloakDmgSpell = Game.GetFormFromFile(0x84D, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _lightningCloakDmgSpell
+EndFunction
+
+; Cloak: outer FAF Self spell with Cloak archetype + Association → inner
+; damage spell. param = damage per second (mutates inner spell magnitude).
+; param2 = radius in feet (mutates outer spell Area). 60s duration, refresh
+; every ~50s via onTick.
+Function _applyCloak(Spell outer, Spell inner, Actor target, int paramDmg, int paramRadius, string key)
+    if target == None || outer == None || inner == None
+        return
+    endif
+    ; Engine-managed cloak via deferred Cast(). Cloak archetype dispatches
+    ; inner damage spell to all actors in radius. paramRadius is in CK feet;
+    ; convert to game units (21.336 units/ft) and write to outer spell's
+    ; effect Area via SetNthEffectArea. Magnitude on BOTH outer and inner —
+    ; engine may read from either. Inner has Duration=0 for predictable
+    ; instant per-tick damage.
+    float mag = paramDmg as float
+    inner.SetNthEffectMagnitude(0, mag)
+    outer.SetNthEffectMagnitude(0, mag)
+    int areaUnits = ((paramRadius as float) * 21.336) as int
+    if areaUnits < 1
+        areaUnits = 1
+    endif
+    outer.SetNthEffectArea(0, areaUnits)
+    StorageUtil.SetFloatValue(target, key, mag)
+    StorageUtil.SetFloatValue(target, key + ".radius", paramRadius as float)
+    StorageUtil.SetFloatValue(target, key + ".active", 1.0)
+    StorageUtil.SetFloatValue(target, key + ".cast", Utility.GetCurrentRealTime())
+    ; Dispel any existing cloak instance so the engine re-reads area on
+    ; recast; if we don't dispel, an active cloak may keep its cached radius.
+    target.DispelSpell(outer)
+    _queueCast(outer, target)
+    ; Begin/continue Papyrus damage polling (OnUpdate → _cloakTickAll). The
+    ; engine cloak still dispatches the inner SPL at its hardcoded short
+    ; radius, so close-up actors may take overlapping hits — that's accepted.
+    RegisterForSingleUpdate(1.0)
+EndFunction
+
+Function _removeCloak(Spell outer, Actor target, string key)
+    if target == None || outer == None
+        return
+    endif
+    target.DispelSpell(outer)
+    StorageUtil.UnsetFloatValue(target, key)
+    StorageUtil.UnsetFloatValue(target, key + ".radius")
+    StorageUtil.UnsetFloatValue(target, key + ".active")
+    StorageUtil.UnsetFloatValue(target, key + ".cast")
+EndFunction
+
+Function _tickCloak(int idx, Spell outer, Spell inner, Actor target, int paramDmg, int paramRadius, string key)
+    if target == None || outer == None
+        return
+    endif
+    float storedDmg = StorageUtil.GetFloatValue(target, key, -1.0)
+    float storedRad = StorageUtil.GetFloatValue(target, key + ".radius", -1.0)
+    float lastCast = StorageUtil.GetFloatValue(target, key + ".cast", 0.0)
+    float now = Utility.GetCurrentRealTime()
+    float delta = now - lastCast
+    ; Re-apply on slider change, on duration expiry approach (>50s of 60s),
+    ; or on session restart (delta < 0 because GetCurrentRealTime resets).
+    if storedDmg != (paramDmg as float) || storedRad != (paramRadius as float) || delta > 50.0 || delta < 0.0
+        _applyCloak(outer, inner, target, paramDmg, paramRadius, key)
+    endif
+EndFunction
+
+Function _alertNearby(Actor target, int paramFeet)
+    if target == None || paramFeet <= 0
+        return
+    endif
+    ; 1 CK foot ≈ 21.336 game units (1 meter ≈ 70 units, 1m ≈ 3.281 ft)
+    float radius = (paramFeet as float) * 21.336
     Actor[] nearby = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
     if nearby == None
         return
@@ -1012,12 +1875,16 @@ Function _alertNearby(Actor target, int paramMeters)
 EndFunction
 
 Function onActivate(int idx, Actor target, int param, int param2)
-    if _isDrain(idx)
-        _recompute(idx, target, param)
+    if _isPctShift(idx)
+        _recomputeShift(idx, target, param)
+    elseif _isAbsShift(idx)
+        _recomputeAbsShift(idx, target, param)
+    elseif _isToggle(idx)
+        _recomputeToggle(idx, target, true)
     elseif idx == 3
-        _burstDrain("Magicka", target, param)
+        _burstDelta("Magicka", target, param)
     elseif idx == 4
-        _burstDrain("Stamina", target, param)
+        _burstDelta("Stamina", target, param)
     elseif idx == 9
         if target != None
             Debug.SendAnimationEvent(target, "staggerStart")
@@ -1026,27 +1893,99 @@ Function onActivate(int idx, Actor target, int param, int param2)
         _alertNearby(target, param)
     elseif idx == 11
         _applyCostPenalty(target, param)
+    elseif idx == 26
+        _burstDelta("Health", target, param)
+    elseif idx == 27
+        _modBounty(target, param)
+    elseif idx == 28
+        _applyFlesh(target, param)
+    elseif idx == 29
+        _applyDetectAll(target, param)
+    elseif idx == 30
+        _applySlowTime(target, param)
+    elseif idx == 31
+        _applyCloak(_resolveFlameCloakSpell(), _resolveFlameCloakDmgSpell(), target, param, param2, "mtf.shift.flameCloak")
+    elseif idx == 32
+        _applyCloak(_resolveFrostCloakSpell(), _resolveFrostCloakDmgSpell(), target, param, param2, "mtf.shift.frostCloak")
+    elseif idx == 33
+        _applyCloak(_resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
     endif
 EndFunction
 
 Function onDeactivate(int idx, Actor target, int param, int param2)
-    if _isDrain(idx)
-        _recompute(idx, target, 0)
+    if _isPctShift(idx)
+        _recomputeShift(idx, target, 0)
+    elseif _isAbsShift(idx)
+        _recomputeAbsShift(idx, target, 0)
+    elseif _isToggle(idx)
+        _recomputeToggle(idx, target, false)
     elseif idx == 11
         _removeCostPenalty(target)
+    elseif idx == 28
+        _removeFlesh(target)
+    elseif idx == 29
+        _removeDetectAll(target)
+    elseif idx == 30
+        _removeSlowTime(target)
+    elseif idx == 31
+        _removeCloak(_resolveFlameCloakSpell(), target, "mtf.shift.flameCloak")
+    elseif idx == 32
+        _removeCloak(_resolveFrostCloakSpell(), target, "mtf.shift.frostCloak")
+    elseif idx == 33
+        _removeCloak(_resolveLightningCloakSpell(), target, "mtf.shift.lightningCloak")
     endif
 EndFunction
 
 Function onTick(int idx, Actor target, int param, int param2)
-    if _isDrain(idx)
-        _recompute(idx, target, param)
+    if _isPctShift(idx)
+        _recomputeShift(idx, target, param)
+    elseif _isAbsShift(idx)
+        _recomputeAbsShift(idx, target, param)
+    elseif _isToggle(idx)
+        _recomputeToggle(idx, target, true)
     elseif idx == 11
         ; Re-apply if param changed (slider) or after save/load (magnitude
         ; reverts to ESP default which is 0). Skip when already in sync.
-        float applied = StorageUtil.GetFloatValue(target, "mtf.applied.spellcost", 0.0)
+        float applied = StorageUtil.GetFloatValue(target, "mtf.shift.spellcost", 0.0)
         if applied != -(param as float)
             _applyCostPenalty(target, param)
         endif
+    elseif idx == 28
+        ; Constant-effect ability — no time-based refresh needed. Just
+        ; re-apply if magnitude (param) changed since last application.
+        float stored = StorageUtil.GetFloatValue(target, "mtf.shift.flesh", -99999.0)
+        if stored != (param as float)
+            _applyFlesh(target, param)
+        endif
+    elseif idx == 29
+        ; FAF DetectLife only scans actors at cast time — new actors entering
+        ; the radius mid-duration don't get painted. Refresh on EVERY slow
+        ; tick (≤2s) so newcomers get picked up. _applyDetectAll dispels
+        ; first, so each call produces a fresh engine scan.
+        float storedDA = StorageUtil.GetFloatValue(target, "mtf.shift.detectAll", -1.0)
+        float lastCastDA = StorageUtil.GetFloatValue(target, "mtf.shift.detectAll.cast", 0.0)
+        float nowDA = Utility.GetCurrentRealTime()
+        float deltaDA = nowDA - lastCastDA
+        if storedDA != (param as float) || deltaDA > 1.5 || deltaDA < 0.0
+            _applyDetectAll(target, param)
+        endif
+    elseif idx == 30
+        ; FAF spell with 30s Duration. Refresh every ~25s by re-casting OR on
+        ; slider change OR after save/load (delta < 0 because GetCurrentRealTime
+        ; resets to a small value on session start).
+        float storedMag = StorageUtil.GetFloatValue(target, "mtf.shift.slowTime", -1.0)
+        float lastCast = StorageUtil.GetFloatValue(target, "mtf.shift.slowTime.cast", 0.0)
+        float now = Utility.GetCurrentRealTime()
+        float delta = now - lastCast
+        if storedMag != (param as float) || delta > 25.0 || delta < 0.0
+            _applySlowTime(target, param)
+        endif
+    elseif idx == 31
+        _tickCloak(idx, _resolveFlameCloakSpell(), _resolveFlameCloakDmgSpell(), target, param, param2, "mtf.shift.flameCloak")
+    elseif idx == 32
+        _tickCloak(idx, _resolveFrostCloakSpell(), _resolveFrostCloakDmgSpell(), target, param, param2, "mtf.shift.frostCloak")
+    elseif idx == 33
+        _tickCloak(idx, _resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
     endif
 EndFunction
 

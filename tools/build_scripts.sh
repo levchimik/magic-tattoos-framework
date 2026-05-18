@@ -17,7 +17,7 @@ cd "$SRC"
 if [[ $# -gt 0 ]]; then
     targets=("$@")
 else
-    targets=(MTF_HitListener MTF_Plugin MTF_Plugin_Base MTF_Plugin_FMR MTF_Plugin_SLA MTF_MainQuest MTF_MCMQuest)
+    targets=(MTF_HitListener MTF_Plugin MTF_Plugin_Base MTF_Plugin_FMR MTF_Plugin_SLA MTF_MainQuest MTF_MCMQuest MTF_ApplyTattoo)
 fi
 
 for t in "${targets[@]}"; do

@@ -219,7 +219,7 @@ Function _onTrackedActorKilled(Actor victim)
     endif
     int prevTier = _getActorTier(victim)
     string preset = GetActorPreset(victim)
-    if preset != "" && prevTier > 0 && _loadPresetToScratch(preset)
+    if preset != "" && prevTier >= 0 && _loadPresetToScratch(preset)
         _deactivateSlotEffectsForActor(victim, prevTier, true)
     endif
     _rosterRemoveActor(victim)
@@ -1149,18 +1149,49 @@ bool Function LoadPreset(string name)
     endif
     EnsureArrays()
 
+    ; Tear down whatever is currently active BEFORE we overwrite the slot
+    ; arrays. _deactivateSlotEffects reads effectKey/effectParam — if we
+    ; let LoadPreset clobber those first, it removes the wrong effects (or
+    ; none) and the old buffs linger forever. Also force currentTier = -1
+    ; so the next OnUpdate sees a real tier change even when the new
+    ; preset evaluates to the same integer tier index as the old one.
+    if currentTier >= 0
+        _deactivateSlotEffects(currentTier)
+    endif
+    removeOverlay(PlayerRef)
+    currentTier = -1
+
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
+
+    ; All indexed writes happen on local copies — direct `prop[i] = v` on Auto
+    ; array properties silently no-ops (writes hit a transient copy). At the
+    ; end of the function we write the whole locals back through the property
+    ; setters. The SetCond* helpers already do this correctly for the per-slot
+    ; scalars, but the multi-index arrays (layer/effect/packId/etc.) need the
+    ; same workaround applied explicitly here.
+    string[] aPackId   = condPackId
+    string[] aEntryId  = condEntryId
+    int[]    aCdMin    = cooldownMin
+    int[]    aCdMode   = cooldownMode
+    int[]    aLTint    = condLayerTint
+    int[]    aLEmiss   = condLayerEmissive
+    float[]  aLEmult   = condLayerEmissiveMult
+    int[]    aLAlpha   = condLayerAlpha
+    string[] aFxKey    = effectKey
+    int[]    aFxParam  = effectParam
+    int[]    aFxParam2 = effectParam2
+
     int s = 0
     while s < 8
         string sp = ".slot[" + s + "]"
         SetCondPluginId(s, JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", ""))
         SetCondParam(s,    JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0))
         SetCondParam2(s,   JsonUtil.GetPathIntValue(f,    sp + ".cond.param2",   0))
-        condPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",  "")
-        condEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid", "")
-        cooldownMin[s]  = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.min",  0)
-        cooldownMode[s] = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
+        aPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",  "")
+        aEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid", "")
+        aCdMin[s]    = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.min",  0)
+        aCdMode[s]   = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
         SetCondPulseRate(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.rate",  0.0))
         SetCondPulseDepth(s, JsonUtil.GetPathIntValue(f,   sp + ".pulse.depth", 0))
         SetCondPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
@@ -1169,23 +1200,37 @@ bool Function LoadPreset(string name)
         while L < maxL
             int li = _layerIdx(s, L)
             string lp = sp + ".layer[" + L + "]"
-            condLayerTint[li]         = _readColor(f, lp + ".tint",         16777215)
-            condLayerEmissive[li]     = _readColor(f, lp + ".emissive",     16777215)
-            condLayerEmissiveMult[li] = JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 0.0)
-            condLayerAlpha[li]        = JsonUtil.GetPathIntValue(f,   lp + ".alpha",        100)
+            aLTint[li]   = _readColor(f, lp + ".tint",         16777215)
+            aLEmiss[li]  = _readColor(f, lp + ".emissive",     16777215)
+            aLEmult[li]  = JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 0.0)
+            aLAlpha[li]  = JsonUtil.GetPathIntValue(f,   lp + ".alpha",        100)
             L += 1
         endwhile
         int e = 0
         while e < maxE
             int fxI = s * maxE + e
             string ep = sp + ".effect[" + e + "]"
-            effectKey[fxI]    = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
-            effectParam[fxI]  = JsonUtil.GetPathIntValue(f,    ep + ".param",  0)
-            effectParam2[fxI] = JsonUtil.GetPathIntValue(f,    ep + ".param2", 0)
+            aFxKey[fxI]    = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
+            aFxParam[fxI]  = JsonUtil.GetPathIntValue(f,    ep + ".param",  0)
+            aFxParam2[fxI] = JsonUtil.GetPathIntValue(f,    ep + ".param2", 0)
             e += 1
         endwhile
         s += 1
     endwhile
+
+    ; Write the whole arrays back through the property setters so the
+    ; per-index mutations actually persist.
+    condPackId            = aPackId
+    condEntryId           = aEntryId
+    cooldownMin           = aCdMin
+    cooldownMode          = aCdMode
+    condLayerTint         = aLTint
+    condLayerEmissive     = aLEmiss
+    condLayerEmissiveMult = aLEmult
+    condLayerAlpha        = aLAlpha
+    effectKey             = aFxKey
+    effectParam           = aFxParam
+    effectParam2          = aFxParam2
 
     int p = 0
     while p < pluginCount
@@ -1740,8 +1785,15 @@ Function SetSlotEffect(int slot, int effectIdx, string key, int param)
         return
     endif
     int globalI = _fxBaseIdx(slot) + effectIdx
+    bool live = (slot == currentTier)
+    if live
+        _deactivateSingleEffect(slot, effectIdx)
+    endif
     effectKey[globalI] = key
     effectParam[globalI] = param
+    if live && key != ""
+        _activateSingleEffect(slot, effectIdx)
+    endif
 EndFunction
 
 Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int param2)
@@ -1751,9 +1803,58 @@ Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int p
         return
     endif
     int globalI = _fxBaseIdx(slot) + effectIdx
+    bool live = (slot == currentTier)
+    if live
+        _deactivateSingleEffect(slot, effectIdx)
+    endif
     effectKey[globalI] = key
     effectParam[globalI] = param
     effectParam2[globalI] = param2
+    if live && key != ""
+        _activateSingleEffect(slot, effectIdx)
+    endif
+EndFunction
+
+; Deactivate / activate a SINGLE effect within an active slot. Used when MCM
+; rebinds an effect on a tier that's currently live — without this, the old
+; effect's onDeactivate is never called and its applied state lingers
+; (Magic/Fire resist abilities stay on, +pct shifts stay applied, …).
+Function _deactivateSingleEffect(int slot, int effectIdx)
+    if effectKey == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return
+    endif
+    int globalI = _fxBaseIdx(slot) + effectIdx
+    string key = effectKey[globalI]
+    if key == ""
+        return
+    endif
+    MTF_Plugin p = ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = _effectIdxFor(p, _keyItemId(key))
+    if itemIdx >= 0
+        p.onDeactivate(itemIdx, PlayerRef, effectParam[globalI], effectParam2[globalI])
+    endif
+EndFunction
+
+Function _activateSingleEffect(int slot, int effectIdx)
+    if effectKey == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return
+    endif
+    int globalI = _fxBaseIdx(slot) + effectIdx
+    string key = effectKey[globalI]
+    if key == ""
+        return
+    endif
+    MTF_Plugin p = ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = _effectIdxFor(p, _keyItemId(key))
+    if itemIdx >= 0
+        p.onActivate(itemIdx, PlayerRef, effectParam[globalI], effectParam2[globalI])
+    endif
 EndFunction
 
 Function SetSlotEffectParam2(int slot, int effectIdx, int param2)
@@ -2918,11 +3019,11 @@ Function EvalAndDrawActor(Actor target)
     int newTier  = evaluateTierForActor(target, true)
     float rtNow  = Utility.GetCurrentRealTime()
     if newTier != prevTier
-        if prevTier > 0
+        if prevTier >= 0
             _deactivateSlotEffectsForActor(target, prevTier, true)
         endif
         drawOverlayForActor(target, newTier, true)
-        if newTier > 0
+        if newTier >= 0
             _activateSlotEffectsForActor(target, newTier, true)
         endif
         _setActorTier(target, newTier)
@@ -2930,7 +3031,7 @@ Function EvalAndDrawActor(Actor target)
     else
         drawOverlayForActor(target, newTier, true)
     endif
-    if newTier > 0
+    if newTier >= 0
         _tickSlotEffectsForActor(target, newTier, true)
     endif
     ; Roster: snapshot or evict for pulse depending on new tier.
@@ -3153,7 +3254,7 @@ Function _processTrackedActorOnce(Actor target)
     int prev = _getActorTier(target)
     int now  = evaluateTierForActor(target, true)
     if now != prev
-        if prev > 0
+        if prev >= 0
             _deactivateSlotEffectsForActor(target, prev, true)
             ; Arm cooldown (mode 0) on the slot we just left.
             if _g_cooldownMode(prev, true) == 0
@@ -3164,7 +3265,7 @@ Function _processTrackedActorOnce(Actor target)
             endif
         endif
         drawOverlayForActor(target, now, true)
-        if now > 0
+        if now >= 0
             _activateSlotEffectsForActor(target, now, true)
             if _g_cooldownMode(now, true) == 1
                 int mins2 = _g_cooldownMin(now, true)
@@ -3184,7 +3285,7 @@ Function _processTrackedActorOnce(Actor target)
         endif
         _notifyTierChangeForActor(target, now, true)
     endif
-    if now > 0
+    if now >= 0
         _tickSlotEffectsForActor(target, now, true)
     endif
 EndFunction
