@@ -96,22 +96,42 @@ Event OnUpdate()
 EndEvent
 
 ; Returns true if at least one cloak is active and the tick scheduled work.
+; Iterates the player AND every tracked actor — supports NPC-emitted cloaks
+; (e.g. dungeon boss with weak large-radius AoE). Per-source distance check
+; in _cloakTickOne keeps each cloak's reach independent.
 bool Function _cloakTickAll()
-    Actor pl = Game.GetPlayer()
-    if pl == None
-        return false
-    endif
     bool any = false
-    if StorageUtil.GetFloatValue(pl, "mtf.shift.flameCloak.active", 0.0) > 0.5
-        _cloakTickOne(pl, _resolveFlameCloakDmgSpell(), "mtf.shift.flameCloak")
+    Actor pl = Game.GetPlayer()
+    if pl != None
+        any = _cloakTickSubject(pl) || any
+    endif
+    MTF_MainQuest mq = _host()
+    if mq != None
+        int n = StorageUtil.FormListCount(mq, "mtf.tracked")
+        int i = 0
+        while i < n
+            Actor a = StorageUtil.FormListGet(mq, "mtf.tracked", i) as Actor
+            if a != None && a != pl
+                any = _cloakTickSubject(a) || any
+            endif
+            i += 1
+        endwhile
+    endif
+    return any
+EndFunction
+
+bool Function _cloakTickSubject(Actor src)
+    bool any = false
+    if StorageUtil.GetFloatValue(src, "mtf.shift.flameCloak.active", 0.0) > 0.5
+        _cloakTickOne(src, _resolveFlameCloakDmgSpell(), "mtf.shift.flameCloak")
         any = true
     endif
-    if StorageUtil.GetFloatValue(pl, "mtf.shift.frostCloak.active", 0.0) > 0.5
-        _cloakTickOne(pl, _resolveFrostCloakDmgSpell(), "mtf.shift.frostCloak")
+    if StorageUtil.GetFloatValue(src, "mtf.shift.frostCloak.active", 0.0) > 0.5
+        _cloakTickOne(src, _resolveFrostCloakDmgSpell(), "mtf.shift.frostCloak")
         any = true
     endif
-    if StorageUtil.GetFloatValue(pl, "mtf.shift.lightningCloak.active", 0.0) > 0.5
-        _cloakTickOne(pl, _resolveLightningCloakDmgSpell(), "mtf.shift.lightningCloak")
+    if StorageUtil.GetFloatValue(src, "mtf.shift.lightningCloak.active", 0.0) > 0.5
+        _cloakTickOne(src, _resolveLightningCloakDmgSpell(), "mtf.shift.lightningCloak")
         any = true
     endif
     return any
@@ -1164,7 +1184,7 @@ int Function GetEffectParam2Min(int idx)
 EndFunction
 int Function GetEffectParam2Max(int idx)
     if idx == 31 || idx == 32 || idx == 33
-        return 100
+        return 500
     endif
     return 100
 EndFunction
