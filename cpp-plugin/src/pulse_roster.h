@@ -36,14 +36,25 @@ namespace MTFPulse {
         static Roster& Instance();
 
         // Capacity is fixed; eviction policy is farthest-from-player.
-        static constexpr std::size_t kCapacity = 32;  // generous vs Papyrus' 8
+        // Entries are keyed by (actor_formID, base_slot) so a single actor
+        // can hold multiple stacked-preset entries simultaneously, each
+        // driving its own disjoint NiOverride slot range.
+        static constexpr std::size_t kCapacity = 128;
 
         void SetEnabled(bool on);
         bool IsEnabled() const { return enabled_.load(std::memory_order_relaxed); }
 
-        // Add or refresh. Returns true if the actor is now in the roster.
+        // Add or refresh. Identity = (actor formID, entry.base_slot).
+        // Returns true if the entry is now in the roster.
         bool Set(RE::Actor* actor, const PulseEntry& entry);
-        bool Clear(RE::Actor* actor);
+
+        // Remove ONE entry by (actor, base_slot). Returns true if removed.
+        bool ClearAt(RE::Actor* actor, std::int32_t base_slot);
+
+        // Remove EVERY entry for an actor (e.g. on death / unload).
+        // Returns the count of entries removed.
+        std::size_t ClearAllForActor(RE::Actor* actor);
+
         void ClearAll();
 
         // Called from the per-frame hook.
@@ -63,8 +74,9 @@ namespace MTFPulse {
         mutable std::mutex mtx_;
         std::atomic<bool>  enabled_{ true };
 
-        // Find by FormID. -1 if not present. Must be called with mtx_ held.
-        std::int32_t FindLocked(std::uint32_t formID) const;
+        // Find by (FormID, base_slot). -1 if not present. mtx_ held.
+        std::int32_t FindLocked(std::uint32_t formID, std::int32_t base_slot) const;
+        void         RemoveAtLocked(std::size_t slot);
         void         EvictFarthestLocked(RE::TESObjectREFR* anchor);
     };
 

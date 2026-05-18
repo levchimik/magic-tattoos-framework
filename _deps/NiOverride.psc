@@ -8,3 +8,8 @@ Function AddNodeOverrideFloat(ObjectReference akActor, bool isFemale, string nod
 Function ApplyNodeOverrides(ObjectReference akActor) global native
 bool Function HasNodeOverride(ObjectReference akActor, bool isFemale, string node, int key, int index) global native
 Function RemoveNodeOverride(ObjectReference akActor, bool isFemale, string node, int key, int index) global native
+
+int Function GetNumBodyOverlays() global native
+int Function GetNumFaceOverlays() global native
+int Function GetNumHandOverlays() global native
+int Function GetNumFeetOverlays() global native

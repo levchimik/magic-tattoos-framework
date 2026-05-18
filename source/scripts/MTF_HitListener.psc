@@ -80,39 +80,22 @@ Event OnHit(ObjectReference akAggressor, Form akSource, Projectile akProjectile,
     p._onHit(cls)
 EndEvent
 
-; ── Subject-hotkey forwarding ────────────────────────────────────────────────
-; ReferenceAlias scripts can RegisterForKey; the host Quest (MTF_MainQuest)
-; can't. We hold the registration here and forward OnKeyDown into the host.
-
 MTF_MainQuest Function _host()
     return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
 EndFunction
 
-Function RefreshSubjectHotkey()
-{Re-bind the player's RegisterForKey to the host's GetSubjectHotkey().
- Called by OnInit (via alias OnPlayerLoadGame), by MCM on hotkey change,
- and by the version migration block.}
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int wanted = h.GetSubjectHotkey()
-    int prev   = StorageUtil.GetIntValue(h, "mtf.subject.hotkey.registered", -1)
-    if prev >= 0 && prev != wanted
-        UnregisterForKey(prev)
-    endif
-    if wanted >= 0
-        RegisterForKey(wanted)
-    endif
-    StorageUtil.SetIntValue(h, "mtf.subject.hotkey.registered", wanted)
-EndFunction
-
 Event OnPlayerLoadGame()
-    RefreshSubjectHotkey()
     _registerLifecycleEvents()
     _ensureApplyTattooSpell()
     _cleanupLegacySpells()
     _autoEnableTestBranch()
+    ; Legacy hotkey registration cleanup — older versions kept a key bound
+    ; here for the (now-removed) crosshair-add hotkey.
+    int prev = StorageUtil.GetIntValue(_host(), "mtf.subject.hotkey.registered", -1)
+    if prev >= 0
+        UnregisterForKey(prev)
+        StorageUtil.UnsetIntValue(_host(), "mtf.subject.hotkey.registered")
+    endif
 EndEvent
 
 ; One-time cleanup of MTF spells that older code AddSpell'd onto the player
@@ -145,7 +128,6 @@ Function _cleanupLegacySpells()
 EndFunction
 
 Event OnInit()
-    RefreshSubjectHotkey()
     _registerLifecycleEvents()
     _ensureApplyTattooSpell()
     _autoEnableTestBranch()
@@ -240,14 +222,3 @@ Event OnObjectUnloaded(ObjectReference akRef, int aiFormType)
     h._onTrackedActorDetached(a)
 EndEvent
 
-Event OnKeyDown(int keyCode)
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int wanted = h.GetSubjectHotkey()
-    if wanted < 0 || keyCode != wanted
-        return
-    endif
-    h._hotkeyAddCrosshairTarget()
-EndEvent

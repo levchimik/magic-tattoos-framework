@@ -21,8 +21,13 @@ Function SetActorPulse(Actor aktor, Float rate, Int depthPct, Float pause, \
                        Int layerCount, Float startTime, Float[] emMults, \
                        Int baseOverlaySlot, Bool isFemale, Float[] waveLUT) Global Native
 
-; Remove an actor from the pulse roster.
+; Remove EVERY entry the actor owns (all base_slots).
+; Use on death / unload / total teardown.
 Function ClearActor(Actor aktor) Global Native
+
+; Remove ONE entry by (actor, baseOverlaySlot). Use when a single preset on
+; an actor with several stacked presets becomes inactive.
+Function ClearActorAt(Actor aktor, Int baseOverlaySlot) Global Native
 
 ; Empty the entire roster (e.g. on full plugin reset).
 Function ClearAll() Global Native

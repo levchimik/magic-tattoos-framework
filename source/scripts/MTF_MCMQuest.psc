@@ -135,25 +135,16 @@ event OnVersionUpdate(int Version)
     MainQuest.disabledItems         = new string[64]
 
     MainQuest.ModActive          = false
-    MainQuest.updateInterval     = 2.0
+    MainQuest.updateInterval     = 0.1
     MainQuest.OverlaySlot        = 2
     MainQuest.CurrentOverlaySlot = 2
 
-    ; Default slot (idx 0): seed with the first available pack + first entry.
-    ; No content is bundled with the framework — if no packs are installed,
-    ; the slot is left empty and the user can pick later (or run effects-only
-    ; via the "(no texture)" entry option).
+    ; Default slot (idx 0): leave empty so the player sees no tattoo until
+    ; they explicitly pick one in MCM. Loading visual catalogs is still
+    ; required so the per-slot pickers can populate when opened.
     MainQuest.LoadVisualCatalogs()
-    string defPack = ""
-    string defEntry = ""
-    if MainQuest.GetVisualPackCount() > 0
-        defPack = MainQuest.GetVisualPackIdAt(0)
-        if MainQuest.GetPackEntryCount(defPack) > 0
-            defEntry = MainQuest.GetPackEntryIdAt(defPack, 0)
-        endif
-    endif
-    MainQuest.condPackId[0]  = defPack
-    MainQuest.condEntryId[0] = defEntry
+    MainQuest.condPackId[0]  = ""
+    MainQuest.condEntryId[0] = ""
 
     ; Per-layer defaults: layer 0 = opaque white mark, no glow.
     ;                     layer 1 = warm glow (off by default — emissiveMult=0
@@ -387,7 +378,7 @@ function drawGeneralPage()
     ; ── Left column: core settings ──────────────────────────────────────────
     AddHeaderOption("General")
     AddToggleOptionST("GEN_MOD_ACTIVE",      "Enable",                MainQuest.ModActive)
-    AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{1}")
+    AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{2}")
     AddSliderOptionST("SLOT_OVERLAY_SLOT",   "Overlay slot",          MainQuest.OverlaySlot)
     AddTextOptionST("GEN_RELOAD_VISUALS", "Reload visual packs", "(" + MainQuest.GetVisualPackCount() + " loaded)")
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
@@ -405,8 +396,9 @@ function drawGeneralPage()
         loadFlag = OPTION_FLAG_DISABLED
         delFlag  = OPTION_FLAG_DISABLED
     endif
-    AddTextOptionST("PRESET_LOAD", "Load selected",   "", loadFlag)
+    AddTextOptionST("PRESET_LOAD", "Load selected into base", "", loadFlag)
     AddTextOptionST("PRESET_DEL",  "Delete selected", "", delFlag)
+    AddTextOption("Cast the Apply Tattoo spell to apply or remove a preset on yourself / an NPC.", "", OPTION_FLAG_DISABLED)
 endFunction
 
 function drawPluginsPage()
@@ -671,17 +663,17 @@ endState
 state GEN_UPDATE_INTERVAL
     event OnSliderOpenST()
         SetSliderDialogStartValue(MainQuest.updateInterval)
-        SetSliderDialogDefaultValue(2.0)
-        SetSliderDialogRange(1, 45)
-        SetSliderDialogInterval(1)
+        SetSliderDialogDefaultValue(0.1)
+        SetSliderDialogRange(0.1, 45.0)
+        SetSliderDialogInterval(0.1)
     endEvent
     event OnSliderAcceptST(float value)
         MainQuest.updateInterval = value
-        SetSliderOptionValueST(value, "{1}")
+        SetSliderOptionValueST(value, "{2}")
     endEvent
     event OnDefaultST()
-        MainQuest.updateInterval = 2.0
-        SetSliderOptionValueST(2.0, "{1}")
+        MainQuest.updateInterval = 0.1
+        SetSliderOptionValueST(0.1, "{2}")
     endEvent
     event OnHighlightST()
         SetInfoText("How often in seconds the script checks conditions. Lower = more responsive, higher = better performance.")
@@ -1099,16 +1091,10 @@ state SLOT_PACK_PICK
         ForcePageReset()
     endEvent
     event OnDefaultST()
-        if selectedCondition == 0
-            if MainQuest.GetVisualPackCount() > 0
-                MainQuest.condPackId[0] = MainQuest.GetVisualPackIdAt(0)
-            else
-                MainQuest.condPackId[0] = ""
-            endif
-        else
-            MainQuest.condPackId[selectedCondition] = ""
-            MainQuest.condEntryId[selectedCondition] = ""
-        endif
+        ; Default for every slot is "no tattoo" — leave pack + entry empty.
+        ; User must pick a pack explicitly to enable a visual.
+        MainQuest.condPackId[selectedCondition]  = ""
+        MainQuest.condEntryId[selectedCondition] = ""
         SetMenuOptionValueST(_slotPackLabel(selectedCondition))
         MainQuest.setRedraw()
         ForcePageReset()
@@ -1201,16 +1187,9 @@ state SLOT_VISUAL_ENTRY
         ForcePageReset()
     endEvent
     event OnDefaultST()
-        if selectedCondition == 0
-            string pid = MainQuest.condPackId[0]
-            if pid != "" && MainQuest.GetPackEntryCount(pid) > 0
-                MainQuest.condEntryId[0] = MainQuest.GetPackEntryIdAt(pid, 0)
-            else
-                MainQuest.condEntryId[0] = ""
-            endif
-        else
-            MainQuest.condEntryId[selectedCondition] = ""
-        endif
+        ; Default for every slot is "no entry" — same as the pack picker;
+        ; user picks explicitly. Slot 0 was the odd one out previously.
+        MainQuest.condEntryId[selectedCondition] = ""
         SetMenuOptionValueST(_slotEntryLabel(selectedCondition))
         MainQuest.setRedraw()
         ForcePageReset()
@@ -2992,14 +2971,15 @@ state PRESET_LOAD
         endif
         string nm = _scratchPresetNames[_selectedPresetIdx]
         if MainQuest.LoadPreset(nm)
-            Debug.Notification("MTF: loaded preset '" + MainQuest.GetPresetDisplayName(nm) + "'")
+            Debug.Notification("MTF: loaded '" + MainQuest.GetPresetDisplayName(nm) + "' into base")
+            MainQuest.setRedraw()
             ForcePageReset()
         else
-            Debug.Notification("MTF: load failed")
+            Debug.Notification("MTF: failed to load '" + nm + "'")
         endif
     endEvent
     event OnHighlightST()
-        SetInfoText("Apply the selected preset to all slots + plugin settings.")
+        SetInfoText("Overwrite the player's MCM base (cond slots 0-7, layers, effects) with the selected preset. Spell-applied presets stack above this base — they are unaffected.")
     endEvent
 endState
 
@@ -3049,7 +3029,6 @@ EndFunction
 
 function drawSubjectsPage()
     SetCursorFillMode(TOP_TO_BOTTOM)
-    _refreshSubjectPresets()
     int total = MainQuest.GetTrackedCount()
     int pageSize = SUBJECTS_PAGE_SIZE()
     int maxPage = 0
@@ -3063,10 +3042,11 @@ function drawSubjectsPage()
         _subjectsPage = 0
     endif
 
-    ; ── Left column: header + tracked actor rows ────────────────────────────
+    ; ── Left column: header + tracked actor rows (read-only) ───────────────
+    ; Tattoo application is spell-only now. This page is for inspection +
+    ; cleanup; clicking a row offers Remove only.
     AddHeaderOption("Subjects (" + total + ")")
-    AddKeyMapOptionST("SUBJ_HOTKEY", "Add-target hotkey", MainQuest.GetSubjectHotkey())
-    AddMenuOptionST("SUBJ_DEFAULT_PRESET", "Default preset for new subjects", _defaultSubjectPresetLabel())
+    AddTextOption("Apply tattoos via the Apply Tattoo spell on the target.", "", OPTION_FLAG_DISABLED)
 
     int firstFlag = OPTION_FLAG_NONE
     int lastFlag  = OPTION_FLAG_NONE
@@ -3084,7 +3064,6 @@ function drawSubjectsPage()
     while r < pageSize
         int absIdx = rowStart + r
         if absIdx >= total
-            ; pad the column with empty filler so right column stays aligned
             AddEmptyOption()
         else
             Actor a = MainQuest.GetTrackedAt(absIdx)
@@ -3098,13 +3077,25 @@ function drawSubjectsPage()
                 if nm == ""
                     nm = "Actor 0x" + a.GetFormID()
                 endif
-                int tier = MainQuest._getActorTier(a)
-                string ps = MainQuest.GetActorPreset(a)
-                if ps == ""
-                    ps = "(none)"
+                int pCount = MainQuest.GetActorPresetCount(a)
+                string summary = ""
+                int pi = 0
+                while pi < pCount && pi < 3
+                    string nm2 = MainQuest.GetActorPresetAt(a, pi)
+                    if pi > 0
+                        summary += ", "
+                    endif
+                    summary += MainQuest.GetPresetDisplayName(nm2)
+                    pi += 1
+                endwhile
+                if pCount > 3
+                    summary += ", +" + (pCount - 3)
+                endif
+                if pCount == 0
+                    summary = "(none)"
                 endif
                 label = nm
-                val = "T" + tier + " · " + ps
+                val = "[" + pCount + "] " + summary
             endif
             AddTextOptionST(_subjectRowStateId(r), label, val)
         endif
@@ -3120,14 +3111,6 @@ function drawSubjectsPage()
     endif
     AddTextOptionST("SUBJ_CLEAR_ALL", "Clear all subjects", "(" + total + ")", clearFlag)
 endFunction
-
-string Function _defaultSubjectPresetLabel()
-    string n = MainQuest.GetDefaultSubjectPreset()
-    if n == ""
-        return "(not set)"
-    endif
-    return MainQuest.GetPresetDisplayName(n)
-EndFunction
 
 string Function _subjectRowStateId(int row)
     return "SUBJ_ROW_" + row
@@ -3151,22 +3134,13 @@ Function _subjectRowSelect()
         return
     endif
     _currentSubjectAbsIdx = abs
-
-    ; Build action options: [preset1..N, "—", "Remove subject", "Cancel"]
-    _refreshSubjectPresets()
-    int presetN = _scratchPresetCount
-    int total = presetN + 3
-    string[] opts = Utility.CreateStringArray(total)
-    int i = 0
-    while i < presetN
-        opts[i] = MainQuest.GetPresetDisplayName(_scratchPresetNames[i])
-        i += 1
-    endwhile
-    opts[presetN]     = "—"
-    opts[presetN + 1] = "Remove subject"
-    opts[presetN + 2] = "Cancel"
+    ; Multi-preset apply/remove lives on the spell now. This page only
+    ; offers full-subject removal as a cleanup option.
+    string[] opts = Utility.CreateStringArray(2)
+    opts[0] = "Remove subject"
+    opts[1] = "Cancel"
     SetMenuDialogOptions(opts)
-    SetMenuDialogDefaultIndex(presetN + 2)
+    SetMenuDialogDefaultIndex(1)
 EndFunction
 
 Function _subjectRowAccept(int index)
@@ -3174,28 +3148,15 @@ Function _subjectRowAccept(int index)
         return
     endif
     Actor a = MainQuest.GetTrackedAt(_currentSubjectAbsIdx)
-    int presetN = _scratchPresetCount
-    if index < 0 || index == presetN || index == presetN + 2
-        ; Cancel / separator
-        _currentSubjectAbsIdx = -1
-        return
-    endif
-    if index == presetN + 1
-        ; Remove subject
+    if index == 0
         if a != None
             MainQuest.RemoveTrackedActor(a)
         else
             StorageUtil.FormListRemoveAt(MainQuest, "mtf.tracked", _currentSubjectAbsIdx)
         endif
-    elseif index >= 0 && index < presetN
-        string nm = _scratchPresetNames[index]
-        if a != None
-            MainQuest.SetActorPreset(a, nm)
-            MainQuest.EvalAndDrawActor(a)
-        endif
+        ForcePageReset()
     endif
     _currentSubjectAbsIdx = -1
-    ForcePageReset()
 EndFunction
 
 Function _subjectRowHighlight()
@@ -3210,69 +3171,9 @@ Function _subjectRowHighlight()
         SetInfoText("Stale subject reference — click to clean up.")
         return
     endif
-    SetInfoText("Click to change preset or remove. Preset: " + MainQuest.GetActorPreset(a) + " · Tier: " + MainQuest._getActorTier(a))
+    int pCount = MainQuest.GetActorPresetCount(a)
+    SetInfoText("Click to remove this subject (untracks + clears all overlays). " + pCount + " preset(s) applied. Use the Apply Tattoo spell to add or remove individual presets.")
 EndFunction
-
-state SUBJ_HOTKEY
-    event OnKeyMapChangeST(int newKeyCode, string conflictControl, string conflictName)
-        MainQuest.SetSubjectHotkey(newKeyCode)
-        ; The hotkey is held by MTF_HitListener (alias on player). Forward
-        ; the registration change to it.
-        ; PlayerAlias is at alias ID 1 (NextAliasID=2 in the ESP). Using
-        ; GetAlias(0) silently returned None — RefreshSubjectHotkey was never
-        ; called, RegisterForKey never ran, OnKeyDown never fired.
-        ReferenceAlias al = (MainQuest as Quest).GetAlias(1) as ReferenceAlias
-        if al != None
-            (al as MTF_HitListener).RefreshSubjectHotkey()
-        endif
-        SetKeyMapOptionValueST(newKeyCode)
-    endEvent
-    event OnHighlightST()
-        SetInfoText("Press this key while pointing at an actor to add them as a tracked subject (uses the default preset).")
-    endEvent
-endState
-
-state SUBJ_DEFAULT_PRESET
-    event OnMenuOpenST()
-        _refreshSubjectPresets()
-        int n = _scratchPresetCount
-        string[] opts = Utility.CreateStringArray(n + 1)
-        opts[0] = "(none)"
-        int i = 0
-        while i < n
-            opts[i + 1] = MainQuest.GetPresetDisplayName(_scratchPresetNames[i])
-            i += 1
-        endwhile
-        int curIdx = 0
-        string cur = MainQuest.GetDefaultSubjectPreset()
-        if cur != ""
-            int j = 0
-            while j < n
-                if _scratchPresetNames[j] == cur
-                    curIdx = j + 1
-                endif
-                j += 1
-            endwhile
-        endif
-        SetMenuDialogOptions(opts)
-        SetMenuDialogStartIndex(curIdx)
-        SetMenuDialogDefaultIndex(0)
-    endEvent
-    event OnMenuAcceptST(int index)
-        if index <= 0
-            MainQuest.SetDefaultSubjectPreset("")
-        else
-            int p = index - 1
-            if p < _scratchPresetCount
-                MainQuest.SetDefaultSubjectPreset(_scratchPresetNames[p])
-            endif
-        endif
-        SetMenuOptionValueST(_defaultSubjectPresetLabel())
-    endEvent
-    event OnHighlightST()
-        SetInfoText("Preset applied to new subjects added via hotkey or 'Add at crosshair'.")
-    endEvent
-endState
 
 state SUBJ_PAGE_PREV
     event OnSelectST()

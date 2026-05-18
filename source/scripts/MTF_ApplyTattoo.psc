@@ -1,10 +1,11 @@
 Scriptname MTF_ApplyTattoo extends ActiveMagicEffect
 {Attached to MTF_Spell_ApplyTattoo. On cast, opens a UIListMenu of saved
  presets. Target = actor under the caster's crosshair, or the caster
- themselves if no actor is targeted. Selection applies the preset:
-   - To an NPC: AddTrackedActor (subject system).
-   - To self:   LoadPreset (overwrites the player's live MCM config).
- Pattern borrowed from OBody Next Generation's ShowPresetMenu.}
+ themselves if no actor is targeted. Selection applies the preset to the
+ subject's mtf.presets stack, or removes a currently-applied entry when
+ a [REMOVE] row is chosen. Q4: same preset cannot be applied twice to
+ the same subject. Pattern borrowed from OBody Next Generation's
+ ShowPresetMenu.}
 
 Event OnEffectStart(Actor akTarget, Actor akCaster)
     MTF_MainQuest mq = Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
@@ -33,13 +34,33 @@ Function _showPresetMenu(MTF_MainQuest mq, Actor subject)
 
     bool isSelf = (subject == Game.GetPlayer())
     string subjectName = subject.GetDisplayName()
-    string current = ""
-    if !isSelf
-        current = mq.GetActorPreset(subject)
-        if current == ""
-            current = "(none)"
+
+    ; Build applied/fresh split. mtf.presets is an ordered StringList per
+    ; subject; we walk the saved-preset catalog and partition by membership.
+    int appliedN = mq.GetActorPresetCount(subject)
+    string[] applied = new string[64]
+    int aN = 0
+    int i = 0
+    while i < appliedN && aN < 64
+        string nm = mq.GetActorPresetAt(subject, i)
+        if nm != ""
+            applied[aN] = nm
+            aN += 1
         endif
-    endif
+        i += 1
+    endwhile
+
+    string[] fresh = new string[64]
+    int fN = 0
+    i = 0
+    while i < count && fN < 64
+        string nm = presets[i]
+        if nm != "" && !mq.HasActorPreset(subject, nm)
+            fresh[fN] = nm
+            fN += 1
+        endif
+        i += 1
+    endwhile
 
     UIListMenu m = UIExtensions.GetMenu("UIListMenu") as UIListMenu
     if m == None
@@ -48,56 +69,77 @@ Function _showPresetMenu(MTF_MainQuest mq, Actor subject)
     endif
     m.ResetMenu()
 
-    ; First 4 entries are headers — selection index < HEADER_COUNT = cancel.
-    int HEADER_COUNT = 4
-    m.AddEntryItem("-   MTF: Apply Tattoo   -")
+    ; Header lines. The first HEADER_COUNT entries are non-actionable; a
+    ; selection index below HEADER_COUNT cancels.
+    int HEADER_COUNT = 3
     if isSelf
-        m.AddEntryItem("Target: " + subjectName + " (Self)")
-        m.AddEntryItem("")
+        m.AddEntryItem("-   MTF: Apply / Remove Tattoo (Self)   -")
     else
-        m.AddEntryItem("Target: " + subjectName)
-        m.AddEntryItem("Current: " + current)
+        m.AddEntryItem("-   MTF: Apply / Remove Tattoo   -")
     endif
+    m.AddEntryItem("Target: " + subjectName + " (" + aN + " applied)")
     m.AddEntryItem("-----------------------")
 
-    int i = 0
-    while i < count
-        m.AddEntryItem(presets[i])
-        i += 1
+    ; Body row 1: applied presets shown as [REMOVE] — tapping one removes it.
+    int APPLIED_BASE = HEADER_COUNT
+    int idxRow = 0
+    while idxRow < aN
+        m.AddEntryItem("[REMOVE] " + mq.GetPresetDisplayName(applied[idxRow]))
+        idxRow += 1
+    endwhile
+
+    ; Optional separator between sections.
+    int FRESH_BASE = APPLIED_BASE + aN
+    if aN > 0 && fN > 0
+        m.AddEntryItem("- - - - - - - - - - - -")
+        FRESH_BASE += 1
+    endif
+
+    ; Body row 2: fresh presets — tapping one applies it.
+    idxRow = 0
+    while idxRow < fN
+        m.AddEntryItem(mq.GetPresetDisplayName(fresh[idxRow]))
+        idxRow += 1
     endwhile
 
     m.OpenMenu(subject)
     int idx = m.GetResultInt()
-    if idx < HEADER_COUNT
+    if idx < APPLIED_BASE
         return
     endif
-    string chosen = m.GetResultString()
+
+    if idx < APPLIED_BASE + aN
+        ; Remove row
+        string removeName = applied[idx - APPLIED_BASE]
+        mq.RemoveAppliedPreset(subject, removeName)
+        Debug.Notification("MTF: removed '" + mq.GetPresetDisplayName(removeName) + "' from " + subjectName)
+        return
+    endif
+
+    int freshIdx = idx - FRESH_BASE
+    if freshIdx < 0 || freshIdx >= fN
+        return  ; separator row or out of bounds
+    endif
+    string chosen = fresh[freshIdx]
     if chosen == ""
         return
     endif
-    _apply(mq, subject, chosen, isSelf)
+    _apply(mq, subject, chosen)
 EndFunction
 
-Function _apply(MTF_MainQuest mq, Actor subject, string presetName, bool isSelf)
-    if isSelf
-        if mq.LoadPreset(presetName)
-            Debug.Notification("MTF: applied '" + presetName + "' to self")
-        else
-            Debug.Notification("MTF: failed to load preset '" + presetName + "'")
-        endif
-    else
-        int rc = mq.AddTrackedActor(subject, presetName)
-        string nm = subject.GetDisplayName()
-        if rc == 1
-            Debug.Notification("MTF: added " + nm + " (" + presetName + ")")
-            mq.EvalAndDrawActor(subject)
-        elseif rc == 0
-            Debug.Notification("MTF: " + nm + " → " + presetName)
-            mq.EvalAndDrawActor(subject)
-        elseif rc == -3
-            Debug.Notification("MTF: tracked-subject cap reached")
-        elseif rc == -2
-            Debug.Notification("MTF: invalid target")
-        endif
+Function _apply(MTF_MainQuest mq, Actor subject, string presetName)
+    string nm = subject.GetDisplayName()
+    int rc = mq.AddAppliedPreset(subject, presetName)
+    string disp = mq.GetPresetDisplayName(presetName)
+    if rc == 1
+        Debug.Notification("MTF: applied '" + disp + "' to " + nm)
+    elseif rc == 0
+        Debug.Notification("MTF: '" + disp + "' already on " + nm)
+    elseif rc == -3
+        Debug.Notification("MTF: tracked-subject cap reached")
+    elseif rc == -5
+        Debug.Notification("MTF: preset '" + presetName + "' invalid")
+    elseif rc == -6
+        Debug.Notification("MTF: no overlay slots free on " + nm)
     endif
 EndFunction

@@ -8,7 +8,7 @@ bool Property ModActive = false Auto
 bool Property DebugMode = false Auto
 int Property OverlaySlot = 2 Auto
 int Property CurrentOverlaySlot = 2 Auto
-float Property updateInterval = 2.0 Auto
+float Property updateInterval = 0.1 Auto
 
 ; ── Visual pack catalog cache ───────────────────────────────────────────────
 ; Pack list loaded once from JSON files under
@@ -127,6 +127,85 @@ int Function _layerIdx(int slot, int layer)
     return slot * MAX_LAYERS_PER_SLOT() + layer
 EndFunction
 
+; ── Multi-tattoo: overlay area helpers ──────────────────────────────────────
+; v1 supports "Body" only. The stub queries are issued through area-keyed
+; helpers so adding Face/Hand/Feet later is a const-list extension, not a
+; rewrite. NiOverride.GetNum<Area>Overlays returns the iNumOverlays setting
+; from skee64.ini; 0 (DLL missing) falls back to a sane default.
+string[] Function _OVERLAY_PARTS() global
+    string[] r = new string[1]
+    r[0] = "Body"
+    return r
+EndFunction
+
+int _numOvBodyCache = -1
+int _numOvFaceCache = -1
+int _numOvHandCache = -1
+int _numOvFeetCache = -1
+
+int Function _numOverlays(string area)
+    if area == "Body"
+        if _numOvBodyCache < 0
+            int n = NiOverride.GetNumBodyOverlays()
+            if n < 1
+                n = 6
+            endif
+            _numOvBodyCache = n
+        endif
+        return _numOvBodyCache
+    elseif area == "Face"
+        if _numOvFaceCache < 0
+            int n = NiOverride.GetNumFaceOverlays()
+            if n < 1
+                n = 3
+            endif
+            _numOvFaceCache = n
+        endif
+        return _numOvFaceCache
+    elseif area == "Hand"
+        if _numOvHandCache < 0
+            int n = NiOverride.GetNumHandOverlays()
+            if n < 1
+                n = 3
+            endif
+            _numOvHandCache = n
+        endif
+        return _numOvHandCache
+    elseif area == "Feet"
+        if _numOvFeetCache < 0
+            int n = NiOverride.GetNumFeetOverlays()
+            if n < 1
+                n = 3
+            endif
+            _numOvFeetCache = n
+        endif
+        return _numOvFeetCache
+    endif
+    return 0
+EndFunction
+
+int Function _findFirstFreeOverlaySlotNPC(Actor target, string area)
+{Scan an NPC's overlay slots top-down. Returns the index above the
+ highest slot with any active NodeOverride at key 9 (texture). Used at
+ apply time to stack a new preset above other mods' overlays (and our
+ own previously-applied presets). Gaps from removed presets are not
+ reclaimed — that's by design.}
+    if target == None
+        return 0
+    endif
+    bool isFemale = target.GetLeveledActorBase().GetSex() as bool
+    int total = _numOverlays(area)
+    int i = total - 1
+    while i >= 0
+        string node = area + " [ovl" + i + "]"
+        if NiOverride.HasNodeOverride(target, isFemale, node, 9, 0)
+            return i + 1
+        endif
+        i -= 1
+    endwhile
+    return 0
+EndFunction
+
 ; ── Per-slot effect lists (flat, 8 slots × MAX_EFFECTS_PER_SLOT) ─────────────
 ; effectKey: "<pluginId>:<effectItemId>" or ""; effectParam parallel.
 ; Index: slot S, effect E => S * MAX_EFFECTS_PER_SLOT + E.
@@ -211,27 +290,34 @@ EndEvent
 
 ; ── Lifecycle callbacks (called from MTF_HitListener via PO3 events) ───────
 Function _onTrackedActorKilled(Actor victim)
-{Tracked actor died → revert to tier 0 and back out active effects so any
- lingering applied magnitudes (drains, cost penalty) come off the corpse.
- mtf.killed prevents evaluation from re-triggering on the corpse.}
+{Tracked actor died → revert each applied preset to tier 0 and back out
+ active effects so any lingering applied magnitudes (drains, cost penalty)
+ come off the corpse. mtf.killed prevents evaluation from re-triggering.}
     if victim == None || !IsTrackedActor(victim)
         return
     endif
-    int prevTier = _getActorTier(victim)
-    string preset = GetActorPreset(victim)
-    if preset != "" && prevTier >= 0 && _loadPresetToScratch(preset)
-        _deactivateSlotEffectsForActor(victim, prevTier, true)
+    int n = GetActorPresetCount(victim)
+    int i = 0
+    while i < n
+        string nm = GetActorPresetAt(victim, i)
+        if nm != ""
+            int prevTier = _getActorPresetTier(victim, nm)
+            if prevTier >= 0 && _loadPresetToScratch(nm)
+                _deactivateSlotEffectsForActor(victim, prevTier, true)
+            endif
+            _setActorPresetTier(victim, nm, 0)
+            ; Draw tier 0 (baseline) for a clean corpse overlay.
+            if _loadPresetToScratch(nm)
+                _drawPresetOnActor(victim, nm, 0)
+            endif
+        endif
+        i += 1
+    endwhile
+    if n <= 0
+        removeOverlayForActor(victim)
     endif
     _rosterRemoveActor(victim)
     _setActorKilled(victim, true)
-    _setActorTier(victim, 0)
-    ; Draw the default-slot tier (the bare baseline) so the corpse keeps a
-    ; clean overlay rather than a stale combat-tier glow.
-    if preset != "" && _loadPresetToScratch(preset)
-        drawOverlayForActor(victim, 0, true)
-    else
-        removeOverlayForActor(victim)
-    endif
 EndFunction
 
 Function _onTrackedActorAttached(Actor target)
@@ -246,54 +332,6 @@ Function _onTrackedActorDetached(Actor target)
         return
     endif
     _setActorSuspended(target, true)
-EndFunction
-
-Function _hotkeyAddCrosshairTarget()
-{Called by MTF_HitListener.OnKeyDown when the player presses the bound
- subject hotkey. Walks Game.GetCurrentCrosshairRef and adds it as a
- tracked subject if it's an actor and not the player.}
-    if !ModActive
-        return
-    endif
-    if Utility.IsInMenuMode()
-        return
-    endif
-    ObjectReference cross = Game.GetCurrentCrosshairRef()
-    if cross == None
-        if DebugMode
-            Notification("MTF: no crosshair target")
-        endif
-        return
-    endif
-    Actor target = cross as Actor
-    if target == None
-        if DebugMode
-            Notification("MTF: crosshair target is not an actor")
-        endif
-        return
-    endif
-    if target == PlayerRef
-        if DebugMode
-            Notification("MTF: cannot tattoo the player from the hotkey (use MCM Presets)")
-        endif
-        return
-    endif
-    string defPreset = GetDefaultSubjectPreset()
-    if defPreset == ""
-        Notification("MTF: set a default preset first (MCM > Subjects)")
-        return
-    endif
-    int rc = AddTrackedActor(target, defPreset)
-    string nm = target.GetDisplayName()
-    if rc == 1
-        Notification("MTF: added " + nm + " (preset: " + defPreset + ")")
-        EvalAndDrawActor(target)
-    elseif rc == 0
-        Notification("MTF: " + nm + " already tracked; preset refreshed")
-        EvalAndDrawActor(target)
-    elseif rc == -3
-        Notification("MTF: tracked-subject cap reached (" + TRACKED_CAP() + ")")
-    endif
 EndFunction
 
 bool Property _arraysReady = false Auto Hidden
@@ -880,9 +918,10 @@ Function _applyPulse()
  If the MTFPulse plugin isn't loaded, the natives log a Papyrus warning
  once and the visual is just "no pulse" — graceful degradation.}
     if _pulseTier < 0 || _pulseLayerN <= 0 || PlayerRef == None
-        ; Make sure we don't leave a stale roster entry writing emissive
-        ; values to a node we've stopped tracking.
-        MTFPulse.ClearActor(PlayerRef)
+        ; Drop just the base-layer pulse entry. Stacked presets sit at
+        ; their own base_slots and must keep pulsing — only kill ours
+        ; (the MCM-driven OverlaySlot one).
+        MTFPulse.ClearActorAt(PlayerRef, OverlaySlot)
         return
     endif
 
@@ -2166,6 +2205,33 @@ State checkingAroused
                 influenceTracking = false
             endif
 
+            ; Stacked presets on the player (applied via the Apply Tattoo
+            ; spell, layered above the MCM-driven base). Each one carries
+            ; its own per-(preset, slot) cooldown and tier state and gets
+            ; the full eval/draw/effect cycle independently of the base.
+            ;
+            ; First, detect player MCM-base layout drift: if the first
+            ; stacked preset's stored base no longer matches OverlaySlot +
+            ; _playerBaseLayers, re-pack the whole stack. Triggers naturally
+            ; on OverlaySlot edits and pack/entry edits that change the
+            ; max layer count of the player's cond config.
+            int playerPresetN = GetActorPresetCount(PlayerRef)
+            if playerPresetN > 0
+                int expectedFirstBase = OverlaySlot + _playerBaseLayers("Body")
+                string firstPP = GetActorPresetAt(PlayerRef, 0)
+                if firstPP != "" && _getActorPresetBase(PlayerRef, firstPP, "Body") != expectedFirstBase
+                    _compactAppliedPresets(PlayerRef)
+                endif
+            endif
+            int ppi = 0
+            while ppi < playerPresetN
+                string ppName = GetActorPresetAt(PlayerRef, ppi)
+                if ppName != "" && _loadPresetToScratch(ppName)
+                    _evalAndDrawPresetForActor(PlayerRef, ppName)
+                endif
+                ppi += 1
+            endwhile
+
             ; Tracked NPC rotation: stagger MAX_EVALS_PER_TICK per slow tick.
             ; Each evaluated actor goes through Is3DLoaded + distance gates
             ; in _processTrackedActorOnce; out-of-range actors cost ~2 calls.
@@ -2206,16 +2272,82 @@ EndState
 ; cleared so leftover textures don't bleed through after a tier change.
 
 int Function _maxLayerSlots()
-    ; NiOverride exposes 6 body overlay slots (ovl0..ovl5). Clamp to what's
-    ; reachable from OverlaySlot upward.
-    int rem = 6 - OverlaySlot
+    ; Player MCM-base reachable slot count from OverlaySlot upward, clamped
+    ; to NiOverride's iNumOverlays. Used by the player legacy draw path and
+    ; pulse cache; stacked presets use their stored per-(preset, area)
+    ; reservation instead.
+    int total = _numOverlays("Body")
+    int rem = total - OverlaySlot
     if rem < 1
         rem = 1
     endif
-    if rem > 6
-        rem = 6
+    if rem > total
+        rem = total
     endif
     return rem
+EndFunction
+
+int Function _playerBaseLayers(string area)
+{Player MCM base reservation per area. Max over cond slots 0..7 of the
+ chosen entry's layer count, capped at MAX_LAYERS_PER_SLOT and at what
+ remains beyond OverlaySlot. Stacked presets on the player start at
+ OverlaySlot + _playerBaseLayers(area).}
+    if area != "Body"
+        return 0
+    endif
+    int maxL = 0
+    int maxLayers = MAX_LAYERS_PER_SLOT()
+    int s = 0
+    while s < 8
+        string packId  = ResolveSlotPackId(s)
+        string entryId = ResolveSlotEntryId(s)
+        if packId != "" && packId != "<none>" && entryId != ""
+            int L = GetEntryLayerCount(packId, entryId)
+            if L > maxL
+                maxL = L
+            endif
+        endif
+        s += 1
+    endwhile
+    if maxL > maxLayers
+        maxL = maxLayers
+    endif
+    int rem = _numOverlays(area) - OverlaySlot
+    if rem < 0
+        rem = 0
+    endif
+    if maxL > rem
+        maxL = rem
+    endif
+    return maxL
+EndFunction
+
+int Function _computePresetReservedLayers(string area, bool useScratch)
+{Reserved slot count for a preset (player cond* arrays or scratch). Same
+ algorithm as _playerBaseLayers but reads from the generalized accessors
+ so the same code works for NPC scratch and player cond* arrays. Caller
+ is responsible for further capping to remaining free slots.}
+    if area != "Body"
+        return 0
+    endif
+    int maxL = 0
+    int maxLayers = MAX_LAYERS_PER_SLOT()
+    int s = 0
+    while s < 8
+        string packId  = _g_resolvePackId(s, useScratch)
+        string entryId = _g_resolveEntryId(s, useScratch)
+        if packId != "" && packId != "<none>" && entryId != ""
+            int L = GetEntryLayerCount(packId, entryId)
+            if L > maxL
+                maxL = L
+            endif
+        endif
+        s += 1
+    endwhile
+    if maxL > maxLayers
+        maxL = maxLayers
+    endif
+    return maxL
 EndFunction
 
 function drawOverlay(actor akTarget, int idx)
@@ -2228,29 +2360,75 @@ function drawOverlay(actor akTarget, int idx)
 endFunction
 
 function drawOverlayForActor(actor akTarget, int idx, bool useScratch)
-{Stamp overlay layers for one actor at one tier. When useScratch is true the
- scratch preset buffer (_sCond*) supplies the slot config; otherwise the
- player-owned cond* arrays do. Trailing slots are cleared like before.}
+{Legacy entry — used only by the player MCM-driven base layer path. Stamps
+ at OverlaySlot upward with reservation sized to the player's cond config
+ (_playerBaseLayers). NPC presets and player stacked presets go through
+ _drawOverlayForActorAt directly with their stored base + layers.}
     if akTarget == None
         return
     endif
+    int reserved = _playerBaseLayers("Body")
+    if reserved <= 0
+        ; Nothing configured — fall back to the slot range so any leftover
+        ; overlay from a prior config gets cleared.
+        reserved = _maxLayerSlots()
+    endif
+    _drawOverlayForActorAt(akTarget, idx, useScratch, "Body", OverlaySlot, reserved)
+    if !useScratch
+        CurrentOverlaySlot = OverlaySlot
+    endif
+endFunction
+
+function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string area, int baseSlot, int reservedLayers)
+{Stamp the entry chosen by `idx` into [baseSlot, baseSlot+reservedLayers).
+ Layers the entry doesn't use within that range get cleared so leftover
+ textures don't bleed through after a tier change. Slots outside the
+ range are left untouched — the caller owns slot ownership.
+
+ All NiOverride store writes are batched into a SINGLE ApplyNodeOverrides
+ at the end. Calling apply/clearOverlay per-layer (each of which Applies)
+ caused 4 sequential overlay rebuilds per draw on a 4-layer reservation,
+ and each rebuild flashed visibly on tier transitions. One Apply = one
+ rebuild = no flash.}
+    if akTarget == None || baseSlot < 0 || reservedLayers <= 0
+        return
+    endif
+    if idx < 0 || idx >= 8
+        bool isFemaleClear = akTarget.GetLeveledActorBase().GetSex() as bool
+        int ci = 0
+        while ci < reservedLayers
+            _clearOverlayDeferred(akTarget, isFemaleClear, area, baseSlot + ci)
+            ci += 1
+        endwhile
+        NiOverride.ApplyNodeOverrides(akTarget)
+        return
+    endif
+    int total = _numOverlays(area)
+    if baseSlot >= total
+        return
+    endif
+    if baseSlot + reservedLayers > total
+        reservedLayers = total - baseSlot
+    endif
     bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
-    string Area = "Body"
 
     string packId  = _g_resolvePackId(idx, useScratch)
     string entryId = _g_resolveEntryId(idx, useScratch)
 
-    int max = _maxLayerSlots()
     int maxLayers = MAX_LAYERS_PER_SLOT()
     int layerN = 0
     if packId != "" && packId != "<none>" && entryId != ""
         layerN = GetEntryLayerCount(packId, entryId)
-        if layerN > max
-            layerN = max
+        if layerN > reservedLayers
+            layerN = reservedLayers
         endif
         if layerN > maxLayers
             layerN = maxLayers
         endif
+    endif
+
+    if !NiOverride.HasOverlays(akTarget)
+        NiOverride.AddOverlays(akTarget)
     endif
 
     int i = 0
@@ -2261,21 +2439,207 @@ function drawOverlayForActor(actor akTarget, int idx, bool useScratch)
         int emissive = _g_layerEmissive(lidx, useScratch)
         float emMult = _g_layerEmissiveMult(lidx, useScratch)
         float alpha  = (_g_layerAlpha(lidx, useScratch) as float) * 0.01
-        applyOverlay(akTarget, isFemale, Area, OverlaySlot + i, tex, tint, emissive, emMult, alpha)
+        _applyOverlayDeferred(akTarget, isFemale, area, baseSlot + i, tex, tint, emissive, emMult, alpha)
         i += 1
     endwhile
-    ; Clear unused trailing slots (previous entry may have had more layers).
-    while i < max
-        clearOverlay(akTarget, isFemale, Area, OverlaySlot + i)
+    while i < reservedLayers
+        _clearOverlayDeferred(akTarget, isFemale, area, baseSlot + i)
+        i += 1
+    endwhile
+    NiOverride.ApplyNodeOverrides(akTarget)
+endFunction
+
+Function _applyOverlayDeferred(actor Target, bool isFemale, string Area, int Slot, string Texture, int Tint, int Emissive, float Intensity, float Alpha)
+{Store-only variant of applyOverlay — populates the NiOverride override
+ store but does NOT call ApplyNodeOverrides. Caller batches a single
+ Apply after the full draw. HasOverlays/AddOverlays setup must already
+ have been done by the caller (we don't repeat the check per layer).}
+    string Node = Area + " [ovl" + Slot + "]"
+    NiOverride.AddNodeOverrideString(Target, isFemale, Node, 9, 0, Texture, true)
+    NiOverride.AddNodeOverrideInt(Target, isFemale, Node, 7, -1, Tint, true)
+    NiOverride.AddNodeOverrideInt(Target, isFemale, Node, 0, -1, Emissive, true)
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 1, -1, Intensity, true)
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 8, -1, Alpha, true)
+    if Intensity > 0.0
+        NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 5.0, true)
+    else
+        NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 0.0, true)
+        NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 3, -1, 0.0, true)
+    endif
+EndFunction
+
+Function _clearOverlayDeferred(actor Target, bool isFemale, string Area, int Slot)
+{Store-only variant of clearOverlay. Writes the inert "off" values into
+ the override store and leaves them there — the batched ApplyNodeOverrides
+ at the end of _drawOverlayForActorAt pushes them to the live node. Unlike
+ the standalone clearOverlay we don't scrub the store afterwards because
+ there's no intervening Apply for the live node to drift from; the off
+ values can sit in the store harmlessly and get overwritten by the next
+ applyOverlay on this slot.}
+    string Node = Area + " [ovl" + Slot + "]"
+    string defaultTex = "actors\\character\\overlays\\default.dds"
+    NiOverride.AddNodeOverrideString(Target, isFemale, Node, 9, 0, defaultTex, true)
+    if NiOverride.HasNodeOverride(Target, isFemale, Node, 9, 1)
+        NiOverride.AddNodeOverrideString(Target, isFemale, Node, 9, 1, defaultTex, true)
+    endif
+    NiOverride.AddNodeOverrideInt(Target,   isFemale, Node, 7, -1, 16777215, true)
+    NiOverride.AddNodeOverrideInt(Target,   isFemale, Node, 0, -1, 16777215, true)
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 1, -1, 0.0, true)
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 0.0, true)
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 3, -1, 0.0, true)
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 8, -1, 0.0, true)
+EndFunction
+
+function _drawPresetOnActor(actor target, string name, int tier)
+{Draws preset `name` on `target` at `tier`, using stored per-(preset, area)
+ base + reservedLayers. Caller must have _loadPresetToScratch(name) loaded.}
+    if target == None || name == ""
+        return
+    endif
+    string[] parts = _OVERLAY_PARTS()
+    int p = 0
+    while p < parts.Length
+        string area = parts[p]
+        int base = _getActorPresetBase(target, name, area)
+        int reserved = _getActorPresetLayers(target, name, area)
+        if base >= 0 && reserved > 0
+            _drawOverlayForActorAt(target, tier, true, area, base, reserved)
+        endif
+        p += 1
+    endwhile
+endFunction
+
+function _clearPresetOverlayForActor(actor target, string name)
+{Clear the slot range a preset reserved. Used on removal and on full
+ actor wipe.}
+    if target == None || name == ""
+        return
+    endif
+    bool isFemale = target.GetLeveledActorBase().GetSex() as bool
+    string[] parts = _OVERLAY_PARTS()
+    int p = 0
+    while p < parts.Length
+        string area = parts[p]
+        int base = _getActorPresetBase(target, name, area)
+        int reserved = _getActorPresetLayers(target, name, area)
+        if base >= 0 && reserved > 0
+            int i = 0
+            while i < reserved
+                clearOverlay(target, isFemale, area, base + i)
+                i += 1
+            endwhile
+        endif
+        p += 1
+    endwhile
+endFunction
+
+Function _compactAppliedPresets(Actor target)
+{Re-pack every applied preset's slot range tight against the floor.
+ Floor = OverlaySlot + player base for the player, scan result for NPCs.
+ Each remaining preset (in mtf.presets order) gets its stored base
+ rewritten and is re-stamped at the new location. Reserved layer counts
+ are preserved; we don't try to grow truncated reservations back.
+
+ Call this after RemoveAppliedPreset so gaps in the slot space close.
+ Slot ownership of EXTERNAL overlays (SlaveTats etc.) is preserved
+ because we only ever clear OUR stored ranges.}
+    if target == None
+        return
+    endif
+    int n = GetActorPresetCount(target)
+    if n <= 0
+        return
+    endif
+    bool isPlayer = (target == PlayerRef)
+    bool isFemale = target.GetLeveledActorBase().GetSex() as bool
+    string[] parts = _OVERLAY_PARTS()
+
+    ; Step 1: clear every applied preset's stored slot range so the next
+    ; scan sees only external overlays. Also kill all C++ pulse entries
+    ; for this actor — their (formID, base_slot) keys are about to go
+    ; stale; Step 3 below will re-push them at the new base_slots.
+    MTFPulse.ClearActor(target)
+    int i = 0
+    while i < n
+        string nm = GetActorPresetAt(target, i)
+        if nm != ""
+            int pp = 0
+            while pp < parts.Length
+                string ar = parts[pp]
+                int b = _getActorPresetBase(target, nm, ar)
+                int r = _getActorPresetLayers(target, nm, ar)
+                if b >= 0 && r > 0
+                    int c = 0
+                    while c < r
+                        clearOverlay(target, isFemale, ar, b + c)
+                        c += 1
+                    endwhile
+                endif
+                pp += 1
+            endwhile
+        endif
         i += 1
     endwhile
 
-    ; CurrentOverlaySlot tracks player's chosen base ovl slot. NPC overlays
-    ; share the same base (OverlaySlot) so the same value works for both.
-    if !useScratch
-        CurrentOverlaySlot = OverlaySlot
-    endif
-endFunction
+    ; Step 2: per-area, derive starting floor and walk presets in order,
+    ; assigning fresh bases and re-stamping.
+    int p = 0
+    while p < parts.Length
+        string area = parts[p]
+        int total = _numOverlays(area)
+        int floor
+        if isPlayer
+            floor = OverlaySlot + _playerBaseLayers(area)
+        else
+            floor = _findFirstFreeOverlaySlotNPC(target, area)
+        endif
+        int j = 0
+        while j < n
+            string nmJ = GetActorPresetAt(target, j)
+            if nmJ != ""
+                int reserved = _getActorPresetLayers(target, nmJ, area)
+                if reserved > 0
+                    int newReserved = reserved
+                    if floor + newReserved > total
+                        newReserved = total - floor
+                        if newReserved < 0
+                            newReserved = 0
+                        endif
+                    endif
+                    if newReserved > 0
+                        _setActorPresetBase(target, nmJ, area, floor)
+                        _setActorPresetLayers(target, nmJ, area, newReserved)
+                        int tier = _getActorPresetTier(target, nmJ)
+                        if tier < 0
+                            tier = 0
+                        endif
+                        if _loadPresetToScratch(nmJ)
+                            _drawOverlayForActorAt(target, tier, true, area, floor, newReserved)
+                            ; Re-push pulse for this preset at the new base.
+                            ; Without this the actor would render but the
+                            ; C++ roster (cleared in Step 1) stays empty
+                            ; until the next tier transition.
+                            if tier > 0 && _g_pulseRate(tier, true) > 0.0 && _g_pulseDepth(tier, true) > 0
+                                float rtNow = _getActorPresetPulseStartRT(target, nmJ)
+                                if rtNow <= 0.0
+                                    rtNow = Utility.GetCurrentRealTime()
+                                endif
+                                _rosterAddOrUpdate(target, nmJ, tier, rtNow)
+                            endif
+                        endif
+                        floor += newReserved
+                    else
+                        ; Ran out of room — this preset can't render this area.
+                        _setActorPresetBase(target, nmJ, area, -1)
+                        _setActorPresetLayers(target, nmJ, area, 0)
+                    endif
+                endif
+            endif
+            j += 1
+        endwhile
+        p += 1
+    endwhile
+EndFunction
 
 function setRedraw()
     forceRedraw = true
@@ -2309,14 +2673,41 @@ EndFunction
 Function clearOverlay(actor Target, bool isFemale, string Area, int Slot)
     string Node = Area + " [ovl" + Slot + "]"
     string defaultTex = "actors\\character\\overlays\\default.dds"
+    ; Two-phase clear. NiOverride's override store and the live NiAVObject
+    ; are decoupled: Add* mutates the store, Remove* mutates the store,
+    ; ApplyNodeOverrides pushes the store onto the live node. The MTFPulse
+    ; C++ hot path also writes directly to the live node (via SKEE's
+    ; SetNodeProperty), bypassing the store entirely. So the old pattern
+    ;   Add(default) → Remove(everything) → Apply
+    ; pushed an empty store onto the node, leaving the live texture /
+    ; emissive at whatever C++ last wrote (a pulse value if the actor
+    ; was deactivating mid-pulse). Caller must already have stopped C++
+    ; writes — see _rosterRemovePreset.
+    ;
+    ; Phase 1: set the store to an inert "off" state and push to live.
     NiOverride.AddNodeOverrideString(Target, isFemale, Node, 9, 0, defaultTex, true)
     if NiOverride.HasNodeOverride(Target, isFemale, Node, 9, 1)
         NiOverride.AddNodeOverrideString(Target, isFemale, Node, 9, 1, defaultTex, true)
+    endif
+    NiOverride.AddNodeOverrideInt(Target,   isFemale, Node, 7, -1, 16777215, true)  ; tint white
+    NiOverride.AddNodeOverrideInt(Target,   isFemale, Node, 0, -1, 16777215, true)  ; emissive color white
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 1, -1, 0.0, true)       ; emissive mult off
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 0.0, true)       ; falloff off
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 3, -1, 0.0, true)       ; falloff distance off
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 8, -1, 0.0, true)       ; alpha fully transparent
+    NiOverride.ApplyNodeOverrides(Target)
+    ; Phase 2: scrub the store so nothing leaks into saves / future Applies.
+    ; Live node retains the values pushed in Phase 1 — there's nothing
+    ; remaining in the store to re-apply, so removing the entries is safe.
+    NiOverride.RemoveNodeOverride(Target, isFemale, Node, 9, 0)
+    if NiOverride.HasNodeOverride(Target, isFemale, Node, 9, 1)
         NiOverride.RemoveNodeOverride(Target, isFemale, Node, 9, 1)
     endif
-    NiOverride.RemoveNodeOverride(Target, isFemale, Node, 9, 0)
     NiOverride.RemoveNodeOverride(Target, isFemale, Node, 7, -1)
     NiOverride.RemoveNodeOverride(Target, isFemale, Node, 0, -1)
+    NiOverride.RemoveNodeOverride(Target, isFemale, Node, 1, -1)
+    NiOverride.RemoveNodeOverride(Target, isFemale, Node, 2, -1)
+    NiOverride.RemoveNodeOverride(Target, isFemale, Node, 3, -1)
     NiOverride.RemoveNodeOverride(Target, isFemale, Node, 8, -1)
 EndFunction
 
@@ -2325,22 +2716,35 @@ function removeOverlay(actor akTarget)
 endFunction
 
 function removeOverlayForActor(actor akTarget)
+{Clear every overlay slot this mod owns on `akTarget`. For the player that
+ includes the MCM-driven base range starting at CurrentOverlaySlot; for
+ every actor (player or NPC) it includes the slots reserved by each
+ applied preset in `mtf.presets`.}
     if akTarget == None
         return
     endif
     bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
-    int max = _maxLayerSlots()
-    int i = 0
-    while i < max
-        clearOverlay(akTarget, isFemale, "Body", CurrentOverlaySlot + i)
-        i += 1
-    endwhile
-    ; Make sure the MTFPulse C++ roster doesn't keep pulsing emissive
-    ; on a slot we just cleared. Also kill the cached pulse context so
-    ; the next _applyPulse tick is a no-op until a new tier draws.
     if akTarget == PlayerRef
+        int max = _maxLayerSlots()
+        int i = 0
+        while i < max
+            clearOverlay(akTarget, isFemale, "Body", CurrentOverlaySlot + i)
+            i += 1
+        endwhile
         _pulseTier = -1
     endif
+    ; Iterate applied presets and clear their reserved ranges per area.
+    int n = GetActorPresetCount(akTarget)
+    int p = 0
+    while p < n
+        string nm = GetActorPresetAt(akTarget, p)
+        if nm != ""
+            _clearPresetOverlayForActor(akTarget, nm)
+        endif
+        p += 1
+    endwhile
+    ; Make sure the MTFPulse C++ roster doesn't keep pulsing emissive
+    ; on a slot we just cleared.
     MTFPulse.ClearActor(akTarget)
 endFunction
 
@@ -2362,22 +2766,6 @@ int Function TRACKED_CAP() global
     return 256
 EndFunction
 
-; New scalars added in v0.0.33 → StorageUtil (Auto property post-release
-; attachment trap).
-string Function GetDefaultSubjectPreset()
-    return StorageUtil.GetStringValue(self, "mtf.subject.default_preset", "")
-EndFunction
-Function SetDefaultSubjectPreset(string name)
-    StorageUtil.SetStringValue(self, "mtf.subject.default_preset", name)
-EndFunction
-
-int Function GetSubjectHotkey()
-    return StorageUtil.GetIntValue(self, "mtf.subject.hotkey", -1)
-EndFunction
-Function SetSubjectHotkey(int code)
-    StorageUtil.SetIntValue(self, "mtf.subject.hotkey", code)
-EndFunction
-
 ; ── Tracked-actor list ───────────────────────────────────────────────────────
 int Function GetTrackedCount()
     return StorageUtil.FormListCount(self, "mtf.tracked")
@@ -2394,49 +2782,150 @@ bool Function IsTrackedActor(Actor target)
     return StorageUtil.FormListHas(self, "mtf.tracked", target)
 EndFunction
 
-int Function AddTrackedActor(Actor target, string presetName)
-{Adds target with the given preset. Returns:
-   1  added       0  already tracked (preset updated)
-  -1  is player  -2  None  -3  capacity full  -4  no preset (and no default)}
+int Function AddAppliedPreset(Actor target, string name)
+{Apply preset `name` to `target`. For NPCs, also tracks the actor.
+ Computes base slot + reserved layer count per overlay area, truncating
+ the reservation to fit remaining free slots. Per-preset state (tier,
+ pulse start) is initialized; _evalAndDrawPresetForActor fires the first
+ eval+draw cycle synchronously.
+
+ Return codes:
+   1  applied
+   0  preset already on this actor (dedupe — no-op)
+  -2  None target
+  -3  tracked-subject cap reached (NPC only)
+  -4  preset name empty
+  -5  preset JSON missing / invalid schema
+  -6  no overlay slots free (every area is full)}
     if target == None
         return -2
     endif
-    if target == PlayerRef
-        return -1
+    if name == ""
+        return -4
     endif
-    if presetName == ""
-        presetName = GetDefaultSubjectPreset()
-        if presetName == ""
-            return -4
-        endif
+    if !_loadPresetToScratch(name)
+        return -5
     endif
-    if IsTrackedActor(target)
-        SetActorPreset(target, presetName)
+    if HasActorPreset(target, name)
         return 0
     endif
-    if GetTrackedCount() >= TRACKED_CAP()
-        return -3
+    bool isPlayer = (target == PlayerRef)
+    bool isNewTracked = false
+    if !isPlayer && !IsTrackedActor(target)
+        if GetTrackedCount() >= TRACKED_CAP()
+            return -3
+        endif
+        isNewTracked = true
     endif
-    StorageUtil.FormListAdd(self, "mtf.tracked", target, true)
-    SetActorPreset(target, presetName)
-    _setActorTier(target, -1)
-    _setActorPulseStartRT(target, Utility.GetCurrentRealTime())
-    _setActorSuspended(target, false)
-    _setActorKilled(target, false)
+    string[] parts = _OVERLAY_PARTS()
+    int[] bases = Utility.CreateIntArray(parts.Length, -1)
+    int[] reservs = Utility.CreateIntArray(parts.Length, 0)
+    int reservedAny = 0
+    int p = 0
+    while p < parts.Length
+        string area = parts[p]
+        int total = _numOverlays(area)
+        int base = 0
+        if isPlayer
+            ; Stack after the player's MCM-driven base layer and any presets
+            ; already applied. Each existing applied preset contributes its
+            ; stored reserved layer count for THIS area.
+            base = OverlaySlot + _playerBaseLayers(area)
+            int j = 0
+            int nApplied = GetActorPresetCount(target)
+            while j < nApplied
+                string prev = GetActorPresetAt(target, j)
+                base += _getActorPresetLayers(target, prev, area)
+                j += 1
+            endwhile
+        else
+            ; NPC: scan top-down, stack above any existing overlay (ours or
+            ; another mod's).
+            base = _findFirstFreeOverlaySlotNPC(target, area)
+        endif
+        int free = total - base
+        if free > 0
+            int want = _computePresetReservedLayers(area, true)
+            int reserved = want
+            if reserved > free
+                reserved = free
+            endif
+            if reserved > 0
+                bases[p] = base
+                reservs[p] = reserved
+                reservedAny += reserved
+            endif
+        endif
+        p += 1
+    endwhile
+    if reservedAny <= 0
+        return -6
+    endif
+    ; Persist tracking + per-(actor, preset, area) state.
+    if isNewTracked
+        StorageUtil.FormListAdd(self, "mtf.tracked", target, true)
+        _setActorSuspended(target, false)
+        _setActorKilled(target, false)
+    endif
+    StorageUtil.StringListAdd(target, "mtf.presets", name, false)
+    p = 0
+    while p < parts.Length
+        if reservs[p] > 0
+            _setActorPresetBase(target, name, parts[p], bases[p])
+            _setActorPresetLayers(target, name, parts[p], reservs[p])
+        endif
+        p += 1
+    endwhile
+    _setActorPresetTier(target, name, -1)
+    _setActorPresetPulseStartRT(target, name, Utility.GetCurrentRealTime())
+    _evalAndDrawPresetForActor(target, name)
     return 1
 EndFunction
 
+Function RemoveAppliedPreset(Actor target, string name)
+{Remove a single applied preset from an actor. Deactivates active effects,
+ clears its slot range, drops it from mtf.presets, wipes its per-preset
+ state, then compacts the remaining presets so they fill the gap.}
+    if target == None || name == ""
+        return
+    endif
+    int idx = _findActorPresetIdx(target, name)
+    if idx < 0
+        return
+    endif
+    int prevTier = _getActorPresetTier(target, name)
+    if prevTier > 0 && _loadPresetToScratch(name)
+        _deactivateSlotEffectsForActor(target, prevTier, true)
+    endif
+    ; Kill the C++ pulse entry for THIS preset before we wipe its state
+    ; (need the stored base_slot to address it). Other presets on the same
+    ; actor keep pulsing — each owns its own (actor, base_slot) entry.
+    _rosterRemovePreset(target, name)
+    _clearPresetOverlayForActor(target, name)
+    StorageUtil.StringListRemoveAt(target, "mtf.presets", idx)
+    _clearActorPresetState(target, name)
+    ; Close the gap: re-pack remaining presets against the floor.
+    _compactAppliedPresets(target)
+EndFunction
+
 Function RemoveTrackedActor(Actor target)
+{Untrack an NPC entirely: deactivate effects for every applied preset,
+ clear their overlay ranges, drop tracking state.}
     if target == None || !IsTrackedActor(target)
         return
     endif
-    int tier = _getActorTier(target)
-    if tier > 0
-        string preset = GetActorPreset(target)
-        if preset != "" && _loadPresetToScratch(preset)
-            _deactivateSlotEffectsForActor(target, tier, true)
+    int n = GetActorPresetCount(target)
+    int i = n - 1
+    while i >= 0
+        string nm = GetActorPresetAt(target, i)
+        if nm != ""
+            int tier = _getActorPresetTier(target, nm)
+            if tier > 0 && _loadPresetToScratch(nm)
+                _deactivateSlotEffectsForActor(target, tier, true)
+            endif
         endif
-    endif
+        i -= 1
+    endwhile
     _rosterRemoveActor(target)
     removeOverlayForActor(target)
     StorageUtil.FormListRemove(self, "mtf.tracked", target, true)
@@ -2457,57 +2946,127 @@ Function ClearAllTrackedActors()
     endwhile
 EndFunction
 
-Function SetActorPreset(Actor target, string name)
+; ── Multi-tattoo: per-actor applied-preset list ─────────────────────────────
+; mtf.presets (StringList per actor) — ordered list of applied preset names.
+; For NPCs this is the only source of tattoo state. For the player the
+; MCM-edited cond* arrays still drive a "base" layer at [OverlaySlot,
+; OverlaySlot+playerBaseLayers); mtf.presets stacks on top of that.
+;
+; Per (actor, preset) state — tier, cooldowns, pulse start — uses keys
+; "mtf.preset.<name>.tier" etc. Per (actor, preset, area) base + reserved
+; layer count uses "mtf.preset.<name>.<area>.base/.layers". Suspended /
+; killed remain actor-wide (a corpse is a corpse for every preset).
+
+int Function GetActorPresetCount(Actor target)
     if target == None
-        return
+        return 0
     endif
-    StorageUtil.SetStringValue(target, "mtf.preset", name)
+    return StorageUtil.StringListCount(target, "mtf.presets")
 EndFunction
 
-string Function GetActorPreset(Actor target)
+string Function GetActorPresetAt(Actor target, int idx)
     if target == None
         return ""
     endif
-    return StorageUtil.GetStringValue(target, "mtf.preset", "")
+    return StorageUtil.StringListGet(target, "mtf.presets", idx)
 EndFunction
 
-; ── Per-actor scalar state ──────────────────────────────────────────────────
-int Function _getActorTier(Actor target)
-    if target == None
+bool Function HasActorPreset(Actor target, string name)
+    if target == None || name == ""
+        return false
+    endif
+    return StorageUtil.StringListHas(target, "mtf.presets", name)
+EndFunction
+
+int Function _findActorPresetIdx(Actor target, string name)
+    if target == None || name == ""
         return -1
     endif
-    return StorageUtil.GetIntValue(target, "mtf.tier", -1)
+    return StorageUtil.StringListFind(target, "mtf.presets", name)
 EndFunction
-Function _setActorTier(Actor target, int tier)
-    if target != None
-        StorageUtil.SetIntValue(target, "mtf.tier", tier)
+
+; Per (actor, preset) tier / pulse-start / cooldown.
+int Function _getActorPresetTier(Actor target, string name)
+    if target == None || name == ""
+        return -1
+    endif
+    return StorageUtil.GetIntValue(target, "mtf.preset." + name + ".tier", -1)
+EndFunction
+Function _setActorPresetTier(Actor target, string name, int tier)
+    if target != None && name != ""
+        StorageUtil.SetIntValue(target, "mtf.preset." + name + ".tier", tier)
     endif
 EndFunction
 
-float Function _getActorCooldown(Actor target, int slot)
-    if target == None
+float Function _getActorPresetCooldown(Actor target, string name, int slot)
+    if target == None || name == ""
         return 0.0
     endif
-    return StorageUtil.GetFloatValue(target, "mtf.cd." + slot, 0.0)
+    return StorageUtil.GetFloatValue(target, "mtf.preset." + name + ".cd." + slot, 0.0)
 EndFunction
-Function _setActorCooldown(Actor target, int slot, float gameTime)
-    if target != None
-        StorageUtil.SetFloatValue(target, "mtf.cd." + slot, gameTime)
+Function _setActorPresetCooldown(Actor target, string name, int slot, float gameTime)
+    if target != None && name != ""
+        StorageUtil.SetFloatValue(target, "mtf.preset." + name + ".cd." + slot, gameTime)
     endif
 EndFunction
 
-float Function _getActorPulseStartRT(Actor target)
-    if target == None
+float Function _getActorPresetPulseStartRT(Actor target, string name)
+    if target == None || name == ""
         return 0.0
     endif
-    return StorageUtil.GetFloatValue(target, "mtf.pulse.start", 0.0)
+    return StorageUtil.GetFloatValue(target, "mtf.preset." + name + ".pulse.start", 0.0)
 EndFunction
-Function _setActorPulseStartRT(Actor target, float t)
-    if target != None
-        StorageUtil.SetFloatValue(target, "mtf.pulse.start", t)
+Function _setActorPresetPulseStartRT(Actor target, string name, float t)
+    if target != None && name != ""
+        StorageUtil.SetFloatValue(target, "mtf.preset." + name + ".pulse.start", t)
     endif
 EndFunction
 
+; Per (actor, preset, area) base slot + reserved layer count.
+int Function _getActorPresetBase(Actor target, string name, string area)
+    if target == None || name == ""
+        return -1
+    endif
+    return StorageUtil.GetIntValue(target, "mtf.preset." + name + "." + area + ".base", -1)
+EndFunction
+Function _setActorPresetBase(Actor target, string name, string area, int base)
+    if target != None && name != ""
+        StorageUtil.SetIntValue(target, "mtf.preset." + name + "." + area + ".base", base)
+    endif
+EndFunction
+int Function _getActorPresetLayers(Actor target, string name, string area)
+    if target == None || name == ""
+        return 0
+    endif
+    return StorageUtil.GetIntValue(target, "mtf.preset." + name + "." + area + ".layers", 0)
+EndFunction
+Function _setActorPresetLayers(Actor target, string name, string area, int layers)
+    if target != None && name != ""
+        StorageUtil.SetIntValue(target, "mtf.preset." + name + "." + area + ".layers", layers)
+    endif
+EndFunction
+
+Function _clearActorPresetState(Actor target, string name)
+    if target == None || name == ""
+        return
+    endif
+    StorageUtil.UnsetIntValue(target, "mtf.preset." + name + ".tier")
+    StorageUtil.UnsetFloatValue(target, "mtf.preset." + name + ".pulse.start")
+    int s = 0
+    while s < 8
+        StorageUtil.UnsetFloatValue(target, "mtf.preset." + name + ".cd." + s)
+        s += 1
+    endwhile
+    string[] parts = _OVERLAY_PARTS()
+    int p = 0
+    while p < parts.Length
+        StorageUtil.UnsetIntValue(target, "mtf.preset." + name + "." + parts[p] + ".base")
+        StorageUtil.UnsetIntValue(target, "mtf.preset." + name + "." + parts[p] + ".layers")
+        p += 1
+    endwhile
+EndFunction
+
+; ── Per-actor scalar state (actor-wide, not per-preset) ─────────────────────
 bool Function _getActorSuspended(Actor target)
     if target == None
         return false
@@ -2536,17 +3095,20 @@ Function _clearAllActorState(Actor target)
     if target == None
         return
     endif
-    StorageUtil.UnsetStringValue(target, "mtf.preset")
-    StorageUtil.UnsetIntValue(target, "mtf.tier")
-    StorageUtil.UnsetFloatValue(target, "mtf.pulse.start")
+    ; Clear per-preset state for every applied preset, then drop the list.
+    int n = GetActorPresetCount(target)
+    int i = 0
+    while i < n
+        string nm = GetActorPresetAt(target, i)
+        if nm != ""
+            _clearActorPresetState(target, nm)
+        endif
+        i += 1
+    endwhile
+    StorageUtil.StringListClear(target, "mtf.presets")
     StorageUtil.UnsetIntValue(target, "mtf.suspended")
     StorageUtil.UnsetIntValue(target, "mtf.killed")
-    int s = 0
-    while s < 8
-        StorageUtil.UnsetFloatValue(target, "mtf.cd." + s)
-        s += 1
-    endwhile
-    int i = 0
+    i = 0
     while i < 16
         StorageUtil.UnsetFloatValue(target, "mtf.applied." + i)
         i += 1
@@ -2873,7 +3435,11 @@ int Function _g_effectParam2(int fxIdx, bool useScratch)
 EndFunction
 
 ; ── Generalized eval + effect dispatch ──────────────────────────────────────
-int Function evaluateTierForActor(Actor target, bool useScratch)
+int Function evaluateTierForActor(Actor target, string presetName, bool useScratch)
+{Evaluate the winning condition slot for `target`. When useScratch is true,
+ the per-(actor, preset, slot) cooldown is consulted via presetName; when
+ false, the player's own cooldownUntilGT array is consulted (presetName is
+ ignored).}
     if target == None
         return 0
     endif
@@ -2887,7 +3453,7 @@ int Function evaluateTierForActor(Actor target, bool useScratch)
         if key != ""
             float cdEnd
             if useScratch
-                cdEnd = _getActorCooldown(target, i)
+                cdEnd = _getActorPresetCooldown(target, presetName, i)
             else
                 cdEnd = 0.0
                 if cooldownUntilGT != None
@@ -2991,172 +3557,154 @@ Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch)
     endwhile
 EndFunction
 
+; ── Per-preset eval + draw cycle ────────────────────────────────────────────
+Function _evalAndDrawPresetForActor(Actor target, string name)
+{One preset's eval+draw cycle on a target. Caller must already have run
+ _loadPresetToScratch(name). Fires tier transition edges, arms cooldowns,
+ stamps the overlay at the preset's stored base/layers, and updates the
+ pulse roster (one-pulse-per-actor on the C++ side — last transition wins).}
+    if target == None || name == ""
+        return
+    endif
+    int prev = _getActorPresetTier(target, name)
+    int now  = evaluateTierForActor(target, name, true)
+    float rtNow = Utility.GetCurrentRealTime()
+    if now != prev
+        if prev >= 0
+            _deactivateSlotEffectsForActor(target, prev, true)
+            if _g_cooldownMode(prev, true) == 0
+                int mins = _g_cooldownMin(prev, true)
+                if mins > 0
+                    _setActorPresetCooldown(target, name, prev, Utility.GetCurrentGameTime() + (mins as float) / 1440.0)
+                endif
+            endif
+        endif
+        ; CRITICAL ORDER: update the C++ pulse roster FIRST, then stamp
+        ; the new tier's visuals. The C++ hot path writes emissive directly
+        ; to the live NiAVObject (bypassing the override layer), so its
+        ; last frame's write would persist past a deactivation if we
+        ; cleared after stamping — leaving the slot stuck at whatever
+        ; pulse phase happened to be active. Stamping AFTER the clear
+        ; means Papyrus's ApplyNodeOverrides is the final write to the
+        ; live node, which puts the slot in the right resting state.
+        _setActorPresetTier(target, name, now)
+        _setActorPresetPulseStartRT(target, name, rtNow)
+        if now > 0 && _g_pulseRate(now, true) > 0.0 && _g_pulseDepth(now, true) > 0
+            _rosterAddOrUpdate(target, name, now, rtNow)
+        else
+            _rosterRemovePreset(target, name)
+        endif
+        _drawPresetOnActor(target, name, now)
+        if now >= 0
+            _activateSlotEffectsForActor(target, now, true)
+            if _g_cooldownMode(now, true) == 1
+                int mins2 = _g_cooldownMin(now, true)
+                if mins2 > 0
+                    _setActorPresetCooldown(target, name, now, Utility.GetCurrentGameTime() + (mins2 as float) / 1440.0)
+                endif
+            endif
+        endif
+        _notifyTierChangeForActor(target, now, true)
+    endif
+    ; Same-tier path used to re-stamp the overlay every eval to handle the
+    ; "freshly applied" edge. With AddAppliedPreset initializing tier=-1,
+    ; the first eval always takes the change branch above; subsequent
+    ; same-tier eval calls don't need to re-stamp. Constant re-stamping at
+    ; the poll cadence (10 Hz on default updateInterval) was causing
+    ; visible flicker — every ApplyNodeOverrides triggers a full overlay
+    ; rebuild and fights the C++ pulse hot path that owns the emissive
+    ; channel between Papyrus stamps.
+    if now >= 0
+        _tickSlotEffectsForActor(target, now, true)
+    endif
+EndFunction
+
 ; ── Console smoke-test entry ────────────────────────────────────────────────
 Function EvalAndDrawActor(Actor target)
-{One-shot: load `target`'s preset into scratch, eval current tier, draw the
- overlay, fire activate/deactivate edges. Useful for console smoke testing
- before step 5 wires up the slow-tick rotation.}
+{Iterate every applied preset on `target` and run the per-preset eval+draw
+ cycle. Useful from the console after an Apply Tattoo cast.}
     if target == None
         if DebugMode
             Notification("MTF: EvalAndDrawActor: None target")
         endif
         return
     endif
-    string preset = GetActorPreset(target)
-    if preset == ""
+    int n = GetActorPresetCount(target)
+    if n <= 0
         if DebugMode
-            Notification("MTF: target has no preset assigned")
+            Notification("MTF: target has no applied presets")
         endif
         return
     endif
-    if !_loadPresetToScratch(preset)
-        if DebugMode
-            Notification("MTF: failed to load preset '" + preset + "'")
+    int i = 0
+    while i < n
+        string nm = GetActorPresetAt(target, i)
+        if nm != "" && _loadPresetToScratch(nm)
+            _evalAndDrawPresetForActor(target, nm)
         endif
-        return
-    endif
-    int prevTier = _getActorTier(target)
-    int newTier  = evaluateTierForActor(target, true)
-    float rtNow  = Utility.GetCurrentRealTime()
-    if newTier != prevTier
-        if prevTier >= 0
-            _deactivateSlotEffectsForActor(target, prevTier, true)
-        endif
-        drawOverlayForActor(target, newTier, true)
-        if newTier >= 0
-            _activateSlotEffectsForActor(target, newTier, true)
-        endif
-        _setActorTier(target, newTier)
-        _setActorPulseStartRT(target, rtNow)
-    else
-        drawOverlayForActor(target, newTier, true)
-    endif
-    if newTier >= 0
-        _tickSlotEffectsForActor(target, newTier, true)
-    endif
-    ; Roster: snapshot or evict for pulse depending on new tier.
-    if newTier > 0 && _g_pulseRate(newTier, true) > 0.0 && _g_pulseDepth(newTier, true) > 0
-        _rosterAddOrUpdate(target, newTier, rtNow)
-    else
-        _rosterRemoveActor(target)
-    endif
-    if DebugMode
-        Notification("MTF: " + prevTier + " -> " + newTier + " (preset=" + preset + ")")
-    endif
+        i += 1
+    endwhile
 EndFunction
 
 ; ═════════════════════════════════════════════════════════════════════════════
 ; NPC PULSE ROSTER + SLOW-TICK ROTATION (v0.0.33 step 5)
 ; ═════════════════════════════════════════════════════════════════════════════
 
-Function _ensureRosterArrays()
-    if _rosterActor == None
-        int cap = ROSTER_CAP()
-        _rosterActor       = new Form[8]
-        _rosterPulseRate   = new float[8]
-        _rosterPulseDepth  = new int[8]
-        _rosterPulsePause  = new float[8]
-        _rosterTier        = new int[8]
-        _rosterLayerN      = new int[8]
-        _rosterIsFemale    = new bool[8]
-        _rosterStartRT     = new float[8]
-        _rosterLayerEmMult = new float[32]
-        _rosterCount = 0
-    endif
-EndFunction
+; ── Roster: C++ owns it, Papyrus is just a forwarder ───────────────────────
+; The MTFPulse C++ plugin keys entries by (actor formID, base_overlay_slot),
+; so an actor with N stacked presets registers N distinct entries — each
+; pulses its own disjoint NiOverride slot range. Capacity is whatever the
+; C++ plugin sets (kCapacity in pulse_roster.h). Eviction (farthest-from-
+; player) lives in C++ too, so we no longer need to mirror state in Papyrus
+; just to track who's "on the roster."
+;
+; The old _rosterActor[]/_rosterPulse*[]/_rosterCount Auto Hidden properties
+; remain declared above for save-compat; they are simply not written to.
 
-int Function _rosterFind(Actor a)
-    if _rosterActor == None || a == None
-        return -1
+Function _rosterRemovePreset(Actor a, string name)
+{Clear the C++ pulse entry for ONE preset on actor `a`. Looks up the
+ preset's stored base slot for "Body" — the only area we drive pulse for
+ today — and forwards to MTFPulse.ClearActorAt. Safe to call with a None /
+ unknown preset; just no-ops.}
+    if a == None || name == ""
+        return
     endif
-    int i = 0
-    while i < _rosterCount
-        if (_rosterActor[i] as Actor) == a
-            return i
-        endif
-        i += 1
-    endwhile
-    return -1
-EndFunction
-
-int Function _rosterEvictFarthestFromPlayer()
-{Returns the slot index that got evicted, or -1 if roster was empty.}
-    if _rosterCount == 0 || PlayerRef == None
-        return -1
+    int b = _getActorPresetBase(a, name, "Body")
+    if b < 0
+        return
     endif
-    int worst = -1
-    float worstD = -1.0
-    int i = 0
-    while i < _rosterCount
-        Actor a = _rosterActor[i] as Actor
-        if a == None
-            return _rosterRemoveAt(i)
-        endif
-        float d = a.GetDistance(PlayerRef)
-        if d > worstD
-            worstD = d
-            worst = i
-        endif
-        i += 1
-    endwhile
-    if worst >= 0
-        return _rosterRemoveAt(worst)
-    endif
-    return -1
-EndFunction
-
-int Function _rosterRemoveAt(int slot)
-{Compact the roster by moving the last entry into the freed slot.}
-    if slot < 0 || slot >= _rosterCount
-        return -1
-    endif
-    ; Drop the C++ pulse entry for the actor leaving this slot, before the
-    ; compaction overwrites _rosterActor[slot] with the last entry.
-    Actor removed = _rosterActor[slot] as Actor
-    if removed != None
-        MTFPulse.ClearActor(removed)
-    endif
-    int last = _rosterCount - 1
-    if slot != last
-        _rosterActor[slot]       = _rosterActor[last]
-        _rosterPulseRate[slot]   = _rosterPulseRate[last]
-        _rosterPulseDepth[slot]  = _rosterPulseDepth[last]
-        _rosterPulsePause[slot]  = _rosterPulsePause[last]
-        _rosterTier[slot]        = _rosterTier[last]
-        _rosterLayerN[slot]      = _rosterLayerN[last]
-        _rosterIsFemale[slot]    = _rosterIsFemale[last]
-        _rosterStartRT[slot]     = _rosterStartRT[last]
-        int L = 0
-        while L < 4
-            _rosterLayerEmMult[slot * 4 + L] = _rosterLayerEmMult[last * 4 + L]
-            L += 1
-        endwhile
-    endif
-    _rosterActor[last] = None
-    _rosterCount = last
-    return slot
+    MTFPulse.ClearActorAt(a, b)
 EndFunction
 
 Function _rosterRemoveActor(Actor a)
-    int s = _rosterFind(a)
-    if s >= 0
-        _rosterRemoveAt(s)
+{Clear ALL pulse entries the actor owns (every base_slot). Use on death,
+ unload, or untracking — anything that says "this actor should pulse on
+ nothing anymore."}
+    if a == None
+        return
     endif
+    MTFPulse.ClearActor(a)
 EndFunction
 
-Function _rosterAddOrUpdate(Actor a, int tier, float startRT)
-{Snapshot pulse params from the scratch buffer into the roster. Caller must
- have loaded the actor's preset into scratch before calling. If the actor is
- already on the roster, refresh its snapshot. If the roster is full, evict
- the farthest-from-player.}
-    _ensureRosterArrays()
-    if a == None || tier < 0 || tier >= 8
+Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
+{Snapshot the preset's active-tier pulse params and push to the MTFPulse
+ C++ roster, keyed by (a, preset's stored base_slot). Caller must have
+ _loadPresetToScratch(name) loaded so the _g_* readers see this preset's
+ cond/layer/pulse data.
+
+ No-ops (and removes any existing per-preset entry) when rate/depth is 0
+ or the preset has no visual layers.}
+    if a == None || name == "" || tier < 0 || tier >= 8
+        return
+    endif
+    int baseSlot = _getActorPresetBase(a, name, "Body")
+    if baseSlot < 0
         return
     endif
     float rate  = _g_pulseRate(tier, true)
     int   depth = _g_pulseDepth(tier, true)
     if rate <= 0.0 || depth <= 0
-        _rosterRemoveActor(a)
+        MTFPulse.ClearActorAt(a, baseSlot)
         return
     endif
     string packId  = _g_resolvePackId(tier, true)
@@ -3164,9 +3712,9 @@ Function _rosterAddOrUpdate(Actor a, int tier, float startRT)
     int layerN = 0
     if packId != "" && packId != "<none>" && entryId != ""
         layerN = GetEntryLayerCount(packId, entryId)
-        int max = _maxLayerSlots()
-        if layerN > max
-            layerN = max
+        int reserved = _getActorPresetLayers(a, name, "Body")
+        if layerN > reserved
+            layerN = reserved
         endif
         int maxLayers = MAX_LAYERS_PER_SLOT()
         if layerN > maxLayers
@@ -3174,46 +3722,21 @@ Function _rosterAddOrUpdate(Actor a, int tier, float startRT)
         endif
     endif
     if layerN <= 0
-        _rosterRemoveActor(a)
+        MTFPulse.ClearActorAt(a, baseSlot)
         return
     endif
-
-    int slot = _rosterFind(a)
-    if slot < 0
-        if _rosterCount >= ROSTER_CAP()
-            _rosterEvictFarthestFromPlayer()
-        endif
-        slot = _rosterCount
-        _rosterCount += 1
-    endif
-
-    _rosterActor[slot]      = a as Form
-    _rosterPulseRate[slot]  = rate
-    _rosterPulseDepth[slot] = depth
-    _rosterPulsePause[slot] = _g_pulsePause(tier, true)
-    _rosterTier[slot]       = tier
-    _rosterLayerN[slot]     = layerN
     bool isFemale = a.GetLeveledActorBase().GetSex() as bool
-    _rosterIsFemale[slot]   = isFemale
-    _rosterStartRT[slot]    = startRT
     int maxL = MAX_LAYERS_PER_SLOT()
     Float[] emMults = Utility.CreateFloatArray(layerN)
     int L = 0
     while L < layerN
-        int lidx = tier * maxL + L
-        float em = _g_layerEmissiveMult(lidx, true)
-        _rosterLayerEmMult[slot * 4 + L] = em
-        emMults[L] = em
+        emMults[L] = _g_layerEmissiveMult(tier * maxL + L, true)
         L += 1
     endwhile
-
-    ; Push snapshot to the MTFPulse C++ roster — same contract the player
-    ; path uses in _applyPulse. C++ owns the per-frame wave + NiOverride
-    ; writes; we keep the Papyrus mirror only for distance-based eviction.
     Float[] lut = _waveformLUTForTier(tier, true)
-    MTFPulse.SetActorPulse(a, rate, depth, _rosterPulsePause[slot], \
+    MTFPulse.SetActorPulse(a, rate, depth, _g_pulsePause(tier, true), \
                            layerN, startRT, emMults, \
-                           OverlaySlot, isFemale, lut)
+                           baseSlot, isFemale, lut)
 EndFunction
 
 ; ── Tracked actor evaluation (full pass — Step 6 adds stagger + distance) ──
@@ -3247,47 +3770,18 @@ Function _processTrackedActorOnce(Actor target)
     if PlayerRef != None && target.GetDistance(PlayerRef) > SUBJECT_EVAL_RADIUS()
         return
     endif
-    string preset = GetActorPreset(target)
-    if preset == "" || !_loadPresetToScratch(preset)
+    int n = GetActorPresetCount(target)
+    if n <= 0
         return
     endif
-    int prev = _getActorTier(target)
-    int now  = evaluateTierForActor(target, true)
-    if now != prev
-        if prev >= 0
-            _deactivateSlotEffectsForActor(target, prev, true)
-            ; Arm cooldown (mode 0) on the slot we just left.
-            if _g_cooldownMode(prev, true) == 0
-                int mins = _g_cooldownMin(prev, true)
-                if mins > 0
-                    _setActorCooldown(target, prev, Utility.GetCurrentGameTime() + (mins as float) / 1440.0)
-                endif
-            endif
+    int i = 0
+    while i < n
+        string nm = GetActorPresetAt(target, i)
+        if nm != "" && _loadPresetToScratch(nm)
+            _evalAndDrawPresetForActor(target, nm)
         endif
-        drawOverlayForActor(target, now, true)
-        if now >= 0
-            _activateSlotEffectsForActor(target, now, true)
-            if _g_cooldownMode(now, true) == 1
-                int mins2 = _g_cooldownMin(now, true)
-                if mins2 > 0
-                    _setActorCooldown(target, now, Utility.GetCurrentGameTime() + (mins2 as float) / 1440.0)
-                endif
-            endif
-        endif
-        _setActorTier(target, now)
-        float rtNow = Utility.GetCurrentRealTime()
-        _setActorPulseStartRT(target, rtNow)
-        ; Roster: add (or update) if pulse on the new tier; otherwise remove.
-        if now > 0 && _g_pulseRate(now, true) > 0.0 && _g_pulseDepth(now, true) > 0
-            _rosterAddOrUpdate(target, now, rtNow)
-        else
-            _rosterRemoveActor(target)
-        endif
-        _notifyTierChangeForActor(target, now, true)
-    endif
-    if now >= 0
-        _tickSlotEffectsForActor(target, now, true)
-    endif
+        i += 1
+    endwhile
 EndFunction
 
 Function _processTrackedActorsSlowTick(int maxThisTick)

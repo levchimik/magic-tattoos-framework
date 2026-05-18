@@ -25,14 +25,27 @@ namespace MTFPulse {
         return count_;
     }
 
-    std::int32_t Roster::FindLocked(std::uint32_t formID) const
+    std::int32_t Roster::FindLocked(std::uint32_t formID, std::int32_t base_slot) const
     {
         for (std::size_t i = 0; i < count_; ++i) {
-            if (entries_[i].actor_formID == formID) {
+            if (entries_[i].actor_formID == formID && entries_[i].base_slot == base_slot) {
                 return static_cast<std::int32_t>(i);
             }
         }
         return -1;
+    }
+
+    void Roster::RemoveAtLocked(std::size_t slot)
+    {
+        if (slot >= count_) {
+            return;
+        }
+        const auto last = count_ - 1;
+        if (slot != last) {
+            entries_[slot] = entries_[last];
+        }
+        entries_[last] = PulseEntry{};
+        --count_;
     }
 
     void Roster::EvictFarthestLocked(RE::TESObjectREFR* anchor)
@@ -62,13 +75,7 @@ namespace MTFPulse {
         if (worst < 0) {
             return;
         }
-        // Compact: move last into slot `worst`.
-        const auto last = count_ - 1;
-        if (static_cast<std::size_t>(worst) != last) {
-            entries_[worst] = entries_[last];
-        }
-        entries_[last] = PulseEntry{};
-        --count_;
+        RemoveAtLocked(static_cast<std::size_t>(worst));
     }
 
     bool Roster::Set(RE::Actor* actor, const PulseEntry& src)
@@ -79,13 +86,15 @@ namespace MTFPulse {
         std::lock_guard lock(mtx_);
         const auto formID = actor->GetFormID();
 
-        std::int32_t slot = FindLocked(formID);
+        std::int32_t slot = FindLocked(formID, src.base_slot);
         if (slot < 0) {
             if (count_ >= kCapacity) {
                 auto* player = RE::PlayerCharacter::GetSingleton();
                 EvictFarthestLocked(player);
             }
             if (count_ >= kCapacity) {
+                spdlog::warn("Roster::Set FULL formID=0x{:08x} base_slot={} kCapacity={}",
+                             formID, src.base_slot, kCapacity);
                 return false;
             }
             slot = static_cast<std::int32_t>(count_++);
@@ -96,24 +105,38 @@ namespace MTFPulse {
         return true;
     }
 
-    bool Roster::Clear(RE::Actor* actor)
+    bool Roster::ClearAt(RE::Actor* actor, std::int32_t base_slot)
     {
         if (!actor) {
             return false;
         }
         std::lock_guard lock(mtx_);
-        const auto   formID = actor->GetFormID();
-        std::int32_t slot   = FindLocked(formID);
+        const auto formID = actor->GetFormID();
+        const std::int32_t slot = FindLocked(formID, base_slot);
         if (slot < 0) {
             return false;
         }
-        const auto last = count_ - 1;
-        if (static_cast<std::size_t>(slot) != last) {
-            entries_[slot] = entries_[last];
-        }
-        entries_[last] = PulseEntry{};
-        --count_;
+        RemoveAtLocked(static_cast<std::size_t>(slot));
         return true;
+    }
+
+    std::size_t Roster::ClearAllForActor(RE::Actor* actor)
+    {
+        if (!actor) {
+            return 0;
+        }
+        std::lock_guard lock(mtx_);
+        const auto formID = actor->GetFormID();
+        std::size_t removed = 0;
+        // Walk backwards so RemoveAtLocked's last-into-slot compaction
+        // doesn't make us skip entries.
+        for (std::size_t i = count_; i-- > 0;) {
+            if (entries_[i].actor_formID == formID) {
+                RemoveAtLocked(i);
+                ++removed;
+            }
+        }
+        return removed;
     }
 
     void Roster::ClearAll()

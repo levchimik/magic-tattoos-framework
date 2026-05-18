@@ -31,7 +31,7 @@ namespace MTFPulse::Papyrus {
                 return;
             }
             if (rate <= 0.0f || depth_pct <= 0 || layer_count <= 0) {
-                Roster::Instance().Clear(actor);
+                Roster::Instance().ClearAt(actor, base_overlay_slot);
                 return;
             }
             PulseEntry e{};
@@ -54,12 +54,24 @@ namespace MTFPulse::Papyrus {
             Roster::Instance().Set(actor, e);
         }
 
+        // Removes EVERY entry the actor owns (across all base_slots).
+        // Use on death / unload / total teardown.
         void ClearActor(RE::StaticFunctionTag* /*tag*/, RE::Actor* actor)
         {
             if (!actor) {
                 return;
             }
-            Roster::Instance().Clear(actor);
+            Roster::Instance().ClearAllForActor(actor);
+        }
+
+        // Removes one entry by (actor, base_slot). Use when a single preset
+        // becomes inactive on an actor that still owns other presets.
+        void ClearActorAt(RE::StaticFunctionTag* /*tag*/, RE::Actor* actor, std::int32_t base_slot)
+        {
+            if (!actor) {
+                return;
+            }
+            Roster::Instance().ClearAt(actor, base_slot);
         }
 
         void ClearAll(RE::StaticFunctionTag* /*tag*/)
@@ -86,6 +98,7 @@ namespace MTFPulse::Papyrus {
         }
         vm->RegisterFunction("SetActorPulse", kClassName, SetActorPulse);
         vm->RegisterFunction("ClearActor",    kClassName, ClearActor);
+        vm->RegisterFunction("ClearActorAt",  kClassName, ClearActorAt);
         vm->RegisterFunction("ClearAll",      kClassName, ClearAll);
         vm->RegisterFunction("SetEnabled",    kClassName, SetEnabled);
         vm->RegisterFunction("Size",          kClassName, Size);
