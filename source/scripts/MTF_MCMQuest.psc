@@ -9,7 +9,7 @@ MTF_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 21
+    return 23
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -76,7 +76,17 @@ event OnVersionUpdate(int Version)
     ; applied. Once we ship, the next migration must be a non-destructive
     ; ml<20 block added below this one.
     int ml = MainQuest._migrationLevel
-    if ml >= 34
+    if ml >= 36
+        return
+    endif
+    ; v0.1.3 refactor (ml=36): Flash on Hit moved from sibling-to-Pulse
+    ; (per-slot `mtf.cond.flash.*` StorageUtil keys + dedicated MCM block)
+    ; to an effect-framework binding (mtf.base:flash.onhit at effect[N]
+    ; with extras keyed by `mtf.fx.<slot>.<effectIdx>.ex.<field>`). The
+    ; old per-slot keys still sit in cosaves but nothing reads them
+    ; anymore — they'll naturally age out. New saves never touch them.
+    if ml >= 35 || ml >= 34
+        MainQuest._migrationLevel = 36
         return
     endif
     ; v0.1.2 (ml=34): non-destructive. The "Conditions" page was renamed to
@@ -202,7 +212,7 @@ event OnVersionUpdate(int Version)
         s += 1
     endwhile
 
-    MainQuest._migrationLevel = 34
+    MainQuest._migrationLevel = 36
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -644,10 +654,14 @@ function drawPresetEditorPage()
     endif
 
     AddHeaderOption("Effects")
-    _drawEffectRow(idx, 0, "SLOT_EFFECT_1_TYPE", "SLOT_EFFECT_1_PARAM", "SLOT_EFFECT_1_P2")
-    _drawEffectRow(idx, 1, "SLOT_EFFECT_2_TYPE", "SLOT_EFFECT_2_PARAM", "SLOT_EFFECT_2_P2")
-    _drawEffectRow(idx, 2, "SLOT_EFFECT_3_TYPE", "SLOT_EFFECT_3_PARAM", "SLOT_EFFECT_3_P2")
-    _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM", "SLOT_EFFECT_4_P2")
+    _drawEffectRow(idx, 0, "SLOT_EFFECT_1_TYPE", "SLOT_EFFECT_1_PARAM", "SLOT_EFFECT_1_P2", \
+                   "SLOT_EFFECT_1_EX1", "SLOT_EFFECT_1_EX2", "SLOT_EFFECT_1_EX3")
+    _drawEffectRow(idx, 1, "SLOT_EFFECT_2_TYPE", "SLOT_EFFECT_2_PARAM", "SLOT_EFFECT_2_P2", \
+                   "SLOT_EFFECT_2_EX1", "SLOT_EFFECT_2_EX2", "SLOT_EFFECT_2_EX3")
+    _drawEffectRow(idx, 2, "SLOT_EFFECT_3_TYPE", "SLOT_EFFECT_3_PARAM", "SLOT_EFFECT_3_P2", \
+                   "SLOT_EFFECT_3_EX1", "SLOT_EFFECT_3_EX2", "SLOT_EFFECT_3_EX3")
+    _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM", "SLOT_EFFECT_4_P2", \
+                   "SLOT_EFFECT_4_EX1", "SLOT_EFFECT_4_EX2", "SLOT_EFFECT_4_EX3")
 endFunction
 
 string Function _waveformLabel(string name)
@@ -1466,7 +1480,7 @@ state SLOT_PULSE_WAVEFORM
     endEvent
 endState
 
-; ── Per-slot effect list (4 effects × 2 controls each) ──────────────────────
+; ── Per-slot effect list (4 effects × 2 controls each + optional extras) ───
 
 string Function _effectTypeLabel(int effectIdx)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
@@ -1489,7 +1503,7 @@ string Function _effectTypeLabel(int effectIdx)
     return pl + " — " + il
 EndFunction
 
-Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string paramStateId, string param2StateId)
+Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string paramStateId, string param2StateId, string extra1StateId, string extra2StateId, string extra3StateId)
     AddMenuOptionST(typeStateId, "Effect " + (effectIdx + 1), _effectTypeLabel(effectIdx))
     string key = MainQuest.GetSlotEffectKey(slot, effectIdx)
     if key == ""
@@ -1505,11 +1519,49 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string para
     endif
     string paramLabel = p.GetEffectParamLabel(itemIdx)
     if paramLabel != ""
-        AddSliderOptionST(paramStateId, "  " + paramLabel, MainQuest.GetSlotEffectParam(slot, effectIdx))
+        if p.GetEffectParamMenuOptionCount(itemIdx) > 0
+            ; Menu-style: render current value's label.
+            AddMenuOptionST(paramStateId, "  " + paramLabel, \
+                _menuLabelForParam(p, itemIdx, MainQuest.GetSlotEffectParam(slot, effectIdx)))
+        else
+            AddSliderOptionST(paramStateId, "  " + paramLabel, MainQuest.GetSlotEffectParam(slot, effectIdx))
+        endif
     endif
     string param2Label = p.GetEffectParam2Label(itemIdx)
     if param2Label != ""
-        AddSliderOptionST(param2StateId, "  " + param2Label, MainQuest.GetSlotEffectParam2(slot, effectIdx), p.GetEffectParam2Format(itemIdx))
+        if p.GetEffectParam2MenuOptionCount(itemIdx) > 0
+            AddMenuOptionST(param2StateId, "  " + param2Label, \
+                _menuLabelForParam2(p, itemIdx, MainQuest.GetSlotEffectParam2(slot, effectIdx)))
+        else
+            AddSliderOptionST(param2StateId, "  " + param2Label, MainQuest.GetSlotEffectParam2(slot, effectIdx), p.GetEffectParam2Format(itemIdx))
+        endif
+    endif
+    ; v0.1.3 extras — up to 3 plugin-declared extra fields per effect row.
+    ; State IDs are pre-allocated (12 total = 4 rows × 3); name-to-spec
+    ; lookup happens inside each state block via _getEffectExtraFieldName.
+    string[] xnames = p.GetEffectExtraFieldNames(itemIdx)
+    if xnames != None && xnames.Length > 0
+        string[] extraIds = new string[3]
+        extraIds[0] = extra1StateId
+        extraIds[1] = extra2StateId
+        extraIds[2] = extra3StateId
+        int xi = 0
+        int xN = xnames.Length
+        if xN > 3
+            xN = 3
+        endif
+        while xi < xN
+            string spec = p.GetEffectExtraFieldSpec(itemIdx, xnames[xi])
+            if spec != ""
+                string[] parts = StringUtil.Split(spec, "|")
+                if parts != None && parts.Length >= 6
+                    string xlabel = parts[0]
+                    int xval = MainQuest.GetSlotEffectExtra(slot, effectIdx, xnames[xi]) as int
+                    AddSliderOptionST(extraIds[xi], "  " + xlabel, xval)
+                endif
+            endif
+            xi += 1
+        endwhile
     endif
 EndFunction
 
@@ -1597,14 +1649,117 @@ Function _defaultEffectParam(int effectIdx)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
     MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
     int defVal = 0
+    int menuCnt = 0
+    int itemIdx = -1
     if p != None
-        int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+        itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
         if itemIdx >= 0
             defVal = p.GetEffectParamDefault(itemIdx)
+            menuCnt = p.GetEffectParamMenuOptionCount(itemIdx)
         endif
     endif
     MainQuest.SetSlotEffect(selectedCondition, effectIdx, key, defVal)
-    SetSliderOptionValueST(defVal)
+    if menuCnt > 0 && p != None && itemIdx >= 0
+        SetMenuOptionValueST(_menuLabelForParam(p, itemIdx, defVal))
+    else
+        SetSliderOptionValueST(defVal)
+    endif
+EndFunction
+
+; ── Menu-style param helpers (v0.1.3) ───────────────────────────────────────
+; Plugin script (extends Quest) indexed array writes silently no-op on this
+; VM, AND StringUtil.Split returns arrays whose .Length sometimes reads as
+; 0 mid-loop. So the dropdown API exposes count + per-index getters for
+; value AND label separately — no array round-trips, no split parsing.
+; These helpers walk the options one at a time and return the label for
+; the stored int value, falling back to "Custom: N" when the value isn't
+; in the curated preset list.
+string Function _menuLabelForParam(MTF_Plugin p, int itemIdx, int curVal)
+    int n = p.GetEffectParamMenuOptionCount(itemIdx)
+    int i = 0
+    while i < n
+        if p.GetEffectParamMenuOptionValue(itemIdx, i) == curVal
+            return p.GetEffectParamMenuOptionLabel(itemIdx, i)
+        endif
+        i += 1
+    endwhile
+    return "Custom: " + curVal
+EndFunction
+
+string Function _menuLabelForParam2(MTF_Plugin p, int itemIdx, int curVal)
+    int n = p.GetEffectParam2MenuOptionCount(itemIdx)
+    int i = 0
+    while i < n
+        if p.GetEffectParam2MenuOptionValue(itemIdx, i) == curVal
+            return p.GetEffectParam2MenuOptionLabel(itemIdx, i)
+        endif
+        i += 1
+    endwhile
+    return "Custom: " + curVal
+EndFunction
+
+Function _openEffectParamMenu(int effectIdx)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetEffectParamMenuOptionCount(itemIdx)
+    if n <= 0
+        return
+    endif
+    int curVal     = MainQuest.GetSlotEffectParam(selectedCondition, effectIdx)
+    int defaultVal = p.GetEffectParamDefault(itemIdx)
+    ; Allocate via _newOpts (literal-return-in-state-block pattern that the
+    ; VM accepts here) and populate by querying the plugin one option at a
+    ; time. We avoid the plugin returning a populated string[] entirely —
+    ; Quest-script indexed array writes silently no-op on this VM.
+    string[] labels = _newOpts(n)
+    int curSel = 0
+    int defaultSel = 0
+    int i = 0
+    while i < n
+        int   v = p.GetEffectParamMenuOptionValue(itemIdx, i)
+        string label = p.GetEffectParamMenuOptionLabel(itemIdx, i)
+        labels[i] = label
+        if v == curVal
+            curSel = i
+        endif
+        if v == defaultVal
+            defaultSel = i
+        endif
+        i += 1
+    endwhile
+    SetMenuDialogStartIndex(curSel)
+    SetMenuDialogDefaultIndex(defaultSel)
+    SetMenuDialogOptions(labels)
+EndFunction
+
+Function _acceptEffectParamMenu(int effectIdx, int index)
+    if index < 0
+        return
+    endif
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetEffectParamMenuOptionCount(itemIdx)
+    if index >= n
+        return
+    endif
+    int newVal = p.GetEffectParamMenuOptionValue(itemIdx, index)
+    string label = p.GetEffectParamMenuOptionLabel(itemIdx, index)
+    MainQuest.SetSlotEffect(selectedCondition, effectIdx, key, newVal)
+    SetMenuOptionValueST(label)
 EndFunction
 
 Function _highlightEffectParam(int effectIdx)
@@ -1660,15 +1815,82 @@ Function _defaultEffectParam2(int effectIdx)
     MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
     int defVal = 0
     string fmt = "{0}"
+    int menuCnt = 0
+    int itemIdx = -1
     if p != None
-        int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+        itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
         if itemIdx >= 0
             defVal = p.GetEffectParam2Default(itemIdx)
             fmt = p.GetEffectParam2Format(itemIdx)
+            menuCnt = p.GetEffectParam2MenuOptionCount(itemIdx)
         endif
     endif
     MainQuest.SetSlotEffectParam2(selectedCondition, effectIdx, defVal)
-    SetSliderOptionValueST(defVal, fmt)
+    if menuCnt > 0 && p != None && itemIdx >= 0
+        SetMenuOptionValueST(_menuLabelForParam2(p, itemIdx, defVal))
+    else
+        SetSliderOptionValueST(defVal, fmt)
+    endif
+EndFunction
+
+Function _openEffectParam2Menu(int effectIdx)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetEffectParam2MenuOptionCount(itemIdx)
+    if n <= 0
+        return
+    endif
+    int curVal     = MainQuest.GetSlotEffectParam2(selectedCondition, effectIdx)
+    int defaultVal = p.GetEffectParam2Default(itemIdx)
+    string[] labels = _newOpts(n)
+    int curSel = 0
+    int defaultSel = 0
+    int i = 0
+    while i < n
+        int   v = p.GetEffectParam2MenuOptionValue(itemIdx, i)
+        string label = p.GetEffectParam2MenuOptionLabel(itemIdx, i)
+        labels[i] = label
+        if v == curVal
+            curSel = i
+        endif
+        if v == defaultVal
+            defaultSel = i
+        endif
+        i += 1
+    endwhile
+    SetMenuDialogStartIndex(curSel)
+    SetMenuDialogDefaultIndex(defaultSel)
+    SetMenuDialogOptions(labels)
+EndFunction
+
+Function _acceptEffectParam2Menu(int effectIdx, int index)
+    if index < 0
+        return
+    endif
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetEffectParam2MenuOptionCount(itemIdx)
+    if index >= n
+        return
+    endif
+    int newVal = p.GetEffectParam2MenuOptionValue(itemIdx, index)
+    string label = p.GetEffectParam2MenuOptionLabel(itemIdx, index)
+    MainQuest.SetSlotEffectParam2(selectedCondition, effectIdx, newVal)
+    SetMenuOptionValueST(label)
 EndFunction
 
 Function _highlightEffectParam2(int effectIdx)
@@ -1708,6 +1930,12 @@ state SLOT_EFFECT_1_PARAM
     event OnSliderAcceptST(float value)
         _acceptEffectParam(0, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(0)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(0, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectParam(0)
     endEvent
@@ -1739,6 +1967,12 @@ state SLOT_EFFECT_2_PARAM
     endEvent
     event OnSliderAcceptST(float value)
         _acceptEffectParam(1, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(1)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(1, index)
     endEvent
     event OnDefaultST()
         _defaultEffectParam(1)
@@ -1772,6 +2006,12 @@ state SLOT_EFFECT_3_PARAM
     event OnSliderAcceptST(float value)
         _acceptEffectParam(2, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(2)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(2, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectParam(2)
     endEvent
@@ -1804,6 +2044,12 @@ state SLOT_EFFECT_4_PARAM
     event OnSliderAcceptST(float value)
         _acceptEffectParam(3, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(3)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(3, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectParam(3)
     endEvent
@@ -1820,6 +2066,12 @@ state SLOT_EFFECT_1_P2
     event OnSliderAcceptST(float value)
         _acceptEffectParam2(0, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectParam2Menu(0)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParam2Menu(0, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectParam2(0)
     endEvent
@@ -1834,6 +2086,12 @@ state SLOT_EFFECT_2_P2
     endEvent
     event OnSliderAcceptST(float value)
         _acceptEffectParam2(1, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParam2Menu(1)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParam2Menu(1, index)
     endEvent
     event OnDefaultST()
         _defaultEffectParam2(1)
@@ -1850,6 +2108,12 @@ state SLOT_EFFECT_3_P2
     event OnSliderAcceptST(float value)
         _acceptEffectParam2(2, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectParam2Menu(2)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParam2Menu(2, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectParam2(2)
     endEvent
@@ -1865,11 +2129,289 @@ state SLOT_EFFECT_4_P2
     event OnSliderAcceptST(float value)
         _acceptEffectParam2(3, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectParam2Menu(3)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParam2Menu(3, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectParam2(3)
     endEvent
     event OnHighlightST()
         _highlightEffectParam2(3)
+    endEvent
+endState
+
+; ── Per-effect "extras" states (v0.1.3) ─────────────────────────────────────
+; Up to 3 plugin-declared extra slider fields per effect row. The state ID
+; encodes (effectRow ∈ 0..3, extraSlot ∈ 0..2); the field NAME comes from
+; querying the bound plugin's GetEffectExtraFieldNames[extraSlot] at runtime.
+; If the plugin returns fewer names, the unused state slots simply never
+; appear in the rendered MCM (AddSliderOptionST not called in _drawEffectRow).
+
+string Function _getEffectExtraFieldName(int effectIdx, int extraSlot)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    if key == ""
+        return ""
+    endif
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return ""
+    endif
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return ""
+    endif
+    string[] names = p.GetEffectExtraFieldNames(itemIdx)
+    if names == None || extraSlot < 0 || extraSlot >= names.Length
+        return ""
+    endif
+    return names[extraSlot]
+EndFunction
+
+string[] Function _getEffectExtraSpec(int effectIdx, int extraSlot)
+{Returns the pipe-split spec parts (label|type|min|max|step|default) or
+ None if no plugin/spec/field. Caller is responsible for None-check.}
+    string fieldName = _getEffectExtraFieldName(effectIdx, extraSlot)
+    if fieldName == ""
+        return None
+    endif
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return None
+    endif
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return None
+    endif
+    string spec = p.GetEffectExtraFieldSpec(itemIdx, fieldName)
+    if spec == ""
+        return None
+    endif
+    return StringUtil.Split(spec, "|")
+EndFunction
+
+Function _openEffectExtra(int effectIdx, int extraSlot)
+    string[] parts = _getEffectExtraSpec(effectIdx, extraSlot)
+    if parts == None || parts.Length < 6
+        return
+    endif
+    string fieldName = _getEffectExtraFieldName(effectIdx, extraSlot)
+    float startVal = MainQuest.GetSlotEffectExtra(selectedCondition, effectIdx, fieldName)
+    SetSliderDialogStartValue(startVal)
+    SetSliderDialogRange(parts[2] as float, parts[3] as float)
+    SetSliderDialogInterval(parts[4] as float)
+    SetSliderDialogDefaultValue(parts[5] as float)
+EndFunction
+
+Function _acceptEffectExtra(int effectIdx, int extraSlot, float value)
+    string fieldName = _getEffectExtraFieldName(effectIdx, extraSlot)
+    if fieldName == ""
+        return
+    endif
+    MainQuest.SetSlotEffectExtra(selectedCondition, effectIdx, fieldName, value)
+    SetSliderOptionValueST(value as int)
+EndFunction
+
+Function _defaultEffectExtra(int effectIdx, int extraSlot)
+    string[] parts = _getEffectExtraSpec(effectIdx, extraSlot)
+    if parts == None || parts.Length < 6
+        return
+    endif
+    string fieldName = _getEffectExtraFieldName(effectIdx, extraSlot)
+    float defVal = parts[5] as float
+    MainQuest.SetSlotEffectExtra(selectedCondition, effectIdx, fieldName, defVal)
+    SetSliderOptionValueST(defVal as int)
+EndFunction
+
+Function _highlightEffectExtra(int effectIdx, int extraSlot)
+    string[] parts = _getEffectExtraSpec(effectIdx, extraSlot)
+    if parts == None || parts.Length < 6
+        SetInfoText("Effect extra parameter.")
+        return
+    endif
+    SetInfoText(parts[0])
+EndFunction
+
+state SLOT_EFFECT_1_EX1
+    event OnSliderOpenST()
+        _openEffectExtra(0, 0)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(0, 0, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(0, 0)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(0, 0)
+    endEvent
+endState
+
+state SLOT_EFFECT_1_EX2
+    event OnSliderOpenST()
+        _openEffectExtra(0, 1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(0, 1, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(0, 1)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(0, 1)
+    endEvent
+endState
+
+state SLOT_EFFECT_1_EX3
+    event OnSliderOpenST()
+        _openEffectExtra(0, 2)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(0, 2, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(0, 2)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(0, 2)
+    endEvent
+endState
+
+state SLOT_EFFECT_2_EX1
+    event OnSliderOpenST()
+        _openEffectExtra(1, 0)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(1, 0, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(1, 0)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(1, 0)
+    endEvent
+endState
+
+state SLOT_EFFECT_2_EX2
+    event OnSliderOpenST()
+        _openEffectExtra(1, 1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(1, 1, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(1, 1)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(1, 1)
+    endEvent
+endState
+
+state SLOT_EFFECT_2_EX3
+    event OnSliderOpenST()
+        _openEffectExtra(1, 2)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(1, 2, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(1, 2)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(1, 2)
+    endEvent
+endState
+
+state SLOT_EFFECT_3_EX1
+    event OnSliderOpenST()
+        _openEffectExtra(2, 0)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(2, 0, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(2, 0)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(2, 0)
+    endEvent
+endState
+
+state SLOT_EFFECT_3_EX2
+    event OnSliderOpenST()
+        _openEffectExtra(2, 1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(2, 1, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(2, 1)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(2, 1)
+    endEvent
+endState
+
+state SLOT_EFFECT_3_EX3
+    event OnSliderOpenST()
+        _openEffectExtra(2, 2)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(2, 2, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(2, 2)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(2, 2)
+    endEvent
+endState
+
+state SLOT_EFFECT_4_EX1
+    event OnSliderOpenST()
+        _openEffectExtra(3, 0)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(3, 0, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(3, 0)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(3, 0)
+    endEvent
+endState
+
+state SLOT_EFFECT_4_EX2
+    event OnSliderOpenST()
+        _openEffectExtra(3, 1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(3, 1, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(3, 1)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(3, 1)
+    endEvent
+endState
+
+state SLOT_EFFECT_4_EX3
+    event OnSliderOpenST()
+        _openEffectExtra(3, 2)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectExtra(3, 2, value)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectExtra(3, 2)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectExtra(3, 2)
     endEvent
 endState
 

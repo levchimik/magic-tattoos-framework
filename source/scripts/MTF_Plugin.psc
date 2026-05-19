@@ -199,6 +199,88 @@ Function onGameTime(int idx, Actor target, int param, int param2)
  cumulative effects (e.g. SLA exposure deltas). No-op by default.}
 EndFunction
 
+; ── OVERRIDE: dropdown rendering for param / param2 (v0.1.3) ────────────────
+; Effects whose param represents a discrete choice (rather than a number)
+; can opt into a MCM dropdown menu by returning a non-empty options list.
+; The slider Min/Max/Default/Step hooks become inert when menu options are
+; present.
+;
+; Options use "intValue|label" pipe-delimited strings. The intValue is what
+; gets stored in effectParam / effectParam2. Values outside the option list
+; still load (MCM shows "Custom: N") — useful for hand-edited presets that
+; want non-preset values.
+;
+; Example for a hit-class bitmask:
+;   "0|Disabled"
+;   "1|Any hit"
+;   "6|Melee (Blunt + Bladed)"
+;   "112|Magic (Fire + Frost + Shock)"
+;
+; Default (empty array) keeps the slider behavior. Existing plugins need
+; no changes.
+
+; NOTE: indexed writes to a `new string[N]` local in a Quest-script function
+; silently no-op on this VM (the array comes back zero-filled). And
+; StringUtil.Split returns arrays whose .Length sometimes reads as 0 even
+; when populated. To dodge both quirks we expose count + per-index getters
+; for value AND label separately — no array round-trips, no split parsing.
+
+int Function GetEffectParamMenuOptionCount(int idx)
+    return 0
+EndFunction
+
+int Function GetEffectParamMenuOptionValue(int idx, int optionIdx)
+{The int value to store on the slot when option `optionIdx` is picked.}
+    return 0
+EndFunction
+
+string Function GetEffectParamMenuOptionLabel(int idx, int optionIdx)
+{The display label for option `optionIdx`.}
+    return ""
+EndFunction
+
+int Function GetEffectParam2MenuOptionCount(int idx)
+    return 0
+EndFunction
+
+int Function GetEffectParam2MenuOptionValue(int idx, int optionIdx)
+    return 0
+EndFunction
+
+string Function GetEffectParam2MenuOptionLabel(int idx, int optionIdx)
+    return ""
+EndFunction
+
+; ── OVERRIDE: per-effect "extras" (v0.1.3) ──────────────────────────────────
+; Effects that need more than the two stock params (param/param2) can declare
+; up to 3 extra fields. The MCM renders one slider per extra below param2,
+; and the preset I/O round-trips them through slot[s].effect[e].extras.<name>.
+;
+; Extras values are stored as floats keyed by (slot, effectIdx, fieldName)
+; via MainQuest.GetSlotEffectExtra / SetSlotEffectExtra. When the bound
+; effect changes on a slot, MainQuest populates the new effect's extras
+; with the declared defaults and wipes the old.
+;
+; Field names MUST be lowercase ASCII without spaces (PapyrusUtil's JsonUtil
+; lowercases keys on write — mixed case would read back blank). Keep them
+; short (≤ 12 chars); the label string is the user-facing text.
+;
+; The spec string is pipe-delimited: "label|type|min|max|step|default".
+; Currently `type` accepts only "int" — sliders. (Future: "float", "toggle".)
+
+string[] Function GetEffectExtraFieldNames(int idx)
+{Return the extra field names this effect declares, in render order. Empty
+ array means no extras. Cap at 3.}
+    return Utility.CreateStringArray(0)
+EndFunction
+
+string Function GetEffectExtraFieldSpec(int idx, string fieldName)
+{Return the field spec — pipe-delimited "label|type|min|max|step|default".
+ Returning "" hides the row. Field names not declared by GetEffectExtraFieldNames
+ are not queried; the contract is that names+spec stay in lockstep.}
+    return ""
+EndFunction
+
 ; ── OVERRIDE: plugin-level settings ──────────────────────────────────────────
 ; Global per-plugin sliders rendered on the MCM Plugins page under the
 ; plugin's header. Use for cross-item knobs.

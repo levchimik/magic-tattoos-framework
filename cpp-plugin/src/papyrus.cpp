@@ -2,10 +2,50 @@
 #include "log.h"
 #include "pulse_roster.h"
 
+#include <string>
+#include <string_view>
+#include <unordered_set>
+
 namespace MTFPulse::Papyrus {
 
     namespace {
-
+        // Parse a comma-separated tag string into a set. Trims whitespace,
+        // lowercases ASCII (so "Blunt" and "blunt" hash to the same key),
+        // drops empty fragments. "*" is preserved verbatim.
+        std::unordered_set<std::string> ParseTags(std::string_view csv)
+        {
+            std::unordered_set<std::string> out;
+            std::string buf;
+            buf.reserve(16);
+            auto flush = [&] {
+                while (!buf.empty() && (buf.back() == ' ' || buf.back() == '\t')) {
+                    buf.pop_back();
+                }
+                std::size_t s = 0;
+                while (s < buf.size() && (buf[s] == ' ' || buf[s] == '\t')) {
+                    ++s;
+                }
+                if (s < buf.size()) {
+                    std::string norm(buf.begin() + s, buf.end());
+                    for (auto& c : norm) {
+                        if (c >= 'A' && c <= 'Z') {
+                            c = static_cast<char>(c - 'A' + 'a');
+                        }
+                    }
+                    out.insert(std::move(norm));
+                }
+                buf.clear();
+            };
+            for (char c : csv) {
+                if (c == ',' || c == ';') {
+                    flush();
+                } else {
+                    buf.push_back(c);
+                }
+            }
+            flush();
+            return out;
+        }
         constexpr std::string_view kClassName = "MTFPulse";
 
         // Set the pulse parameters for one actor. Caller passes per-layer
@@ -30,12 +70,18 @@ namespace MTFPulse::Papyrus {
                 spdlog::warn("SetActorPulse called with null actor");
                 return;
             }
-            if (rate <= 0.0f || depth_pct <= 0 || layer_count <= 0) {
+            // v0.1.3: only layer_count<=0 clears the entry now. Previously
+            // we also cleared on rate<=0 or depth_pct<=0 since those make
+            // the pulse mathematically inert — but flash-only tiers
+            // (no pulse, only the additive lane) need a live roster entry
+            // so SetActorFlash has somewhere to write. Tick handles rate=0
+            // correctly: wave=0 ⇒ pulsed=1.0 ⇒ ceiling passes through.
+            if (layer_count <= 0) {
                 Roster::Instance().ClearAt(actor, base_overlay_slot);
                 return;
             }
             PulseEntry e{};
-            e.rate         = rate;
+            e.rate         = std::max(0.0f, rate);
             e.depth        = std::clamp(depth_pct, 0, 100) * 0.01f;
             e.pause        = std::max(0.0f, pause);
             e.start_time   = start_time;
@@ -185,6 +231,87 @@ namespace MTFPulse::Papyrus {
             return static_cast<std::int32_t>(Roster::Instance().Size());
         }
 
+        // Flash on event (v0.1.3 additive, string-tag dispatch). Pushed by
+        // the flash.onhit effect when its slot becomes the winning tier.
+        // Requires a steady roster entry to already exist for
+        // (actor, base_slot).
+        //
+        // peakEmissivePct is the ADDITIVE peak amount expressed as percent
+        // of 1.0 emissive — 0 disables the lane, 100 = "+1.0 added at
+        // peak intensity", 500 = +5.0 (very bright spike). Range 0..1000.
+        // ramp/decay/retrigger are milliseconds.
+        //
+        // tagsCsv is a comma-separated list of event tags the entry will
+        // react to. The reserved tag "*" is a wildcard matching any
+        // incoming tag (including tags fired by external mods). Tags are
+        // case-insensitive — internally lowercased for matching. Empty
+        // string disables the lane (same effect as ClearActorFlash).
+        //
+        // Examples:
+        //   "blunt,bladed"         — melee only
+        //   "fire,frost,shock"     — elemental hits only
+        //   "*"                    — any event ever fired
+        //   ""                     — disabled
+        void SetActorFlash(
+            RE::StaticFunctionTag* /*tag*/,
+            RE::Actor*               actor,
+            std::int32_t             base_slot,
+            std::int32_t             peak_emissive_pct,
+            std::int32_t             ramp_ms,
+            std::int32_t             decay_ms,
+            std::int32_t             retrigger_ms,
+            RE::BSFixedString        tags_csv)
+        {
+            if (!actor) {
+                return;
+            }
+            const float peak = std::clamp(peak_emissive_pct, 0, 1000) * 0.01f;
+            std::string_view view = tags_csv.empty()
+                ? std::string_view{}
+                : std::string_view(tags_csv.c_str());
+            Roster::Instance().SetFlashParams(
+                actor, base_slot, peak,
+                static_cast<float>(std::max(1, ramp_ms)),
+                static_cast<float>(std::max(1, decay_ms)),
+                static_cast<float>(std::max(0, retrigger_ms)),
+                ParseTags(view));
+        }
+
+        void ClearActorFlash(RE::StaticFunctionTag* /*tag*/,
+                             RE::Actor* actor, std::int32_t base_slot)
+        {
+            if (!actor) {
+                return;
+            }
+            Roster::Instance().ClearFlash(actor, base_slot);
+        }
+
+        // Stamp an event. `tag` is a short identifier ("blunt", "fire",
+        // "sla.aroused.over80", ...). Case-insensitive. Cheap — no SKEE
+        // writes; the next Tick frame picks up the new last_hit timestamp
+        // and runs the envelope if the tag matches.
+        void TriggerActorFlash(RE::StaticFunctionTag* /*tag*/,
+                               RE::Actor*        actor,
+                               std::int32_t      base_slot,
+                               RE::BSFixedString tag_str)
+        {
+            if (!actor) {
+                return;
+            }
+            // Lowercase the incoming tag to match how ParseTags normalises
+            // the stored set.
+            std::string norm;
+            if (!tag_str.empty()) {
+                norm.assign(tag_str.c_str());
+                for (auto& c : norm) {
+                    if (c >= 'A' && c <= 'Z') {
+                        c = static_cast<char>(c - 'A' + 'a');
+                    }
+                }
+            }
+            Roster::Instance().TriggerFlash(actor, base_slot, norm);
+        }
+
     }  // namespace
 
     bool Register(RE::BSScript::IVirtualMachine* vm)
@@ -199,6 +326,9 @@ namespace MTFPulse::Papyrus {
         vm->RegisterFunction("ClearAll",      kClassName, ClearAll);
         vm->RegisterFunction("SetEnabled",    kClassName, SetEnabled);
         vm->RegisterFunction("Size",          kClassName, Size);
+        vm->RegisterFunction("SetActorFlash",     kClassName, SetActorFlash);
+        vm->RegisterFunction("ClearActorFlash",   kClassName, ClearActorFlash);
+        vm->RegisterFunction("TriggerActorFlash", kClassName, TriggerActorFlash);
         spdlog::info("Papyrus natives registered under '{}'", kClassName);
         return true;
     }

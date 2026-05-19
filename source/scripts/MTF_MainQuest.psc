@@ -732,6 +732,127 @@ Function SetCondWaveform(int slot, string name)
     endif
 EndFunction
 
+; ── Per-effect extras storage (v0.1.3) ──────────────────────────────────────
+; Effects that need more than the two stock (param/param2) knobs declare extra
+; fields via MTF_Plugin.GetEffectExtraFieldNames / GetEffectExtraFieldSpec.
+; Values live as floats keyed by (condSlot, effectIdx, fieldName) on this
+; quest — round-tripped through preset JSON under slot[s].effect[e].extras.
+;
+; All keys are lowercase ASCII (JsonUtil lowercases on write — mixed case
+; would round-trip blank).
+
+float Function GetSlotEffectExtra(int slot, int effectIdx, string fieldName)
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return 0.0
+    endif
+    string k = "mtf.fx." + slot + "." + effectIdx + ".ex." + fieldName
+    return StorageUtil.GetFloatValue(self, k, 0.0)
+EndFunction
+
+Function SetSlotEffectExtra(int slot, int effectIdx, string fieldName, float value)
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return
+    endif
+    string k = "mtf.fx." + slot + "." + effectIdx + ".ex." + fieldName
+    StorageUtil.SetFloatValue(self, k, value)
+EndFunction
+
+Function _populateEffectExtrasDefaults(int slot, int effectIdx, string key)
+{Called when the bound effect on (slot, effectIdx) changes. Asks the new
+ plugin for declared extra fields, stamps each one's default into storage.
+ Wipes are handled by _clearEffectExtras (called before this with the OLD
+ key). Empty key (effect unbound) is a no-op — caller should still wipe
+ the old extras.}
+    if key == ""
+        return
+    endif
+    MTF_Plugin p = ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = _effectIdxFor(p, _keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    string[] names = p.GetEffectExtraFieldNames(itemIdx)
+    if names == None || names.Length == 0
+        return
+    endif
+    int i = 0
+    while i < names.Length
+        string spec = p.GetEffectExtraFieldSpec(itemIdx, names[i])
+        if spec != ""
+            ; spec = "label|type|min|max|step|default"
+            string[] parts = StringUtil.Split(spec, "|")
+            if parts != None && parts.Length >= 6
+                float defVal = parts[5] as float
+                SetSlotEffectExtra(slot, effectIdx, names[i], defVal)
+            endif
+        endif
+        i += 1
+    endwhile
+EndFunction
+
+Function _clearEffectExtras(int slot, int effectIdx)
+{Wipe any extras stored for (slot, effectIdx). Called before binding a new
+ effect or when the effect is unbound. We don't know the previous plugin's
+ field list (the old key may already be gone), so we sweep via key prefix.}
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+        return
+    endif
+    string prefix = "mtf.fx." + slot + "." + effectIdx + ".ex."
+    ; StorageUtil doesn't expose a prefix-wipe; iterate known keys via the
+    ; live plugin if we can resolve it, otherwise leave stale floats (they
+    ; cost ~24 bytes each in the cosave and won't be read by anyone — the
+    ; new key's extras live under a different fieldName set).
+    string oldKey = GetSlotEffectKey(slot, effectIdx)
+    if oldKey != ""
+        MTF_Plugin p = ResolvePluginByKey(oldKey)
+        if p != None
+            int itemIdx = _effectIdxFor(p, _keyItemId(oldKey))
+            if itemIdx >= 0
+                string[] names = p.GetEffectExtraFieldNames(itemIdx)
+                if names != None
+                    int i = 0
+                    while i < names.Length
+                        StorageUtil.UnsetFloatValue(self, prefix + names[i])
+                        i += 1
+                    endwhile
+                endif
+            endif
+        endif
+    endif
+EndFunction
+
+; ── Effect dispatch context (v0.1.3) ────────────────────────────────────────
+; Set by the effect-iteration loops in _activateSlotEffects /
+; _deactivateSlotEffects / _dispatchTickEffects right before each
+; plugin.onActivate/.onDeactivate/.onTick call, so the plugin can read back
+; which (slot, effectIdx) it is currently servicing — needed for any plugin
+; that uses extras storage.
+;
+; Backed by StorageUtil ints (not Auto properties) — the v0.0.32+ "Auto
+; property attach trap" makes adding new Auto-Hidden vars to a long-lived
+; script unsafe.
+
+int Function _getDispatchSlot()
+    return StorageUtil.GetIntValue(self, "mtf.dispatch.slot", -1)
+EndFunction
+
+int Function _getDispatchEffectIdx()
+    return StorageUtil.GetIntValue(self, "mtf.dispatch.effectidx", -1)
+EndFunction
+
+Function _setDispatchContext(int slot, int effectIdx)
+    StorageUtil.SetIntValue(self, "mtf.dispatch.slot", slot)
+    StorageUtil.SetIntValue(self, "mtf.dispatch.effectidx", effectIdx)
+EndFunction
+
+Function _clearDispatchContext()
+    StorageUtil.SetIntValue(self, "mtf.dispatch.slot", -1)
+    StorageUtil.SetIntValue(self, "mtf.dispatch.effectidx", -1)
+EndFunction
+
 int Function WAVE_LUT_SIZE() global
 {Resolution of one pulse cycle. Picked so a 1Hz cycle samples at ~64 Hz —
  well above visual flicker frequency, well below per-frame jitter. C++
@@ -878,15 +999,37 @@ bool Function _slotHasPulse(int slot)
     return GetCondPulseRate(slot) > 0.0 && GetCondPulseDepth(slot) > 0
 EndFunction
 
+bool Function _slotHasFlashEffect(int slot)
+{Returns true if any of the slot's 4 effect rows is bound to the
+ mtf.base:flash.onhit effect. Used by _resyncPulseCache to register a
+ (rate=0) roster entry for flash-only tiers — the C++ Tick needs a live
+ entry to run the additive flash lane on top of the (no-pulse) ceiling.}
+    if slot < 0 || slot >= 8
+        return false
+    endif
+    int e = 0
+    while e < MAX_EFFECTS_PER_SLOT()
+        if GetSlotEffectKey(slot, e) == "mtf.base:flash.onhit"
+            return true
+        endif
+        e += 1
+    endwhile
+    return false
+EndFunction
+
 Function _resyncPulseCache(int tier)
 {Snapshot the per-tier overlay context so the fast pulse tick can run
  with only int/float ops and NiOverride writes — no JsonUtil lookups,
- no actor base/sex queries. Call from drawOverlay on tier change.}
+ no actor base/sex queries. Call from drawOverlay on tier change.
+
+ Triggers on pulse OR any bound flash.onhit effect — flash-only tiers
+ also need a roster entry so MTFPulse.SetActorFlash has somewhere to
+ write.}
     _pulseTier = -1
     if tier < 0 || tier >= 8 || PlayerRef == None
         return
     endif
-    if !_slotHasPulse(tier)
+    if !_slotHasPulse(tier) && !_slotHasFlashEffect(tier)
         return
     endif
     string packId  = ResolveSlotPackId(tier)
@@ -919,6 +1062,12 @@ Function _applyPulse()
  This function still runs at the OnUpdate fast tick (~10 Hz) so MCM
  slider edits to rate / depth / pause / per-layer emissive multiplier
  propagate to the roster within 100 ms.
+
+ Flash-only tiers (no pulse, just a bound flash.onhit effect) also pass
+ through here: _resyncPulseCache registers them with rate=0 / depth=0 so
+ a roster entry exists for the flash.onhit effect's onActivate to write
+ SetActorFlash into. C++ Tick treats wave=0 → pulsed=1 → ceiling passes
+ through; flash_add adds on top.
 
  If the MTFPulse plugin isn't loaded, the natives log a Papyrus warning
  once and the visual is just "no pulse" — graceful degradation.}
@@ -964,6 +1113,31 @@ Function IncHitCount(int classIdx)
         int curC = StorageUtil.GetIntValue(self, "mtf.hit.count." + classIdx, 0)
         StorageUtil.SetIntValue(self, "mtf.hit.count." + classIdx, curC + 1)
     endif
+EndFunction
+
+; Flash dispatch (v0.1.3). Called from MTF_HitListener.OnHit alongside
+; IncHitCount. Stamps the flash trigger time on the player's base-layer
+; roster entry. C++ side filters by class mask + retrigger logic.
+;
+; classIdx is the 7-class enum from HitListener._classify:
+;   0 ANY (unclassified), 1 BLUNT, 2 BLADED, 3 RANGED,
+;   4 FIRE, 5 FROST, 6 SHOCK
+; The C++ mask treats bit 0 as a wildcard — masks containing ANY fire
+; on every hit regardless of class.
+;
+; Currently player-only — OnHit is registered on the player
+; ReferenceAlias. NPC flash would require additional alias listeners
+; (deferred).
+Function DispatchFlashHit(string tag)
+{Public extension hook. External mods (or built-in HitListener) call this
+ with a short tag identifying the event ("blunt", "fire",
+ "sla.aroused.over80", etc.). Any active flash.onhit effect whose tagsCsv
+ contains the tag — or the "*" wildcard — flashes. Cheap; fire as often
+ as you like (the C++ side throttles via the retrigger window).}
+    if PlayerRef == None || tag == ""
+        return
+    endif
+    MTFPulse.TriggerActorFlash(PlayerRef, OverlaySlot, tag)
 EndFunction
 
 int Function GetHitCount(int classIdx)
@@ -1100,7 +1274,7 @@ bool Function SavePreset(string rawName)
     JsonUtil.ClearAll(f)
     JsonUtil.SetPathIntValue(f,    ".valid",         1)
     JsonUtil.SetPathStringValue(f, ".displayname",   rawName)
-    JsonUtil.SetPathIntValue(f,    ".schemaversion", 5)
+    JsonUtil.SetPathIntValue(f,    ".schemaversion", 7)
 
     ; Preset-wide cross-fade duration (live value, edited via MCM slider).
     ; Always emit so the saved JSON reflects exactly what's in the scratch
@@ -1157,6 +1331,25 @@ bool Function SavePreset(string rawName)
                 JsonUtil.SetPathStringValue(f, ep + ".key",    effectKey[fxI])
                 JsonUtil.SetPathIntValue(f,    ep + ".param",  effectParam[fxI])
                 JsonUtil.SetPathIntValue(f,    ep + ".param2", effectParam2[fxI])
+                ; v0.1.3 extras — per-effect named float fields (ramp/decay/etc.)
+                ; Walk the bound plugin's declared extra field names and emit
+                ; each one. JsonUtil lowercases keys; our spec already uses
+                ; lowercase ASCII names so round-trip is faithful.
+                MTF_Plugin pSerExt = ResolvePluginByKey(effectKey[fxI])
+                if pSerExt != None
+                    int itemIdxSerExt = _effectIdxFor(pSerExt, _keyItemId(effectKey[fxI]))
+                    if itemIdxSerExt >= 0
+                        string[] xnames = pSerExt.GetEffectExtraFieldNames(itemIdxSerExt)
+                        if xnames != None && xnames.Length > 0
+                            int xi = 0
+                            while xi < xnames.Length
+                                JsonUtil.SetPathFloatValue(f, ep + ".extras." + xnames[xi], \
+                                    GetSlotEffectExtra(s, e, xnames[xi]))
+                                xi += 1
+                            endwhile
+                        endif
+                    endif
+                endif
             endif
             e += 1
         endwhile
@@ -1264,9 +1457,44 @@ bool Function LoadPreset(string name)
         while e < maxE
             int fxI = s * maxE + e
             string ep = sp + ".effect[" + e + "]"
+            ; Wipe the OLD effect's extras (effectKey[] still holds the
+            ; previous binding until we write back the local arrays at the
+            ; end of LoadPreset). Without this, switching presets leaves
+            ; stale extras floats laying around.
+            _clearEffectExtras(s, e)
             aFxKey[fxI]    = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
             aFxParam[fxI]  = JsonUtil.GetPathIntValue(f,    ep + ".param",  0)
             aFxParam2[fxI] = JsonUtil.GetPathIntValue(f,    ep + ".param2", 0)
+            ; v0.1.3 extras restore — read each declared extra field from
+            ; JSON, falling back to the plugin's declared default when the
+            ; preset omits the key. Stamps directly into StorageUtil (the
+            ; per-slot/effectIdx float keyspace) — not part of the array
+            ; round-trip above.
+            if aFxKey[fxI] != ""
+                MTF_Plugin pLoadExt = ResolvePluginByKey(aFxKey[fxI])
+                if pLoadExt != None
+                    int itemIdxLoadExt = _effectIdxFor(pLoadExt, _keyItemId(aFxKey[fxI]))
+                    if itemIdxLoadExt >= 0
+                        string[] xnames = pLoadExt.GetEffectExtraFieldNames(itemIdxLoadExt)
+                        if xnames != None && xnames.Length > 0
+                            int xi = 0
+                            while xi < xnames.Length
+                                string spec = pLoadExt.GetEffectExtraFieldSpec(itemIdxLoadExt, xnames[xi])
+                                float defVal = 0.0
+                                if spec != ""
+                                    string[] parts = StringUtil.Split(spec, "|")
+                                    if parts != None && parts.Length >= 6
+                                        defVal = parts[5] as float
+                                    endif
+                                endif
+                                SetSlotEffectExtra(s, e, xnames[xi], \
+                                    JsonUtil.GetPathFloatValue(f, ep + ".extras." + xnames[xi], defVal))
+                                xi += 1
+                            endwhile
+                        endif
+                    endif
+                endif
+            endif
             e += 1
         endwhile
         s += 1
@@ -1366,6 +1594,9 @@ Function ResetEditor()
         int e = 0
         while e < maxE
             int fxI = s * maxE + e
+            ; Wipe extras for the old binding before clearing the key
+            ; (the helper needs the live key to look up field names).
+            _clearEffectExtras(s, e)
             aFxKey[fxI]    = ""
             aFxParam[fxI]  = 0
             aFxParam2[fxI] = 0
@@ -1931,7 +2162,8 @@ EndFunction
 
 Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int param2)
 {Sets all three at once. Used when picking a new effect type so the
- default param2 is applied alongside default param.}
+ default param2 is applied alongside default param. Also wipes the old
+ effect's extras and stamps the new effect's declared defaults.}
     if effectKey == None || effectParam2 == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
@@ -1940,11 +2172,25 @@ Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int p
     if live
         _deactivateSingleEffect(slot, effectIdx)
     endif
+    ; Wipe extras tied to the OLD key (we still have it on effectKey[globalI]).
+    _clearEffectExtras(slot, effectIdx)
     effectKey[globalI] = key
     effectParam[globalI] = param
     effectParam2[globalI] = param2
-    if live && key != ""
-        _activateSingleEffect(slot, effectIdx)
+    ; Populate extras defaults for the NEW key (no-op if key=="" or no extras).
+    _populateEffectExtrasDefaults(slot, effectIdx, key)
+    if live
+        ; Re-prime the pulse roster state — flash.onhit needs a (rate=0)
+        ; roster entry as the back-store for SetActorFlash, and conversely
+        ; removing the last flash.onhit on a no-pulse tier should clear the
+        ; orphan entry. _resyncPulseCache re-evaluates _pulseTier; _applyPulse
+        ; pushes (or clears) the entry accordingly. Both directions are
+        ; covered without special-casing the key.
+        _resyncPulseCache(slot)
+        _applyPulse()
+        if key != ""
+            _activateSingleEffect(slot, effectIdx)
+        endif
     endif
 EndFunction
 
@@ -1967,7 +2213,9 @@ Function _deactivateSingleEffect(int slot, int effectIdx)
     endif
     int itemIdx = _effectIdxFor(p, _keyItemId(key))
     if itemIdx >= 0
+        _setDispatchContext(slot, effectIdx)
         p.onDeactivate(itemIdx, PlayerRef, effectParam[globalI], effectParam2[globalI])
+        _clearDispatchContext()
     endif
 EndFunction
 
@@ -1986,7 +2234,9 @@ Function _activateSingleEffect(int slot, int effectIdx)
     endif
     int itemIdx = _effectIdxFor(p, _keyItemId(key))
     if itemIdx >= 0
+        _setDispatchContext(slot, effectIdx)
         p.onActivate(itemIdx, PlayerRef, effectParam[globalI], effectParam2[globalI])
+        _clearDispatchContext()
     endif
 EndFunction
 
@@ -2065,12 +2315,14 @@ Function _activateSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
+                    _setDispatchContext(slot, e)
                     p.onActivate(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
                 endif
             endif
         endif
         e += 1
     endwhile
+    _clearDispatchContext()
 EndFunction
 
 Function _deactivateSlotEffects(int slot)
@@ -2087,12 +2339,14 @@ Function _deactivateSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
+                    _setDispatchContext(slot, e)
                     p.onDeactivate(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
                 endif
             endif
         endif
         e += 1
     endwhile
+    _clearDispatchContext()
 EndFunction
 
 Function _tickSlotEffects(int slot)
@@ -2109,12 +2363,14 @@ Function _tickSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
+                    _setDispatchContext(slot, e)
                     p.onTick(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
                 endif
             endif
         endif
         e += 1
     endwhile
+    _clearDispatchContext()
 EndFunction
 
 Function _gameTickSlotEffects(int slot)
@@ -2131,12 +2387,14 @@ Function _gameTickSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
+                    _setDispatchContext(slot, e)
                     p.onGameTime(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
                 endif
             endif
         endif
         e += 1
     endwhile
+    _clearDispatchContext()
 EndFunction
 
 bool Function _slotHasEffects(int slot)
@@ -2279,6 +2537,13 @@ State checkingAroused
                 ; Reset pulse phase so the new tier starts cleanly at sin(0)=0.
                 _pulseStartRT = now
                 if tierChanged
+                    ; Push the pulse roster entry BEFORE activating effects.
+                    ; v0.1.3 flash.onhit's onActivate calls MTFPulse.SetActorFlash,
+                    ; which silently no-ops unless a (actor, base_slot) entry
+                    ; already exists. _applyPulse runs anyway at the bottom of
+                    ; OnUpdate at 10Hz, but the first SetActorFlash on tier
+                    ; activation would miss without this priming call.
+                    _applyPulse()
                     _activateSlotEffects(currentTier)
                     ; Mode 1: arm lock so the slot stays active for the duration.
                     if currentTier > 0 && cooldownMode != None && cooldownMode[currentTier] == 1
@@ -3642,12 +3907,14 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
+                    _setDispatchContext(slot, e)
                     p.onActivate(itemIdx, target, _g_effectParam(base + e, useScratch), _g_effectParam2(base + e, useScratch))
                 endif
             endif
         endif
         e += 1
     endwhile
+    _clearDispatchContext()
 EndFunction
 
 Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch)
@@ -3664,12 +3931,14 @@ Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
+                    _setDispatchContext(slot, e)
                     p.onDeactivate(itemIdx, target, _g_effectParam(base + e, useScratch), _g_effectParam2(base + e, useScratch))
                 endif
             endif
         endif
         e += 1
     endwhile
+    _clearDispatchContext()
 EndFunction
 
 Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch)
@@ -3686,12 +3955,14 @@ Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
+                    _setDispatchContext(slot, e)
                     p.onTick(itemIdx, target, _g_effectParam(base + e, useScratch), _g_effectParam2(base + e, useScratch))
                 endif
             endif
         endif
         e += 1
     endwhile
+    _clearDispatchContext()
 EndFunction
 
 ; ── Per-preset eval + draw cycle ────────────────────────────────────────────

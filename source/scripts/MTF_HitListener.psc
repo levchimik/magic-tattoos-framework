@@ -74,11 +74,51 @@ Event OnHit(ObjectReference akAggressor, Form akSource, Projectile akProjectile,
     _resolveKeywords()
     int cls = _classify(akSource)
     MTF_Plugin_Base p = Game.GetFormFromFile(0x80D, "MagicTattoosFramework.esp") as MTF_Plugin_Base
-    if p == None
-        return
+    if p != None
+        p._onHit(cls)
     endif
-    p._onHit(cls)
+    ; v0.1.3 flash dispatch — separate path from the condition-counter
+    ; pipeline above so flash works even on tiers without any
+    ; combat.hit.* condition bound. The classifier returns an int 0..6 for
+    ; backward compat with the counter system; we map to the string tag
+    ; here. cls=0 (unknown) doesn't produce a specific tag, but the
+    ; wildcard "*" still picks it up in the C++ matcher.
+    MTF_MainQuest h = _host()
+    if h != None
+        string tag = _tagForClass(cls)
+        h.DispatchFlashHit(tag)
+    endif
 EndEvent
+
+string Function _tagForClass(int cls)
+{Map MTF_HitListener._classify's int result to the canonical string tag
+ used by the flash dispatch path. Flat if/return to dodge the Quest-script
+ elseIf-chain VM quirk.}
+    if cls == 1
+        return "blunt"
+    endif
+    if cls == 2
+        return "bladed"
+    endif
+    if cls == 3
+        return "ranged"
+    endif
+    if cls == 4
+        return "fire"
+    endif
+    if cls == 5
+        return "frost"
+    endif
+    if cls == 6
+        return "shock"
+    endif
+    ; cls == 0 (unknown / staff / non-elemental) — emit "any" so wildcard-
+    ; tagged effects still fire on the hit even when there's no specific
+    ; combat class. The "*" tag set ALSO matches "any" via the wildcard
+    ; branch in C++, so this is purely belt-and-suspenders for effects
+    ; that explicitly want "any unknown hit" without subscribing to "*".
+    return "any"
+EndFunction
 
 MTF_MainQuest Function _host()
     return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest

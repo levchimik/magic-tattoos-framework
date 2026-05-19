@@ -3,6 +3,8 @@
 #include <RE/Skyrim.h>
 #include <array>
 #include <mutex>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace MTFPulse {
@@ -71,6 +73,44 @@ namespace MTFPulse {
         std::array<std::int32_t, 4> last_interp_tint{};
         std::array<std::int32_t, 4> last_interp_emissive{};
         bool                        has_last_interp{ false };
+
+        // ── Flash on event (v0.1.3 additive, string-tag dispatch) ─────────
+        // Transient additive emissive lane that bypasses the ceiling. When
+        // `flash_tags` is non-empty AND a matching TriggerActorFlash has
+        // stamped `flash_last_hit` + `flash_last_tag`, Tick eases
+        // `flash_intensity` toward target and adds
+        // (flash_peak_emissive * intensity) on top of the steady pulse —
+        // so even a layer with emissivemult=0 (off in steady state) can
+        // flash bright on a qualifying event.
+        //
+        // Matching rule (in Tick):
+        //   fire = flash_tags.contains(flash_last_tag) ||
+        //          flash_tags.contains("*");
+        //
+        // "*" is the wildcard tag — matches any incoming tag, including
+        // tags fired by external mods through their own
+        // MTFPulse.TriggerActorFlash calls. Empty set disables the lane.
+        //
+        // Tags are short ASCII identifiers, dotted for namespacing:
+        // "blunt", "bladed", "ranged", "fire", "frost", "shock" for
+        // built-in combat classes; external mods use prefixed names like
+        // "sla.aroused.over80" to avoid collision.
+        //
+        // flash_peak_emissive is the ADDITIVE amount at intensity=1 (NOT
+        // a multiplier). 0 disables, 1.0 = "+1.0 emissive at peak", 3.0 =
+        // very bright spike. Caller passes int-percent (100 = 1.0) via
+        // the SetActorFlash native; SetFlashParams stores the divided float.
+        float                              flash_peak_emissive { 0.0f };    // 0 = disabled
+        float                              flash_ramp_ms       { 80.0f };
+        float                              flash_decay_ms      { 350.0f };
+        float                              flash_retrigger_ms  { 150.0f };
+        std::unordered_set<std::string>    flash_tags          {};          // empty = disabled
+
+        // Hot state, mutated by TriggerFlash + Tick.
+        float         flash_last_hit      { -1.0e6f }; // NowSec() at last qualifying event
+        std::string   flash_last_tag      {};          // the tag the last trigger carried
+        float         flash_intensity     { 0.0f };    // [0,1]
+        float         flash_last_tick     { 0.0f };    // for dt computation
     };
 
     class Roster
@@ -99,6 +139,27 @@ namespace MTFPulse {
         std::size_t ClearAllForActor(RE::Actor* actor);
 
         void ClearAll();
+
+        // ── Flash (v0.1.3) ────────────────────────────────────────────────
+        // Update the flash params on an existing entry. Returns false if no
+        // entry exists at (actor, base_slot) — caller must ensure a steady
+        // roster entry has been registered first (via SetActorPulse or
+        // SetActorPulseWithTransition with rate=0 / depth=0).
+        bool SetFlashParams(RE::Actor* actor, std::int32_t base_slot,
+                            float peak_emissive, float ramp_ms,
+                            float decay_ms, float retrigger_ms,
+                            std::unordered_set<std::string> tags);
+
+        // Empty the flash tag set on (actor, base_slot). Tick will let any
+        // in-flight intensity decay naturally on the next frames.
+        bool ClearFlash(RE::Actor* actor, std::int32_t base_slot);
+
+        // Stamp the flash trigger time on (actor, base_slot) if the
+        // incoming `tag` matches the entry's tag set (either exact match
+        // or via the "*" wildcard). No-op if no entry or no flash
+        // configured. Returns true if the trigger was accepted.
+        bool TriggerFlash(RE::Actor* actor, std::int32_t base_slot,
+                          std::string_view tag);
 
         // Called from the per-frame hook.
         void Tick();

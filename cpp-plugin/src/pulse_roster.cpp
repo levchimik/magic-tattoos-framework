@@ -145,6 +145,34 @@ namespace MTFPulse {
         // apply should author the preset's tier-0 with alpha=0; the next
         // tier transition will then naturally fade alpha up.
         PulseEntry seeded = src;
+
+        // Preserve flash state across Set() — both hot state (last_hit /
+        // intensity / last_tick) AND the configured parameters (mask, peak,
+        // ramp, decay, retrigger). v0.1.3 effect-binding design means
+        // SetActorFlash is called once on flash.onhit's onActivate, then
+        // refreshed on the slow (~2s) onTick. But SetActorPulse runs at
+        // 10 Hz to keep the per-layer emissive ceilings in sync — if Set()
+        // overwrites flash params with src's defaults, the 100ms after each
+        // _applyPulse wipes the flash configuration, dropping hits.
+        //
+        // SetFlashParams writes directly to entries_[slot] (no Set() trip),
+        // so callers that legitimately update flash params still take
+        // effect. Tier changes deactivate cleanly: ClearActorFlash on the
+        // OLD effect empties the tag set before _applyPulse runs for the
+        // new tier, so preserving "tags={}" is the right behavior there.
+        if (slot >= 0) {
+            const auto& prev = entries_[slot];
+            seeded.flash_tags          = prev.flash_tags;
+            seeded.flash_peak_emissive = prev.flash_peak_emissive;
+            seeded.flash_ramp_ms       = prev.flash_ramp_ms;
+            seeded.flash_decay_ms      = prev.flash_decay_ms;
+            seeded.flash_retrigger_ms  = prev.flash_retrigger_ms;
+            seeded.flash_last_hit      = prev.flash_last_hit;
+            seeded.flash_last_tag      = prev.flash_last_tag;
+            seeded.flash_intensity     = prev.flash_intensity;
+            seeded.flash_last_tick     = prev.flash_last_tick;
+        }
+
         if (slot >= 0 && src.transition_duration > 0.0f) {
             const auto& prev = entries_[slot];
             const std::int32_t copyN = std::clamp<std::int32_t>(src.layer_count, 0, 4);
@@ -340,6 +368,40 @@ namespace MTFPulse {
                 }
             }
 
+            // Flash envelope (v0.1.3 additive). When a qualifying hit has
+            // stamped flash_last_hit, target=1 while within retrigger window
+            // — past that, target=0 and intensity eases out.
+            //
+            // v0.1.3 changed the lane from multiplicative to additive:
+            //   old: final = pulsed * ceiling * (1 + (peak-1)*intensity)
+            //   new: final = pulsed * ceiling + peak_add * intensity
+            // The additive form means a tattoo with emissivemult=0 (visually
+            // off in the steady state) can still glow on hit — the additive
+            // lane bypasses the ceiling entirely. flash_peak_emissive now
+            // holds the additive amount at intensity=1 (NOT a multiplier).
+            // 0 disables the lane.
+            float flash_add = 0.0f;
+            if (!e.flash_tags.empty() && e.flash_peak_emissive > 0.0f) {
+                const float dt_sec = (e.flash_last_tick > 0.0f)
+                    ? std::max(0.0f, now - e.flash_last_tick)
+                    : 0.0f;
+                const float retrig_sec = e.flash_retrigger_ms * 0.001f;
+                const float target = ((now - e.flash_last_hit) < retrig_sec) ? 1.0f : 0.0f;
+                if (e.flash_intensity < target) {
+                    const float step = (e.flash_ramp_ms > 0.0f)
+                        ? (dt_sec * 1000.0f / e.flash_ramp_ms)
+                        : 1.0f;
+                    e.flash_intensity = std::min(target, e.flash_intensity + step);
+                } else if (e.flash_intensity > target) {
+                    const float step = (e.flash_decay_ms > 0.0f)
+                        ? (dt_sec * 1000.0f / e.flash_decay_ms)
+                        : 1.0f;
+                    e.flash_intensity = std::max(target, e.flash_intensity - step);
+                }
+                flash_add = e.flash_peak_emissive * e.flash_intensity;
+            }
+            e.flash_last_tick = now;
+
             // One write per active layer: nodes are named "Body [ovlN]"
             // where N = base_slot + layer_index (matches MTF_MainQuest's
             // applyOverlay format). The per-layer base emissive multiplier
@@ -358,7 +420,7 @@ namespace MTFPulse {
                     ceiling = e.from_em_mult[L] + (e.layer_base_em_mult[L] - e.from_em_mult[L]) * eased;
                 }
 
-                const float final_mult = pulsed * ceiling;
+                const float final_mult = pulsed * ceiling + flash_add;
                 skee_bridge::WriteEmissiveMult(actor, e.is_female, node, final_mult);
                 e.last_interp_em_mult[L] = ceiling;
 
@@ -383,6 +445,82 @@ namespace MTFPulse {
             }
             e.has_last_interp = true;
         }
+    }
+
+    bool Roster::SetFlashParams(RE::Actor* actor, std::int32_t base_slot,
+                                float peak_emissive, float ramp_ms,
+                                float decay_ms, float retrigger_ms,
+                                std::unordered_set<std::string> tags)
+    {
+        if (!actor) {
+            return false;
+        }
+        std::lock_guard lock(mtx_);
+        const auto formID = actor->GetFormID();
+        const std::int32_t slot = FindLocked(formID, base_slot);
+        if (slot < 0) {
+            spdlog::warn("MTFFlash SetFlashParams MISS formID=0x{:08x} base_slot={} count={}",
+                         formID, base_slot, count_);
+            return false;
+        }
+        auto& e = entries_[slot];
+        e.flash_peak_emissive = std::max(0.0f, peak_emissive);
+        e.flash_ramp_ms       = std::max(1.0f, ramp_ms);
+        e.flash_decay_ms      = std::max(1.0f, decay_ms);
+        e.flash_retrigger_ms  = std::max(0.0f, retrigger_ms);
+        e.flash_tags          = std::move(tags);
+        return true;
+    }
+
+    bool Roster::ClearFlash(RE::Actor* actor, std::int32_t base_slot)
+    {
+        if (!actor) {
+            return false;
+        }
+        std::lock_guard lock(mtx_);
+        const std::int32_t slot = FindLocked(actor->GetFormID(), base_slot);
+        if (slot < 0) {
+            return false;
+        }
+        entries_[slot].flash_tags.clear();
+        return true;
+    }
+
+    bool Roster::TriggerFlash(RE::Actor* actor, std::int32_t base_slot,
+                              std::string_view tag)
+    {
+        if (!actor) {
+            return false;
+        }
+        std::lock_guard lock(mtx_);
+        const auto formID = actor->GetFormID();
+        const std::int32_t slot = FindLocked(formID, base_slot);
+        if (slot < 0) {
+            spdlog::warn("MTFFlash TriggerFlash MISS_ENTRY formID=0x{:08x} base_slot={} tag={}",
+                         formID, base_slot, std::string(tag));
+            return false;
+        }
+        auto& e = entries_[slot];
+        if (e.flash_tags.empty()) {
+            spdlog::warn("MTFFlash TriggerFlash TAGS_EMPTY formID=0x{:08x} base_slot={} tag={} peak={:.2f}",
+                         formID, base_slot, std::string(tag), e.flash_peak_emissive);
+            return false;
+        }
+        // "*" is the wildcard tag — matches any incoming tag, including
+        // tags fired by external mods through their own
+        // MTFPulse.TriggerActorFlash calls. Otherwise exact membership.
+        const bool wildcard = e.flash_tags.count("*") > 0;
+        if (!wildcard) {
+            // unordered_set<string>::find with string_view via heterogeneous
+            // lookup isn't trivially set up without a custom hash; just
+            // promote to string for the lookup. Tag strings are tiny.
+            if (e.flash_tags.find(std::string(tag)) == e.flash_tags.end()) {
+                return false;
+            }
+        }
+        e.flash_last_hit = NowSec();
+        e.flash_last_tag.assign(tag.data(), tag.size());
+        return true;
     }
 
 }  // namespace MTFPulse

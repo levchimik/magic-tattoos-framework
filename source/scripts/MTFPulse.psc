@@ -57,3 +57,47 @@ Function SetEnabled(Bool on) Global Native
 
 ; Current roster population (for diagnostics).
 Int Function Size() Global Native
+
+; ── Flash on event (v0.1.3, string-tag dispatch) ────────────────────────────
+; Transient additive emissive lane on top of the steady pulse. Requires a
+; steady roster entry to already exist for (aktor, baseOverlaySlot) — call
+; SetActorPulse or SetActorPulseWithTransition first (rate=0/depth=0 is OK).
+;
+; Push flash params on tier-becomes-active:
+;   peakEmissivePct — additive amount at intensity=1 expressed as percent of
+;                     1.0 emissive. 0 disables the lane, 100 = "+1.0", 500 =
+;                     "+5.0" (very bright spike). Range 0..1000.
+;   rampMs / decayMs — envelope shape; ramp covers 0→1 from a cold start,
+;                     decay covers 1→0 after retrigger window expires.
+;   retriggerMs     — while the gap since the last accepted event stays
+;                     inside this window, intensity targets 1.0 (held bright
+;                     by sustained streams like Flames). Past the window,
+;                     target snaps to 0 and decay runs.
+;   tagsCsv         — comma-separated list of event tags this entry reacts
+;                     to. "*" is the wildcard (any incoming tag). Tags are
+;                     case-insensitive ASCII; "" disables the lane. Built-in
+;                     combat tags from MTF_HitListener: "blunt", "bladed",
+;                     "ranged", "fire", "frost", "shock". External mods can
+;                     introduce their own dotted tags like "sla.aroused.over80".
+;                     Examples: "blunt,bladed" (melee), "fire,frost,shock"
+;                     (magic), "*" (any event).
+Function SetActorFlash(Actor aktor, Int baseOverlaySlot, \
+                       Int peakEmissivePct, Int rampMs, Int decayMs, \
+                       Int retriggerMs, String tagsCsv) Global Native
+
+; Empty the tag set on (aktor, baseOverlaySlot). Any in-flight intensity
+; eases out naturally on the next frames. Use on tier-deactivate.
+Function ClearActorFlash(Actor aktor, Int baseOverlaySlot) Global Native
+
+; Stamp an event on (aktor, baseOverlaySlot). `tag` is a short ASCII
+; identifier (case-insensitive); "blunt", "fire", "sla.aroused.over80", etc.
+; Cheap — no SKEE writes, just records the tag + timestamp so the next Tick
+; picks it up. No-op if no roster entry, no flash configured, or the tag
+; doesn't match the entry's tag set (or the "*" wildcard).
+;
+; This is the public extension hook for external mods: any third-party
+; Papyrus code can call MTFPulse.TriggerActorFlash(player, slot, "mytag")
+; from its own event handlers (arousal changes, location enter, custom
+; OnHit handling, etc.). MTF tiers binding flash.onhit with tagsCsv
+; including "mytag" — or with the "*" wildcard — will flash on the event.
+Function TriggerActorFlash(Actor aktor, Int baseOverlaySlot, String tag) Global Native

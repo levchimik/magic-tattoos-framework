@@ -846,7 +846,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 34
+    return 35
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -930,6 +930,8 @@ string Function _effectIdHigh(int idx)
         return "spell.frostCloak"
     elseif idx == 33
         return "spell.lightningCloak"
+    elseif idx == 34
+        return "flash.onhit"
     endif
     return ""
 EndFunction
@@ -1015,6 +1017,8 @@ string Function _effectLabelHigh(int idx)
         return "[+] Frost Cloak"
     elseif idx == 33
         return "[+] Lightning Cloak"
+    elseif idx == 34
+        return "[!] Flash on Hit"
     endif
     return ""
 EndFunction
@@ -1092,6 +1096,8 @@ string Function _effectParamLabelHigh(int idx)
         return "Time speed % (lower = slower; 100 = normal)"
     elseif idx == 31 || idx == 32 || idx == 33
         return "Damage per second"
+    elseif idx == 34
+        return "Trigger event"
     endif
     return ""
 EndFunction
@@ -1111,6 +1117,8 @@ int Function GetEffectParamMin(int idx)
         return 5
     elseif idx == 31 || idx == 32 || idx == 33
         return 1
+    elseif idx == 34
+        return 0
     endif
     return -100
 EndFunction
@@ -1131,6 +1139,8 @@ int Function GetEffectParamMax(int idx)
         return 100
     elseif idx == 31 || idx == 32 || idx == 33
         return 200
+    elseif idx == 34
+        return 127
     endif
     return 100
 EndFunction
@@ -1145,6 +1155,8 @@ int Function GetEffectParamDefault(int idx)
         return 50
     elseif idx == 31 || idx == 32 || idx == 33
         return 8
+    elseif idx == 34
+        return 1  ; ANY wildcard — fires on every hit
     endif
     return 0
 EndFunction
@@ -1164,6 +1176,8 @@ int Function GetEffectParamStep(int idx)
         return 5
     elseif idx == 31 || idx == 32 || idx == 33
         return 1
+    elseif idx == 34
+        return 1
     endif
     return 1
 EndFunction
@@ -1173,29 +1187,169 @@ string Function GetEffectParam2Label(int idx)
     ; SetNthEffectArea in _applyCloak, converting feet → game units.
     if idx == 31 || idx == 32 || idx == 33
         return "Radius (feet)"
+    elseif idx == 34
+        return "Peak emissive (additive, % of 1.0)"
     endif
     return ""
 EndFunction
 int Function GetEffectParam2Min(int idx)
     if idx == 31 || idx == 32 || idx == 33
         return 3
+    elseif idx == 34
+        return 0
     endif
     return 0
 EndFunction
 int Function GetEffectParam2Max(int idx)
     if idx == 31 || idx == 32 || idx == 33
         return 500
+    elseif idx == 34
+        return 1000
     endif
     return 100
 EndFunction
 int Function GetEffectParam2Default(int idx)
     if idx == 31 || idx == 32 || idx == 33
         return 5
+    elseif idx == 34
+        return 300  ; +3.0 additive emissive at peak — visible spike
     endif
     return 0
 EndFunction
 int Function GetEffectParam2Step(int idx)
+    if idx == 34
+        return 10
+    endif
     return 1
+EndFunction
+string Function GetEffectParam2Format(int idx)
+    if idx == 34
+        return "{0}%"
+    endif
+    return "{0}"
+EndFunction
+
+; ── Dropdown options (v0.1.3) — param/param2 as menus ────────────────────────
+int Function GetEffectParamMenuOptionCount(int idx)
+    if idx == 34
+        return 12
+    endif
+    return 0
+EndFunction
+
+int Function GetEffectParamMenuOptionValue(int idx, int optionIdx)
+    ; Flat if/return — preset value the option stores.
+    if idx != 34
+        return 0
+    endif
+    if optionIdx == 0
+        return 0
+    endif
+    if optionIdx == 1
+        return 1
+    endif
+    if optionIdx == 2
+        return 2
+    endif
+    if optionIdx == 3
+        return 4
+    endif
+    if optionIdx == 4
+        return 8
+    endif
+    if optionIdx == 5
+        return 16
+    endif
+    if optionIdx == 6
+        return 32
+    endif
+    if optionIdx == 7
+        return 64
+    endif
+    if optionIdx == 8
+        return 6
+    endif
+    if optionIdx == 9
+        return 14
+    endif
+    if optionIdx == 10
+        return 112
+    endif
+    if optionIdx == 11
+        return 126
+    endif
+    return 0
+EndFunction
+
+string Function GetEffectParamMenuOptionLabel(int idx, int optionIdx)
+    ; flash.onhit trigger-event presets. Each preset maps (in
+    ; _classMaskToTags below) to a C++ tag CSV. Hand-edited preset JSON
+    ; with off-list ints still works (MCM shows "Custom: N").
+    if idx != 34
+        return ""
+    endif
+    if optionIdx == 0
+        return "Disabled"
+    endif
+    if optionIdx == 1
+        return "Any event (wildcard)"
+    endif
+    if optionIdx == 2
+        return "Blunt only"
+    endif
+    if optionIdx == 3
+        return "Bladed only"
+    endif
+    if optionIdx == 4
+        return "Ranged only"
+    endif
+    if optionIdx == 5
+        return "Fire only"
+    endif
+    if optionIdx == 6
+        return "Frost only"
+    endif
+    if optionIdx == 7
+        return "Shock only"
+    endif
+    if optionIdx == 8
+        return "Melee (Blunt + Bladed)"
+    endif
+    if optionIdx == 9
+        return "Physical (Blunt + Bladed + Ranged)"
+    endif
+    if optionIdx == 10
+        return "Magic (Fire + Frost + Shock)"
+    endif
+    if optionIdx == 11
+        return "All combat classes"
+    endif
+    return ""
+EndFunction
+
+; ── Extras (v0.1.3) — per-effect extra fields ────────────────────────────────
+string[] Function GetEffectExtraFieldNames(int idx)
+    if idx == 34
+        string[] names = new string[3]
+        names[0] = "rampms"
+        names[1] = "decayms"
+        names[2] = "retrigms"
+        return names
+    endif
+    return Utility.CreateStringArray(0)
+EndFunction
+
+string Function GetEffectExtraFieldSpec(int idx, string fieldName)
+    if idx == 34
+        if fieldName == "rampms"
+            return "Ramp up (ms)|int|1|2000|10|80"
+        elseif fieldName == "decayms"
+            return "Decay (ms)|int|1|5000|10|350"
+        elseif fieldName == "retrigms"
+            return "Retrigger window (ms)|int|0|2000|10|150"
+        endif
+    endif
+    return ""
 EndFunction
 
 ; Signed-convention classifiers. Positive param = buff, negative = penalty.
@@ -1870,6 +2024,114 @@ Function _tickCloak(int idx, Spell outer, Spell inner, Actor target, int paramDm
     endif
 EndFunction
 
+; ── Flash on Hit (v0.1.3 effect-binding) ────────────────────────────────────
+; The flash.onhit effect (idx 34) configures the C++ pulse roster's additive
+; emissive lane. param=classmask, param2=peak (% of 1.0 additive). The 3
+; envelope timings (ramp/decay/retrig) live in extras keyed by the slot
+; and effect index — host context comes from MainQuest's dispatch context
+; setters (set by _activateSlotEffects et al before calling onActivate).
+;
+; The roster keys flash by (actor, base_slot) so at most one flash effect
+; per slot drives the lane. Binding multiple flash.onhit rows to the same
+; slot is allowed (no MCM block), but only one will end up in C++ — last
+; activation wins on the same tick.
+
+Function _applyFlashOnHit(Actor target, int classMask, int peakPct)
+{`classMask` is the int param stored on the slot. v0.1.3 moved C++ flash
+ dispatch from bitmask to string tags, but the MCM param stays int as a
+ stable opaque preset ID — easier to author, easier to round-trip through
+ JSON presets. _classMaskToTags maps the int to the tag CSV the C++ side
+ wants.}
+    if target == None
+        return
+    endif
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot      = h._getDispatchSlot()
+    int effectIdx = h._getDispatchEffectIdx()
+    if slot < 0 || effectIdx < 0
+        ; Called outside a dispatch (e.g. direct invocation). Nothing to do.
+        return
+    endif
+    int rampMs   = h.GetSlotEffectExtra(slot, effectIdx, "rampms")   as int
+    int decayMs  = h.GetSlotEffectExtra(slot, effectIdx, "decayms")  as int
+    int retrigMs = h.GetSlotEffectExtra(slot, effectIdx, "retrigms") as int
+    if rampMs   <= 0
+        rampMs = 80
+    endif
+    if decayMs  <= 0
+        decayMs = 350
+    endif
+    if retrigMs <  0
+        retrigMs = 150
+    endif
+    string tags = _classMaskToTags(classMask)
+    MTFPulse.SetActorFlash(target, h.OverlaySlot, peakPct, rampMs, decayMs, retrigMs, tags)
+EndFunction
+
+string Function _classMaskToTags(int classMask)
+{Map the legacy int preset ID to the C++ string-tag CSV. Flat if/return —
+ long elseIf chains in Quest-extending scripts silently return "" past
+ the first branch on this VM build. Values keep the pre-v0.1.3 bit-pattern
+ shape so presets authored against the old bitmask design still mean what
+ they meant.}
+    if classMask == 0
+        return ""
+    endif
+    if classMask == 1
+        return "*"
+    endif
+    if classMask == 2
+        return "blunt"
+    endif
+    if classMask == 4
+        return "bladed"
+    endif
+    if classMask == 8
+        return "ranged"
+    endif
+    if classMask == 16
+        return "fire"
+    endif
+    if classMask == 32
+        return "frost"
+    endif
+    if classMask == 64
+        return "shock"
+    endif
+    if classMask == 6
+        return "blunt,bladed"
+    endif
+    if classMask == 14
+        return "blunt,bladed,ranged"
+    endif
+    if classMask == 112
+        return "fire,frost,shock"
+    endif
+    if classMask == 126
+        return "blunt,bladed,ranged,fire,frost,shock"
+    endif
+    ; Any unrecognised int → wildcard fallback so hand-edited presets with
+    ; out-of-band values still flash on something rather than silently
+    ; nothing. (Stricter alternative: return "" for unknown — but the user
+    ; explicitly typed an int that meant "I want this to fire", so map to
+    ; the safest match-everything option.)
+    return "*"
+EndFunction
+
+Function _removeFlashOnHit(Actor target)
+    if target == None
+        return
+    endif
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    MTFPulse.ClearActorFlash(target, h.OverlaySlot)
+EndFunction
+
 Function _alertNearby(Actor target, int paramFeet)
     if target == None || paramFeet <= 0
         return
@@ -1929,6 +2191,8 @@ Function onActivate(int idx, Actor target, int param, int param2)
         _applyCloak(_resolveFrostCloakSpell(), _resolveFrostCloakDmgSpell(), target, param, param2, "mtf.shift.frostCloak")
     elseif idx == 33
         _applyCloak(_resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
+    elseif idx == 34
+        _applyFlashOnHit(target, param, param2)
     endif
 EndFunction
 
@@ -1953,6 +2217,8 @@ Function onDeactivate(int idx, Actor target, int param, int param2)
         _removeCloak(_resolveFrostCloakSpell(), target, "mtf.shift.frostCloak")
     elseif idx == 33
         _removeCloak(_resolveLightningCloakSpell(), target, "mtf.shift.lightningCloak")
+    elseif idx == 34
+        _removeFlashOnHit(target)
     endif
 EndFunction
 
@@ -2006,6 +2272,11 @@ Function onTick(int idx, Actor target, int param, int param2)
         _tickCloak(idx, _resolveFrostCloakSpell(), _resolveFrostCloakDmgSpell(), target, param, param2, "mtf.shift.frostCloak")
     elseif idx == 33
         _tickCloak(idx, _resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
+    elseif idx == 34
+        ; Re-push flash params every slow tick. Cheap (one Roster lookup +
+        ; field write) and means MCM slider edits on ramp/decay/retrig/peak
+        ; take effect within ~2s without needing a tier rebuild.
+        _applyFlashOnHit(target, param, param2)
     endif
 EndFunction
 
