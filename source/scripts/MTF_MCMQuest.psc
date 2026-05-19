@@ -9,7 +9,7 @@ MTF_MainQuest Property MainQuest Auto
 
 ; ── Versioning ────────────────────────────────────────────────────────────────
 int Function GetVersion()
-    return 20
+    return 21
 EndFunction
 
 string Function _slotLabel(int idx)
@@ -43,7 +43,7 @@ event OnConfigInit()
     ModName = "Magic Tattoos Framework"
     Pages = new String[5]
     Pages[0] = "General"
-    Pages[1] = "Conditions"
+    Pages[1] = "Preset editor"
     Pages[2] = "Subjects"
     Pages[3] = "Plugins"
     Pages[4] = "Menu Options"
@@ -76,7 +76,21 @@ event OnVersionUpdate(int Version)
     ; applied. Once we ship, the next migration must be a non-destructive
     ; ml<20 block added below this one.
     int ml = MainQuest._migrationLevel
+    if ml >= 34
+        return
+    endif
+    ; v0.1.2 (ml=34): non-destructive. The "Conditions" page was renamed to
+    ; "Preset editor" — rewrite the Pages array so existing saves pick up
+    ; the new label. (Pages doesn't auto-refresh on script update; same
+    ; reason the older ml=19 defensive block exists below.)
     if ml >= 33
+        Pages = new String[5]
+        Pages[0] = "General"
+        Pages[1] = "Preset editor"
+        Pages[2] = "Subjects"
+        Pages[3] = "Plugins"
+        Pages[4] = "Menu Options"
+        MainQuest._migrationLevel = 34
         return
     endif
     ; v0.0.33 (ml=33): non-destructive. Two things:
@@ -110,7 +124,7 @@ event OnVersionUpdate(int Version)
     ; sake of upgraders whose Pages array predates the current shape).
     Pages = new String[5]
     Pages[0] = "General"
-    Pages[1] = "Conditions"
+    Pages[1] = "Preset editor"
     Pages[2] = "Subjects"
     Pages[3] = "Plugins"
     Pages[4] = "Menu Options"
@@ -188,7 +202,7 @@ event OnVersionUpdate(int Version)
         s += 1
     endwhile
 
-    MainQuest._migrationLevel = 33
+    MainQuest._migrationLevel = 34
 endEvent
 
 ; ── Page rendering ────────────────────────────────────────────────────────────
@@ -196,8 +210,8 @@ event OnPageReset(string page)
     _ensureMainQuest()
     if page == "General"
         drawGeneralPage()
-    elseIf page == "Conditions"
-        drawConditionsPage()
+    elseIf page == "Preset editor"
+        drawPresetEditorPage()
     elseif page == "Subjects"
         drawSubjectsPage()
     elseif page == "Plugins"
@@ -375,30 +389,15 @@ endState
 function drawGeneralPage()
     SetCursorFillMode(TOP_TO_BOTTOM)
 
-    ; ── Left column: core settings ──────────────────────────────────────────
+    ; Single-column engine/global settings. Preset management (Save / Pick /
+    ; Delete) lives on the Preset editor page next to the per-preset content
+    ; it operates on.
     AddHeaderOption("General")
     AddToggleOptionST("GEN_MOD_ACTIVE",      "Enable",                MainQuest.ModActive)
     AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{2}")
     AddSliderOptionST("SLOT_OVERLAY_SLOT",   "Overlay slot",          MainQuest.OverlaySlot)
     AddTextOptionST("GEN_RELOAD_VISUALS", "Reload visual packs", "(" + MainQuest.GetVisualPackCount() + " loaded)")
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
-
-    ; ── Right column: presets ───────────────────────────────────────────────
-    SetCursorPosition(1)
-    _refreshPresetNames()
-
-    AddHeaderOption("Presets")
-    AddInputOptionST("PRESET_SAVE_AS", "Save current as...", "(type a name)")
-    AddMenuOptionST("PRESET_PICK", "Selected preset", _currentPresetLabel())
-    int loadFlag = OPTION_FLAG_NONE
-    int delFlag  = OPTION_FLAG_NONE
-    if _scratchPresetCount == 0 || _selectedPresetIdx < 0
-        loadFlag = OPTION_FLAG_DISABLED
-        delFlag  = OPTION_FLAG_DISABLED
-    endif
-    AddTextOptionST("PRESET_LOAD", "Load selected into base", "", loadFlag)
-    AddTextOptionST("PRESET_DEL",  "Delete selected", "", delFlag)
-    AddTextOption("Cast the Apply Tattoo spell to apply or remove a preset on yourself / an NPC.", "", OPTION_FLAG_DISABLED)
 endFunction
 
 function drawPluginsPage()
@@ -527,7 +526,7 @@ Function _highlightSetting(int slot)
     SetInfoText(p.GetSettingInfo(_scratchItemIdx))
 EndFunction
 
-function drawConditionsPage()
+function drawPresetEditorPage()
     SetCursorFillMode(TOP_TO_BOTTOM)
 
     ; Defensive: EnsureArrays now lazy-allocates post-release arrays even
@@ -537,53 +536,27 @@ function drawConditionsPage()
 
     int idx = selectedCondition
 
-    ; ── LEFT COLUMN: slot config + cooldown + effects ────────────────────────
-    AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
-
-    if idx == 0
-        AddHeaderOption("Default slot")
-    else
-        string key = MainQuest.condPluginId[idx]
-        MTF_Plugin p = None
-        int itemIdx = -1
-        if key != ""
-            p = MainQuest.ResolvePluginByKey(key)
-            if p != None
-                itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
-            endif
-        endif
-
-        AddMenuOptionST("SLOT_COND_TYPE", "Condition type", _condTypeLabel(key))
-        AddHeaderOption("Condition " + idx)
-
-        if p != None && itemIdx >= 0
-            string paramLabel = p.GetConditionParamLabel(itemIdx)
-            if paramLabel != ""
-                AddSliderOptionST("SLOT_COND_PARAM", paramLabel, MainQuest.condParam[idx])
-            else
-                AddTextOption(p.GetConditionLabel(itemIdx), "(no parameter)", OPTION_FLAG_DISABLED)
-            endif
-            string param2Label = p.GetConditionParam2Label(itemIdx)
-            if param2Label != ""
-                AddSliderOptionST("SLOT_COND_PARAM2", param2Label, MainQuest.GetCondParam2(idx), p.GetConditionParam2Format(itemIdx))
-            endif
-        endif
-
-        int cdMin = MainQuest.cooldownMin[idx]
-        AddHeaderOption("Cooldown")
-        AddMenuOptionST("SLOT_CD_MODE",     "Mode",    _cooldownModeLabel(MainQuest.cooldownMode[idx]))
-        AddSliderOptionST("SLOT_CD_HOURS",   "Hours",   cdMin / 60)
-        AddSliderOptionST("SLOT_CD_MINUTES", "Minutes", cdMin % 60)
+    ; ── LEFT COLUMN: preset management + transition + visual config ─────────
+    ; Preset header groups file lifecycle (Editing status + Save / Save as /
+    ; Load / Delete / New). Transition has its own header (preset-wide
+    ; animation timing, distinct from file management). Visuals/Layers/Pulse
+    ; below the live-preview hint are per-slot (driven by the slot picker on
+    ; the right).
+    _refreshPresetNames()
+    AddHeaderOption("Preset")
+    AddTextOptionST("PRESET_EDITING_STATUS", "Editing", _editingLabel(), OPTION_FLAG_DISABLED)
+    int saveFlag = OPTION_FLAG_NONE
+    if _editingPresetName == ""
+        saveFlag = OPTION_FLAG_DISABLED
     endif
+    AddTextOptionST("PRESET_SAVE",     "Save",          "", saveFlag)
+    AddInputOptionST("PRESET_SAVE_AS", "Save as...",    "(type a name)")
+    AddMenuOptionST("PRESET_PICK",     "Load preset",   "")
+    AddMenuOptionST("PRESET_DEL",      "Delete preset", "")
+    AddMenuOptionST("PRESET_NEW",      "New preset",    "")
 
-    AddHeaderOption("Effects")
-    _drawEffectRow(idx, 0, "SLOT_EFFECT_1_TYPE", "SLOT_EFFECT_1_PARAM", "SLOT_EFFECT_1_P2")
-    _drawEffectRow(idx, 1, "SLOT_EFFECT_2_TYPE", "SLOT_EFFECT_2_PARAM", "SLOT_EFFECT_2_P2")
-    _drawEffectRow(idx, 2, "SLOT_EFFECT_3_TYPE", "SLOT_EFFECT_3_PARAM", "SLOT_EFFECT_3_P2")
-    _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM", "SLOT_EFFECT_4_P2")
-
-    ; ── RIGHT COLUMN: Visuals block (pack + texture) then per-layer sliders ──
-    SetCursorPosition(1)
+    AddHeaderOption("Transition")
+    AddSliderOptionST("PRESET_TRANSITION_DUR", "Duration", MainQuest.GetTransitionDuration(), "{1} s")
 
     AddHeaderOption("Visuals")
     AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(idx))
@@ -628,6 +601,53 @@ function drawConditionsPage()
     AddSliderOptionST("SLOT_PULSE_DEPTH", "Depth", MainQuest.GetCondPulseDepth(idx), "{0}%")
     AddSliderOptionST("SLOT_PULSE_PAUSE", "Pause", MainQuest.GetCondPulsePause(idx), "{1} s")
     AddMenuOptionST("SLOT_PULSE_WAVEFORM", "Waveform", _waveformLabel(MainQuest.GetCondWaveform(idx)))
+
+    ; ── RIGHT COLUMN: slot picker + condition definition + cooldown + effects ──
+    SetCursorPosition(1)
+
+    AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
+
+    if idx == 0
+        AddHeaderOption("Default slot")
+    else
+        string key = MainQuest.condPluginId[idx]
+        MTF_Plugin p = None
+        int itemIdx = -1
+        if key != ""
+            p = MainQuest.ResolvePluginByKey(key)
+            if p != None
+                itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            endif
+        endif
+
+        AddMenuOptionST("SLOT_COND_TYPE", "Condition type", _condTypeLabel(key))
+        AddHeaderOption("Condition " + idx)
+
+        if p != None && itemIdx >= 0
+            string paramLabel = p.GetConditionParamLabel(itemIdx)
+            if paramLabel != ""
+                AddSliderOptionST("SLOT_COND_PARAM", paramLabel, MainQuest.condParam[idx])
+            else
+                AddTextOption(p.GetConditionLabel(itemIdx), "(no parameter)", OPTION_FLAG_DISABLED)
+            endif
+            string param2Label = p.GetConditionParam2Label(itemIdx)
+            if param2Label != ""
+                AddSliderOptionST("SLOT_COND_PARAM2", param2Label, MainQuest.GetCondParam2(idx), p.GetConditionParam2Format(itemIdx))
+            endif
+        endif
+
+        int cdMin = MainQuest.cooldownMin[idx]
+        AddHeaderOption("Cooldown")
+        AddMenuOptionST("SLOT_CD_MODE",     "Mode",    _cooldownModeLabel(MainQuest.cooldownMode[idx]))
+        AddSliderOptionST("SLOT_CD_HOURS",   "Hours",   cdMin / 60)
+        AddSliderOptionST("SLOT_CD_MINUTES", "Minutes", cdMin % 60)
+    endif
+
+    AddHeaderOption("Effects")
+    _drawEffectRow(idx, 0, "SLOT_EFFECT_1_TYPE", "SLOT_EFFECT_1_PARAM", "SLOT_EFFECT_1_P2")
+    _drawEffectRow(idx, 1, "SLOT_EFFECT_2_TYPE", "SLOT_EFFECT_2_PARAM", "SLOT_EFFECT_2_P2")
+    _drawEffectRow(idx, 2, "SLOT_EFFECT_3_TYPE", "SLOT_EFFECT_3_PARAM", "SLOT_EFFECT_3_P2")
+    _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM", "SLOT_EFFECT_4_P2")
 endFunction
 
 string Function _waveformLabel(string name)
@@ -1368,6 +1388,28 @@ state SLOT_PULSE_PAUSE
     endEvent
     event OnHighlightST()
         SetInfoText("Seconds of hold at the trough (dim) between pulse cycles. 0 = continuous.")
+    endEvent
+endState
+
+; ── Preset-wide settings (rendered above the slot picker) ────────────────────
+
+state PRESET_TRANSITION_DUR
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.GetTransitionDuration())
+        SetSliderDialogDefaultValue(1.0)
+        SetSliderDialogRange(0.0, 10.0)
+        SetSliderDialogInterval(0.1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.SetTransitionDuration(value)
+        SetSliderOptionValueST(value, "{1} s")
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetTransitionDuration(1.0)
+        SetSliderOptionValueST(1.0, "{1} s")
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Seconds to cross-fade tattoo visuals (alpha, tint, emissive color, emission strength) when the active tier changes. 0 = snap instantly. Saved with the preset.")
     endEvent
 endState
 
@@ -2888,6 +2930,12 @@ string[] _scratchPresetNames
 int      _scratchPresetCount = 0
 int      _selectedPresetIdx = -1
 
+; Tracks the preset (if any) the editor is currently editing. Set on
+; successful Load and Save-as; cleared by New preset and by deleting the
+; same name we were editing. Display version preserves original casing.
+string _editingPresetName    = ""
+string _editingPresetDisplay = ""
+
 function _refreshPresetNames()
     _scratchPresetNames = MainQuest.ListPresets()
     _scratchPresetCount = MainQuest.ListPresetsCount()
@@ -2907,6 +2955,86 @@ string function _currentPresetLabel()
     return MainQuest.GetPresetDisplayName(_scratchPresetNames[_selectedPresetIdx])
 endFunction
 
+string function _editingLabel()
+    if _editingPresetName == ""
+        return "(unsaved)"
+    endif
+    return _editingPresetDisplay
+endFunction
+
+Function _setEditing(string sanitized, string display)
+    _editingPresetName = sanitized
+    _editingPresetDisplay = display
+EndFunction
+
+Function _clearEditing()
+    _editingPresetName = ""
+    _editingPresetDisplay = ""
+EndFunction
+
+; Returns -1 if no preset with this sanitized filename exists.
+int Function _findPresetIndex(string sanitized)
+    int i = 0
+    while i < _scratchPresetCount
+        if _scratchPresetNames[i] == sanitized
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+; Loads the named preset, refreshes editor state, and refreshes the page.
+; Returns false on JSON read failure.
+bool Function _doLoadPreset(string sanitized)
+    if !MainQuest.LoadPreset(sanitized)
+        return false
+    endif
+    string disp = MainQuest.GetPresetDisplayName(sanitized)
+    _setEditing(sanitized, disp)
+    MainQuest.setRedraw()
+    ForcePageReset()
+    return true
+EndFunction
+
+; "Editing: <name>" status row (disabled). Hover text reflects whether a
+; preset is loaded for in-place save.
+state PRESET_EDITING_STATUS
+    event OnHighlightST()
+        if _editingPresetName == ""
+            SetInfoText("No preset is loaded for editing. Use Save as... to commit current edits as a new preset, or Load preset to bring in an existing one.")
+        else
+            SetInfoText("Currently editing '" + _editingPresetDisplay + "'. Click Save to overwrite, or Save as... to fork to a new name.")
+        endif
+    endEvent
+endState
+
+; In-place save: overwrites the currently-loaded preset. Disabled in the
+; draw fn when nothing is loaded.
+state PRESET_SAVE
+    event OnSelectST()
+        if _editingPresetName == ""
+            return
+        endif
+        if MainQuest.SavePreset(_editingPresetDisplay)
+            Debug.Notification("MTF: saved '" + _editingPresetDisplay + "'")
+            ForcePageReset()
+        else
+            Debug.Notification("MTF: failed to save '" + _editingPresetDisplay + "'")
+        endif
+    endEvent
+    event OnHighlightST()
+        if _editingPresetName == ""
+            SetInfoText("No preset is loaded. Use Save as... to create one.")
+        else
+            SetInfoText("Overwrite '" + _editingPresetDisplay + "' on disk with the current editor state.")
+        endif
+    endEvent
+endState
+
+; Save as: always creates a NEW preset. Refuses on filename collision —
+; user must either pick a different name or use Save (which overwrites the
+; loaded preset by its original name).
 state PRESET_SAVE_AS
     event OnInputOpenST()
         SetInputDialogStartText("")
@@ -2915,88 +3043,156 @@ state PRESET_SAVE_AS
         if a_input == ""
             return
         endif
+        string sanitized = MainQuest._sanitizePresetName(a_input)
+        if sanitized == ""
+            Debug.Notification("MTF: invalid preset name")
+            return
+        endif
+        _refreshPresetNames()
+        if _findPresetIndex(sanitized) >= 0
+            Debug.Notification("MTF: '" + a_input + "' already exists — use Save, or pick another name")
+            return
+        endif
         if MainQuest.SavePreset(a_input)
-            Debug.Notification("MTF: saved preset '" + a_input + "'")
+            _setEditing(sanitized, a_input)
+            Debug.Notification("MTF: saved as '" + a_input + "'")
             ForcePageReset()
         else
-            Debug.Notification("MTF: invalid preset name")
+            Debug.Notification("MTF: failed to save '" + a_input + "'")
         endif
     endEvent
     event OnHighlightST()
-        SetInfoText("Type a name (letters/digits/_/-, max 32). Saves to Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets/<name>.json.")
+        SetInfoText("Save as a NEW preset (letters/digits/_/-, max 32 chars). Fails on existing names — use Save to overwrite the loaded preset.")
     endEvent
 endState
 
+; Load picker — confirm is baked into each menu option label so a single
+; click both confirms intent and triggers the load.
 state PRESET_PICK
     event OnMenuOpenST()
+        _refreshPresetNames()
         if _scratchPresetCount == 0
             string[] empty = new string[1]
             empty[0] = "(no presets)"
             SetMenuDialogOptions(empty)
             SetMenuDialogStartIndex(0)
+            SetMenuDialogDefaultIndex(0)
             return
         endif
-        string[] disp = new string[64]
+        int total = _scratchPresetCount + 1
+        string[] opts = Utility.CreateStringArray(total, "")
+        opts[0] = "Cancel"
+        bool hasLoaded = (_editingPresetName != "")
         int i = 0
         while i < _scratchPresetCount
-            disp[i] = MainQuest.GetPresetDisplayName(_scratchPresetNames[i])
+            string disp = MainQuest.GetPresetDisplayName(_scratchPresetNames[i])
+            if hasLoaded
+                opts[i + 1] = "Discard '" + _editingPresetDisplay + "' and load '" + disp + "'"
+            else
+                opts[i + 1] = "Load '" + disp + "'"
+            endif
             i += 1
         endwhile
-        ; Note: disp has empty strings beyond _scratchPresetCount but SkyUI
-        ; ignores trailing empties in the dropdown.
-        SetMenuDialogOptions(disp)
-        int si = _selectedPresetIdx
-        if si < 0
-            si = 0
-        endif
-        SetMenuDialogStartIndex(si)
+        SetMenuDialogOptions(opts)
+        SetMenuDialogStartIndex(0)
         SetMenuDialogDefaultIndex(0)
     endEvent
     event OnMenuAcceptST(int a_index)
-        if _scratchPresetCount == 0 || a_index < 0 || a_index >= _scratchPresetCount
+        if a_index <= 0
             return
         endif
-        _selectedPresetIdx = a_index
-        SetMenuOptionValueST(_currentPresetLabel())
-    endEvent
-    event OnHighlightST()
-        SetInfoText("Pick a preset, then use Load or Delete below.")
-    endEvent
-endState
-
-state PRESET_LOAD
-    event OnSelectST()
-        if _selectedPresetIdx < 0 || _selectedPresetIdx >= _scratchPresetCount
+        int idx = a_index - 1
+        if idx >= _scratchPresetCount
             return
         endif
-        string nm = _scratchPresetNames[_selectedPresetIdx]
-        if MainQuest.LoadPreset(nm)
-            Debug.Notification("MTF: loaded '" + MainQuest.GetPresetDisplayName(nm) + "' into base")
-            MainQuest.setRedraw()
-            ForcePageReset()
+        string nm = _scratchPresetNames[idx]
+        _selectedPresetIdx = idx
+        if _doLoadPreset(nm)
+            Debug.Notification("MTF: loaded '" + MainQuest.GetPresetDisplayName(nm) + "'")
         else
             Debug.Notification("MTF: failed to load '" + nm + "'")
         endif
     endEvent
     event OnHighlightST()
-        SetInfoText("Overwrite the player's MCM base (cond slots 0-7, layers, effects) with the selected preset. Spell-applied presets stack above this base — they are unaffected.")
+        SetInfoText("Pick a preset to load it into the editor. Current edits are replaced — Save first to keep them. Spell-applied presets stack above this base and are unaffected.")
     endEvent
 endState
 
+; Delete picker — confirm baked into each menu option label. Deleting the
+; preset currently being edited clears the Editing status.
 state PRESET_DEL
-    event OnSelectST()
-        if _selectedPresetIdx < 0 || _selectedPresetIdx >= _scratchPresetCount
+    event OnMenuOpenST()
+        _refreshPresetNames()
+        if _scratchPresetCount == 0
+            string[] empty = new string[1]
+            empty[0] = "(no presets to delete)"
+            SetMenuDialogOptions(empty)
+            SetMenuDialogStartIndex(0)
+            SetMenuDialogDefaultIndex(0)
             return
         endif
-        string nm = _scratchPresetNames[_selectedPresetIdx]
+        int total = _scratchPresetCount + 1
+        string[] opts = Utility.CreateStringArray(total, "")
+        opts[0] = "Cancel"
+        int i = 0
+        while i < _scratchPresetCount
+            opts[i + 1] = "Delete '" + MainQuest.GetPresetDisplayName(_scratchPresetNames[i]) + "'"
+            i += 1
+        endwhile
+        SetMenuDialogOptions(opts)
+        SetMenuDialogStartIndex(0)
+        SetMenuDialogDefaultIndex(0)
+    endEvent
+    event OnMenuAcceptST(int a_index)
+        if a_index <= 0
+            return
+        endif
+        int idx = a_index - 1
+        if idx >= _scratchPresetCount
+            return
+        endif
+        string nm = _scratchPresetNames[idx]
+        string disp = MainQuest.GetPresetDisplayName(nm)
         if MainQuest.DeletePreset(nm)
-            Debug.Notification("MTF: deleted preset '" + MainQuest.GetPresetDisplayName(nm) + "'")
+            Debug.Notification("MTF: deleted '" + disp + "'")
+            if nm == _editingPresetName
+                _clearEditing()
+            endif
             _selectedPresetIdx = -1
             ForcePageReset()
         endif
     endEvent
     event OnHighlightST()
-        SetInfoText("Remove the selected preset.")
+        SetInfoText("Permanently delete a preset's JSON file. Editor state and spell-applied presets are unaffected.")
+    endEvent
+endState
+
+; New preset — clears all slot/layer/effect/cooldown content and resets
+; transition duration to 1.0s. Confirm baked into the second menu option.
+state PRESET_NEW
+    event OnMenuOpenST()
+        string[] opts = Utility.CreateStringArray(2, "")
+        opts[0] = "Cancel"
+        if _editingPresetName == ""
+            opts[1] = "Create new empty preset"
+        else
+            opts[1] = "Discard '" + _editingPresetDisplay + "' and create new"
+        endif
+        SetMenuDialogOptions(opts)
+        SetMenuDialogStartIndex(0)
+        SetMenuDialogDefaultIndex(0)
+    endEvent
+    event OnMenuAcceptST(int a_index)
+        if a_index != 1
+            return
+        endif
+        MainQuest.ResetEditor()
+        _clearEditing()
+        ForcePageReset()
+        Debug.Notification("MTF: new empty preset")
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Clear all slot definitions, layers, effects, and transition duration to defaults. Use Save as... to commit the new preset to disk.")
     endEvent
 endState
 

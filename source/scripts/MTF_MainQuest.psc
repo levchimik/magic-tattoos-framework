@@ -1102,6 +1102,11 @@ bool Function SavePreset(string rawName)
     JsonUtil.SetPathStringValue(f, ".displayname",   rawName)
     JsonUtil.SetPathIntValue(f,    ".schemaversion", 5)
 
+    ; Preset-wide cross-fade duration (live value, edited via MCM slider).
+    ; Always emit so the saved JSON reflects exactly what's in the scratch
+    ; buffer — including zero, which legitimately disables fading.
+    JsonUtil.SetPathFloatValue(f, ".transition.duration", _sTransitionDuration)
+
     EnsureArrays()
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -1205,6 +1210,11 @@ bool Function LoadPreset(string name)
     removeOverlay(PlayerRef)
     currentTier = -1
 
+    ; Pull the preset-wide transition duration into the live scratch slot so
+    ; the MCM Transition Duration slider reflects whatever was saved. Default
+    ; 1.0s when the key is absent (legacy presets pre-v0.1.1).
+    _sTransitionDuration = JsonUtil.GetPathFloatValue(f, ".transition.duration", 1.0)
+
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
 
@@ -1298,6 +1308,85 @@ bool Function LoadPreset(string name)
 
     forceRedraw = true
     return true
+EndFunction
+
+; Reset all PRESET CONTENT (slot definitions, layers, effects, cooldowns,
+; transition) to a clean-canvas state. Engine state (ModActive, OverlaySlot,
+; updateInterval, DebugMode) and plugin-wide settings are left alone — those
+; are not preset-scoped. Used by MCM "New preset".
+Function ResetEditor()
+    EnsureArrays()
+    if currentTier >= 0
+        _deactivateSlotEffects(currentTier)
+    endif
+    removeOverlay(PlayerRef)
+    currentTier = -1
+
+    _sTransitionDuration = 1.0
+
+    int maxL = MAX_LAYERS_PER_SLOT()
+    int maxE = MAX_EFFECTS_PER_SLOT()
+
+    ; Local copies — direct indexed writes to Auto array properties silently
+    ; no-op (see LoadPreset for the same workaround).
+    string[] aPackId   = condPackId
+    string[] aEntryId  = condEntryId
+    int[]    aCdMin    = cooldownMin
+    int[]    aCdMode   = cooldownMode
+    int[]    aLTint    = condLayerTint
+    int[]    aLEmiss   = condLayerEmissive
+    float[]  aLEmult   = condLayerEmissiveMult
+    int[]    aLAlpha   = condLayerAlpha
+    string[] aFxKey    = effectKey
+    int[]    aFxParam  = effectParam
+    int[]    aFxParam2 = effectParam2
+
+    int s = 0
+    while s < 8
+        SetCondPluginId(s, "")
+        SetCondParam(s, 0)
+        SetCondParam2(s, 0)
+        aPackId[s]   = ""
+        aEntryId[s]  = ""
+        aCdMin[s]    = 0
+        aCdMode[s]   = 0
+        SetCondPulseRate(s, 0.0)
+        SetCondPulseDepth(s, 0)
+        SetCondPulsePause(s, 0.0)
+        SetCondWaveform(s, "")
+        int L = 0
+        while L < maxL
+            int li = _layerIdx(s, L)
+            aLTint[li]  = 16777215
+            aLEmiss[li] = 16777215
+            aLEmult[li] = 0.0
+            aLAlpha[li] = 100
+            L += 1
+        endwhile
+        int e = 0
+        while e < maxE
+            int fxI = s * maxE + e
+            aFxKey[fxI]    = ""
+            aFxParam[fxI]  = 0
+            aFxParam2[fxI] = 0
+            e += 1
+        endwhile
+        s += 1
+    endwhile
+
+    condPackId            = aPackId
+    condEntryId           = aEntryId
+    cooldownMin           = aCdMin
+    cooldownMode          = aCdMode
+    condLayerTint         = aLTint
+    condLayerEmissive     = aLEmiss
+    condLayerEmissiveMult = aLEmult
+    condLayerAlpha        = aLAlpha
+    effectKey             = aFxKey
+    effectParam           = aFxParam
+    effectParam2          = aFxParam2
+
+    forceRedraw = true
 EndFunction
 
 bool Function DeletePreset(string name)
@@ -3363,6 +3452,22 @@ float Function _g_transitionDuration(int slot, bool useScratch)
         return _sTransitionDuration
     endif
     return 0.0
+EndFunction
+
+; MCM-bound getter/setter for the preset-level transition duration. The slider
+; on the Preset editor page reads via GetTransitionDuration and writes via
+; SetTransitionDuration; the value is then persisted into the active preset
+; JSON by SavePreset (under .transition.duration).
+float Function GetTransitionDuration()
+    return _sTransitionDuration
+EndFunction
+
+Function SetTransitionDuration(float v)
+    if v < 0.0
+        v = 0.0
+    endif
+    _sTransitionDuration = v
+    setRedraw()
 EndFunction
 
 string Function _g_resolvePackId(int slot, bool useScratch)
