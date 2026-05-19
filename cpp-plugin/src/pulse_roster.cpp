@@ -523,4 +523,38 @@ namespace MTFPulse {
         return true;
     }
 
+    std::size_t Roster::TriggerFlashAllSlotsForActor(RE::Actor* actor,
+                                                     std::string_view tag)
+    {
+        if (!actor) {
+            return 0;
+        }
+        std::lock_guard lock(mtx_);
+        const auto formID = actor->GetFormID();
+        const auto now    = NowSec();
+        std::size_t hits  = 0;
+        // No wildcard semantics here beyond what each entry's own
+        // flash_tags decides — we just walk matching entries and apply
+        // the same gate TriggerFlash uses.
+        for (std::size_t i = 0; i < count_; ++i) {
+            auto& e = entries_[i];
+            if (e.actor_formID != formID) {
+                continue;
+            }
+            if (e.flash_tags.empty()) {
+                continue;
+            }
+            bool fire = e.flash_tags.count("*") > 0;
+            if (!fire) {
+                if (e.flash_tags.find(std::string(tag)) == e.flash_tags.end()) {
+                    continue;
+                }
+            }
+            e.flash_last_hit = now;
+            e.flash_last_tag.assign(tag.data(), tag.size());
+            ++hits;
+        }
+        return hits;
+    }
+
 }  // namespace MTFPulse

@@ -308,7 +308,7 @@ Function _onTrackedActorKilled(Actor victim)
         if nm != ""
             int prevTier = _getActorPresetTier(victim, nm)
             if prevTier >= 0 && _loadPresetToScratch(nm)
-                _deactivateSlotEffectsForActor(victim, prevTier, true)
+                _deactivateSlotEffectsForActor(victim, prevTier, true, nm)
             endif
             _setActorPresetTier(victim, nm, 0)
             ; Draw tier 0 (baseline) for a clean corpse overlay.
@@ -746,7 +746,15 @@ float Function GetSlotEffectExtra(int slot, int effectIdx, string fieldName)
     if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return 0.0
     endif
-    string k = "mtf.fx." + slot + "." + effectIdx + ".ex." + fieldName
+    string k
+    if _getDispatchUseScratch()
+        ; NPC / stacked-preset dispatch — read from scratch keys populated
+        ; by _loadPresetToScratch. The player's persistent slot extras live
+        ; on different effect[][] indices and don't apply here.
+        k = "mtf.scratch.fx." + slot + "." + effectIdx + ".ex." + fieldName
+    else
+        k = "mtf.fx." + slot + "." + effectIdx + ".ex." + fieldName
+    endif
     return StorageUtil.GetFloatValue(self, k, 0.0)
 EndFunction
 
@@ -846,6 +854,57 @@ EndFunction
 Function _clearDispatchContext()
     StorageUtil.SetIntValue(self, "mtf.dispatch.slot", -1)
     StorageUtil.SetIntValue(self, "mtf.dispatch.effectidx", -1)
+    StorageUtil.SetIntValue(self, "mtf.dispatch.baseslot", -1)
+EndFunction
+
+; The actor's actual base overlay slot for whichever preset is firing. For
+; the player, this is currently h.OverlaySlot (the MCM-managed slot). For
+; NPCs (and stacked player presets), it's the per-preset
+; _getActorPresetBase(target, presetName, "Body") value.
+;
+; Set by the per-actor activation paths right before each onActivate so
+; plugins (specifically _applyFlashOnHit) can push C++ flash params to
+; the same roster entry the overlay actually lives on. Without this the
+; flash params land at h.OverlaySlot for everyone — fine for the player,
+; wrong for NPCs whose preset base is dynamically chosen by
+; _findFirstFreeOverlaySlotNPC.
+Function _setDispatchBaseSlot(int baseSlot)
+    StorageUtil.SetIntValue(self, "mtf.dispatch.baseslot", baseSlot)
+EndFunction
+
+int Function _getDispatchBaseSlot()
+{Returns the preset's actual base overlay slot for the currently-firing
+ effect, or h.OverlaySlot as a safe fallback when not set (covers older
+ call sites that haven't been updated yet).}
+    int v = StorageUtil.GetIntValue(self, "mtf.dispatch.baseslot", -1)
+    if v < 0
+        return OverlaySlot
+    endif
+    return v
+EndFunction
+
+; Scratch dispatch flag — when 1, GetSlotEffectExtra reads from the
+; "mtf.scratch.fx.*" key family (populated by _loadPresetToScratch) instead
+; of the player's "mtf.fx.*" persistent storage. Set by the ForActor
+; dispatch wrappers; the player single-preset path leaves it 0.
+Function _setDispatchUseScratch(bool useScratch)
+    int v = 0
+    if useScratch
+        v = 1
+    endif
+    StorageUtil.SetIntValue(self, "mtf.dispatch.usescratch", v)
+EndFunction
+
+bool Function _getDispatchUseScratch()
+    return StorageUtil.GetIntValue(self, "mtf.dispatch.usescratch", 0) != 0
+EndFunction
+
+Function _loadScratchExtra(string f, string ep, int slot, int effectIdx, string xname)
+{Helper for _loadPresetToScratch — reads one known extra from the preset
+ JSON and stores it at the scratch StorageUtil key. Zero is fine for
+ missing extras (the consumer applies its own fallback default).}
+    float xval = JsonUtil.GetPathFloatValue(f, ep + ".extras." + xname, 0.0)
+    StorageUtil.SetFloatValue(self, "mtf.scratch.fx." + slot + "." + effectIdx + ".ex." + xname, xval)
 EndFunction
 
 int Function WAVE_LUT_SIZE() global
@@ -2291,10 +2350,15 @@ Function _armCooldownTimer(int slot)
 EndFunction
 
 ; ── Effect lifecycle dispatch ────────────────────────────────────────────────
+; Player single-preset path. The base overlay slot is the MCM-managed
+; OverlaySlot — for NPCs and stacked player presets, the parallel
+; ForActor variants do their own _setDispatchBaseSlot per preset.
 Function _activateSlotEffects(int slot)
     if effectKey == None || slot < 0 || slot >= 8
         return
     endif
+    _setDispatchBaseSlot(OverlaySlot)
+    _setDispatchUseScratch(false)
     int base = _fxBaseIdx(slot)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -2319,6 +2383,8 @@ Function _deactivateSlotEffects(int slot)
     if effectKey == None || slot < 0 || slot >= 8
         return
     endif
+    _setDispatchBaseSlot(OverlaySlot)
+    _setDispatchUseScratch(false)
     int base = _fxBaseIdx(slot)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -2343,6 +2409,8 @@ Function _tickSlotEffects(int slot)
     if effectKey == None || slot < 0 || slot >= 8
         return
     endif
+    _setDispatchBaseSlot(OverlaySlot)
+    _setDispatchUseScratch(false)
     int base = _fxBaseIdx(slot)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -2367,6 +2435,7 @@ Function _gameTickSlotEffects(int slot)
     if effectKey == None || slot < 0 || slot >= 8
         return
     endif
+    _setDispatchBaseSlot(OverlaySlot)
     int base = _fxBaseIdx(slot)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -3249,7 +3318,7 @@ Function RemoveAppliedPreset(Actor target, string name)
     endif
     int prevTier = _getActorPresetTier(target, name)
     if prevTier > 0 && _loadPresetToScratch(name)
-        _deactivateSlotEffectsForActor(target, prevTier, true)
+        _deactivateSlotEffectsForActor(target, prevTier, true, name)
     endif
     ; Kill the C++ pulse entry for THIS preset before we wipe its state
     ; (need the stored base_slot to address it). Other presets on the same
@@ -3275,7 +3344,7 @@ Function RemoveTrackedActor(Actor target)
         if nm != ""
             int tier = _getActorPresetTier(target, nm)
             if tier > 0 && _loadPresetToScratch(nm)
-                _deactivateSlotEffectsForActor(target, tier, true)
+                _deactivateSlotEffectsForActor(target, tier, true, nm)
             endif
         endif
         i -= 1
@@ -3583,6 +3652,14 @@ bool Function _loadPresetToScratch(string name)
             localEffectKey[fxI]    = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
             localEffectParam[fxI]  = JsonUtil.GetPathIntValue(f,    ep + ".param",  0)
             localEffectParam2[fxI] = JsonUtil.GetPathIntValue(f,    ep + ".param2", 0)
+            ; Load this effect's known extras into scratch StorageUtil keys
+            ; so GetSlotEffectExtra can read them under the dispatch scratch
+            ; flag. Currently the only effect with extras is flash.onhit; if
+            ; more get added, extend this list. Reading non-existent extras
+            ; returns 0 which is harmless.
+            _loadScratchExtra(f, ep, s, e, "rampms")
+            _loadScratchExtra(f, ep, s, e, "decayms")
+            _loadScratchExtra(f, ep, s, e, "retrigms")
             e += 1
         endwhile
         s += 1
@@ -3883,10 +3960,18 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
     return 0
 EndFunction
 
-Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch)
+Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, string presetName = "")
+{`presetName` lets the dispatch resolve the actor's actual base overlay
+ slot via _getActorPresetBase. NPCs (and stacked player presets) need
+ this — h.OverlaySlot is the player's MCM-managed primary slot, wrong for
+ every other case. Optional / empty string falls back to OverlaySlot via
+ _getDispatchBaseSlot's fallback, preserving the player single-preset
+ behaviour for callers that haven't been updated.}
     if target == None || slot < 0 || slot >= 8
         return
     endif
+    _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
+    _setDispatchUseScratch(useScratch)
     int base = slot * MAX_EFFECTS_PER_SLOT()
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -3907,10 +3992,12 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch)
     _clearDispatchContext()
 EndFunction
 
-Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch)
+Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch, string presetName = "")
     if target == None || slot < 0 || slot >= 8
         return
     endif
+    _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
+    _setDispatchUseScratch(useScratch)
     int base = slot * MAX_EFFECTS_PER_SLOT()
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -3931,10 +4018,12 @@ Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch)
     _clearDispatchContext()
 EndFunction
 
-Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch)
+Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch, string presetName = "")
     if target == None || slot < 0 || slot >= 8
         return
     endif
+    _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
+    _setDispatchUseScratch(useScratch)
     int base = slot * MAX_EFFECTS_PER_SLOT()
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -3955,6 +4044,25 @@ Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch)
     _clearDispatchContext()
 EndFunction
 
+int Function _resolveDispatchBaseSlot(Actor target, string presetName)
+{Pick the right base overlay slot for the dispatch. NPCs and stacked
+ player presets use the per-preset base. Old single-preset player paths
+ (and any caller passing an empty name) get OverlaySlot — the MCM-managed
+ default. Returns OverlaySlot as the safe last resort.}
+    if target == None
+        return OverlaySlot
+    endif
+    if presetName == ""
+        ; Player old-path — expected, silent.
+        return OverlaySlot
+    endif
+    int v = _getActorPresetBase(target, presetName, "Body")
+    if v < 0
+        return OverlaySlot
+    endif
+    return v
+EndFunction
+
 ; ── Per-preset eval + draw cycle ────────────────────────────────────────────
 Function _evalAndDrawPresetForActor(Actor target, string name)
 {One preset's eval+draw cycle on a target. Caller must already have run
@@ -3969,7 +4077,7 @@ Function _evalAndDrawPresetForActor(Actor target, string name)
     float rtNow = Utility.GetCurrentRealTime()
     if now != prev
         if prev >= 0
-            _deactivateSlotEffectsForActor(target, prev, true)
+            _deactivateSlotEffectsForActor(target, prev, true, name)
             if _g_cooldownMode(prev, true) == 0
                 int mins = _g_cooldownMin(prev, true)
                 if mins > 0
@@ -4006,7 +4114,7 @@ Function _evalAndDrawPresetForActor(Actor target, string name)
         endif
         _drawPresetOnActor(target, name, now)
         if now >= 0
-            _activateSlotEffectsForActor(target, now, true)
+            _activateSlotEffectsForActor(target, now, true, name)
             if _g_cooldownMode(now, true) == 1
                 int mins2 = _g_cooldownMin(now, true)
                 if mins2 > 0
@@ -4025,7 +4133,7 @@ Function _evalAndDrawPresetForActor(Actor target, string name)
     ; rebuild and fights the C++ pulse hot path that owns the emissive
     ; channel between Papyrus stamps.
     if now >= 0
-        _tickSlotEffectsForActor(target, now, true)
+        _tickSlotEffectsForActor(target, now, true, name)
     endif
 EndFunction
 

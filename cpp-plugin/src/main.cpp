@@ -10,6 +10,7 @@
 // in Papyrus where they're fine.
 
 #include "frame_hook.h"
+#include "hit_sink.h"
 #include "log.h"
 #include "papyrus.h"
 #include "pulse_roster.h"
@@ -38,6 +39,13 @@ namespace {
                 // which crashed — write_branch is for call-site redirects,
                 // not function prologues. See frame_hook.cpp for details.)
                 frame_hook::Install();
+                // Hit sink: global TESHitEvent → flash dispatch on every
+                // actor (player + NPCs) that has a roster entry with a
+                // matching tag set. Installed after kDataLoaded so the
+                // TESDataHandler keyword lookups have the load order in
+                // place. (v0.1.3 — was previously player-only via the
+                // Papyrus MTF_HitListener alias.)
+                HitSink::Install();
                 break;
 
             case SKSE::MessagingInterface::kPostLoad:

@@ -161,6 +161,15 @@ namespace MTFPulse {
         bool TriggerFlash(RE::Actor* actor, std::int32_t base_slot,
                           std::string_view tag);
 
+        // Convenience: trigger flash on EVERY entry whose actor_formID
+        // matches `actor`. Used by the global TESHitEvent sink so a
+        // single hit dispatches to every base-slot that actor has
+        // (stacked presets, NPC tattoos, etc.) without the caller
+        // needing to know the slot map. Returns count of entries that
+        // accepted the trigger.
+        std::size_t TriggerFlashAllSlotsForActor(RE::Actor* actor,
+                                                 std::string_view tag);
+
         // Called from the per-frame hook.
         void Tick();
 

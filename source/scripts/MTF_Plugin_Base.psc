@@ -2138,11 +2138,19 @@ Function _applyFlashOnHit(Actor target, int classMask, int peakPct)
     if decayMs  <= 0
         decayMs = 500
     endif
-    if retrigMs <  0
+    if retrigMs <= 0
         retrigMs = 800
     endif
     string tags = _classMaskToTags(classMask)
-    MTFPulse.SetActorFlash(target, h.OverlaySlot, peakPct, rampMs, decayMs, retrigMs, tags)
+    ; Push flash params to the actor's actual base overlay slot — for
+    ; the player single-preset path this equals h.OverlaySlot, but for
+    ; NPCs and stacked player presets it's the per-preset base set by
+    ; _evalAndDrawPresetForActor via _setDispatchBaseSlot. Using
+    ; h.OverlaySlot blindly here was the v0.1.3 NPC-flash bug —
+    ; SetActorFlash wrote to the wrong roster slot, the right slot's
+    ; tags stayed empty, hits silently no-op'd.
+    int dispatchBase = h._getDispatchBaseSlot()
+    MTFPulse.SetActorFlash(target, dispatchBase, peakPct, rampMs, decayMs, retrigMs, tags)
 EndFunction
 
 string Function _classMaskToTags(int classMask)
@@ -2203,7 +2211,7 @@ Function _removeFlashOnHit(Actor target)
     if h == None
         return
     endif
-    MTFPulse.ClearActorFlash(target, h.OverlaySlot)
+    MTFPulse.ClearActorFlash(target, h._getDispatchBaseSlot())
 EndFunction
 
 Function _alertNearby(Actor target, int paramFeet)

@@ -34,6 +34,8 @@ add_library(${PROJECT_NAME} SHARED
     src/skee_interface.h
     src/frame_hook.cpp
     src/frame_hook.h
+    src/hit_sink.cpp
+    src/hit_sink.h
     src/log.h
 )
 
