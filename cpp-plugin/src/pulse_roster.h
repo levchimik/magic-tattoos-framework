@@ -28,6 +28,49 @@ namespace MTFPulse {
         static constexpr std::size_t kWaveLUTSize = 64;
         std::array<float, kWaveLUTSize> wave_lut{};
         bool            has_wave_lut{ false };
+
+        // ── Cross-fade transition (v0.1.1) ────────────────────────────────
+        // When transition_duration > 0 and (now - transition_start) <
+        // transition_duration, Tick interpolates from from_* to the new
+        // target values (layer_base_em_mult / target_alpha / target_tint)
+        // and writes alpha+tint via skee_bridge each frame.
+        //
+        // After transition completes, transition_duration is set back to 0
+        // (one-shot) and Tick stops writing alpha+tint — the Papyrus-side
+        // ApplyNodeOverrides already pushed the target alpha/tint to the
+        // store, so the live node retains those values once C++ stops
+        // overriding them.
+        //
+        // Per-layer "from" snapshots are captured from the *previous*
+        // entry's last interpolated state (last_interp_*) at Set() time,
+        // so chained transitions don't snap back to the prior target.
+        // Fresh entries (no previous) default from_ = target_, yielding a
+        // no-op transition (instant).
+        float                transition_start{ 0.0f };
+        float                transition_duration{ 0.0f };  // 0 = no transition
+
+        // Target alpha/tint/emissive per layer. Even outside transition,
+        // these are the "what the Papyrus store wants" reference values.
+        std::array<float,        4> target_alpha{};     // 0..1
+        std::array<std::int32_t, 4> target_tint{};      // packed 0x00RRGGBB
+        std::array<std::int32_t, 4> target_emissive{};  // packed 0x00RRGGBB
+
+        // From-state captured at transition start.
+        std::array<float,        4> from_em_mult{};
+        std::array<float,        4> from_alpha{};
+        std::array<std::int32_t, 4> from_tint{};
+        std::array<std::int32_t, 4> from_emissive{};
+
+        // Last value Tick wrote per layer. Used by Set() to seed from_*
+        // when a new transition starts mid-flight. Updated every frame
+        // Tick writes a property, including outside of transitions (so a
+        // fresh transition into a steady entry uses the post-pulse live
+        // value, not the entry's stored ceiling).
+        std::array<float,        4> last_interp_em_mult{};
+        std::array<float,        4> last_interp_alpha{};
+        std::array<std::int32_t, 4> last_interp_tint{};
+        std::array<std::int32_t, 4> last_interp_emissive{};
+        bool                        has_last_interp{ false };
     };
 
     class Roster

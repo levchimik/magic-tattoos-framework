@@ -80,6 +80,11 @@ int[]    _sEffectParam
 int[]    _sEffectParam2
 int[]    _sCooldownMin
 int[]    _sCooldownMode
+; Per-preset cross-fade duration (seconds) read from .transition.duration
+; in the preset JSON. Applies to ALL tier transitions on this preset. <=0
+; disables cross-fade (instant snap). Per-tier override is a v0.1.2+
+; candidate; v0.1.1 ships per-preset only.
+float    _sTransitionDuration = 0.0
 string   _scratchLoadedFor = ""
 
 ; ── NPC pulse roster (v0.0.33) ───────────────────────────────────────────────
@@ -2615,17 +2620,22 @@ Function _compactAppliedPresets(Actor target)
                         endif
                         if _loadPresetToScratch(nmJ)
                             _drawOverlayForActorAt(target, tier, true, area, floor, newReserved)
-                            ; Re-push pulse for this preset at the new base.
+                            ; Re-push roster entry for this preset at the new base.
                             ; Without this the actor would render but the
                             ; C++ roster (cleared in Step 1) stays empty
                             ; until the next tier transition.
-                            if tier > 0 && _g_pulseRate(tier, true) > 0.0 && _g_pulseDepth(tier, true) > 0
-                                float rtNow = _getActorPresetPulseStartRT(target, nmJ)
-                                if rtNow <= 0.0
-                                    rtNow = Utility.GetCurrentRealTime()
-                                endif
-                                _rosterAddOrUpdate(target, nmJ, tier, rtNow)
+                            ;
+                            ; v0.1.1: re-push tier 0 entries too. The cross-
+                            ; fade needs a continuously-alive C++ entry to
+                            ; capture from-state on the next tier transition;
+                            ; if compaction leaves tier-0 presets without
+                            ; entries, the next tier-up snaps because there's
+                            ; nothing to lerp from.
+                            float rtNow = _getActorPresetPulseStartRT(target, nmJ)
+                            if rtNow <= 0.0
+                                rtNow = Utility.GetCurrentRealTime()
                             endif
+                            _rosterAddOrUpdate(target, nmJ, tier, rtNow)
                         endif
                         floor += newReserved
                     else
@@ -3169,6 +3179,13 @@ bool Function _loadPresetToScratch(string name)
     if JsonUtil.GetPathIntValue(f, ".schemaversion", 1) < 4
         return false
     endif
+    ; Per-preset cross-fade duration. Default 1.0s — a clearly-visible
+    ; cinematic-feeling fade that flatters most stat-driven tier changes
+    ; (the typical use case is "stat drops, tattoo glow rises" which the
+    ; player should be able to track without it feeling snappy). Authors
+    ; can speed it up or disable with "transition": { "duration": 0.0 }
+    ; at the preset root.
+    _sTransitionDuration = JsonUtil.GetPathFloatValue(f, ".transition.duration", 1.0)
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
     ; Build into LOCAL arrays inside the loop, then assign each whole array
@@ -3331,6 +3348,21 @@ float Function _g_pulsePause(int slot, bool useScratch)
         return _getScratchPulsePause(slot)
     endif
     return GetCondPulsePause(slot)
+EndFunction
+
+; Per-preset cross-fade duration. Per-tier in the API for forward-compat
+; (a future v0.1.x can add per-condition override under .slot[s].transition),
+; but v0.1.1 just returns the preset-level value regardless of slot.
+;
+; The "live" path (useScratch=false) is currently unused — every caller
+; reads off the scratch buffer, which is hot-loaded for the active preset.
+; If we ever need a live read, plumb it through MTF.psc next to
+; GetCondPulsePause.
+float Function _g_transitionDuration(int slot, bool useScratch)
+    if useScratch
+        return _sTransitionDuration
+    endif
+    return 0.0
 EndFunction
 
 string Function _g_resolvePackId(int slot, bool useScratch)
@@ -3587,9 +3619,21 @@ Function _evalAndDrawPresetForActor(Actor target, string name)
         ; pulse phase happened to be active. Stamping AFTER the clear
         ; means Papyrus's ApplyNodeOverrides is the final write to the
         ; live node, which puts the slot in the right resting state.
+        ;
+        ; v0.1.1 cross-fade: we now ALWAYS forward to _rosterAddOrUpdate
+        ; when a tier is selected (now >= 0), even for tier 0 / no-pulse
+        ; tiers. The C++ roster owns the from-state needed to lerp
+        ; alpha/tint/em_mult across the tier boundary; if we destroyed
+        ; the entry on the way down (tier 1 → 0), there'd be nothing for
+        ; the next tier-up to fade from, and the way-down itself would
+        ; snap to off because Papyrus's stamp here is the final write
+        ; before any C++ Tick gets to run the fade. Rate=0 / depth=0
+        ; entries cost ~4 SetNodeProperty calls per frame writing the
+        ; ceiling value (zero for off tiers) — negligible at production
+        ; roster sizes.
         _setActorPresetTier(target, name, now)
         _setActorPresetPulseStartRT(target, name, rtNow)
-        if now > 0 && _g_pulseRate(now, true) > 0.0 && _g_pulseDepth(now, true) > 0
+        if now >= 0
             _rosterAddOrUpdate(target, name, now, rtNow)
         else
             _rosterRemovePreset(target, name)
@@ -3687,13 +3731,20 @@ Function _rosterRemoveActor(Actor a)
 EndFunction
 
 Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
-{Snapshot the preset's active-tier pulse params and push to the MTFPulse
- C++ roster, keyed by (a, preset's stored base_slot). Caller must have
+{Snapshot the preset's tier params and push to the MTFPulse C++ roster,
+ keyed by (a, preset's stored base_slot). Caller must have
  _loadPresetToScratch(name) loaded so the _g_* readers see this preset's
  cond/layer/pulse data.
 
- No-ops (and removes any existing per-preset entry) when rate/depth is 0
- or the preset has no visual layers.}
+ v0.1.1 cross-fade: this also handles no-pulse tiers (rate=0 or depth=0),
+ forwarding them to the C++ roster with rate=0 so the per-frame Tick keeps
+ the cross-fade lerp running on em/alpha/tint. Without this path, tier
+ 1→0 transitions snap because the C++ entry that held the from-state gets
+ destroyed before any lerp frame runs. The cost of an idle (rate=0) entry
+ is ~4 SetNodeProperty writes per frame of a constant value — trivial.
+
+ Only no-ops (and clears any existing per-preset entry) when the preset
+ has no visual layers for this tier — i.e. tier resolves to no overlay.}
     if a == None || name == "" || tier < 0 || tier >= 8
         return
     endif
@@ -3703,10 +3754,6 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
     endif
     float rate  = _g_pulseRate(tier, true)
     int   depth = _g_pulseDepth(tier, true)
-    if rate <= 0.0 || depth <= 0
-        MTFPulse.ClearActorAt(a, baseSlot)
-        return
-    endif
     string packId  = _g_resolvePackId(tier, true)
     string entryId = _g_resolveEntryId(tier, true)
     int layerN = 0
@@ -3727,16 +3774,38 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
     endif
     bool isFemale = a.GetLeveledActorBase().GetSex() as bool
     int maxL = MAX_LAYERS_PER_SLOT()
-    Float[] emMults = Utility.CreateFloatArray(layerN)
+    Float[] emMults   = Utility.CreateFloatArray(layerN)
+    Int[]   tints     = Utility.CreateIntArray(layerN)
+    Int[]   alphas    = Utility.CreateIntArray(layerN)
+    Int[]   emissives = Utility.CreateIntArray(layerN)
     int L = 0
     while L < layerN
-        emMults[L] = _g_layerEmissiveMult(tier * maxL + L, true)
+        int li = tier * maxL + L
+        emMults[L]   = _g_layerEmissiveMult(li, true)
+        tints[L]     = _g_layerTint(li, true)
+        alphas[L]    = _g_layerAlpha(li, true)
+        emissives[L] = _g_layerEmissive(li, true)
         L += 1
     endwhile
     Float[] lut = _waveformLUTForTier(tier, true)
-    MTFPulse.SetActorPulse(a, rate, depth, _g_pulsePause(tier, true), \
-                           layerN, startRT, emMults, \
-                           baseSlot, isFemale, lut)
+    Float   tDur = _g_transitionDuration(tier, true)
+    ; SetActorPulseWithTransition is a strict superset of SetActorPulse:
+    ; with tDur <= 0 it behaves identically (instant snap, no cross-fade).
+    ; Calling it unconditionally keeps the C++ side aware of the target
+    ; alpha/tint/emissive at all times, so even non-transitioning calls
+    ; leave the entry in a state ready for a future transition to lerp
+    ; FROM the current visual.
+    ;
+    ; Emissive COLOR cross-fade was added after observing a "white flash"
+    ; on tier 1 → tier 0 transitions in v0.1.1 testing: with em_mult still
+    ; high on the first frames of the lerp, the (unfaded) tier-0 emissive
+    ; color — typically pure white — was multiplied by em_mult into a
+    ; visible bright flash before em_mult finished fading to zero. Lerping
+    ; emissive color in lockstep with em_mult eliminates the flash.
+    MTFPulse.SetActorPulseWithTransition(a, rate, depth, _g_pulsePause(tier, true), \
+                                         layerN, startRT, emMults, \
+                                         baseSlot, isFemale, lut, \
+                                         tints, alphas, emissives, tDur)
 EndFunction
 
 ; ── Tracked actor evaluation (full pass — Step 6 adds stagger + distance) ──

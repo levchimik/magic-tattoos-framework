@@ -21,6 +21,25 @@ Function SetActorPulse(Actor aktor, Float rate, Int depthPct, Float pause, \
                        Int layerCount, Float startTime, Float[] emMults, \
                        Int baseOverlaySlot, Bool isFemale, Float[] waveLUT) Global Native
 
+; Set pulse + cross-fade transition in one call. Identical to SetActorPulse
+; except the caller additionally passes:
+;   tintRGBs            — per-layer target tint colors (packed 0x00RRGGBB)
+;   alphasPct           — per-layer target alpha as 0..100 percent
+;   transitionDuration  — seconds to fade emissive ceiling, alpha, and tint
+;                         from the prior entry's last-rendered state to the
+;                         new target values. <=0 behaves identically to
+;                         SetActorPulse (instant snap, no cross-fade).
+; The C++ side snapshots the prior entry's last interpolated values at
+; Set() time, so chained transitions don't snap back to the previous tier.
+; For fresh entries (first apply on this actor/base_slot), the from-state
+; defaults to the target → no visible fade on initial apply; per-tier
+; transitions on already-applied presets are where the smoothing happens.
+Function SetActorPulseWithTransition(Actor aktor, Float rate, Int depthPct, Float pause, \
+                                     Int layerCount, Float startTime, Float[] emMults, \
+                                     Int baseOverlaySlot, Bool isFemale, Float[] waveLUT, \
+                                     Int[] tintRGBs, Int[] alphasPct, Int[] emissiveRGBs, \
+                                     Float transitionDuration) Global Native
+
 ; Remove EVERY entry the actor owns (all base_slots).
 ; Use on death / unload / total teardown.
 Function ClearActor(Actor aktor) Global Native

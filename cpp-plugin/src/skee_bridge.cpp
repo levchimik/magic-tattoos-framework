@@ -29,10 +29,14 @@ namespace MTFPulse::skee_bridge {
         // Windows structured exception (access violation, illegal instr,
         // etc.). On exception, returns false — caller is expected to
         // disable the bridge to prevent repeated crashes.
+        //
+        // `key` is one of skee::OverrideParam::kParam_* — the same enum the
+        // Papyrus-side NiOverride.AddNodeOverride* family uses.
         static bool CallSetNodeProperty_SEH(
-            skee::IOverrideInterface*           over,
-            skee::TESObjectREFR*                refr,
-            const char*                         nodeName,
+            skee::IOverrideInterface*             over,
+            skee::TESObjectREFR*                  refr,
+            const char*                           nodeName,
+            skee::skee_u16                        key,
             skee::IOverrideInterface::SetVariant& variant) noexcept
         {
             __try {
@@ -40,7 +44,7 @@ namespace MTFPulse::skee_bridge {
                     refr,
                     /*firstPerson=*/false,
                     nodeName,
-                    skee::OverrideParam::kParam_ShaderEmissiveMultiple,
+                    key,
                     skee::OverrideParam::kIndexMax,
                     variant,
                     /*immediate=*/true);
@@ -106,39 +110,57 @@ namespace MTFPulse::skee_bridge {
         return true;
     }
 
+    namespace {
+        // Shared cast + SEH call path used by every Write* function below.
+        // Doing the cast in one place keeps the reinterpret_cast quirk
+        // (RE::TESObjectREFR* ↔ skee::TESObjectREFR* — same underlying
+        // pointer, different opaque typedefs) isolated to one location.
+        bool WriteVariant(
+            RE::Actor*                            actor,
+            const char*                           nodeName,
+            skee::skee_u16                        key,
+            skee::IOverrideInterface::SetVariant& variant)
+        {
+            if (!g_override || !actor || !nodeName) {
+                return false;
+            }
+            auto* refr = reinterpret_cast<skee::TESObjectREFR*>(static_cast<RE::TESObjectREFR*>(actor));
+            if (!CallSetNodeProperty_SEH(g_override, refr, nodeName, key, variant)) {
+                spdlog::error("skee_bridge: SetNodeProperty raised SEH on node='{}' key={} — disabling bridge",
+                              nodeName, static_cast<int>(key));
+                g_override = nullptr;
+                return false;
+            }
+            return true;
+        }
+    }
+
     bool WriteEmissiveMult(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, float mult)
     {
         // SetNodeProperty doesn't take isFemale (it operates on the already-
         // attached node graph regardless of sex). The parameter is kept in
         // our public signature because the *persist* path AddNodeOverride
         // does need it, and we may add that variant later.
-        if (!g_override || !actor || !nodeName) {
-            return false;
-        }
-
-        // RE::Actor IS-A RE::TESObjectREFR at the C++ type level, and
-        // the underlying game object is the same pointer SKEE expects.
-        // The skee::TESObjectREFR forward decl is opaque on purpose;
-        // reinterpret_cast across these naming boundaries is safe because
-        // SKEE only uses the pointer as an opaque key into NiOverride's
-        // tables and to read NiAVObject*-typed fields it accesses through
-        // its own RE types.
-        auto* refr = reinterpret_cast<skee::TESObjectREFR*>(static_cast<RE::TESObjectREFR*>(actor));
-
         skee::FloatVariant variant{ mult };
+        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderEmissiveMultiple, variant);
+    }
 
-        // SEH-guarded call. If SKEE's vtable has been corrupted (another
-        // mod hooking the same slot after us, or SKEE itself shutting
-        // down mid-frame), the call will AV — which is NOT caught by
-        // C++ catch(...). The helper traps the SEH and returns false.
-        // On first failure we tear down the bridge so subsequent frames
-        // short-circuit instead of repeatedly crashing.
-        if (!CallSetNodeProperty_SEH(g_override, refr, nodeName, variant)) {
-            spdlog::error("skee_bridge: SetNodeProperty raised SEH on node='{}' — disabling bridge", nodeName);
-            g_override = nullptr;
-            return false;
-        }
-        return true;
+    bool WriteAlpha(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, float alpha)
+    {
+        skee::FloatVariant variant{ alpha };
+        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderAlpha, variant);
+    }
+
+    bool WriteTint(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, std::int32_t rgb)
+    {
+        skee::IntVariant variant{ rgb };
+        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderTintColor, variant);
+    }
+
+    bool WriteEmissiveColor(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, std::int32_t rgb)
+    {
+        skee::IntVariant variant{ rgb };
+        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderEmissiveColor, variant);
     }
 
 }  // namespace MTFPulse::skee_bridge

@@ -2,11 +2,56 @@
 #include "log.h"
 #include "skee_bridge.h"
 
+#include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <numbers>
 #include <cstdio>
 
 namespace MTFPulse {
+
+    namespace {
+        // Steady-clock epoch shared by Set() (for transition_start) and
+        // Tick() (for the per-frame `now`). Plugin-init relative; the
+        // pulse-phase math doesn't care about absolute epoch because the
+        // wave is periodic, but the *transition* lerp does need consistent
+        // arithmetic between when we record the start and when we measure
+        // elapsed.
+        const auto& TOrigin()
+        {
+            static const auto t = std::chrono::steady_clock::now();
+            return t;
+        }
+
+        float NowSec()
+        {
+            return std::chrono::duration<float>(std::chrono::steady_clock::now() - TOrigin()).count();
+        }
+
+        // Cosine ease-in-out: 0 at p=0, 1 at p=1, derivative=0 at both
+        // ends — looks more natural than a linear ramp for tint/alpha.
+        float EaseInOut(float p)
+        {
+            p = std::clamp(p, 0.0f, 1.0f);
+            return 0.5f - 0.5f * std::cos(p * std::numbers::pi_v<float>);
+        }
+
+        // Per-channel RGB lerp. Tints are packed 0x00RRGGBB.
+        std::int32_t LerpRgb(std::int32_t a, std::int32_t b, float t)
+        {
+            t = std::clamp(t, 0.0f, 1.0f);
+            const int ar = (a >> 16) & 0xFF;
+            const int ag = (a >> 8)  & 0xFF;
+            const int ab =  a        & 0xFF;
+            const int br = (b >> 16) & 0xFF;
+            const int bg = (b >> 8)  & 0xFF;
+            const int bb =  b        & 0xFF;
+            const int r  = std::clamp(static_cast<int>(ar + (br - ar) * t + 0.5f), 0, 255);
+            const int g  = std::clamp(static_cast<int>(ag + (bg - ag) * t + 0.5f), 0, 255);
+            const int bl = std::clamp(static_cast<int>(ab + (bb - ab) * t + 0.5f), 0, 255);
+            return (r << 16) | (g << 8) | bl;
+        }
+    }  // namespace
 
     Roster& Roster::Instance()
     {
@@ -87,6 +132,53 @@ namespace MTFPulse {
         const auto formID = actor->GetFormID();
 
         std::int32_t slot = FindLocked(formID, src.base_slot);
+
+        // Capture transition from-state from the existing entry's last
+        // interpolated values (if any) BEFORE overwriting the slot. This
+        // lets chained transitions (a new tier change while a previous
+        // cross-fade is still in flight) start from the current visual
+        // state rather than snapping back to the previous tier's target.
+        //
+        // For fresh entries (no previous), from_ defaults to target_ —
+        // the transition runs for `duration` seconds but is visually a
+        // no-op. Authors who want a "fade in from invisible" on first
+        // apply should author the preset's tier-0 with alpha=0; the next
+        // tier transition will then naturally fade alpha up.
+        PulseEntry seeded = src;
+        if (slot >= 0 && src.transition_duration > 0.0f) {
+            const auto& prev = entries_[slot];
+            const std::int32_t copyN = std::clamp<std::int32_t>(src.layer_count, 0, 4);
+            for (std::int32_t i = 0; i < copyN; ++i) {
+                const auto L = static_cast<std::size_t>(i);
+                if (prev.has_last_interp) {
+                    seeded.from_em_mult[L]  = prev.last_interp_em_mult[L];
+                    seeded.from_alpha[L]    = prev.last_interp_alpha[L];
+                    seeded.from_tint[L]     = prev.last_interp_tint[L];
+                    seeded.from_emissive[L] = prev.last_interp_emissive[L];
+                } else {
+                    // No prior frame ran — fall back to prev's target.
+                    seeded.from_em_mult[L]  = prev.layer_base_em_mult[L];
+                    seeded.from_alpha[L]    = prev.target_alpha[L];
+                    seeded.from_tint[L]     = prev.target_tint[L];
+                    seeded.from_emissive[L] = prev.target_emissive[L];
+                }
+            }
+            seeded.transition_start = NowSec();
+            seeded.has_last_interp  = false;  // Tick will repopulate this frame
+        } else if (slot < 0 && src.transition_duration > 0.0f) {
+            // Fresh entry: from_ = target_ ⇒ visually instant.
+            const std::int32_t copyN = std::clamp<std::int32_t>(src.layer_count, 0, 4);
+            for (std::int32_t i = 0; i < copyN; ++i) {
+                const auto L = static_cast<std::size_t>(i);
+                seeded.from_em_mult[L]  = src.layer_base_em_mult[L];
+                seeded.from_alpha[L]    = src.target_alpha[L];
+                seeded.from_tint[L]     = src.target_tint[L];
+                seeded.from_emissive[L] = src.target_emissive[L];
+            }
+            seeded.transition_start = NowSec();
+            seeded.has_last_interp  = false;
+        }
+
         if (slot < 0) {
             if (count_ >= kCapacity) {
                 auto* player = RE::PlayerCharacter::GetSingleton();
@@ -99,7 +191,7 @@ namespace MTFPulse {
             }
             slot = static_cast<std::int32_t>(count_++);
         }
-        entries_[slot]              = src;
+        entries_[slot]              = seeded;
         entries_[slot].actor        = actor->GetHandle();
         entries_[slot].actor_formID = formID;
         return true;
@@ -152,6 +244,17 @@ namespace MTFPulse {
     //   wave = (in cycle) 0.5 - 0.5·cos(2π·rate·tMod)
     //          (in pause) 0
     //   mult = (1 - depth) + depth · wave
+    //
+    // When an entry is mid-transition (transition_duration > 0 and we're
+    // still within the window), three properties cross-fade from the
+    // captured from_* values to the entry's target values:
+    //   - emissive_mult ceiling (per layer) — the value pulse modulates
+    //   - alpha (per layer) — written via skee_bridge during transition
+    //   - tint (per layer) — written via skee_bridge during transition
+    // Depth/rate/pause snap to the new values immediately. After the
+    // transition window closes we zero transition_duration so subsequent
+    // frames take the fast steady-pulse path; alpha/tint writes stop and
+    // the Papyrus-side ApplyNodeOverrides values remain on the live node.
     void Roster::Tick()
     {
         if (!enabled_.load(std::memory_order_relaxed)) {
@@ -162,16 +265,7 @@ namespace MTFPulse {
             return;
         }
 
-        // Real time clock: GetGameTime() is in days; we want seconds. SKSE's
-        // calendar singleton has nanos but not a frame-coherent realtime.
-        // Use the Calendar's game-time-since-start in hours converted to s,
-        // multiplied by the day-length ratio? Simpler: use the menu manager's
-        // global anim time. TODO: pick the same clock Papyrus' Utility.GetCurrentRealTime
-        // exposes — under the hood it's the game's "wall-clock since launch"
-        // value. For now use a steady_clock against a static start.
-        static const auto t_origin = std::chrono::steady_clock::now();
-        const auto now_pt          = std::chrono::steady_clock::now();
-        const float now            = std::chrono::duration<float>(now_pt - t_origin).count();
+        const float now = NowSec();
 
         // Bail early if SKEE didn't initialise — no point computing waves
         // we can't write. The bridge logs the failure once at startup.
@@ -224,6 +318,28 @@ namespace MTFPulse {
             }
             const float pulsed = floorM + depth * wave;
 
+            // Transition state: if we're inside the cross-fade window, set
+            // `transitioning=true` and compute `eased` ∈ [0,1]. Otherwise
+            // the layer loop uses target values directly.
+            bool  transitioning = false;
+            float eased         = 1.0f;
+            if (e.transition_duration > 0.0f) {
+                const float tt = now - e.transition_start;
+                if (tt >= e.transition_duration) {
+                    // Window closed. Snap to target and disable future
+                    // transition processing on this entry.
+                    e.transition_duration = 0.0f;
+                    eased = 1.0f;
+                } else if (tt <= 0.0f) {
+                    // Clock skew or just-set entry — treat as start.
+                    eased = 0.0f;
+                    transitioning = true;
+                } else {
+                    eased = EaseInOut(tt / e.transition_duration);
+                    transitioning = true;
+                }
+            }
+
             // One write per active layer: nodes are named "Body [ovlN]"
             // where N = base_slot + layer_index (matches MTF_MainQuest's
             // applyOverlay format). The per-layer base emissive multiplier
@@ -231,12 +347,41 @@ namespace MTFPulse {
             // and 1.0*ceiling.
             char node[32];
             for (std::int32_t li = 0; li < e.layer_count; ++li) {
+                const auto L = static_cast<std::size_t>(li);
                 std::snprintf(node, sizeof(node), "Body [ovl%d]",
                               static_cast<int>(e.base_slot + li));
-                const float layerCeiling = e.layer_base_em_mult[static_cast<std::size_t>(li)];
-                const float final_mult   = pulsed * layerCeiling;
+
+                // Effective ceiling = lerp(from, target, eased) while
+                // transitioning, just `target` otherwise.
+                float ceiling = e.layer_base_em_mult[L];
+                if (transitioning) {
+                    ceiling = e.from_em_mult[L] + (e.layer_base_em_mult[L] - e.from_em_mult[L]) * eased;
+                }
+
+                const float final_mult = pulsed * ceiling;
                 skee_bridge::WriteEmissiveMult(actor, e.is_female, node, final_mult);
+                e.last_interp_em_mult[L] = ceiling;
+
+                if (transitioning) {
+                    const float        alpha    = e.from_alpha[L] + (e.target_alpha[L] - e.from_alpha[L]) * eased;
+                    const std::int32_t tint     = LerpRgb(e.from_tint[L],     e.target_tint[L],     eased);
+                    const std::int32_t emissive = LerpRgb(e.from_emissive[L], e.target_emissive[L], eased);
+                    skee_bridge::WriteAlpha(actor, e.is_female, node, alpha);
+                    skee_bridge::WriteTint(actor, e.is_female, node, tint);
+                    skee_bridge::WriteEmissiveColor(actor, e.is_female, node, emissive);
+                    e.last_interp_alpha[L]    = alpha;
+                    e.last_interp_tint[L]     = tint;
+                    e.last_interp_emissive[L] = emissive;
+                } else {
+                    // Steady state — last_interp tracks target so a future
+                    // transition snapshots the right "from" without
+                    // needing a frame of catch-up.
+                    e.last_interp_alpha[L]    = e.target_alpha[L];
+                    e.last_interp_tint[L]     = e.target_tint[L];
+                    e.last_interp_emissive[L] = e.target_emissive[L];
+                }
             }
+            e.has_last_interp = true;
         }
     }
 

@@ -27,4 +27,22 @@ namespace MTFPulse::skee_bridge {
     //       SetVariant{float}, immediate=true)
     bool WriteEmissiveMult(RE::Actor* actor, bool isFemale, const char* nodeName, float mult);
 
+    // Write the per-shader alpha value [0..1]. Same SetNodeProperty path as
+    // WriteEmissiveMult but with key = kParam_ShaderAlpha. Used by the
+    // pulse roster's transition lerp to cross-fade overlay visibility.
+    bool WriteAlpha(RE::Actor* actor, bool isFemale, const char* nodeName, float alpha);
+
+    // Write the per-shader tint color (packed 0x00RRGGBB). Used by the
+    // transition lerp to cross-fade between tier tints (e.g. black → white
+    // over the transition duration).
+    bool WriteTint(RE::Actor* actor, bool isFemale, const char* nodeName, std::int32_t rgb);
+
+    // Write the per-shader emissive color (packed 0x00RRGGBB). Same path
+    // as WriteTint with key = kParam_ShaderEmissiveColor. Cross-fading
+    // this avoids the "snap to white" artifact when transitioning from a
+    // colored emissive (red/green/blue) to a tier with a neutral emissive
+    // color (which gets multiplied by the still-fading em_mult on the
+    // first frames of the lerp).
+    bool WriteEmissiveColor(RE::Actor* actor, bool isFemale, const char* nodeName, std::int32_t rgb);
+
 }  // namespace MTFPulse::skee_bridge

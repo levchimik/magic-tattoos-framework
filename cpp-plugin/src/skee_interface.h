@@ -169,4 +169,17 @@ namespace MTFPulse::skee {
         float _v;
     };
 
+    // Concrete SetVariant for a single 32-bit signed integer value. Used by
+    // properties like kParam_ShaderTintColor and kParam_ShaderEmissiveColor
+    // (packed 0x00RRGGBB).
+    class IntVariant : public IOverrideInterface::SetVariant
+    {
+    public:
+        explicit IntVariant(skee_i32 v) noexcept : _v(v) {}
+        Type     GetType() override { return Type::Int; }
+        skee_i32 Int()     override { return _v; }
+    private:
+        skee_i32 _v;
+    };
+
 }  // namespace MTFPulse::skee
