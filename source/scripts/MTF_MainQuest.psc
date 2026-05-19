@@ -734,9 +734,10 @@ EndFunction
 
 ; ── Per-effect extras storage (v0.1.3) ──────────────────────────────────────
 ; Effects that need more than the two stock (param/param2) knobs declare extra
-; fields via MTF_Plugin.GetEffectExtraFieldNames / GetEffectExtraFieldSpec.
-; Values live as floats keyed by (condSlot, effectIdx, fieldName) on this
-; quest — round-tripped through preset JSON under slot[s].effect[e].extras.
+; fields via the MTF_Plugin GetEffectExtraFieldCount/Name/Label/Min/Max/Step
+; /Default getters. Values live as floats keyed by (condSlot, effectIdx,
+; fieldName) on this quest — round-tripped through preset JSON under
+; slot[s].effect[e].extras.
 ;
 ; All keys are lowercase ASCII (JsonUtil lowercases on write — mixed case
 ; would round-trip blank).
@@ -774,20 +775,13 @@ Function _populateEffectExtrasDefaults(int slot, int effectIdx, string key)
     if itemIdx < 0
         return
     endif
-    string[] names = p.GetEffectExtraFieldNames(itemIdx)
-    if names == None || names.Length == 0
-        return
-    endif
+    int n = p.GetEffectExtraFieldCount(itemIdx)
     int i = 0
-    while i < names.Length
-        string spec = p.GetEffectExtraFieldSpec(itemIdx, names[i])
-        if spec != ""
-            ; spec = "label|type|min|max|step|default"
-            string[] parts = StringUtil.Split(spec, "|")
-            if parts != None && parts.Length >= 6
-                float defVal = parts[5] as float
-                SetSlotEffectExtra(slot, effectIdx, names[i], defVal)
-            endif
+    while i < n
+        string fieldName = p.GetEffectExtraFieldName(itemIdx, i)
+        if fieldName != ""
+            float defVal = p.GetEffectExtraFieldDefault(itemIdx, i) as float
+            SetSlotEffectExtra(slot, effectIdx, fieldName, defVal)
         endif
         i += 1
     endwhile
@@ -811,14 +805,15 @@ Function _clearEffectExtras(int slot, int effectIdx)
         if p != None
             int itemIdx = _effectIdxFor(p, _keyItemId(oldKey))
             if itemIdx >= 0
-                string[] names = p.GetEffectExtraFieldNames(itemIdx)
-                if names != None
-                    int i = 0
-                    while i < names.Length
-                        StorageUtil.UnsetFloatValue(self, prefix + names[i])
-                        i += 1
-                    endwhile
-                endif
+                int n = p.GetEffectExtraFieldCount(itemIdx)
+                int i = 0
+                while i < n
+                    string fieldName = p.GetEffectExtraFieldName(itemIdx, i)
+                    if fieldName != ""
+                        StorageUtil.UnsetFloatValue(self, prefix + fieldName)
+                    endif
+                    i += 1
+                endwhile
             endif
         endif
     endif
@@ -1339,15 +1334,16 @@ bool Function SavePreset(string rawName)
                 if pSerExt != None
                     int itemIdxSerExt = _effectIdxFor(pSerExt, _keyItemId(effectKey[fxI]))
                     if itemIdxSerExt >= 0
-                        string[] xnames = pSerExt.GetEffectExtraFieldNames(itemIdxSerExt)
-                        if xnames != None && xnames.Length > 0
-                            int xi = 0
-                            while xi < xnames.Length
-                                JsonUtil.SetPathFloatValue(f, ep + ".extras." + xnames[xi], \
-                                    GetSlotEffectExtra(s, e, xnames[xi]))
-                                xi += 1
-                            endwhile
-                        endif
+                        int xN = pSerExt.GetEffectExtraFieldCount(itemIdxSerExt)
+                        int xi = 0
+                        while xi < xN
+                            string xname = pSerExt.GetEffectExtraFieldName(itemIdxSerExt, xi)
+                            if xname != ""
+                                JsonUtil.SetPathFloatValue(f, ep + ".extras." + xname, \
+                                    GetSlotEffectExtra(s, e, xname))
+                            endif
+                            xi += 1
+                        endwhile
                     endif
                 endif
             endif
@@ -1475,23 +1471,17 @@ bool Function LoadPreset(string name)
                 if pLoadExt != None
                     int itemIdxLoadExt = _effectIdxFor(pLoadExt, _keyItemId(aFxKey[fxI]))
                     if itemIdxLoadExt >= 0
-                        string[] xnames = pLoadExt.GetEffectExtraFieldNames(itemIdxLoadExt)
-                        if xnames != None && xnames.Length > 0
-                            int xi = 0
-                            while xi < xnames.Length
-                                string spec = pLoadExt.GetEffectExtraFieldSpec(itemIdxLoadExt, xnames[xi])
-                                float defVal = 0.0
-                                if spec != ""
-                                    string[] parts = StringUtil.Split(spec, "|")
-                                    if parts != None && parts.Length >= 6
-                                        defVal = parts[5] as float
-                                    endif
-                                endif
-                                SetSlotEffectExtra(s, e, xnames[xi], \
-                                    JsonUtil.GetPathFloatValue(f, ep + ".extras." + xnames[xi], defVal))
-                                xi += 1
-                            endwhile
-                        endif
+                        int xN = pLoadExt.GetEffectExtraFieldCount(itemIdxLoadExt)
+                        int xi = 0
+                        while xi < xN
+                            string xname = pLoadExt.GetEffectExtraFieldName(itemIdxLoadExt, xi)
+                            if xname != ""
+                                float defVal = pLoadExt.GetEffectExtraFieldDefault(itemIdxLoadExt, xi) as float
+                                SetSlotEffectExtra(s, e, xname, \
+                                    JsonUtil.GetPathFloatValue(f, ep + ".extras." + xname, defVal))
+                            endif
+                            xi += 1
+                        endwhile
                     endif
                 endif
             endif

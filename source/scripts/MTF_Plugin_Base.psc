@@ -1232,13 +1232,16 @@ EndFunction
 ; ── Dropdown options (v0.1.3) — param/param2 as menus ────────────────────────
 int Function GetEffectParamMenuOptionCount(int idx)
     if idx == 34
-        return 12
+        return 11
     endif
     return 0
 EndFunction
 
 int Function GetEffectParamMenuOptionValue(int idx, int optionIdx)
-    ; Flat if/return — preset value the option stores.
+    ; Flat if/return — preset value the option stores. Wildcard ("*",
+    ; classMask=1) is intentionally NOT in the MCM list anymore — it's
+    ; reserved for hand-edited presets and external-mod tag broadcasters
+    ; (see _classMaskToTags). MCM users pick from explicit combat classes.
     if idx != 34
         return 0
     endif
@@ -1246,36 +1249,33 @@ int Function GetEffectParamMenuOptionValue(int idx, int optionIdx)
         return 0
     endif
     if optionIdx == 1
-        return 1
-    endif
-    if optionIdx == 2
         return 2
     endif
-    if optionIdx == 3
+    if optionIdx == 2
         return 4
     endif
-    if optionIdx == 4
+    if optionIdx == 3
         return 8
     endif
-    if optionIdx == 5
+    if optionIdx == 4
         return 16
     endif
-    if optionIdx == 6
+    if optionIdx == 5
         return 32
     endif
-    if optionIdx == 7
+    if optionIdx == 6
         return 64
     endif
-    if optionIdx == 8
+    if optionIdx == 7
         return 6
     endif
-    if optionIdx == 9
+    if optionIdx == 8
         return 14
     endif
-    if optionIdx == 10
+    if optionIdx == 9
         return 112
     endif
-    if optionIdx == 11
+    if optionIdx == 10
         return 126
     endif
     return 0
@@ -1292,64 +1292,138 @@ string Function GetEffectParamMenuOptionLabel(int idx, int optionIdx)
         return "Disabled"
     endif
     if optionIdx == 1
-        return "Any event (wildcard)"
-    endif
-    if optionIdx == 2
         return "Blunt only"
     endif
-    if optionIdx == 3
+    if optionIdx == 2
         return "Bladed only"
     endif
-    if optionIdx == 4
+    if optionIdx == 3
         return "Ranged only"
     endif
-    if optionIdx == 5
+    if optionIdx == 4
         return "Fire only"
     endif
-    if optionIdx == 6
+    if optionIdx == 5
         return "Frost only"
     endif
-    if optionIdx == 7
+    if optionIdx == 6
         return "Shock only"
     endif
-    if optionIdx == 8
+    if optionIdx == 7
         return "Melee (Blunt + Bladed)"
     endif
-    if optionIdx == 9
+    if optionIdx == 8
         return "Physical (Blunt + Bladed + Ranged)"
     endif
-    if optionIdx == 10
+    if optionIdx == 9
         return "Magic (Fire + Frost + Shock)"
     endif
-    if optionIdx == 11
+    if optionIdx == 10
         return "All combat classes"
     endif
     return ""
 EndFunction
 
 ; ── Extras (v0.1.3) — per-effect extra fields ────────────────────────────────
-string[] Function GetEffectExtraFieldNames(int idx)
+; flash.onhit declares three time-related extras:
+;   rampms    — 0→1 intensity ramp (1..2000 ms, default 80)
+;   decayms   — 1→0 intensity decay after retrigger expires (1..5000 ms, default 350)
+;   retrigms  — sustain window; while now − lastHit < retrigms, intensity holds
+;               at 1.0. New hits inside the window reset lastHit, keeping the
+;               flash alight. Outside the window, decay runs. (0..2000 ms,
+;               default 150)
+int Function GetEffectExtraFieldCount(int idx)
     if idx == 34
-        string[] names = new string[3]
-        names[0] = "rampms"
-        names[1] = "decayms"
-        names[2] = "retrigms"
-        return names
+        return 3
     endif
-    return Utility.CreateStringArray(0)
+    return 0
 EndFunction
 
-string Function GetEffectExtraFieldSpec(int idx, string fieldName)
-    if idx == 34
-        if fieldName == "rampms"
-            return "Ramp up (ms)|int|1|2000|10|80"
-        elseif fieldName == "decayms"
-            return "Decay (ms)|int|1|5000|10|350"
-        elseif fieldName == "retrigms"
-            return "Retrigger window (ms)|int|0|2000|10|150"
-        endif
+string Function GetEffectExtraFieldName(int idx, int fieldIdx)
+    if idx != 34
+        return ""
+    endif
+    if fieldIdx == 0
+        return "rampms"
+    endif
+    if fieldIdx == 1
+        return "decayms"
+    endif
+    if fieldIdx == 2
+        return "retrigms"
     endif
     return ""
+EndFunction
+
+string Function GetEffectExtraFieldLabel(int idx, int fieldIdx)
+    if idx != 34
+        return ""
+    endif
+    if fieldIdx == 0
+        return "Ramp up (ms)"
+    endif
+    if fieldIdx == 1
+        return "Decay (ms)"
+    endif
+    if fieldIdx == 2
+        return "Sustain window (ms)"
+    endif
+    return ""
+EndFunction
+
+int Function GetEffectExtraFieldMin(int idx, int fieldIdx)
+    if idx != 34
+        return 0
+    endif
+    if fieldIdx == 0
+        return 1
+    endif
+    if fieldIdx == 1
+        return 1
+    endif
+    if fieldIdx == 2
+        return 0
+    endif
+    return 0
+EndFunction
+
+int Function GetEffectExtraFieldMax(int idx, int fieldIdx)
+    if idx != 34
+        return 100
+    endif
+    if fieldIdx == 0
+        return 2000
+    endif
+    if fieldIdx == 1
+        return 5000
+    endif
+    if fieldIdx == 2
+        return 2000
+    endif
+    return 100
+EndFunction
+
+int Function GetEffectExtraFieldStep(int idx, int fieldIdx)
+    if idx != 34
+        return 1
+    endif
+    return 10
+EndFunction
+
+int Function GetEffectExtraFieldDefault(int idx, int fieldIdx)
+    if idx != 34
+        return 0
+    endif
+    if fieldIdx == 0
+        return 150
+    endif
+    if fieldIdx == 1
+        return 500
+    endif
+    if fieldIdx == 2
+        return 800
+    endif
+    return 0
 EndFunction
 
 ; Signed-convention classifiers. Positive param = buff, negative = penalty.
@@ -2059,13 +2133,13 @@ Function _applyFlashOnHit(Actor target, int classMask, int peakPct)
     int decayMs  = h.GetSlotEffectExtra(slot, effectIdx, "decayms")  as int
     int retrigMs = h.GetSlotEffectExtra(slot, effectIdx, "retrigms") as int
     if rampMs   <= 0
-        rampMs = 80
+        rampMs = 150
     endif
     if decayMs  <= 0
-        decayMs = 350
+        decayMs = 500
     endif
     if retrigMs <  0
-        retrigMs = 150
+        retrigMs = 800
     endif
     string tags = _classMaskToTags(classMask)
     MTFPulse.SetActorFlash(target, h.OverlaySlot, peakPct, rampMs, decayMs, retrigMs, tags)

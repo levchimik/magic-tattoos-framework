@@ -101,9 +101,9 @@ namespace MTFPulse {
         // very bright spike. Caller passes int-percent (100 = 1.0) via
         // the SetActorFlash native; SetFlashParams stores the divided float.
         float                              flash_peak_emissive { 0.0f };    // 0 = disabled
-        float                              flash_ramp_ms       { 80.0f };
-        float                              flash_decay_ms      { 350.0f };
-        float                              flash_retrigger_ms  { 150.0f };
+        float                              flash_ramp_ms       { 150.0f };
+        float                              flash_decay_ms      { 500.0f };
+        float                              flash_retrigger_ms  { 800.0f };
         std::unordered_set<std::string>    flash_tags          {};          // empty = disabled
 
         // Hot state, mutated by TriggerFlash + Tick.

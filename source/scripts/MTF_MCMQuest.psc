@@ -1537,32 +1537,27 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string para
         endif
     endif
     ; v0.1.3 extras — up to 3 plugin-declared extra fields per effect row.
-    ; State IDs are pre-allocated (12 total = 4 rows × 3); name-to-spec
-    ; lookup happens inside each state block via _getEffectExtraFieldName.
-    string[] xnames = p.GetEffectExtraFieldNames(itemIdx)
-    if xnames != None && xnames.Length > 0
-        string[] extraIds = new string[3]
-        extraIds[0] = extra1StateId
-        extraIds[1] = extra2StateId
-        extraIds[2] = extra3StateId
-        int xi = 0
-        int xN = xnames.Length
-        if xN > 3
-            xN = 3
-        endif
-        while xi < xN
-            string spec = p.GetEffectExtraFieldSpec(itemIdx, xnames[xi])
-            if spec != ""
-                string[] parts = StringUtil.Split(spec, "|")
-                if parts != None && parts.Length >= 6
-                    string xlabel = parts[0]
-                    int xval = MainQuest.GetSlotEffectExtra(slot, effectIdx, xnames[xi]) as int
-                    AddSliderOptionST(extraIds[xi], "  " + xlabel, xval)
-                endif
-            endif
-            xi += 1
-        endwhile
+    ; State IDs are pre-allocated (12 total = 4 rows × 3); the state block
+    ; resolves its field name + spec at runtime by querying the plugin's
+    ; count + typed getters with the field index it owns.
+    string[] extraIds = new string[3]
+    extraIds[0] = extra1StateId
+    extraIds[1] = extra2StateId
+    extraIds[2] = extra3StateId
+    int xN = p.GetEffectExtraFieldCount(itemIdx)
+    if xN > 3
+        xN = 3
     endif
+    int xi = 0
+    while xi < xN
+        string xname  = p.GetEffectExtraFieldName(itemIdx, xi)
+        string xlabel = p.GetEffectExtraFieldLabel(itemIdx, xi)
+        if xname != "" && xlabel != ""
+            int xval = MainQuest.GetSlotEffectExtra(slot, effectIdx, xname) as int
+            AddSliderOptionST(extraIds[xi], "  " + xlabel, xval)
+        endif
+        xi += 1
+    endwhile
 EndFunction
 
 Function _openEffectTypeMenu(int effectIdx)
@@ -2145,10 +2140,12 @@ endState
 
 ; ── Per-effect "extras" states (v0.1.3) ─────────────────────────────────────
 ; Up to 3 plugin-declared extra slider fields per effect row. The state ID
-; encodes (effectRow ∈ 0..3, extraSlot ∈ 0..2); the field NAME comes from
-; querying the bound plugin's GetEffectExtraFieldNames[extraSlot] at runtime.
-; If the plugin returns fewer names, the unused state slots simply never
-; appear in the rendered MCM (AddSliderOptionST not called in _drawEffectRow).
+; encodes (effectRow ∈ 0..3, extraSlot ∈ 0..2); the field name, label, and
+; min/max/step/default come from the bound plugin's
+; GetEffectExtraFieldName / Label / Min / Max / Step / Default getters,
+; indexed by extraSlot. If the plugin declares fewer than 3 fields
+; (GetEffectExtraFieldCount returns < extraSlot+1), the unused state slots
+; simply never appear (AddSliderOptionST is not called in _drawEffectRow).
 
 string Function _getEffectExtraFieldName(int effectIdx, int extraSlot)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
@@ -2163,47 +2160,37 @@ string Function _getEffectExtraFieldName(int effectIdx, int extraSlot)
     if itemIdx < 0
         return ""
     endif
-    string[] names = p.GetEffectExtraFieldNames(itemIdx)
-    if names == None || extraSlot < 0 || extraSlot >= names.Length
+    int n = p.GetEffectExtraFieldCount(itemIdx)
+    if extraSlot < 0 || extraSlot >= n
         return ""
     endif
-    return names[extraSlot]
-EndFunction
-
-string[] Function _getEffectExtraSpec(int effectIdx, int extraSlot)
-{Returns the pipe-split spec parts (label|type|min|max|step|default) or
- None if no plugin/spec/field. Caller is responsible for None-check.}
-    string fieldName = _getEffectExtraFieldName(effectIdx, extraSlot)
-    if fieldName == ""
-        return None
-    endif
-    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
-    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
-    if p == None
-        return None
-    endif
-    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
-    if itemIdx < 0
-        return None
-    endif
-    string spec = p.GetEffectExtraFieldSpec(itemIdx, fieldName)
-    if spec == ""
-        return None
-    endif
-    return StringUtil.Split(spec, "|")
+    return p.GetEffectExtraFieldName(itemIdx, extraSlot)
 EndFunction
 
 Function _openEffectExtra(int effectIdx, int extraSlot)
-    string[] parts = _getEffectExtraSpec(effectIdx, extraSlot)
-    if parts == None || parts.Length < 6
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
         return
     endif
-    string fieldName = _getEffectExtraFieldName(effectIdx, extraSlot)
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetEffectExtraFieldCount(itemIdx)
+    if extraSlot < 0 || extraSlot >= n
+        return
+    endif
+    string fieldName = p.GetEffectExtraFieldName(itemIdx, extraSlot)
+    if fieldName == ""
+        return
+    endif
     float startVal = MainQuest.GetSlotEffectExtra(selectedCondition, effectIdx, fieldName)
     SetSliderDialogStartValue(startVal)
-    SetSliderDialogRange(parts[2] as float, parts[3] as float)
-    SetSliderDialogInterval(parts[4] as float)
-    SetSliderDialogDefaultValue(parts[5] as float)
+    SetSliderDialogRange(p.GetEffectExtraFieldMin(itemIdx, extraSlot) as float, \
+                         p.GetEffectExtraFieldMax(itemIdx, extraSlot) as float)
+    SetSliderDialogInterval(p.GetEffectExtraFieldStep(itemIdx, extraSlot) as float)
+    SetSliderDialogDefaultValue(p.GetEffectExtraFieldDefault(itemIdx, extraSlot) as float)
 EndFunction
 
 Function _acceptEffectExtra(int effectIdx, int extraSlot, float value)
@@ -2216,23 +2203,46 @@ Function _acceptEffectExtra(int effectIdx, int extraSlot, float value)
 EndFunction
 
 Function _defaultEffectExtra(int effectIdx, int extraSlot)
-    string[] parts = _getEffectExtraSpec(effectIdx, extraSlot)
-    if parts == None || parts.Length < 6
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
         return
     endif
-    string fieldName = _getEffectExtraFieldName(effectIdx, extraSlot)
-    float defVal = parts[5] as float
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetEffectExtraFieldCount(itemIdx)
+    if extraSlot < 0 || extraSlot >= n
+        return
+    endif
+    string fieldName = p.GetEffectExtraFieldName(itemIdx, extraSlot)
+    if fieldName == ""
+        return
+    endif
+    float defVal = p.GetEffectExtraFieldDefault(itemIdx, extraSlot) as float
     MainQuest.SetSlotEffectExtra(selectedCondition, effectIdx, fieldName, defVal)
     SetSliderOptionValueST(defVal as int)
 EndFunction
 
 Function _highlightEffectExtra(int effectIdx, int extraSlot)
-    string[] parts = _getEffectExtraSpec(effectIdx, extraSlot)
-    if parts == None || parts.Length < 6
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
         SetInfoText("Effect extra parameter.")
         return
     endif
-    SetInfoText(parts[0])
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        SetInfoText("Effect extra parameter.")
+        return
+    endif
+    int n = p.GetEffectExtraFieldCount(itemIdx)
+    if extraSlot < 0 || extraSlot >= n
+        SetInfoText("Effect extra parameter.")
+        return
+    endif
+    SetInfoText(p.GetEffectExtraFieldLabel(itemIdx, extraSlot))
 EndFunction
 
 state SLOT_EFFECT_1_EX1

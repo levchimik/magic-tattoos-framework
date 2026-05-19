@@ -265,20 +265,44 @@ EndFunction
 ; lowercases keys on write — mixed case would read back blank). Keep them
 ; short (≤ 12 chars); the label string is the user-facing text.
 ;
-; The spec string is pipe-delimited: "label|type|min|max|step|default".
-; Currently `type` accepts only "int" — sliders. (Future: "float", "toggle".)
+; v0.1.3 changed the spec API from a populated `string[]` + pipe-delimited
+; spec string to count + per-field typed getters, to dodge two VM quirks:
+; (a) indexed writes to a `new string[N]` local in a Quest-script function
+;     silently no-op, so the array comes back empty.
+; (b) StringUtil.Split inside a cross-script call loop reads parts.Length
+;     as 0 from iteration 2+ onward, so the pipe-delimited spec failed past
+;     the first field.
+; Each getter below is a flat `if fieldIdx == N return X endif` ladder.
 
-string[] Function GetEffectExtraFieldNames(int idx)
-{Return the extra field names this effect declares, in render order. Empty
- array means no extras. Cap at 3.}
-    return Utility.CreateStringArray(0)
+int Function GetEffectExtraFieldCount(int idx)
+{Number of extra fields effect `idx` declares (0..3).}
+    return 0
 EndFunction
 
-string Function GetEffectExtraFieldSpec(int idx, string fieldName)
-{Return the field spec — pipe-delimited "label|type|min|max|step|default".
- Returning "" hides the row. Field names not declared by GetEffectExtraFieldNames
- are not queried; the contract is that names+spec stay in lockstep.}
+string Function GetEffectExtraFieldName(int idx, int fieldIdx)
+{Lowercase ASCII name (used as the StorageUtil sub-key for the value).}
     return ""
+EndFunction
+
+string Function GetEffectExtraFieldLabel(int idx, int fieldIdx)
+{User-facing label rendered as the MCM slider's text.}
+    return ""
+EndFunction
+
+int Function GetEffectExtraFieldMin(int idx, int fieldIdx)
+    return 0
+EndFunction
+
+int Function GetEffectExtraFieldMax(int idx, int fieldIdx)
+    return 100
+EndFunction
+
+int Function GetEffectExtraFieldStep(int idx, int fieldIdx)
+    return 1
+EndFunction
+
+int Function GetEffectExtraFieldDefault(int idx, int fieldIdx)
+    return 0
 EndFunction
 
 ; ── OVERRIDE: plugin-level settings ──────────────────────────────────────────
