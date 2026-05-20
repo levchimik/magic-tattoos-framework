@@ -666,14 +666,26 @@ function drawPresetEditorPage()
     endif
 
     AddHeaderOption("Effects")
+    ; Progressive disclosure: row N is shown only after row N-1 has a key
+    ; set. Row 0 is always visible. The trailing visible row is always the
+    ; first "Not set" slot, so the user sees exactly one selector beyond
+    ; their last bound effect. Clearing a row in the middle is handled by
+    ; CompactEffectsAfter (see _acceptEffectType) so no row stays orphaned
+    ; out of view.
     _drawEffectRow(idx, 0, "SLOT_EFFECT_1_TYPE", "SLOT_EFFECT_1_PARAM", "SLOT_EFFECT_1_P2", \
                    "SLOT_EFFECT_1_EX1", "SLOT_EFFECT_1_EX2", "SLOT_EFFECT_1_EX3")
-    _drawEffectRow(idx, 1, "SLOT_EFFECT_2_TYPE", "SLOT_EFFECT_2_PARAM", "SLOT_EFFECT_2_P2", \
-                   "SLOT_EFFECT_2_EX1", "SLOT_EFFECT_2_EX2", "SLOT_EFFECT_2_EX3")
-    _drawEffectRow(idx, 2, "SLOT_EFFECT_3_TYPE", "SLOT_EFFECT_3_PARAM", "SLOT_EFFECT_3_P2", \
-                   "SLOT_EFFECT_3_EX1", "SLOT_EFFECT_3_EX2", "SLOT_EFFECT_3_EX3")
-    _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM", "SLOT_EFFECT_4_P2", \
-                   "SLOT_EFFECT_4_EX1", "SLOT_EFFECT_4_EX2", "SLOT_EFFECT_4_EX3")
+    if MainQuest.GetSlotEffectKey(idx, 0) != ""
+        _drawEffectRow(idx, 1, "SLOT_EFFECT_2_TYPE", "SLOT_EFFECT_2_PARAM", "SLOT_EFFECT_2_P2", \
+                       "SLOT_EFFECT_2_EX1", "SLOT_EFFECT_2_EX2", "SLOT_EFFECT_2_EX3")
+        if MainQuest.GetSlotEffectKey(idx, 1) != ""
+            _drawEffectRow(idx, 2, "SLOT_EFFECT_3_TYPE", "SLOT_EFFECT_3_PARAM", "SLOT_EFFECT_3_P2", \
+                           "SLOT_EFFECT_3_EX1", "SLOT_EFFECT_3_EX2", "SLOT_EFFECT_3_EX3")
+            if MainQuest.GetSlotEffectKey(idx, 2) != ""
+                _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM", "SLOT_EFFECT_4_P2", \
+                               "SLOT_EFFECT_4_EX1", "SLOT_EFFECT_4_EX2", "SLOT_EFFECT_4_EX3")
+            endif
+        endif
+    endif
 endFunction
 
 string Function _waveformLabel(string name)
@@ -1702,6 +1714,12 @@ Function _acceptEffectType(int effectIdx, int index)
         endif
     endif
     MainQuest.SetSlotEffectFull(selectedCondition, effectIdx, newKey, defParam, defParam2)
+    ; Progressive-disclosure UI: if the user just CLEARED this row, shift
+    ; any subsequent configured rows up so nothing stays orphaned beyond
+    ; the trailing "Not set" slot.
+    if newKey == ""
+        MainQuest.CompactEffectsAfter(selectedCondition, effectIdx)
+    endif
 EndFunction
 
 Function _openEffectParam(int effectIdx)

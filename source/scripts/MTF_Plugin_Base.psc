@@ -23,6 +23,8 @@ Spell  Property _resistFireSpell          Auto Hidden
 Spell  Property _resistFrostSpell         Auto Hidden
 Spell  Property _resistShockSpell         Auto Hidden
 Spell  Property _resistMagicSpell         Auto Hidden
+Spell  Property _resistDiseaseSpell       Auto Hidden
+Spell  Property _resistPoisonSpell        Auto Hidden
 Spell  Property _muffleSpell              Auto Hidden
 Spell  Property _detectAllSpell           Auto Hidden
 Spell  Property _slowTimeSpell            Auto Hidden
@@ -846,7 +848,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 35
+    return 39
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -858,70 +860,70 @@ EndFunction
 
 string Function _effectIdLow(int idx)
     if idx == 0
-        return "shift.magickaRate"
+        return "scale.magickaRegen"
     elseif idx == 1
-        return "shift.carryWeight"
+        return "scale.carryWeight"
     elseif idx == 2
-        return "shift.sneak"
+        return "scale.sneak"
     elseif idx == 3
-        return "burst.magicka"
+        return "damage.magicka"
     elseif idx == 4
-        return "burst.stamina"
+        return "damage.stamina"
     elseif idx == 5
-        return "shift.speedMult"
+        return "scale.movementSpeed"
     elseif idx == 6
-        return "shift.staminaRate"
+        return "scale.staminaRegen"
     elseif idx == 7
-        return "shift.attackDamageMult"
+        return "scale.attackDamage"
     elseif idx == 8
-        return "shift.damageResist"
+        return "scale.armor"
     elseif idx == 9
         return "burst.stagger"
     elseif idx == 10
-        return "state.alertNearby"
+        return "burst.blowCover"
     elseif idx == 11
-        return "shift.magicCost"
+        return "scale.magickaCost"
     elseif idx == 12
-        return "shift.healRate"
+        return "scale.healthRegen"
     elseif idx == 13
-        return "shift.magickaPool"
+        return "scale.maxMagicka"
     endif
     return ""
 EndFunction
 
 string Function _effectIdHigh(int idx)
     if idx == 14
-        return "shift.staminaPool"
+        return "scale.maxStamina"
     elseif idx == 15
-        return "shift.weaponSpeed"
+        return "scale.weaponSpeed"
     elseif idx == 16
-        return "shift.unarmedDamage"
+        return "modify.unarmedDamage"
     elseif idx == 17
-        return "shift.criticalChance"
+        return "modify.criticalChance"
     elseif idx == 18
-        return "shift.bowSpeed"
+        return "modify.bowSpeed"
     elseif idx == 19
-        return "shift.resistFire"
+        return "modify.resistFire"
     elseif idx == 20
-        return "shift.resistFrost"
+        return "modify.resistFrost"
     elseif idx == 21
-        return "shift.resistShock"
+        return "modify.resistShock"
     elseif idx == 22
-        return "shift.resistMagic"
+        return "modify.resistMagic"
     elseif idx == 23
         return "toggle.muffle"
     elseif idx == 24
-        return "toggle.waterBreathing"
+        return "toggle.waterbreathing"
     elseif idx == 25
         return "toggle.waterWalking"
     elseif idx == 26
-        return "burst.health"
+        return "damage.health"
     elseif idx == 27
         return "burst.bounty"
     elseif idx == 28
-        return "spell.flesh"
+        return "spell.modifyArmor"
     elseif idx == 29
-        return "spell.detectAll"
+        return "spell.detectLife"
     elseif idx == 30
         return "spell.slowTime"
     elseif idx == 31
@@ -932,6 +934,14 @@ string Function _effectIdHigh(int idx)
         return "spell.lightningCloak"
     elseif idx == 34
         return "flash.onhit"
+    elseif idx == 35
+        return "modify.resistDisease"
+    elseif idx == 36
+        return "modify.resistPoison"
+    elseif idx == 37
+        return "modify.absorbChance"
+    elseif idx == 38
+        return "modify.reflectDamage"
     endif
     return ""
 EndFunction
@@ -945,70 +955,70 @@ EndFunction
 
 string Function _effectLabelLow(int idx)
     if idx == 0
-        return "Magicka Regen Shift"
+        return "Scale Magicka Regen"
     elseif idx == 1
-        return "Carry Weight Shift"
+        return "Scale Carry Weight"
     elseif idx == 2
-        return "Sneak Shift"
+        return "Scale Sneak"
     elseif idx == 3
-        return "[!] Magicka Burst"
+        return "[!] Damage Magicka"
     elseif idx == 4
-        return "[!] Stamina Burst"
+        return "[!] Damage Stamina"
     elseif idx == 5
-        return "Movement Speed Shift"
+        return "Scale Movement Speed"
     elseif idx == 6
-        return "Stamina Regen Shift"
+        return "Scale Stamina Regen"
     elseif idx == 7
-        return "Attack Damage Shift"
+        return "Scale Attack Damage"
     elseif idx == 8
-        return "Armor Shift"
+        return "Scale Armor"
     elseif idx == 9
         return "[!] Stagger"
     elseif idx == 10
-        return "[!] Blow Sneak Cover"
+        return "[!] Blow Cover"
     elseif idx == 11
-        return "Spell Cost Shift %"
+        return "Scale Magicka Cost"
     elseif idx == 12
-        return "Health Regen Shift"
+        return "Scale Health Regen"
     elseif idx == 13
-        return "Magicka Pool Shift"
+        return "Scale Max Magicka"
     endif
     return ""
 EndFunction
 
 string Function _effectLabelHigh(int idx)
     if idx == 14
-        return "Stamina Pool Shift"
+        return "Scale Max Stamina"
     elseif idx == 15
-        return "Weapon Speed Shift"
+        return "Scale Weapon Speed"
     elseif idx == 16
-        return "Unarmed Damage Shift"
+        return "Modify Unarmed Damage"
     elseif idx == 17
-        return "Critical Chance Shift"
+        return "Modify Critical Chance"
     elseif idx == 18
-        return "Bow Speed Shift"
+        return "Modify Bow Speed"
     elseif idx == 19
-        return "Fire Resist Shift"
+        return "Modify Fire Resist"
     elseif idx == 20
-        return "Frost Resist Shift"
+        return "Modify Frost Resist"
     elseif idx == 21
-        return "Shock Resist Shift"
+        return "Modify Shock Resist"
     elseif idx == 22
-        return "Magic Resist Shift"
+        return "Modify Magic Resist"
     elseif idx == 23
         return "[+] Muffle"
     elseif idx == 24
-        return "[+] Water Breathing"
+        return "[+] Waterbreathing"
     elseif idx == 25
         return "[+] Water Walking"
     elseif idx == 26
-        return "[!] Health Burst"
+        return "[!] Damage Health"
     elseif idx == 27
-        return "[!] Bounty Change"
+        return "[!] Add Bounty"
     elseif idx == 28
-        return "[+] Flesh (Armor)"
+        return "[+] Modify Armor"
     elseif idx == 29
-        return "[+] Detect All (radius)"
+        return "[+] Detect Life"
     elseif idx == 30
         return "[+] Slow Time"
     elseif idx == 31
@@ -1019,6 +1029,14 @@ string Function _effectLabelHigh(int idx)
         return "[+] Lightning Cloak"
     elseif idx == 34
         return "[!] Flash on Hit"
+    elseif idx == 35
+        return "Modify Disease Resist"
+    elseif idx == 36
+        return "Modify Poison Resist"
+    elseif idx == 37
+        return "Modify Spell Absorb"
+    elseif idx == 38
+        return "Modify Reflect Damage"
     endif
     return ""
 EndFunction
@@ -1098,6 +1116,14 @@ string Function _effectParamLabelHigh(int idx)
         return "Damage per second"
     elseif idx == 34
         return "Trigger event"
+    elseif idx == 35
+        return "Disease resist shift (points; + resist, - weakness)"
+    elseif idx == 36
+        return "Poison resist shift (points; + resist, - weakness)"
+    elseif idx == 37
+        return "Spell absorb chance shift (points; + absorb, - vulnerable)"
+    elseif idx == 38
+        return "Reflect damage chance shift (points; + reflect, - vulnerable)"
     endif
     return ""
 EndFunction
@@ -1436,7 +1462,15 @@ bool Function _isPctShift(int idx)
 EndFunction
 
 bool Function _isAbsShift(int idx)
-    return (idx >= 16 && idx <= 22)
+    ; Additive AV shifts. Two underlying paths inside _recomputeAbsShift:
+    ;   • Spell-routed (idx 19-22, 35-36): engine-managed Resist* AVs that
+    ;     ignore direct ModActorValue — Fire/Frost/Shock/Magic + Disease/
+    ;     Poison. Each has a paired MGEF+Spell in MagicTattoosFramework.esp;
+    ;     SetNthEffectMagnitude carries the signed param.
+    ;   • Direct ModActorValue (idx 16-18, 26-…, 37-38): UnarmedDamage,
+    ;     CriticalChance, BowSpeedBonus, AbsorbChance, ReflectDamage. These
+    ;     accept ModActorValue without spell routing.
+    return (idx >= 16 && idx <= 22) || (idx >= 35 && idx <= 38)
 EndFunction
 
 bool Function _isToggle(int idx)
@@ -1508,6 +1542,17 @@ string Function _avNameForHigh(int idx)
         return "WaterWalking"
     elseif idx == 26
         return "Health"
+    elseif idx == 35
+        return "ResistDisease"
+    elseif idx == 36
+        ; Skyrim AV naming quirk — poison resist is "PoisonResist", not
+        ; "ResistPoison" (inverted vs. ResistFire/Frost/Shock/Magic). The
+        ; MGEF in the ESP uses ActorValue: PoisonResist for the same reason.
+        return "PoisonResist"
+    elseif idx == 37
+        return "AbsorbChance"
+    elseif idx == 38
+        return "ReflectDamage"
     endif
     return ""
 EndFunction
@@ -1570,7 +1615,9 @@ Function _recomputeAbsShift(int idx, Actor target, int param)
     ; Engine-managed Resist* AVs ignore direct ModActorValue. Route through
     ; an Ability spell with ValueModifier archetype (vanilla AbResistFire
     ; pattern). Magnitude is set per-cast, signed via SetNthEffectMagnitude.
-    if idx >= 19 && idx <= 22
+    ; idx 19-22: elemental (Fire/Frost/Shock/Magic). idx 35-36: Disease/
+    ; Poison — same engine-managed quirk, same routing.
+    if (idx >= 19 && idx <= 22) || idx == 35 || idx == 36
         _absShiftSpell(_resolveResistSpell(idx), target, param, idx)
         return
     endif
@@ -1579,6 +1626,15 @@ Function _recomputeAbsShift(int idx, Actor target, int param)
         return
     endif
     float prev = _getApplied(idx, target)
+    float amt  = param as float
+    ; Early-out: onTick fires every poll (10 Hz default). Without this guard
+    ; we'd revert+re-apply every tick, which is wasteful and — for laggy
+    ; engine-managed AVs like PoisonResist — keeps the value flickering at
+    ; the poll cadence so reads return stale values for a few seconds before
+    ; the engine settles.
+    if prev == amt
+        return
+    endif
     if prev != 0.0
         target.ModActorValue(av, -prev)
     endif
@@ -1586,7 +1642,6 @@ Function _recomputeAbsShift(int idx, Actor target, int param)
         _setApplied(idx, target, 0.0)
         return
     endif
-    float amt = param as float
     target.ModActorValue(av, amt)
     _setApplied(idx, target, amt)
 EndFunction
@@ -1689,17 +1744,24 @@ EndFunction
 
 ; Apply a signed-magnitude resist via an Ability spell. Removes first to
 ; clear stale magnitude, mutates the spell's effect magnitude, then re-adds.
+; Early-outs when the desired magnitude already matches what we last
+; applied — without this, onTick's 10 Hz cadence does RemoveSpell+AddSpell
+; every poll, which keeps lazy AVs like PoisonResist flickering 0/+N for
+; ~2-3s before the engine settles. Idempotent re-add was also pure churn.
 Function _absShiftSpell(Spell s, Actor target, int param, int idx)
     if s == None
         return
     endif
     float prev = _getApplied(idx, target)
+    float mag  = param as float
+    if prev == mag
+        return
+    endif
     target.RemoveSpell(s)
     if param == 0
         _setApplied(idx, target, 0.0)
         return
     endif
-    float mag = param as float
     s.SetNthEffectMagnitude(0, mag)
     target.AddSpell(s, false)
     _setApplied(idx, target, mag)
@@ -1726,6 +1788,16 @@ Spell Function _resolveResistSpell(int idx)
             _resistMagicSpell = Game.GetFormFromFile(0x83D, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistMagicSpell
+    elseif idx == 35
+        if _resistDiseaseSpell == None
+            _resistDiseaseSpell = Game.GetFormFromFile(0x851, "MagicTattoosFramework.esp") as Spell
+        endif
+        return _resistDiseaseSpell
+    elseif idx == 36
+        if _resistPoisonSpell == None
+            _resistPoisonSpell = Game.GetFormFromFile(0x853, "MagicTattoosFramework.esp") as Spell
+        endif
+        return _resistPoisonSpell
     endif
     return None
 EndFunction

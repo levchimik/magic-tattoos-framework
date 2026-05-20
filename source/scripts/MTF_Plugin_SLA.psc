@@ -111,22 +111,22 @@ EndFunction
 
 string Function GetEffectId(int idx)
     if idx == 0
-        return "exposure.self"
+        return "arousal.rate"
     elseif idx == 1
-        return "exposure.aura"
+        return "arousal.rate.npc"
     elseif idx == 2
-        return "arousal.burst.self"
+        return "modify.arousal"
     endif
     return ""
 EndFunction
 
 string Function GetEffectLabel(int idx)
     if idx == 0
-        return "Self Arousal +/hour"
+        return "Arousal Rate"
     elseif idx == 1
-        return "Pheromone Aura +/hour"
+        return "NPC Arousal Rate"
     elseif idx == 2
-        return "[!] Arousal Burst"
+        return "[!] Modify Arousal"
     endif
     return ""
 EndFunction

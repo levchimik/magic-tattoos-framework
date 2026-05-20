@@ -2359,6 +2359,71 @@ Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int p
     endif
 EndFunction
 
+Function CompactEffectsAfter(int slot, int fromIdx)
+{Effect row [fromIdx] was just cleared via MCM. If any later row has data,
+ shift effect[fromIdx+1..maxE-1] into [fromIdx..maxE-2] so the
+ progressive-disclosure UI never leaves a configured-but-hidden row.
+
+ Walks front-to-back. Each iteration reads from src = i+1 (untouched by
+ prior iterations because we only ever wrote to indices ≤ i and i+1=src
+ was still pristine), copies into dst = i via SetSlotEffectFull, then
+ blanks src. Extras are snapshotted before the move and re-stamped onto
+ dst — SetSlotEffectFull resets dst extras to the NEW key's defaults, so
+ the snapshot overwrite is required to carry actual user-tuned values.
+
+ Stops early at the first empty src — nothing beyond a gap to compact.}
+    if effectKey == None || slot < 0 || slot >= 8 || fromIdx < 0 || fromIdx >= MAX_EFFECTS_PER_SLOT()
+        return
+    endif
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    int i = fromIdx
+    while i < maxE - 1
+        int srcG = _fxBaseIdx(slot) + (i + 1)
+        string srcKey = effectKey[srcG]
+        if srcKey == ""
+            return
+        endif
+        int srcParam = effectParam[srcG]
+        int srcParam2 = effectParam2[srcG]
+        ; Snapshot src extras before SetSlotEffectFull resets dst extras.
+        MTF_Plugin p = ResolvePluginByKey(srcKey)
+        int xN = 0
+        string[] xnames
+        float[] xvals
+        if p != None
+            int itemIdx = _effectIdxFor(p, _keyItemId(srcKey))
+            if itemIdx >= 0
+                xN = p.GetEffectExtraFieldCount(itemIdx)
+                if xN > 0
+                    xnames = Utility.CreateStringArray(xN, "")
+                    xvals  = Utility.CreateFloatArray(xN, 0.0)
+                    int xi = 0
+                    while xi < xN
+                        string xname = p.GetEffectExtraFieldName(itemIdx, xi)
+                        xnames[xi] = xname
+                        if xname != ""
+                            xvals[xi] = GetSlotEffectExtra(slot, i + 1, xname)
+                        endif
+                        xi += 1
+                    endwhile
+                endif
+            endif
+        endif
+        ; Move src → dst.
+        SetSlotEffectFull(slot, i, srcKey, srcParam, srcParam2)
+        int xi2 = 0
+        while xi2 < xN
+            if xnames[xi2] != ""
+                SetSlotEffectExtra(slot, i, xnames[xi2], xvals[xi2])
+            endif
+            xi2 += 1
+        endwhile
+        ; Blank src now that dst owns the data.
+        SetSlotEffectFull(slot, i + 1, "", 0, 0)
+        i += 1
+    endwhile
+EndFunction
+
 ; Deactivate / activate a SINGLE effect within an active slot. Used when MCM
 ; rebinds an effect on a tier that's currently live — without this, the old
 ; effect's onDeactivate is never called and its applied state lingers
