@@ -131,6 +131,32 @@ Event OnPlayerLoadGame()
         endif
         host.setRedraw()
     endif
+
+    ; SKEE post-load race: SKEE restores its override store async on
+    ; load. The redraw scheduled above via _autoEnableTestBranch fires
+    ; at ~0.5s post-load (OnBeginState's RegisterForSingleUpdate) — too
+    ; soon. SKEE finishes its deserialize+apply slightly later and
+    ; pushes the persisted store to the live shader, clobbering our
+    ; freshly-written overrides. Symptom: tattoo invisible after load,
+    ; reappears only after a real tier transition (drawOverlay fires
+    ; again after SKEE is settled).
+    ;
+    ; Schedule a second-chance redraw via this listener's own OnUpdate
+    ; at 3s — late enough that SKEE is done, early enough to feel like
+    ; "right after load".
+    RegisterForSingleUpdate(3.0)
+EndEvent
+
+Event OnUpdate()
+{Second-chance redraw kick. See OnPlayerLoadGame for the SKEE race
+ rationale. Just bumps the host's forceRedraw flag; MainQuest's next
+ OnUpdate cycle (within ~updateInterval seconds) consumes it and calls
+ drawOverlay, which writes overrides + ApplyNodeOverrides AFTER SKEE
+ has settled its own restore.}
+    MTF_MainQuest h = _host()
+    if h != None
+        h.setRedraw()
+    endif
 EndEvent
 
 ; One-time cleanup of MTF spells that older code AddSpell'd onto the player
