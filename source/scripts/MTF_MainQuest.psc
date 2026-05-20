@@ -432,6 +432,23 @@ bool Property _arraysReady = false Auto Hidden
 ; in the wild — pre-release, no upgrade contract).
 int Property _migrationLevel = 0 Auto Hidden
 
+; Post-load grace window. While Utility.GetCurrentRealTime() is below
+; this value, the slow tick's eval/draw body is skipped. Reason: at
+; save time the player can be in a state where the underlying condition
+; is no longer met but a lock-on-activate (cooldownMode=1) timer is
+; keeping the tier active. On reload, GameTime advances slightly during
+; the load process, the cooldown can expire, and the eval at ~0.5s
+; post-load sees condition=false → tier 0 → clears the overlay. Symptom:
+; tattoo flashes on for ~500ms then disappears. The grace period gives
+; cooldowns + condition sources room to settle before we start firing
+; transitions. Not Auto Hidden — it's stamped via ArmPostLoadFreeze at
+; load time and doesn't need to persist across saves itself.
+float _postLoadFreezeUntilRT = 0.0
+
+Function ArmPostLoadFreeze(float seconds)
+    _postLoadFreezeUntilRT = Utility.GetCurrentRealTime() + seconds
+EndFunction
+
 Function EnsureArrays()
 {One-shot allocation for per-slot Auto arrays. Effect bindings (key,
  param, param2) live in StorageUtil under mtf.fx.<slot>.<idx>.* (v0.1.5+);
@@ -2832,6 +2849,19 @@ State checkingAroused
     EndEvent
 
     Event OnUpdate()
+        ; Post-load grace: skip every eval/draw branch for the first ~5s
+        ; after OnPlayerLoadGame, just keep ticking. See the
+        ; _postLoadFreezeUntilRT comment near the property declaration.
+        float postLoadNow = Utility.GetCurrentRealTime()
+        if postLoadNow < _postLoadFreezeUntilRT
+            float freezeRemain = _postLoadFreezeUntilRT - postLoadNow
+            if freezeRemain < 0.05
+                freezeRemain = 0.05
+            endif
+            RegisterForSingleUpdate(freezeRemain)
+            return
+        endif
+
         if !ModActive
             removeOverlay(PlayerRef)
             if currentTier >= 0
@@ -3064,9 +3094,17 @@ function drawOverlayForActor(actor akTarget, int idx, bool useScratch)
     endif
     int reserved = _playerBaseLayers("Body")
     if reserved <= 0
-        ; Nothing configured — fall back to the slot range so any leftover
-        ; overlay from a prior config gets cleared.
-        reserved = _maxLayerSlots()
+        ; No MCM base configured — the slow tick redraw shouldn't touch
+        ; anything. The old fallback to _maxLayerSlots() blanket-cleared
+        ; OverlaySlot..MaxSlots, which wiped stacked applied-preset
+        ; overlays that the user had layered above the (empty) MCM base.
+        ; Symptom: tattoos visible at load (SKEE restore), wiped within
+        ; ~100ms by the first post-load slow tick. Removeoverlay() owns
+        ; intentional full-clear; this path is just the MCM base.
+        if !useScratch
+            CurrentOverlaySlot = OverlaySlot
+        endif
+        return
     endif
     _drawOverlayForActorAt(akTarget, idx, useScratch, "Body", OverlaySlot, reserved)
     if !useScratch
@@ -3122,9 +3160,14 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
         endif
     endif
 
-    if !NiOverride.HasOverlays(akTarget)
-        NiOverride.AddOverlays(akTarget)
-    endif
+    ; Unconditional AddOverlays: SKEE's HasOverlays checks an internal flag,
+    ; not the actual NiAVObject graph. When the body's 3D is rebuilt (armor
+    ; swap, BodyGen, in-session reload, 3BA refresh) the "Body [ovlN]"
+    ; sub-nodes can be torn down while the flag stays true. Subsequent Add*
+    ; calls then look up missing nodes and silently no-op on the live shader,
+    ; even though the override store gets updated. AddOverlays is idempotent
+    ; on attached actors and re-creates the sub-nodes if missing.
+    NiOverride.AddOverlays(akTarget)
 
     int i = 0
     while i < layerN
@@ -3345,6 +3388,47 @@ function setRedraw()
     forceRedraw = true
 endFunction
 
+Function postLoadRedrawNow()
+{Second-chance redraw kicked from MTF_HitListener.OnUpdate ~3s post-load.
+ Runs DURING the post-load grace window (see _postLoadFreezeUntilRT) —
+ the slow tick is still frozen at this point, so we don't compete with
+ eval/draw transitions.
+
+ Two jobs:
+ 1. AddOverlays + setRedraw — defense in depth in case SKEE's overlay
+    sub-nodes were torn down by an in-session 3D reload. The actual
+    redraw runs after the grace period when the slow tick unfreezes.
+ 2. Re-populate the C++ MTFPulse roster for each applied preset. The
+    roster is in-memory only (lost on save/load); without this, stacked
+    presets stay frozen at SKEE's restored em_mult ceiling instead of
+    resuming their pulse animation. _rosterAddOrUpdate writes only to
+    MTFPulse — it doesn't touch the NiOverride store, so it can't
+    accidentally clear an overlay (the failure mode that bit earlier
+    attempts at this fix).}
+    if PlayerRef == None
+        return
+    endif
+    if DebugMode
+        Notification("MTF: post-load redraw")
+    endif
+    NiOverride.AddOverlays(PlayerRef)
+    setRedraw()
+
+    float rtNow = Utility.GetCurrentRealTime()
+    int n = GetActorPresetCount(PlayerRef)
+    int i = 0
+    while i < n
+        string nm = GetActorPresetAt(PlayerRef, i)
+        if nm != "" && _loadPresetToScratch(nm)
+            int storedTier = _getActorPresetTier(PlayerRef, nm)
+            if storedTier >= 0
+                _rosterAddOrUpdate(PlayerRef, nm, storedTier, rtNow)
+            endif
+        endif
+        i += 1
+    endwhile
+EndFunction
+
 ; ── NiOverride wrappers ───────────────────────────────────────────────────────
 ; applyOverlay: stamps Texture into ovlSlot with per-layer effective emissive
 ; intensity (caller pre-multiplies condEmissiveMult by the layer's bias).
@@ -3353,9 +3437,8 @@ endFunction
 
 Function applyOverlay(actor Target, bool isFemale, string Area, int Slot, string Texture, int Tint, int Emissive, float Intensity, float Alpha)
     string Node = Area + " [ovl" + Slot + "]"
-    if !NiOverride.HasOverlays(Target)
-        NiOverride.AddOverlays(Target)
-    endif
+    ; See _drawOverlayForActorAt for why we don't gate on HasOverlays.
+    NiOverride.AddOverlays(Target)
     NiOverride.AddNodeOverrideString(Target, isFemale, Node, 9, 0, Texture, true)
     NiOverride.AddNodeOverrideInt(Target, isFemale, Node, 7, -1, Tint, true)
     NiOverride.AddNodeOverrideInt(Target, isFemale, Node, 0, -1, Emissive, true)
