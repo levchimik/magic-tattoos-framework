@@ -173,6 +173,19 @@ namespace MTFPulse {
             seeded.flash_last_tick     = prev.flash_last_tick;
         }
 
+        // transition_start uses src.start_time so the Papyrus caller can
+        // synchronize cross-fades across multiple roster updates pushed in
+        // the same tick. Without this, three back-to-back Set() calls each
+        // grabbed their own NowSec() — 50-200 ms apart due to Papyrus loop
+        // latency — and the resulting cross-fades visibly staircased even
+        // when the tier transitions all happened "at the same moment" from
+        // the player's POV. start_time defaults to Utility.GetCurrentRealTime()
+        // in the existing callers (microseconds drift from NowSec() for a
+        // single-shot call); when Papyrus snapshots one rtNow per slow-tick
+        // and passes it to every roster update, all entries share the same
+        // transition_start and animate in lockstep. Falls back to NowSec()
+        // only if start_time is non-positive (defensive).
+        const float ts = (src.start_time > 0.0f) ? src.start_time : NowSec();
         if (slot >= 0 && src.transition_duration > 0.0f) {
             const auto& prev = entries_[slot];
             const std::int32_t copyN = std::clamp<std::int32_t>(src.layer_count, 0, 4);
@@ -191,7 +204,7 @@ namespace MTFPulse {
                     seeded.from_emissive[L] = prev.target_emissive[L];
                 }
             }
-            seeded.transition_start = NowSec();
+            seeded.transition_start = ts;
             seeded.has_last_interp  = false;  // Tick will repopulate this frame
         } else if (slot < 0 && src.transition_duration > 0.0f) {
             // Fresh entry: from_ = target_ ⇒ visually instant.
@@ -203,7 +216,7 @@ namespace MTFPulse {
                 seeded.from_tint[L]     = src.target_tint[L];
                 seeded.from_emissive[L] = src.target_emissive[L];
             }
-            seeded.transition_start = NowSec();
+            seeded.transition_start = ts;
             seeded.has_last_interp  = false;
         }
 

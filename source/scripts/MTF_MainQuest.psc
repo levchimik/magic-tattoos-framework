@@ -2963,7 +2963,12 @@ State checkingAroused
             while ppi < playerPresetN
                 string ppName = GetActorPresetAt(PlayerRef, ppi)
                 if ppName != "" && _loadPresetToScratch(ppName)
-                    if _evalAndDrawPresetForActor(PlayerRef, ppName, true)
+                    ; Pass `now` (snapshot from the top of OnUpdate) so every
+                    ; stacked preset transitioning in this tick anchors its
+                    ; cross-fade to the same moment. Without the shared anchor,
+                    ; the C++ Roster::Set captured its own NowSec() per call
+                    ; and the fades visibly staircased.
+                    if _evalAndDrawPresetForActor(PlayerRef, ppName, true, now)
                         needPlayerApply = true
                     endif
                 endif
@@ -4506,7 +4511,7 @@ int Function _resolveDispatchBaseSlot(Actor target, string presetName)
 EndFunction
 
 ; ── Per-preset eval + draw cycle ────────────────────────────────────────────
-bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferApply = false)
+bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferApply = false, float sharedRT = 0.0)
 {One preset's eval+draw cycle on a target. Caller must already have run
  _loadPresetToScratch(name). Fires tier transition edges, arms cooldowns,
  stamps the overlay at the preset's stored base/layers, and updates the
@@ -4518,13 +4523,24 @@ bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferAp
  ApplyNodeOverrides — the caller is responsible for issuing one Apply
  after batching multiple presets, so all stacked tattoos light up in the
  same frame instead of staircasing 0.5s apart (one expensive Apply per
- preset on a moderately stacked character).}
+ preset on a moderately stacked character).
+
+ `sharedRT > 0` overrides the per-preset Utility.GetCurrentRealTime()
+ snapshot used for pulse start AND cross-fade transition_start. Callers
+ that batch multiple presets in one tick (slow-tick loop, EvalAndDrawActor,
+ _processTrackedActorOnce) pass the same value so the C++ roster lerps
+ all their cross-fades from a single anchor — without this, each call
+ captured its own NowSec() inside Roster::Set() and the fades staircased
+ by the Papyrus loop latency between iterations (~50-200 ms each).}
     if target == None || name == ""
         return false
     endif
     int prev = _getActorPresetTier(target, name)
     int now  = evaluateTierForActor(target, name, true)
-    float rtNow = Utility.GetCurrentRealTime()
+    float rtNow = sharedRT
+    if rtNow <= 0.0
+        rtNow = Utility.GetCurrentRealTime()
+    endif
     bool drew = false
     if now != prev
         if prev >= 0
@@ -4609,10 +4625,11 @@ Function EvalAndDrawActor(Actor target)
     endif
     int i = 0
     bool needApply = false
+    float anchorRT = Utility.GetCurrentRealTime()
     while i < n
         string nm = GetActorPresetAt(target, i)
         if nm != "" && _loadPresetToScratch(nm)
-            if _evalAndDrawPresetForActor(target, nm, true)
+            if _evalAndDrawPresetForActor(target, nm, true, anchorRT)
                 needApply = true
             endif
         endif
@@ -4793,10 +4810,11 @@ Function _processTrackedActorOnce(Actor target)
     endif
     int i = 0
     bool needApply = false
+    float anchorRT = Utility.GetCurrentRealTime()
     while i < n
         string nm = GetActorPresetAt(target, i)
         if nm != "" && _loadPresetToScratch(nm)
-            if _evalAndDrawPresetForActor(target, nm, true)
+            if _evalAndDrawPresetForActor(target, nm, true, anchorRT)
                 needApply = true
             endif
         endif
