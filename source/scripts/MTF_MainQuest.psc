@@ -2889,6 +2889,16 @@ State checkingAroused
             int newTier = evaluateTier()
             bool tierChanged = (newTier != currentTier)
 
+            ; Batched Apply: defer NiOverride.ApplyNodeOverrides across the
+            ; MCM-base draw AND every stacked-preset draw, then issue one
+            ; Apply at the end. Each Apply call rebuilds the live shader and
+            ; runs in real time (~hundreds of ms on a heavily-stacked
+            ; character); N back-to-back Applies show as visible staircase —
+            ; the player sees their tattoos light up one-by-one with ~0.5s
+            ; gaps instead of all together. One Apply covers every override
+            ; written this tick.
+            bool needPlayerApply = false
+
             if forceRedraw || tierChanged
                 forceRedraw = false
                 if tierChanged && currentTier >= 0
@@ -2899,7 +2909,8 @@ State checkingAroused
                     endif
                 endif
                 currentTier = newTier
-                drawOverlay(PlayerRef, currentTier)
+                drawOverlay(PlayerRef, currentTier, true)
+                needPlayerApply = true
                 ; Reset pulse phase so the new tier starts cleanly at sin(0)=0.
                 _pulseStartRT = now
                 if tierChanged
@@ -2952,10 +2963,16 @@ State checkingAroused
             while ppi < playerPresetN
                 string ppName = GetActorPresetAt(PlayerRef, ppi)
                 if ppName != "" && _loadPresetToScratch(ppName)
-                    _evalAndDrawPresetForActor(PlayerRef, ppName)
+                    if _evalAndDrawPresetForActor(PlayerRef, ppName, true)
+                        needPlayerApply = true
+                    endif
                 endif
                 ppi += 1
             endwhile
+
+            if needPlayerApply
+                NiOverride.ApplyNodeOverrides(PlayerRef)
+            endif
 
             ; Tracked NPC rotation: stagger MAX_EVALS_PER_TICK per slow tick.
             ; Each evaluated actor goes through Is3DLoaded + distance gates
@@ -3075,8 +3092,8 @@ int Function _computePresetReservedLayers(string area, bool useScratch)
     return maxL
 EndFunction
 
-function drawOverlay(actor akTarget, int idx)
-    drawOverlayForActor(akTarget, idx, false)
+function drawOverlay(actor akTarget, int idx, bool deferApply = false)
+    drawOverlayForActor(akTarget, idx, false, deferApply)
     ; Pulse cache snapshot stays player-specific in step 2 — NPC pulse
     ; roster (step 5) introduces its own per-actor pulse state.
     if akTarget == PlayerRef
@@ -3084,7 +3101,7 @@ function drawOverlay(actor akTarget, int idx)
     endif
 endFunction
 
-function drawOverlayForActor(actor akTarget, int idx, bool useScratch)
+function drawOverlayForActor(actor akTarget, int idx, bool useScratch, bool deferApply = false)
 {Legacy entry — used only by the player MCM-driven base layer path. Stamps
  at OverlaySlot upward with reservation sized to the player's cond config
  (_playerBaseLayers). NPC presets and player stacked presets go through
@@ -3106,13 +3123,13 @@ function drawOverlayForActor(actor akTarget, int idx, bool useScratch)
         endif
         return
     endif
-    _drawOverlayForActorAt(akTarget, idx, useScratch, "Body", OverlaySlot, reserved)
+    _drawOverlayForActorAt(akTarget, idx, useScratch, "Body", OverlaySlot, reserved, deferApply)
     if !useScratch
         CurrentOverlaySlot = OverlaySlot
     endif
 endFunction
 
-function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string area, int baseSlot, int reservedLayers)
+function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string area, int baseSlot, int reservedLayers, bool deferApply = false)
 {Stamp the entry chosen by `idx` into [baseSlot, baseSlot+reservedLayers).
  Layers the entry doesn't use within that range get cleared so leftover
  textures don't bleed through after a tier change. Slots outside the
@@ -3133,7 +3150,9 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
             _clearOverlayDeferred(akTarget, isFemaleClear, area, baseSlot + ci)
             ci += 1
         endwhile
-        NiOverride.ApplyNodeOverrides(akTarget)
+        if !deferApply
+            NiOverride.ApplyNodeOverrides(akTarget)
+        endif
         return
     endif
     int total = _numOverlays(area)
@@ -3184,7 +3203,9 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
         _clearOverlayDeferred(akTarget, isFemale, area, baseSlot + i)
         i += 1
     endwhile
-    NiOverride.ApplyNodeOverrides(akTarget)
+    if !deferApply
+        NiOverride.ApplyNodeOverrides(akTarget)
+    endif
 endFunction
 
 Function _applyOverlayDeferred(actor Target, bool isFemale, string Area, int Slot, string Texture, int Tint, int Emissive, float Intensity, float Alpha)
@@ -3228,9 +3249,12 @@ Function _clearOverlayDeferred(actor Target, bool isFemale, string Area, int Slo
     NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 8, -1, 0.0, true)
 EndFunction
 
-function _drawPresetOnActor(actor target, string name, int tier)
+function _drawPresetOnActor(actor target, string name, int tier, bool deferApply = false)
 {Draws preset `name` on `target` at `tier`, using stored per-(preset, area)
- base + reservedLayers. Caller must have _loadPresetToScratch(name) loaded.}
+ base + reservedLayers. Caller must have _loadPresetToScratch(name) loaded.
+ With `deferApply=true`, the caller owns the trailing
+ NiOverride.ApplyNodeOverrides — used by batched callers to collapse N
+ stacked-preset draws into a single Apply (see _evalAndDrawPresetForActor).}
     if target == None || name == ""
         return
     endif
@@ -3241,7 +3265,7 @@ function _drawPresetOnActor(actor target, string name, int tier)
         int base = _getActorPresetBase(target, name, area)
         int reserved = _getActorPresetLayers(target, name, area)
         if base >= 0 && reserved > 0
-            _drawOverlayForActorAt(target, tier, true, area, base, reserved)
+            _drawOverlayForActorAt(target, tier, true, area, base, reserved, deferApply)
         endif
         p += 1
     endwhile
@@ -4482,17 +4506,26 @@ int Function _resolveDispatchBaseSlot(Actor target, string presetName)
 EndFunction
 
 ; ── Per-preset eval + draw cycle ────────────────────────────────────────────
-Function _evalAndDrawPresetForActor(Actor target, string name)
+bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferApply = false)
 {One preset's eval+draw cycle on a target. Caller must already have run
  _loadPresetToScratch(name). Fires tier transition edges, arms cooldowns,
  stamps the overlay at the preset's stored base/layers, and updates the
- pulse roster (one-pulse-per-actor on the C++ side — last transition wins).}
+ pulse roster (one-pulse-per-actor on the C++ side — last transition wins).
+
+ Returns true if the tier-change branch was taken (i.e. an overlay was
+ stamped via _drawPresetOnActor). Same-tier same-frame calls return false.
+ With `deferApply=true`, _drawPresetOnActor skips its trailing
+ ApplyNodeOverrides — the caller is responsible for issuing one Apply
+ after batching multiple presets, so all stacked tattoos light up in the
+ same frame instead of staircasing 0.5s apart (one expensive Apply per
+ preset on a moderately stacked character).}
     if target == None || name == ""
-        return
+        return false
     endif
     int prev = _getActorPresetTier(target, name)
     int now  = evaluateTierForActor(target, name, true)
     float rtNow = Utility.GetCurrentRealTime()
+    bool drew = false
     if now != prev
         if prev >= 0
             _deactivateSlotEffectsForActor(target, prev, true, name)
@@ -4530,7 +4563,8 @@ Function _evalAndDrawPresetForActor(Actor target, string name)
         else
             _rosterRemovePreset(target, name)
         endif
-        _drawPresetOnActor(target, name, now)
+        _drawPresetOnActor(target, name, now, deferApply)
+        drew = true
         if now >= 0
             _activateSlotEffectsForActor(target, now, true, name)
             if _g_cooldownMode(now, true) == 1
@@ -4553,6 +4587,7 @@ Function _evalAndDrawPresetForActor(Actor target, string name)
     if now >= 0
         _tickSlotEffectsForActor(target, now, true, name)
     endif
+    return drew
 EndFunction
 
 ; ── Console smoke-test entry ────────────────────────────────────────────────
@@ -4573,13 +4608,19 @@ Function EvalAndDrawActor(Actor target)
         return
     endif
     int i = 0
+    bool needApply = false
     while i < n
         string nm = GetActorPresetAt(target, i)
         if nm != "" && _loadPresetToScratch(nm)
-            _evalAndDrawPresetForActor(target, nm)
+            if _evalAndDrawPresetForActor(target, nm, true)
+                needApply = true
+            endif
         endif
         i += 1
     endwhile
+    if needApply
+        NiOverride.ApplyNodeOverrides(target)
+    endif
 EndFunction
 
 ; ═════════════════════════════════════════════════════════════════════════════
@@ -4751,13 +4792,19 @@ Function _processTrackedActorOnce(Actor target)
         return
     endif
     int i = 0
+    bool needApply = false
     while i < n
         string nm = GetActorPresetAt(target, i)
         if nm != "" && _loadPresetToScratch(nm)
-            _evalAndDrawPresetForActor(target, nm)
+            if _evalAndDrawPresetForActor(target, nm, true)
+                needApply = true
+            endif
         endif
         i += 1
     endwhile
+    if needApply
+        NiOverride.ApplyNodeOverrides(target)
+    endif
 EndFunction
 
 Function _processTrackedActorsSlowTick(int maxThisTick)
