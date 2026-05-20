@@ -211,12 +211,13 @@ int Function _findFirstFreeOverlaySlotNPC(Actor target, string area)
     return 0
 EndFunction
 
-; ── Per-slot effect lists (flat, 8 slots × MAX_EFFECTS_PER_SLOT) ─────────────
-; effectKey: "<pluginId>:<effectItemId>" or ""; effectParam parallel.
-; Index: slot S, effect E => S * MAX_EFFECTS_PER_SLOT + E.
-string[] Property effectKey Auto
-int[] Property effectParam Auto
-int[] Property effectParam2 Auto Hidden
+; ── Per-slot effect lists ────────────────────────────────────────────────────
+; Effect bindings (key/param/param2) live in StorageUtil under
+; mtf.fx.<slot>.<idx>.* — see _readFxKey/_writeFxKey. Moved out of flat
+; Auto array properties in v0.1.5; the legacy effectKey/effectParam/
+; effectParam2 declarations were dropped in v0.1.6 alongside the ESP VMAD
+; cleanup. Anything still reading those would compile-error, which is the
+; intended trip-wire.
 
 ; ── Per-slot cooldown ────────────────────────────────────────────────────────
 ; cooldownMin:     duration in minutes (0 = disabled, max 1440 = 24h).
@@ -424,16 +425,20 @@ Function _onTrackedActorDetached(Actor target)
 EndFunction
 
 bool Property _arraysReady = false Auto Hidden
+; _migrationLevel persists schema-level migration progress across saves.
+; Read+written cross-script by MTF_MCMQuest.OnVersionUpdate; do not
+; remove. v0.1.5 effect-storage migration ran inline in EnsureArrays and
+; required this flag too (collapsed in v0.1.6 once no v0.1.4 saves exist
+; in the wild — pre-release, no upgrade contract).
 int Property _migrationLevel = 0 Auto Hidden
 
 Function EnsureArrays()
 {One-shot allocation for per-slot Auto arrays. Effect bindings (key,
- param, param2) moved to StorageUtil in v0.1.5; pulse rate/depth/waveform
- already lived there. This only allocates the 8-element per-slot
- condition/layer/cooldown arrays. Calling repeatedly is cheap (early-
- return on the _arraysReady flag).}
+ param, param2) live in StorageUtil under mtf.fx.<slot>.<idx>.* (v0.1.5+);
+ pulse rate/depth/waveform already lived there. This only allocates the
+ 8-element per-slot condition/layer/cooldown arrays. Calling repeatedly
+ is cheap (early-return on the _arraysReady flag).}
     if _arraysReady && condPluginId != None && condPluginId.Length == 8
-        _migrateEffectArraysToStorageUtil()
         return
     endif
 
@@ -452,43 +457,6 @@ Function EnsureArrays()
     registeredPlugins     = new Form[32]
     pluginCount           = 0
     _arraysReady          = true
-    _migrateEffectArraysToStorageUtil()
-EndFunction
-
-Function _migrateEffectArraysToStorageUtil()
-{v0.1.5 one-shot migration: copy any legacy flat-array effect bindings
- (effectKey/effectParam/effectParam2 Auto array properties) into the new
- StorageUtil keyspace. The legacy properties are still declared in v0.1.5
- so VMAD attachment doesn't break — they get removed plus a VMAD cleanup
- in v0.1.6. After migration, _migrationLevel is bumped to 2 so this never
- runs again on the same save. Fresh new games have empty source arrays
- and bump straight to level 2 with no work.}
-    if _migrationLevel >= 2
-        return
-    endif
-    if effectKey == None || effectKey.Length == 0
-        _migrationLevel = 2
-        return
-    endif
-    int oldPerSlot = effectKey.Length / 8
-    Trace("[MTF_Main] migrating effect arrays from flat (" + effectKey.Length \
-        + " elements, " + oldPerSlot + "/slot) to StorageUtil")
-    int s = 0
-    while s < 8
-        int e = 0
-        while e < oldPerSlot
-            int oldI = s * oldPerSlot + e
-            string k = effectKey[oldI]
-            if k != ""
-                _writeFxKey(s, e, false, k)
-                _writeFxParam(s, e, false, effectParam[oldI])
-                _writeFxParam2(s, e, false, effectParam2[oldI])
-            endif
-            e += 1
-        endwhile
-        s += 1
-    endwhile
-    _migrationLevel = 2
 EndFunction
 
 ; Inheritance helpers — slots 1-7 with empty condPackId fall back to slot 0.
@@ -2428,12 +2396,6 @@ Function _writeFxParam2(int slot, int idx, bool useScratch, int val)
 EndFunction
 
 ; ── Per-slot effect-list helpers ─────────────────────────────────────────────
-; _fxBaseIdx is retained for backward-compat with any external script that
-; computed flat indices directly; the internal hot path now reads via
-; _readFx*/_writeFx*. Will be removed in a follow-up sweep.
-int Function _fxBaseIdx(int slot)
-    return slot * MAX_EFFECTS_PER_SLOT()
-EndFunction
 
 string Function GetSlotEffectKey(int slot, int effectIdx)
     if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
@@ -3491,9 +3453,10 @@ endFunction
 ; ═════════════════════════════════════════════════════════════════════════════
 ; Tracked-actor list lives in StorageUtil.FormList(self, "mtf.tracked").
 ; Per-actor scalars live in StorageUtil on each target form. Preset config
-; is loaded on demand from preset JSON into the _sCond*/_sEffect* scratch
-; buffer (no per-actor snapshot — keeps storage footprint linear in
-; tracked count, not slot/layer/effect cardinality).
+; is loaded on demand from preset JSON into the _sCond* scratch buffer and
+; the mtf.fx.scratch.* StorageUtil keyspace (no per-actor snapshot — keeps
+; storage footprint linear in tracked count, not slot/layer/effect
+; cardinality).
 ;
 ; Step 2 scope: tracked-list machinery, scratch buffer, generalized
 ; draw + evaluate + effects dispatch, console smoke-test entry. The
