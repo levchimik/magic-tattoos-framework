@@ -859,7 +859,9 @@ float Function GetSlotEffectExtra(int slot, int effectIdx, string fieldName)
         ; NPC / stacked-preset dispatch — read from scratch keys populated
         ; by _loadPresetToScratch. The player's persistent slot extras live
         ; on different effect[][] indices and don't apply here.
-        k = "mtf.scratch.fx." + slot + "." + effectIdx + ".ex." + fieldName
+        ; v0.2: namespaced by the currently-loaded scratch preset so the
+        ; Plan B v2 cache keeps each preset's extras separate.
+        k = "mtf.scratch.fx." + _scratchLoadedFor + "." + slot + "." + effectIdx + ".ex." + fieldName
     else
         k = "mtf.fx." + slot + "." + effectIdx + ".ex." + fieldName
     endif
@@ -1010,9 +1012,11 @@ EndFunction
 Function _loadScratchExtra(string f, string ep, int slot, int effectIdx, string xname)
 {Helper for _loadPresetToScratch — reads one known extra from the preset
  JSON and stores it at the scratch StorageUtil key. Zero is fine for
- missing extras (the consumer applies its own fallback default).}
+ missing extras (the consumer applies its own fallback default).
+ v0.2: namespaced by current scratch preset so the StorageUtil cache
+ (Plan B v2) keeps each preset's extras under its own slot.}
     float xval = JsonUtil.GetPathFloatValue(f, ep + ".extras." + xname, 0.0)
-    StorageUtil.SetFloatValue(self, "mtf.scratch.fx." + slot + "." + effectIdx + ".ex." + xname, xval)
+    StorageUtil.SetFloatValue(self, "mtf.scratch.fx." + _scratchLoadedFor + "." + slot + "." + effectIdx + ".ex." + xname, xval)
 EndFunction
 
 int Function WAVE_LUT_SIZE() global
@@ -1572,6 +1576,11 @@ bool Function SavePreset(string rawName)
     endwhile
 
     JsonUtil.Save(f)
+    ; Drop the cached scratch (Plan B v2) so the next _loadPresetToScratch
+    ; for this preset goes through the cold path and picks up the freshly-
+    ; saved JSON. Otherwise edits via MCM wouldn't propagate to the
+    ; stacked-preset render path until session restart.
+    _invalidateScratchCache(name)
     return true
 EndFunction
 
@@ -1826,6 +1835,10 @@ bool Function DeletePreset(string name)
     endif
     JsonUtil.SetIntValue(f, "valid", 0)
     JsonUtil.Save(f)
+    ; Drop any cached scratch buffer for this preset (Plan B v2) — even
+    ; though the .valid flag will gate future cold loads, a stale cached
+    ; copy would still hit the warm path until invalidated.
+    _invalidateScratchCache(name)
     return true
 EndFunction
 
@@ -2367,30 +2380,38 @@ EndFunction
 ; (slot, idx) on switch so stale scratch from a previous actor is naturally
 ; replaced; no explicit clear needed.
 
+; Plan B v2: scratch FX keys gain a per-preset segment so the StorageUtil-
+; backed scratch cache can hold each preset's bindings under its own
+; namespace; cache hits don't have to replay FX writes between swaps.
+; _scratchLoadedFor is the implicit "current preset" — set before any
+; FX write in _loadPresetToScratch (cold load) and updated on cache hits.
+; Player path (useScratch=false) keeps the legacy mtf.fx.<slot>.<idx>.*
+; keyspace.
+
 string Function _readFxKey(int slot, int idx, bool useScratch)
     if useScratch
-        return StorageUtil.GetStringValue(None, "mtf.fx.scratch." + slot + "." + idx + ".key", "")
+        return StorageUtil.GetStringValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".key", "")
     endif
     return StorageUtil.GetStringValue(None, "mtf.fx." + slot + "." + idx + ".key", "")
 EndFunction
 
 int Function _readFxParam(int slot, int idx, bool useScratch)
     if useScratch
-        return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + slot + "." + idx + ".param", 0)
+        return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param", 0)
     endif
     return StorageUtil.GetIntValue(None, "mtf.fx." + slot + "." + idx + ".param", 0)
 EndFunction
 
 int Function _readFxParam2(int slot, int idx, bool useScratch)
     if useScratch
-        return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + slot + "." + idx + ".param2", 0)
+        return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param2", 0)
     endif
     return StorageUtil.GetIntValue(None, "mtf.fx." + slot + "." + idx + ".param2", 0)
 EndFunction
 
 Function _writeFxKey(int slot, int idx, bool useScratch, string val)
     if useScratch
-        StorageUtil.SetStringValue(None, "mtf.fx.scratch." + slot + "." + idx + ".key", val)
+        StorageUtil.SetStringValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".key", val)
         return
     endif
     StorageUtil.SetStringValue(None, "mtf.fx." + slot + "." + idx + ".key", val)
@@ -2398,7 +2419,7 @@ EndFunction
 
 Function _writeFxParam(int slot, int idx, bool useScratch, int val)
     if useScratch
-        StorageUtil.SetIntValue(None, "mtf.fx.scratch." + slot + "." + idx + ".param", val)
+        StorageUtil.SetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param", val)
         return
     endif
     StorageUtil.SetIntValue(None, "mtf.fx." + slot + "." + idx + ".param", val)
@@ -2406,7 +2427,7 @@ EndFunction
 
 Function _writeFxParam2(int slot, int idx, bool useScratch, int val)
     if useScratch
-        StorageUtil.SetIntValue(None, "mtf.fx.scratch." + slot + "." + idx + ".param2", val)
+        StorageUtil.SetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param2", val)
         return
     endif
     StorageUtil.SetIntValue(None, "mtf.fx." + slot + "." + idx + ".param2", val)
@@ -4001,15 +4022,127 @@ Function _ensureScratchArrays()
 EndFunction
 
 float Function _getScratchPulsePause(int slot)
-    return StorageUtil.GetFloatValue(self, "mtf.scratch.pulse.pause." + slot, 0.0)
+    return StorageUtil.GetFloatValue(self, "mtf.scratch.pulse.pause." + _scratchLoadedFor + "." + slot, 0.0)
 EndFunction
 Function _setScratchPulsePause(int slot, float v)
-    StorageUtil.SetFloatValue(self, "mtf.scratch.pulse.pause." + slot, v)
+    StorageUtil.SetFloatValue(self, "mtf.scratch.pulse.pause." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+
+; ── Plan B v2: StorageUtil-backed scratch cache ─────────────────────────────
+; Each preset's fully-loaded scratch buffer (the `_s*` array + scalar set)
+; is snapshotted into per-preset StorageUtil keys after every cold load.
+; A `_loadPresetToScratch(name)` cache hit reads those back into `_s*`
+; via ~21 *ListToArray calls (~2.5 ms) instead of doing the ~480 ms
+; cold JSON + StorageUtil-effect-write work. This sidesteps the
+; [[project_papyrus_bulk_var_add]] failure the original Plan B attempt
+; hit — no new script-level vars to attach.
+;
+; Eviction is implicit: cache entries persist in StorageUtil until
+; explicitly invalidated. SavePreset / preset deletion call
+; _invalidateScratchCache(name). On a schema bump, increment the literal
+; in CACHED_SCRATCH_VERSION() so existing caches fail the version check
+; and get cold-rebuilt on next access.
+
+int Function CACHED_SCRATCH_VERSION() global
+{Bump when the _s* field set changes — old caches will fail the version
+ check and get cold-rebuilt on next _loadPresetToScratch. Single-source
+ of truth for the cache layout version.}
+    return 1
+EndFunction
+
+bool Function _isScratchCached(string name)
+    if name == ""
+        return false
+    endif
+    return StorageUtil.GetIntValue(None, "mtf.scratch.cached." + name + ".version", 0) == CACHED_SCRATCH_VERSION()
+EndFunction
+
+bool Function _loadScratchFromCache(string name)
+{Read the cached scratch buffer for `name` from StorageUtil lists into
+ the live `_s*` arrays via whole-array reference assignment. Returns
+ false when no cache exists (caller falls back to cold JSON load).
+ Caller is responsible for setting `_scratchLoadedFor = name` after
+ this returns true.}
+    if !_isScratchCached(name)
+        return false
+    endif
+    string ck = "mtf.scratch.cached." + name
+    _sCondPluginId          = StorageUtil.StringListToArray(None, ck + ".cond.pluginid")
+    _sCondParam             = StorageUtil.IntListToArray(None,    ck + ".cond.param")
+    _sCondPackId            = StorageUtil.StringListToArray(None, ck + ".cond.packid")
+    _sCondEntryId           = StorageUtil.StringListToArray(None, ck + ".cond.entryid")
+    _sCooldownMin           = StorageUtil.IntListToArray(None,    ck + ".cooldown.min")
+    _sCooldownMode          = StorageUtil.IntListToArray(None,    ck + ".cooldown.mode")
+    _sCondPulseRate         = StorageUtil.FloatListToArray(None,  ck + ".pulse.rate")
+    _sCondPulseDepth        = StorageUtil.IntListToArray(None,    ck + ".pulse.depth")
+    _sCondWaveform          = StorageUtil.StringListToArray(None, ck + ".pulse.waveform")
+    _sCondLayerTint         = StorageUtil.IntListToArray(None,    ck + ".layer.tint")
+    _sCondLayerEmissive     = StorageUtil.IntListToArray(None,    ck + ".layer.emissive")
+    _sCondLayerEmissiveMult = StorageUtil.FloatListToArray(None,  ck + ".layer.emissivemult")
+    _sCondLayerAlpha        = StorageUtil.IntListToArray(None,    ck + ".layer.alpha")
+    _sTransitionDuration    = StorageUtil.GetFloatValue(None, ck + ".transition.duration", 1.0)
+    _sFadeOnDeathEnabled    = StorageUtil.GetIntValue(None, ck + ".fadeondeath.enabled", 0) > 0
+    _sFadeOnDeathMode       = StorageUtil.GetIntValue(None, ck + ".fadeondeath.mode", 0)
+    _sFadeOnDeathDurationMs = StorageUtil.GetIntValue(None, ck + ".fadeondeath.durationms", 2000)
+    return true
+EndFunction
+
+Function _saveScratchToCache(string name)
+{Persist the freshly-cold-loaded `_s*` arrays into StorageUtil lists so
+ the next _loadPresetToScratch(name) can hit the warm path. Called once
+ per cold load at the very end of _loadPresetToScratch. Version stamp
+ is written LAST so a crash mid-write leaves the cache invalid (next
+ read sees version mismatch → cold rebuild) rather than partially
+ populated.}
+    if name == ""
+        return
+    endif
+    string ck = "mtf.scratch.cached." + name
+    StorageUtil.StringListCopy(None, ck + ".cond.pluginid",       _sCondPluginId)
+    StorageUtil.IntListCopy(None,    ck + ".cond.param",          _sCondParam)
+    StorageUtil.StringListCopy(None, ck + ".cond.packid",         _sCondPackId)
+    StorageUtil.StringListCopy(None, ck + ".cond.entryid",        _sCondEntryId)
+    StorageUtil.IntListCopy(None,    ck + ".cooldown.min",        _sCooldownMin)
+    StorageUtil.IntListCopy(None,    ck + ".cooldown.mode",       _sCooldownMode)
+    StorageUtil.FloatListCopy(None,  ck + ".pulse.rate",          _sCondPulseRate)
+    StorageUtil.IntListCopy(None,    ck + ".pulse.depth",         _sCondPulseDepth)
+    StorageUtil.StringListCopy(None, ck + ".pulse.waveform",      _sCondWaveform)
+    StorageUtil.IntListCopy(None,    ck + ".layer.tint",          _sCondLayerTint)
+    StorageUtil.IntListCopy(None,    ck + ".layer.emissive",      _sCondLayerEmissive)
+    StorageUtil.FloatListCopy(None,  ck + ".layer.emissivemult",  _sCondLayerEmissiveMult)
+    StorageUtil.IntListCopy(None,    ck + ".layer.alpha",         _sCondLayerAlpha)
+    StorageUtil.SetFloatValue(None,  ck + ".transition.duration",  _sTransitionDuration)
+    StorageUtil.SetIntValue(None,    ck + ".fadeondeath.enabled",  _sFadeOnDeathEnabled as int)
+    StorageUtil.SetIntValue(None,    ck + ".fadeondeath.mode",     _sFadeOnDeathMode)
+    StorageUtil.SetIntValue(None,    ck + ".fadeondeath.durationms", _sFadeOnDeathDurationMs)
+    StorageUtil.SetIntValue(None,    ck + ".version",              CACHED_SCRATCH_VERSION())
+EndFunction
+
+Function _invalidateScratchCache(string name)
+{Drop the cached scratch buffer for `name` so the next read goes through
+ the cold JSON path. Clears the version flag (cheap; cache lists stay
+ in StorageUtil until next save trims them but become unreadable).
+ Also resets `_scratchLoadedFor` when it matches, so a subsequent
+ _loadPresetToScratch(name) doesn't fast-return on the now-stale buffer.}
+    if name == ""
+        return
+    endif
+    StorageUtil.UnsetIntValue(None, "mtf.scratch.cached." + name + ".version")
+    if _scratchLoadedFor == name
+        _scratchLoadedFor = ""
+    endif
 EndFunction
 
 bool Function _loadPresetToScratch(string name)
 {Populate the scratch preset buffer from preset JSON. Skips re-load when
- already cached for `name`. Returns true on success; pass "" to clear.}
+ already cached for `name`. Returns true on success; pass "" to clear.
+
+ Plan B v2 caching: after the hot `name == _scratchLoadedFor` fast-return,
+ checks the StorageUtil-backed cache (`_loadScratchFromCache`). On hit:
+ swap `_s*` to the cached lists in ~21 *ListToArray calls (~2.5 ms) and
+ we're done — no JSON, no effect-write replay (FX scratch keys are
+ namespaced by preset name). On miss: full JSON cold load + final
+ `_saveScratchToCache` so future swaps to this preset are warm.}
     _ensureScratchArrays()
     if name == _scratchLoadedFor
         return name != ""
@@ -4017,6 +4150,11 @@ bool Function _loadPresetToScratch(string name)
     if name == ""
         _scratchLoadedFor = ""
         return false
+    endif
+    ; Warm cache hit — restore `_s*` from StorageUtil lists, done.
+    if _loadScratchFromCache(name)
+        _scratchLoadedFor = name
+        return true
     endif
     string f = _presetFile(name)
     if !JsonUtil.JsonExists(f)
@@ -4028,6 +4166,11 @@ bool Function _loadPresetToScratch(string name)
     if JsonUtil.GetPathIntValue(f, ".schemaversion", 1) < 4
         return false
     endif
+    ; Set _scratchLoadedFor early so namespaced FX scratch writers (which
+    ; key on _scratchLoadedFor) write under this preset's name rather than
+    ; the previously-loaded preset. The cache write at the end of cold
+    ; load also relies on _scratchLoadedFor being correct.
+    _scratchLoadedFor = name
     ; Per-preset cross-fade duration. Default 1.0s — a clearly-visible
     ; cinematic-feeling fade that flatters most stat-driven tier changes
     ; (the typical use case is "stat drops, tattoo glow rises" which the
@@ -4093,9 +4236,11 @@ bool Function _loadPresetToScratch(string name)
         while e < maxE
             string ep = sp + ".effect[" + e + "]"
             ; Scratch effect storage lives in StorageUtil under
-            ; mtf.fx.scratch.<slot>.<idx>.*. Every (slot, idx) is overwritten
-            ; on each call so stale state from a prior actor is naturally
-            ; replaced (defaults to "" / 0 when the preset omits the entry).
+            ; mtf.fx.scratch.<_scratchLoadedFor>.<slot>.<idx>.*. Per-preset
+            ; namespacing (Plan B v2) lets the StorageUtil cache hit path
+            ; skip these writes — each preset's effect bindings persist
+            ; across swaps under its own key segment. Missing entries
+            ; default to "" / 0.
             _writeFxKey(s, e, true, JsonUtil.GetPathStringValue(f, ep + ".key", ""))
             _writeFxParam(s, e, true, JsonUtil.GetPathIntValue(f, ep + ".param", 0))
             _writeFxParam2(s, e, true, JsonUtil.GetPathIntValue(f, ep + ".param2", 0))
@@ -4126,7 +4271,11 @@ bool Function _loadPresetToScratch(string name)
     _sCondLayerEmissive     = localLayerEmissive
     _sCondLayerEmissiveMult = localLayerEmMult
     _sCondLayerAlpha        = localLayerAlpha
-    _scratchLoadedFor = name
+    ; _scratchLoadedFor was already set at the top of cold load so the
+    ; namespaced FX writes above resolved correctly. Persist the
+    ; just-loaded scratch into the StorageUtil cache so the next
+    ; _loadPresetToScratch(name) skips the JSON work entirely.
+    _saveScratchToCache(name)
     return true
 EndFunction
 
