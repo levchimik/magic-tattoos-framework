@@ -9,6 +9,15 @@
 
 namespace MTFPulse {
 
+    // Steady-clock-since-DLL-init, in seconds. Same clock Tick() reads,
+    // same clock Roster::Set() stores into PulseEntry.transition_start.
+    // Exposed so the Papyrus glue can return it (MTFPulse.GetNowSec) and
+    // callers that pin a shared transition anchor across a batch of Set()s
+    // sample it in C++ time — Papyrus's Utility.GetCurrentRealTime() runs
+    // on a different epoch (Skyrim launch, not DLL init) and mixing the
+    // two breaks Tick's tt = now - transition_start math.
+    float NowSec();
+
     // One pulse subject. Snapshotted at Set(); the per-frame hot loop reads
     // these without any Papyrus/JsonUtil contact.
     struct PulseEntry
@@ -229,6 +238,26 @@ namespace MTFPulse {
         // actor_formID matches `actor`. Returns count of fades started.
         std::size_t TriggerFadeAllSlotsForActor(RE::Actor* actor);
 
+        // ── Transition batching (v0.1.7) ──────────────────────────────────
+        // Buffer incoming Set() calls into pending_batch_ until EndBatch
+        // fires, then install all queued entries atomically with one
+        // shared transition_start anchor. Solves the "stacked-preset
+        // cross-fades staircase" problem at the architectural level —
+        // Papyrus loops the slow per-preset work (JsonUtil reads, effect
+        // de/activate, NiOverride writes) and each iteration would
+        // otherwise call Set() at its own NowSec, leaving every preset's
+        // first Tick frame at a different lerp position (later entries
+        // jump past earlier ones, or hit the snap path past
+        // transition_duration). With batching, all Sets queue during the
+        // burst and EndBatch picks one NowSec + small forward offset so
+        // every slot enters the live roster with the same transition_start
+        // and the first frame after the anchor passes runs them in
+        // lockstep. Nested BeginBatch is idempotent (warns and treats as
+        // no-op); EndBatch without a matching Begin is a safe no-op.
+        // Calls to Set OUTSIDE a batch are immediate (legacy behavior).
+        void BeginBatch();
+        void EndBatch();
+
         // Called from the per-frame hook.
         void Tick();
 
@@ -241,15 +270,32 @@ namespace MTFPulse {
         std::array<PulseEntry, kCapacity> entries_{};
         std::size_t count_{ 0 };
 
-        // Mutex guards entries_/count_. The Set/Clear callbacks come from
-        // Papyrus VM threads; Tick runs on the main thread.
+        // Mutex guards entries_/count_/pending_batch_. The Set/Clear
+        // callbacks come from Papyrus VM threads; Tick runs on the main
+        // thread.
         mutable std::mutex mtx_;
         std::atomic<bool>  enabled_{ true };
+
+        // Batched-set state (v0.1.7). When in_batch_ is true, Set() queues
+        // incoming entries into pending_batch_ alongside their actor; the
+        // matching EndBatch() then installs all queued entries in one
+        // atomic mtx_-held pass with a single shared transition_start.
+        // Both are mtx_-guarded — Papyrus's BeginBatch/EndBatch glue is
+        // serialized through the same mutex Set/Tick already use.
+        bool                                            in_batch_{ false };
+        std::vector<std::pair<RE::Actor*, PulseEntry>>  pending_batch_;
 
         // Find by (FormID, base_slot). -1 if not present. mtx_ held.
         std::int32_t FindLocked(std::uint32_t formID, std::int32_t base_slot) const;
         void         RemoveAtLocked(std::size_t slot);
         void         EvictFarthestLocked(RE::TESObjectREFR* anchor);
+
+        // Install ONE entry into the live roster — same logic as Set's
+        // non-batch path, but factored out so EndBatch can reuse it for
+        // queued entries. mtx_ must be held by the caller. `anchor_ts`
+        // overrides any per-entry transition_start; pass NowSec() (or
+        // NowSec() + small forward offset) for the entire batch.
+        bool InstallLocked(RE::Actor* actor, const PulseEntry& src, float anchor_ts);
     };
 
 }  // namespace MTFPulse

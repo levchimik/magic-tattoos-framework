@@ -197,6 +197,119 @@ namespace MTFPulse::Papyrus {
             Roster::Instance().Set(actor, e);
         }
 
+        // Same as SetActorPulseWithTransition, plus the caller pins the
+        // cross-fade anchor by passing `transitionStartRT` (seconds from
+        // the same clock NowSec() uses — i.e. Utility.GetCurrentRealTime()
+        // on the Papyrus side). When > 0, Roster::Set stores this value
+        // directly as transition_start instead of capturing its own
+        // NowSec(); when <= 0 we fall through to the legacy NowSec()
+        // path. Callers that batch multiple Set calls in one Papyrus
+        // tick should snapshot one anchor (typically a few tens of ms in
+        // the FUTURE so every Set in the burst lands before the anchor)
+        // and pass it to every Set so all entries lerp in lockstep.
+        // Forward anchors are safe; back-dated anchors that land past
+        // (anchor + transition_duration) will hit Tick's snap path which
+        // skips alpha/tint writes.
+        void SetActorPulseWithTransitionAt(
+            RE::StaticFunctionTag*    /*tag*/,
+            RE::Actor*                actor,
+            float                     rate,
+            std::int32_t              depth_pct,
+            float                     pause,
+            std::int32_t              layer_count,
+            float                     start_time,
+            std::vector<float>        em_mults,
+            std::int32_t              base_overlay_slot,
+            bool                      is_female,
+            std::vector<float>        wave_lut,
+            std::vector<std::int32_t> tint_rgbs,
+            std::vector<std::int32_t> alphas_pct,
+            std::vector<std::int32_t> emissive_rgbs,
+            float                     transition_duration,
+            float                     transition_start_rt)
+        {
+            if (!actor) {
+                spdlog::warn("SetActorPulseWithTransitionAt called with null actor");
+                return;
+            }
+            if (layer_count <= 0) {
+                Roster::Instance().ClearAt(actor, base_overlay_slot);
+                return;
+            }
+            PulseEntry e{};
+            e.rate                = std::max(0.0f, rate);
+            e.depth               = std::clamp(depth_pct, 0, 100) * 0.01f;
+            e.pause               = std::max(0.0f, pause);
+            e.start_time          = start_time;
+            e.base_slot           = base_overlay_slot;
+            e.layer_count         = std::clamp(layer_count, 0, 4);
+            e.is_female           = is_female;
+            e.transition_duration = std::max(0.0f, transition_duration);
+            e.transition_start    = std::max(0.0f, transition_start_rt);  // 0 = legacy NowSec path
+            for (std::int32_t i = 0; i < e.layer_count; ++i) {
+                const auto L = static_cast<std::size_t>(i);
+                e.layer_base_em_mult[L] = (i < static_cast<std::int32_t>(em_mults.size()))
+                    ? em_mults[L]
+                    : 0.0f;
+                const std::int32_t a_pct = (i < static_cast<std::int32_t>(alphas_pct.size()))
+                    ? alphas_pct[L]
+                    : 100;
+                e.target_alpha[L] = std::clamp(a_pct, 0, 100) * 0.01f;
+                e.target_tint[L]  = (i < static_cast<std::int32_t>(tint_rgbs.size()))
+                    ? tint_rgbs[L]
+                    : static_cast<std::int32_t>(0xFFFFFF);
+                e.target_emissive[L] = (i < static_cast<std::int32_t>(emissive_rgbs.size()))
+                    ? emissive_rgbs[L]
+                    : static_cast<std::int32_t>(0xFFFFFF);
+            }
+            if (wave_lut.size() == PulseEntry::kWaveLUTSize) {
+                std::copy(wave_lut.begin(), wave_lut.end(), e.wave_lut.begin());
+                e.has_wave_lut = true;
+            } else {
+                e.has_wave_lut = false;
+            }
+            Roster::Instance().Set(actor, e);
+        }
+
+        // ── Transition batching (v0.1.7) ──────────────────────────────
+        // Wrap a Papyrus burst that touches several roster slots in
+        // BeginTransitionBatch / EndTransitionBatch. SetActorPulse* calls
+        // between the two queue into C++'s pending list instead of
+        // installing into the live roster immediately; EndTransitionBatch
+        // takes ONE NowSec snapshot and installs every queued entry with
+        // the same transition_start, so they all enter the live roster
+        // atomically and Tick lerps them in lockstep. This is the
+        // architectural fix to the stacked-preset "tattoos fade in one
+        // after another" symptom — without batching, each Set() landed at
+        // its own NowSec and later entries either started mid-lerp or hit
+        // Tick's snap path when the Papyrus burst exceeded
+        // transition_duration. Calling Begin twice (without an intervening
+        // End) logs a warning and is otherwise a no-op; calling End
+        // without a matching Begin is also a no-op.
+        void BeginTransitionBatch(RE::StaticFunctionTag* /*tag*/)
+        {
+            Roster::Instance().BeginBatch();
+        }
+        void EndTransitionBatch(RE::StaticFunctionTag* /*tag*/)
+        {
+            Roster::Instance().EndBatch();
+        }
+
+        // Expose the C++ clock used by Tick / Roster::Set so Papyrus can
+        // sample it for a shared transition anchor. C++ NowSec is
+        // steady_clock since DLL init (see pulse_roster.cpp TOrigin) —
+        // Papyrus's Utility.GetCurrentRealTime() counts from Skyrim launch
+        // and the two are off by a constant (DLL init lands a few seconds
+        // into game launch under SKSE plugin load). Without this, callers
+        // that wanted to pin transition_start would pass a Papyrus-time
+        // value that C++ then misinterpreted as C++ time → tt computed
+        // in Tick was wildly negative and the cross-fade stuck at eased=0
+        // forever, leaving tattoos painted at their from-state.
+        float GetNowSec(RE::StaticFunctionTag* /*tag*/)
+        {
+            return NowSec();
+        }
+
         // Removes EVERY entry the actor owns (across all base_slots).
         // Use on death / unload / total teardown.
         void ClearActor(RE::StaticFunctionTag* /*tag*/, RE::Actor* actor)
@@ -381,7 +494,11 @@ namespace MTFPulse::Papyrus {
             return false;
         }
         vm->RegisterFunction("SetActorPulse",               kClassName, SetActorPulse);
-        vm->RegisterFunction("SetActorPulseWithTransition", kClassName, SetActorPulseWithTransition);
+        vm->RegisterFunction("SetActorPulseWithTransition",   kClassName, SetActorPulseWithTransition);
+        vm->RegisterFunction("SetActorPulseWithTransitionAt", kClassName, SetActorPulseWithTransitionAt);
+        vm->RegisterFunction("GetNowSec",                     kClassName, GetNowSec);
+        vm->RegisterFunction("BeginTransitionBatch",          kClassName, BeginTransitionBatch);
+        vm->RegisterFunction("EndTransitionBatch",            kClassName, EndTransitionBatch);
         vm->RegisterFunction("ClearActor",                  kClassName, ClearActor);
         vm->RegisterFunction("ClearActorAt",  kClassName, ClearActorAt);
         vm->RegisterFunction("ClearAll",      kClassName, ClearAll);

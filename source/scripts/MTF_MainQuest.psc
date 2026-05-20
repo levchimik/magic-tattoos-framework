@@ -2959,21 +2959,70 @@ State checkingAroused
                     _compactAppliedPresets(PlayerRef)
                 endif
             endif
+            ; Batch every roster update across the stacked-preset loop so
+            ; the C++ side queues incoming SetActorPulse* calls and
+            ; installs them all at EndTransitionBatch with one shared
+            ; transition_start. This is the only way to get every stacked
+            ; preset's cross-fade to lerp in lockstep — without the batch,
+            ; each Set() captured its own NowSec inside Roster::Set, and
+            ; the Papyrus burst (sequential JsonUtil reads + effect
+            ; activate per preset) spreads those NowSec values over
+            ; hundreds of milliseconds → later slots either jumped past
+            ; earlier ones mid-lerp or, if the burst exceeded
+            ; transition_duration, hit Tick's snap path and popped on
+            ; without any fade. EndTransitionBatch runs unconditionally
+            ; so a mid-loop early-return doesn't leave the C++ side
+            ; permanently in batch mode.
+            Debug.Trace("[MTF-EVAL] slow-tick player loop rt=" + now + " playerPresetN=" + playerPresetN)
+
+            ; Plan A (v0.2 perf pass): Two-pass slow-tick.
+            ;
+            ; Pass 1 — pre-eval. Walk every loaded preset and capture its
+            ; target tier via _quickEvalCondsFromJson, which reads
+            ; cond+cooldown straight from the preset JSON (no scratch load).
+            ; This snapshots all tiers atomically at the start of the tick,
+            ; before any apply work runs. Without this, a multi-preset
+            ; transition staircases — slot 2's eval reads an actor value
+            ; that already shifted past the threshold during the seconds
+            ; spent applying slot 1, so slot 2 ends up on the wrong tier
+            ; until the next slow tick catches it back up.
+            ;
+            ; Pass 2 — apply. Load scratch per preset and forward the
+            ; pre-eval'd tier to _evalAndDrawPresetForActorWithKnownTier
+            ; so the apply branch acts on the snapshot, not a re-evaluation.
+            ; BeginTransitionBatch/EndTransitionBatch still pin one shared
+            ; transition_start across the whole apply pass so the C++ side
+            ; lerps every changed slot in lockstep.
+            string[] presetNames
+            int[]    preEvalTiers
+            if playerPresetN > 0
+                presetNames  = Utility.CreateStringArray(playerPresetN, "")
+                preEvalTiers = Utility.CreateIntArray(playerPresetN, 0)
+                int ppe = 0
+                while ppe < playerPresetN
+                    string ppNameE = GetActorPresetAt(PlayerRef, ppe)
+                    presetNames[ppe] = ppNameE
+                    if ppNameE != ""
+                        preEvalTiers[ppe] = _quickEvalCondsFromJson(PlayerRef, ppNameE)
+                    endif
+                    ppe += 1
+                endwhile
+            endif
+
+            MTFPulse.BeginTransitionBatch()
             int ppi = 0
             while ppi < playerPresetN
-                string ppName = GetActorPresetAt(PlayerRef, ppi)
-                if ppName != "" && _loadPresetToScratch(ppName)
-                    ; Pass `now` (snapshot from the top of OnUpdate) so every
-                    ; stacked preset transitioning in this tick anchors its
-                    ; cross-fade to the same moment. Without the shared anchor,
-                    ; the C++ Roster::Set captured its own NowSec() per call
-                    ; and the fades visibly staircased.
-                    if _evalAndDrawPresetForActor(PlayerRef, ppName, true, now)
+                string ppName = presetNames[ppi]
+                bool loadedOk = ppName != "" && _loadPresetToScratch(ppName)
+                Debug.Trace("[MTF-EVAL] ppi=" + ppi + " name='" + ppName + "' loaded=" + loadedOk)
+                if loadedOk
+                    if _evalAndDrawPresetForActorWithKnownTier(PlayerRef, ppName, preEvalTiers[ppi], true)
                         needPlayerApply = true
                     endif
                 endif
                 ppi += 1
             endwhile
+            MTFPulse.EndTransitionBatch()
 
             if needPlayerApply
                 NiOverride.ApplyNodeOverrides(PlayerRef)
@@ -4354,6 +4403,63 @@ EndFunction
 ; directly with the natural (slot, idx) shape instead of a flat fxIdx.
 
 ; ── Generalized eval + effect dispatch ──────────────────────────────────────
+int Function _quickEvalCondsFromJson(Actor target, string presetName)
+{Fast scratch-free tier evaluator. Reads cond.pluginid / cond.param /
+ cooldown.mode directly from the preset JSON, dispatches checkCondition,
+ and returns the winning slot — same semantics as
+ evaluateTierForActor(target, presetName, true) but without the
+ ~480ms _loadPresetToScratch round-trip. Used by the slow-tick pre-eval
+ pass to capture every loaded preset's target tier atomically before any
+ apply work runs, so multi-preset cross-fades don't staircase because
+ slot 2's eval saw an AV that already shifted during slot 1's apply.
+
+ Always uses the scratch-path evalParam2 = 0 convention (stacked presets
+ don't carry param2). Cooldowns are read via _getActorPresetCooldown,
+ which is actor-keyed and doesn't touch scratch. Returns 0 on any
+ failure path (no preset file, killed actor, no matching slot).}
+    if target == None || presetName == ""
+        return 0
+    endif
+    if _getActorKilled(target)
+        return 0
+    endif
+    string f = _presetFile(presetName)
+    if !JsonUtil.JsonExists(f)
+        return 0
+    endif
+    float now = Utility.GetCurrentGameTime()
+    int i = 1
+    while i < 8
+        string sp = ".slot[" + i + "]"
+        string key = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
+        if key != ""
+            float cdEnd = _getActorPresetCooldown(target, presetName, i)
+            bool timerActive = (now < cdEnd)
+            int mode = JsonUtil.GetPathIntValue(f, sp + ".cooldown.mode", 0)
+            if mode == 1 && timerActive
+                return i
+            endif
+            bool inCooldown = (mode == 0 && timerActive)
+            if !inCooldown
+                MTF_Plugin p = ResolvePluginByKey(key)
+                if p != None
+                    int itemIdx = _condIdxFor(p, _keyItemId(key))
+                    if itemIdx >= 0
+                        int param = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
+                        ; Stacked presets always use scratch path → evalParam2 = 0.
+                        _setEvalParam2(0)
+                        if p.checkCondition(itemIdx, target, param)
+                            return i
+                        endif
+                    endif
+                endif
+            endif
+        endif
+        i += 1
+    endwhile
+    return 0
+EndFunction
+
 int Function evaluateTierForActor(Actor target, string presetName, bool useScratch)
 {Evaluate the winning condition slot for `target`. When useScratch is true,
  the per-(actor, preset, slot) cooldown is consulted via presetName; when
@@ -4511,7 +4617,7 @@ int Function _resolveDispatchBaseSlot(Actor target, string presetName)
 EndFunction
 
 ; ── Per-preset eval + draw cycle ────────────────────────────────────────────
-bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferApply = false, float sharedRT = 0.0)
+bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferApply = false)
 {One preset's eval+draw cycle on a target. Caller must already have run
  _loadPresetToScratch(name). Fires tier transition edges, arms cooldowns,
  stamps the overlay at the preset's stored base/layers, and updates the
@@ -4525,22 +4631,44 @@ bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferAp
  same frame instead of staircasing 0.5s apart (one expensive Apply per
  preset on a moderately stacked character).
 
- `sharedRT > 0` overrides the per-preset Utility.GetCurrentRealTime()
- snapshot used for pulse start AND cross-fade transition_start. Callers
- that batch multiple presets in one tick (slow-tick loop, EvalAndDrawActor,
- _processTrackedActorOnce) pass the same value so the C++ roster lerps
- all their cross-fades from a single anchor — without this, each call
- captured its own NowSec() inside Roster::Set() and the fades staircased
- by the Papyrus loop latency between iterations (~50-200 ms each).}
+ Stacked-preset cross-fade synchronization (v0.1.7): callers running a
+ multi-preset loop should wrap it in MTFPulse.BeginTransitionBatch /
+ EndTransitionBatch — that pins ONE shared transition_start across every
+ roster Set queued during the batch so all stacked transitions lerp in
+ lockstep regardless of how long the per-preset Papyrus work between
+ Sets takes. See slow-tick player loop for the canonical pattern.}
     if target == None || name == ""
         return false
     endif
     int prev = _getActorPresetTier(target, name)
     int now  = evaluateTierForActor(target, name, true)
-    float rtNow = sharedRT
-    if rtNow <= 0.0
-        rtNow = Utility.GetCurrentRealTime()
+    return _applyPresetTierChange(target, name, prev, now, deferApply)
+EndFunction
+
+bool Function _evalAndDrawPresetForActorWithKnownTier(Actor target, string name, int newTier, bool deferApply = false)
+{Variant of _evalAndDrawPresetForActor that uses a pre-computed `newTier`
+ instead of running evaluateTierForActor again. Used by the slow-tick
+ pre-eval pass (Plan A v0.2) to apply tier changes against a snapshot
+ taken atomically before any apply work began — without this, multi-preset
+ transitions can staircase because slot 2's eval reads an AV that already
+ shifted past the threshold during slot 1's apply. Same precondition as
+ _evalAndDrawPresetForActor: caller must have already run
+ _loadPresetToScratch(name).}
+    if target == None || name == ""
+        return false
     endif
+    int prev = _getActorPresetTier(target, name)
+    return _applyPresetTierChange(target, name, prev, newTier, deferApply)
+EndFunction
+
+bool Function _applyPresetTierChange(Actor target, string name, int prev, int now, bool deferApply)
+{Shared body for both _evalAndDrawPresetForActor (self-eval) and
+ _evalAndDrawPresetForActorWithKnownTier (pre-eval). Handles the tier
+ transition edge — deactivate prev effects, update roster, draw, activate
+ new effects, fire notification — plus the same-tier per-tick effect pulse.
+ Caller is responsible for scratch load.}
+    float rtNow = Utility.GetCurrentRealTime()
+    Debug.Trace("[MTF-EVAL] preset=" + name + " prev=" + prev + " now=" + now + " rt=" + rtNow)
     bool drew = false
     if now != prev
         if prev >= 0
@@ -4625,16 +4753,18 @@ Function EvalAndDrawActor(Actor target)
     endif
     int i = 0
     bool needApply = false
-    float anchorRT = Utility.GetCurrentRealTime()
+    ; Roster batch — see slow-tick player loop comment for the why.
+    MTFPulse.BeginTransitionBatch()
     while i < n
         string nm = GetActorPresetAt(target, i)
         if nm != "" && _loadPresetToScratch(nm)
-            if _evalAndDrawPresetForActor(target, nm, true, anchorRT)
+            if _evalAndDrawPresetForActor(target, nm, true)
                 needApply = true
             endif
         endif
         i += 1
     endwhile
+    MTFPulse.EndTransitionBatch()
     if needApply
         NiOverride.ApplyNodeOverrides(target)
     endif
@@ -4694,7 +4824,13 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
  is ~4 SetNodeProperty writes per frame of a constant value — trivial.
 
  Only no-ops (and clears any existing per-preset entry) when the preset
- has no visual layers for this tier — i.e. tier resolves to no overlay.}
+ has no visual layers for this tier — i.e. tier resolves to no overlay.
+
+ Stacked-preset sync (v0.1.7): callers wrap their multi-preset loop in
+ MTFPulse.BeginTransitionBatch / EndTransitionBatch — every Set() between
+ the two queues into the C++ pending list and they're all installed at
+ once with a single shared transition_start at EndBatch. Nothing extra
+ is needed here.}
     if a == None || name == "" || tier < 0 || tier >= 8
         return
     endif
@@ -4752,6 +4888,10 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
     ; color — typically pure white — was multiplied by em_mult into a
     ; visible bright flash before em_mult finished fading to zero. Lerping
     ; emissive color in lockstep with em_mult eliminates the flash.
+    ; The C++ roster captures the actual cross-fade anchor at
+    ; EndTransitionBatch when the surrounding loop is wrapped in
+    ; BeginTransitionBatch / EndTransitionBatch; outside a batch this
+    ; behaves as the legacy single-shot install (NowSec at Set time).
     MTFPulse.SetActorPulseWithTransition(a, rate, depth, _g_pulsePause(tier, true), \
                                          layerN, startRT, emMults, \
                                          baseSlot, isFemale, lut, \
@@ -4810,16 +4950,18 @@ Function _processTrackedActorOnce(Actor target)
     endif
     int i = 0
     bool needApply = false
-    float anchorRT = Utility.GetCurrentRealTime()
+    ; Roster batch — see slow-tick player loop comment for the why.
+    MTFPulse.BeginTransitionBatch()
     while i < n
         string nm = GetActorPresetAt(target, i)
         if nm != "" && _loadPresetToScratch(nm)
-            if _evalAndDrawPresetForActor(target, nm, true, anchorRT)
+            if _evalAndDrawPresetForActor(target, nm, true)
                 needApply = true
             endif
         endif
         i += 1
     endwhile
+    MTFPulse.EndTransitionBatch()
     if needApply
         NiOverride.ApplyNodeOverrides(target)
     endif

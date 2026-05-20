@@ -40,6 +40,48 @@ Function SetActorPulseWithTransition(Actor aktor, Float rate, Int depthPct, Floa
                                      Int[] tintRGBs, Int[] alphasPct, Int[] emissiveRGBs, \
                                      Float transitionDuration) Global Native
 
+; Same as SetActorPulseWithTransition, plus the caller pins the cross-fade
+; anchor by passing `transitionStartRT` (Utility.GetCurrentRealTime() — the
+; same clock the C++ side reads via NowSec()). When >0 the C++ roster stores
+; this as transition_start instead of capturing its own NowSec() per Set
+; call; when <=0 it falls back to the legacy NowSec path (identical to
+; SetActorPulseWithTransition). Callers batching several Set()s in one
+; Papyrus tick should snapshot ONE anchor (typically a few tens of ms in
+; the future so all bursts land before the anchor) and pass it to every
+; Set so all entries lerp in lockstep — without this the per-call NowSec()
+; capture made the first-frame alpha writes visibly staircase the "tattoos
+; pop on" moment across stacked presets. Forward anchors are safe; back-
+; dated anchors past (anchor + transitionDuration) snap and skip the
+; alpha/tint write — callers must keep the anchor at now-or-near-future.
+Function SetActorPulseWithTransitionAt(Actor aktor, Float rate, Int depthPct, Float pause, \
+                                       Int layerCount, Float startTime, Float[] emMults, \
+                                       Int baseOverlaySlot, Bool isFemale, Float[] waveLUT, \
+                                       Int[] tintRGBs, Int[] alphasPct, Int[] emissiveRGBs, \
+                                       Float transitionDuration, Float transitionStartRT) Global Native
+
+; The C++ clock Tick() reads and Roster::Set() stores into transition_start
+; (steady_clock since DLL init). Sample this — NOT Utility.GetCurrentRealTime
+; (which counts from Skyrim launch, a different epoch) — when pinning a
+; shared transition anchor across a batch of SetActorPulseWithTransitionAt
+; calls. Mixing the two clocks leaves Tick's `tt = now - transition_start`
+; computation hugely negative and the cross-fade stuck at eased=0 forever
+; (tattoos paint at from-state, never reach target).
+Float Function GetNowSec() Global Native
+
+; Transition batching (v0.1.7). Wrap any Papyrus loop that pushes several
+; roster updates in BeginTransitionBatch / EndTransitionBatch and the C++
+; side will queue every intervening SetActorPulse* call, then install all
+; queued entries atomically at EndTransitionBatch with one shared
+; transition_start — so stacked-preset cross-fades lerp in lockstep
+; regardless of how long the Papyrus burst between them takes. Without
+; batching, each Set() captured its own NowSec and later entries either
+; jumped past earlier ones mid-lerp or hit the snap path (when the burst
+; exceeded transition_duration). Nested Begin is logged and ignored;
+; End without Begin is a safe no-op. Set() calls OUTSIDE a batch keep
+; the legacy "install immediately at NowSec" behavior.
+Function BeginTransitionBatch() Global Native
+Function EndTransitionBatch() Global Native
+
 ; Remove EVERY entry the actor owns (all base_slots).
 ; Use on death / unload / total teardown.
 Function ClearActor(Actor aktor) Global Native

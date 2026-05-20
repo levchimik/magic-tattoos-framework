@@ -23,10 +23,18 @@ namespace MTFPulse {
             return t;
         }
 
-        float NowSec()
-        {
-            return std::chrono::duration<float>(std::chrono::steady_clock::now() - TOrigin()).count();
-        }
+    } // anonymous namespace
+
+    // Header-visible (see pulse_roster.h). papyrus.cpp's GetNowSec native
+    // returns this so Papyrus callers pinning a shared transition anchor
+    // sample the SAME steady_clock + TOrigin pair Tick reads, avoiding
+    // the clock-epoch mismatch with Utility.GetCurrentRealTime().
+    float NowSec()
+    {
+        return std::chrono::duration<float>(std::chrono::steady_clock::now() - TOrigin()).count();
+    }
+
+    namespace {
 
         // Cosine ease-in-out: 0 at p=0, 1 at p=1, derivative=0 at both
         // ends — looks more natural than a linear ramp for tint/alpha.
@@ -129,8 +137,31 @@ namespace MTFPulse {
             return false;
         }
         std::lock_guard lock(mtx_);
-        const auto formID = actor->GetFormID();
 
+        // Batched mode: queue and defer install to EndBatch so every
+        // entry pushed during this Papyrus burst lands in the live
+        // roster with the same transition_start. See pulse_roster.h.
+        if (in_batch_) {
+            pending_batch_.emplace_back(actor, src);
+            return true;
+        }
+
+        // Honor caller-specified transition_start if non-zero. Forward-
+        // scheduled values (rtNow + small epsilon) are SAFE — Tick's
+        // first read sees `tt <= 0` and takes the start-of-lerp branch
+        // (transitioning=true, eased=0), which writes the from-state to
+        // the live shader correctly. Back-dated anchors past
+        // (anchor + transition_duration) hit Tick's snap path which
+        // doesn't write alpha/tint/emissive — callers must pass anchors
+        // that are now-or-future.
+        const float anchorTS = (src.transition_start > 0.0f) ? src.transition_start : NowSec();
+        return InstallLocked(actor, src, anchorTS);
+    }
+
+    bool Roster::InstallLocked(RE::Actor* actor, const PulseEntry& src, float anchor_ts)
+    {
+        // Caller holds mtx_.
+        const auto formID = actor->GetFormID();
         std::int32_t slot = FindLocked(formID, src.base_slot);
 
         // Capture transition from-state from the existing entry's last
@@ -173,19 +204,6 @@ namespace MTFPulse {
             seeded.flash_last_tick     = prev.flash_last_tick;
         }
 
-        // transition_start uses src.start_time so the Papyrus caller can
-        // synchronize cross-fades across multiple roster updates pushed in
-        // the same tick. Without this, three back-to-back Set() calls each
-        // grabbed their own NowSec() — 50-200 ms apart due to Papyrus loop
-        // latency — and the resulting cross-fades visibly staircased even
-        // when the tier transitions all happened "at the same moment" from
-        // the player's POV. start_time defaults to Utility.GetCurrentRealTime()
-        // in the existing callers (microseconds drift from NowSec() for a
-        // single-shot call); when Papyrus snapshots one rtNow per slow-tick
-        // and passes it to every roster update, all entries share the same
-        // transition_start and animate in lockstep. Falls back to NowSec()
-        // only if start_time is non-positive (defensive).
-        const float ts = (src.start_time > 0.0f) ? src.start_time : NowSec();
         if (slot >= 0 && src.transition_duration > 0.0f) {
             const auto& prev = entries_[slot];
             const std::int32_t copyN = std::clamp<std::int32_t>(src.layer_count, 0, 4);
@@ -204,7 +222,7 @@ namespace MTFPulse {
                     seeded.from_emissive[L] = prev.target_emissive[L];
                 }
             }
-            seeded.transition_start = ts;
+            seeded.transition_start = anchor_ts;
             seeded.has_last_interp  = false;  // Tick will repopulate this frame
         } else if (slot < 0 && src.transition_duration > 0.0f) {
             // Fresh entry: from_ = target_ ⇒ visually instant.
@@ -216,8 +234,25 @@ namespace MTFPulse {
                 seeded.from_tint[L]     = src.target_tint[L];
                 seeded.from_emissive[L] = src.target_emissive[L];
             }
-            seeded.transition_start = ts;
+            seeded.transition_start = anchor_ts;
             seeded.has_last_interp  = false;
+        }
+
+        // Pin pulse phase so the wave hits peak (phase=0.5 for the cosine
+        // fallback, mid-LUT for custom waves) exactly when the transition
+        // ends. Without this, when the pulse modulation switches on at
+        // eased=1 the wave phase is essentially random — for slow rates
+        // the wave is often still low at that point, so `pulsed *
+        // target_em` pulls em DOWN below the smooth-ramp end value, which
+        // users see as a "blink" right when the color settles. Pinning to
+        // peak makes pulsed=1.0 at the handoff, so the steady-state value
+        // matches the lerp end exactly. Only applies to transitions with
+        // rate>0 — rate=0 entries (no pulse) don't need phase alignment.
+        if (seeded.transition_duration > 0.0f && seeded.rate > 0.0f) {
+            const float cycle = 1.0f / seeded.rate;
+            seeded.start_time = seeded.transition_start
+                              + seeded.transition_duration
+                              - 0.5f * cycle;
         }
 
         if (slot < 0) {
@@ -226,7 +261,7 @@ namespace MTFPulse {
                 EvictFarthestLocked(player);
             }
             if (count_ >= kCapacity) {
-                spdlog::warn("Roster::Set FULL formID=0x{:08x} base_slot={} kCapacity={}",
+                spdlog::warn("Roster::InstallLocked FULL formID=0x{:08x} base_slot={} kCapacity={}",
                              formID, src.base_slot, kCapacity);
                 return false;
             }
@@ -236,6 +271,45 @@ namespace MTFPulse {
         entries_[slot].actor        = actor->GetHandle();
         entries_[slot].actor_formID = formID;
         return true;
+    }
+
+    void Roster::BeginBatch()
+    {
+        std::lock_guard lock(mtx_);
+        if (in_batch_) {
+            spdlog::warn("Roster::BeginBatch called while already batching ({} pending) — ignoring",
+                         pending_batch_.size());
+            return;
+        }
+        in_batch_ = true;
+        pending_batch_.clear();  // defensive — should already be empty
+    }
+
+    void Roster::EndBatch()
+    {
+        std::lock_guard lock(mtx_);
+        if (!in_batch_) {
+            // Tolerated — Papyrus side may call EndBatch unconditionally
+            // even when BeginBatch was skipped (e.g. early-return path).
+            return;
+        }
+        // Single forward-scheduled anchor for the whole batch. Small
+        // forward offset (~50 ms) means Tick's first read for every
+        // installed slot sees `tt <= 0`, holding from-state on live until
+        // the anchor passes — then all slots simultaneously start their
+        // lerp on the same frame. Forward offset must be small to keep
+        // perceptible lag low; the bulk of the wait users see is the
+        // Papyrus burst itself between BeginBatch and EndBatch (the
+        // sequential JsonUtil reads + effect activate), not the anchor.
+        const float anchor_ts = NowSec() + 0.05f;
+        for (auto& [actor, src] : pending_batch_) {
+            if (!actor) {
+                continue;
+            }
+            InstallLocked(actor, src, anchor_ts);
+        }
+        pending_batch_.clear();
+        in_batch_ = false;
     }
 
     bool Roster::ClearAt(RE::Actor* actor, std::int32_t base_slot)
@@ -414,8 +488,37 @@ namespace MTFPulse {
             }
 
             const float t      = now - e.start_time;
-            const float depth  = e.depth;
-            const float floorM = 1.0f - depth;
+
+            // Transition state: if we're inside the cross-fade window, set
+            // `transitioning=true` and compute `eased` ∈ [0,1]. Otherwise
+            // the layer loop uses target values directly. Computed BEFORE
+            // pulse depth so we can ramp pulse modulation in alongside the
+            // tint/em ceiling lerp.
+            bool  transitioning = false;
+            float eased         = 1.0f;
+            if (e.transition_duration > 0.0f) {
+                const float tt = now - e.transition_start;
+                if (tt >= e.transition_duration) {
+                    // Window closed. Snap to target and disable future
+                    // transition processing on this entry.
+                    e.transition_duration = 0.0f;
+                    eased = 1.0f;
+                } else if (tt <= 0.0f) {
+                    // Clock skew or just-set entry — treat as start.
+                    eased = 0.0f;
+                    transitioning = true;
+                } else {
+                    eased = EaseInOut(tt / e.transition_duration);
+                    transitioning = true;
+                }
+            }
+
+            // No depth ramp during transition — we lerp the ceiling
+            // directly with no pulse modulation, and InstallLocked pinned
+            // start_time so the wave hits peak at transition end. That
+            // makes the handoff to steady-pulse seamless (pulsed=1 at
+            // eased=1, so steady_em = target_em, matching the lerp end).
+            const float floorM = 1.0f - e.depth;
 
             // Sample the waveform at the current phase. With pause > 0 the
             // wave runs for one cycle then holds at 0 for `pause` seconds
@@ -450,42 +553,7 @@ namespace MTFPulse {
             } else {
                 wave = 0.0f;
             }
-            const float pulsed = floorM + depth * wave;
-
-            // Transition state: if we're inside the cross-fade window, set
-            // `transitioning=true` and compute `eased` ∈ [0,1]. Otherwise
-            // the layer loop uses target values directly.
-            bool  transitioning = false;
-            float eased         = 1.0f;
-            if (e.transition_duration > 0.0f) {
-                const float tt = now - e.transition_start;
-                if (tt >= e.transition_duration) {
-                    // Window already closed by the time we first Tick this
-                    // entry (happens when callers pass a back-dated start
-                    // anchor — e.g. the slow-tick batch where every preset
-                    // shares one src.start_time but later iterations land
-                    // hundreds of ms after that anchor). Keep transitioning
-                    // true for THIS frame so the per-layer loop below
-                    // actually writes target alpha/tint/emissive once.
-                    // Without that write, the live shader retains whatever
-                    // the previous transition (or pre-entry state) left
-                    // there — tier 0→1 stays at from=0 (black) and tier
-                    // 1→0 keeps the tier-1 color. Future Ticks see
-                    // transition_duration=0 and route through the steady
-                    // ELSE branch, which doesn't (and shouldn't) re-write
-                    // these channels.
-                    e.transition_duration = 0.0f;
-                    eased = 1.0f;
-                    transitioning = true;
-                } else if (tt <= 0.0f) {
-                    // Clock skew or just-set entry — treat as start.
-                    eased = 0.0f;
-                    transitioning = true;
-                } else {
-                    eased = EaseInOut(tt / e.transition_duration);
-                    transitioning = true;
-                }
-            }
+            const float pulsed = floorM + e.depth * wave;
 
             // Flash envelope (v0.1.3 additive). When a qualifying hit has
             // stamped flash_last_hit, target=1 while within retrigger window
@@ -532,16 +600,29 @@ namespace MTFPulse {
                 std::snprintf(node, sizeof(node), "Body [ovl%d]",
                               static_cast<int>(e.base_slot + li));
 
-                // Effective ceiling = lerp(from, target, eased) while
-                // transitioning, just `target` otherwise.
-                float ceiling = e.layer_base_em_mult[L];
-                if (transitioning) {
-                    ceiling = e.from_em_mult[L] + (e.layer_base_em_mult[L] - e.from_em_mult[L]) * eased;
-                }
+                // Steady-pulse target (used outside transitions and for
+                // diagnostic logging).
+                const float steady_em = pulsed * e.layer_base_em_mult[L];
 
-                const float final_mult = pulsed * ceiling + flash_add;
+                // During transition: pure ceiling lerp from the last
+                // rendered em to the target ceiling, no wave/pulse
+                // modulation. Wave phase was pinned at Install so it
+                // hits peak at transition end, meaning pulsed≈1 at
+                // eased=1 → steady_em≈target_em → seamless handoff.
+                // Steady state: pulse modulates the ceiling normally.
+                float em_no_flash;
+                if (transitioning) {
+                    em_no_flash = e.from_em_mult[L]
+                                + (e.layer_base_em_mult[L] - e.from_em_mult[L]) * eased;
+                } else {
+                    em_no_flash = steady_em;
+                }
+                const float final_mult = em_no_flash + flash_add;
                 skee_bridge::WriteEmissiveMult(actor, e.is_female, node, final_mult);
-                e.last_interp_em_mult[L] = ceiling;
+                // Track post-pulse rendered em (sans transient flash) so
+                // the next transition's from_em snapshots the actual visible
+                // value, not a static ceiling.
+                e.last_interp_em_mult[L] = em_no_flash;
 
                 if (transitioning) {
                     const float        alpha    = e.from_alpha[L] + (e.target_alpha[L] - e.from_alpha[L]) * eased;
