@@ -460,10 +460,23 @@ namespace MTFPulse {
             if (e.transition_duration > 0.0f) {
                 const float tt = now - e.transition_start;
                 if (tt >= e.transition_duration) {
-                    // Window closed. Snap to target and disable future
-                    // transition processing on this entry.
+                    // Window already closed by the time we first Tick this
+                    // entry (happens when callers pass a back-dated start
+                    // anchor — e.g. the slow-tick batch where every preset
+                    // shares one src.start_time but later iterations land
+                    // hundreds of ms after that anchor). Keep transitioning
+                    // true for THIS frame so the per-layer loop below
+                    // actually writes target alpha/tint/emissive once.
+                    // Without that write, the live shader retains whatever
+                    // the previous transition (or pre-entry state) left
+                    // there — tier 0→1 stays at from=0 (black) and tier
+                    // 1→0 keeps the tier-1 color. Future Ticks see
+                    // transition_duration=0 and route through the steady
+                    // ELSE branch, which doesn't (and shouldn't) re-write
+                    // these channels.
                     e.transition_duration = 0.0f;
                     eased = 1.0f;
+                    transitioning = true;
                 } else if (tt <= 0.0f) {
                     // Clock skew or just-set entry — treat as start.
                     eased = 0.0f;
