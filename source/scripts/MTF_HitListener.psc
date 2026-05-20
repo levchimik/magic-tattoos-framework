@@ -106,6 +106,31 @@ Event OnPlayerLoadGame()
         UnregisterForKey(prev)
         StorageUtil.UnsetIntValue(_host(), "mtf.subject.hotkey.registered")
     endif
+
+    ; v0.1.4 fade-on-death persistence fix: the C++ pulse_roster Tick writes
+    ; alpha / emissive_mult straight to the LIVE shader (via
+    ; SetNodeProperty) without touching the persistent NiOverride store.
+    ; If the player dies while a fade is playing, the live shader settles
+    ; at alpha=0, then the engine serializes that shader state into the
+    ; save. On reload, SKEE restores the override store (alpha=normal at
+    ; save time) but never re-pushes it to the live shader — and Skyrim
+    ; loads the persisted live-shader alpha=0, so the tattoo stays
+    ; invisible until something forces a redraw.
+    ;
+    ; Force one here: clear any stale roster state for the player (the
+    ; C++ Roster is in-memory only, but we want fade arming to start
+    ; cold), then set forceRedraw on MainQuest so the next slow tick
+    ; re-runs drawOverlay → ApplyNodeOverrides → live shader gets the
+    ; correct alpha from the override store.
+    MTF_MainQuest host = _host()
+    if host != None
+        Actor p = Game.GetPlayer()
+        if p != None
+            MTFPulse.ClearActorFade(p, host.OverlaySlot)
+            MTFPulse.ClearActorAt(p, host.OverlaySlot)
+        endif
+        host.setRedraw()
+    endif
 EndEvent
 
 ; One-time cleanup of MTF spells that older code AddSpell'd onto the player

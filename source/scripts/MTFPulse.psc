@@ -101,3 +101,37 @@ Function ClearActorFlash(Actor aktor, Int baseOverlaySlot) Global Native
 ; OnHit handling, etc.). MTF tiers binding flash.onhit with tagsCsv
 ; including "mytag" — or with the "*" wildcard — will flash on the event.
 Function TriggerActorFlash(Actor aktor, Int baseOverlaySlot, String tag) Global Native
+
+; ── Fade on death (v0.1.4, one-shot animation) ──────────────────────────────
+; Arms a one-shot fade animation that fires when the actor dies. Like
+; SetActorFlash, requires a pre-existing roster entry — call SetActorPulse
+; or SetActorPulseWithTransition first (rate=0 / depth=0 is fine for
+; fade-only presets).
+;
+;   mode        — 0 = overlay   (em→0, alpha→0; corpse has invisible tattoo)
+;                 1 = emissive  (em→1.0 baseline; texture stays visible)
+;                 2 = inverted  (em dips to 0 then back; flicker effect)
+;                 Out-of-range values clamp to overlay.
+;   durationMs  — total animation length in milliseconds (>=1).
+;                 For mode=2 the dip + recover each take durationMs/2.
+;
+; The actual fade fires automatically when the C++ TESDeathEvent sink
+; sees this actor die — no per-frame tick needed on the Papyrus side.
+; After the animation completes the roster entry is dropped (one-shot;
+; we stop spending CPU on the corpse). The last-written em/alpha values
+; persist on the NiOverride node, so the visible end state holds.
+Function SetActorFade(Actor aktor, Int baseOverlaySlot, \
+                      Int mode, Int durationMs) Global Native
+
+; Disarm fade on (aktor, baseOverlaySlot). Cancels an in-flight fade in
+; place if one was running — last interpolated em/alpha values stick on
+; the node. Use on tier-deactivate.
+Function ClearActorFade(Actor aktor, Int baseOverlaySlot) Global Native
+
+; Manual one-shot trigger of an armed fade. Normally the C++ death sink
+; fires this automatically; this native exists for unit tests, custom
+; triggers (e.g. a non-death "dramatic effect" event), or external mods
+; that want fade-on-event semantics without subclassing the death sink.
+;
+; No-op if no entry, not armed, or fade already in flight.
+Function TriggerActorFade(Actor aktor, Int baseOverlaySlot) Global Native

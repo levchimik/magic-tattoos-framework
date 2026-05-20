@@ -568,6 +568,18 @@ function drawPresetEditorPage()
     AddHeaderOption("Transition")
     AddSliderOptionST("PRESET_TRANSITION_DUR", "Duration", MainQuest.GetTransitionDuration(), "{1} s")
 
+    ; Per-preset fade on death (v0.1.4). One menu picks "Off" or one of the
+    ; three modes; Duration is greyed out when Off. We use a single 4-entry
+    ; menu instead of a separate toggle + mode menu to stay under the SkyUI
+    ; engine's 127-named-state limit (the script is already at the ceiling).
+    AddHeaderOption("Fade on death")
+    AddMenuOptionST("PRESET_FADE_MODE",     "Mode",     _fadeModeMenuLabel(MainQuest.GetFadeOnDeathEnabled(), MainQuest.GetFadeOnDeathMode()))
+    int fadeFlag = OPTION_FLAG_NONE
+    if !MainQuest.GetFadeOnDeathEnabled()
+        fadeFlag = OPTION_FLAG_DISABLED
+    endif
+    AddSliderOptionST("PRESET_FADE_DURATION", "Duration", MainQuest.GetFadeOnDeathDurationMs() / 1000.0, "{1} s", fadeFlag)
+
     AddHeaderOption("Visuals")
     AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(idx))
     AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(idx))
@@ -1426,6 +1438,84 @@ state PRESET_TRANSITION_DUR
         SetInfoText("Seconds to cross-fade tattoo visuals (alpha, tint, emissive color, emission strength) when the active tier changes. 0 = snap instantly. Saved with the preset.")
     endEvent
 endState
+
+; ── Fade on death (v0.1.4) ──────────────────────────────────────────────
+; Mode menu carries the on/off toggle as item 0 ("Off"); items 1-3 each
+; pick a mode AND enable fade. Duration slider greys out when "Off".
+; Combined into 2 states (not 3) to stay under the 127 named-state limit.
+
+state PRESET_FADE_MODE
+    event OnMenuOpenST()
+        ; "Off" + 3 modes. SkyUI's "None" sentinel bug means we never put
+        ; the literal string "None" in this array — use "Off" instead.
+        string[] opts = Utility.CreateStringArray(4, "")
+        opts[0] = "Off"
+        opts[1] = "Overlay (full disappear)"
+        opts[2] = "Emissive (dim glow only)"
+        opts[3] = "Inverted (dip then recover)"
+        int cur = 0
+        if MainQuest.GetFadeOnDeathEnabled()
+            cur = MainQuest.GetFadeOnDeathMode() + 1
+            if cur < 1 || cur > 3
+                cur = 1
+            endif
+        endif
+        SetMenuDialogStartIndex(cur)
+        SetMenuDialogDefaultIndex(0)
+        SetMenuDialogOptions(opts)
+    endEvent
+    event OnMenuAcceptST(int index)
+        if index <= 0
+            MainQuest.SetFadeOnDeathEnabled(false)
+        else
+            MainQuest.SetFadeOnDeathMode(index - 1)
+            MainQuest.SetFadeOnDeathEnabled(true)
+        endif
+        SetMenuOptionValueST(_fadeModeMenuLabel(MainQuest.GetFadeOnDeathEnabled(), MainQuest.GetFadeOnDeathMode()))
+        ; Repaint the page so the Duration slider's disabled flag tracks
+        ; the new enabled state.
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetFadeOnDeathEnabled(false)
+        SetMenuOptionValueST(_fadeModeMenuLabel(false, 0))
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Fade the tattoo when the actor dies. One-shot animation, then the entry stops animating.\n* Off: no fade on death.\n* Overlay: alpha to 0, tattoo disappears.\n* Emissive: emission strength to 0, art stays but stops glowing.\n* Inverted: dip to 0 then recover — a final flicker.\nSaved with the preset.")
+    endEvent
+endState
+
+state PRESET_FADE_DURATION
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.GetFadeOnDeathDurationMs() / 1000.0)
+        SetSliderDialogDefaultValue(2.0)
+        SetSliderDialogRange(0.1, 10.0)
+        SetSliderDialogInterval(0.1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.SetFadeOnDeathDurationMs((value * 1000.0) as int)
+        SetSliderOptionValueST(value, "{1} s")
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetFadeOnDeathDurationMs(2000)
+        SetSliderOptionValueST(2.0, "{1} s")
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Full duration of the fade animation in seconds. For Inverted mode the dip and recovery each take half of this. Saved with the preset.")
+    endEvent
+endState
+
+string Function _fadeModeMenuLabel(bool enabled, int mode)
+    if !enabled
+        return "Off"
+    elseif mode == 1
+        return "Emissive"
+    elseif mode == 2
+        return "Inverted"
+    endif
+    return "Overlay"
+EndFunction
 
 state SLOT_PULSE_WAVEFORM
     event OnMenuOpenST()

@@ -36,6 +36,8 @@ add_library(${PROJECT_NAME} SHARED
     src/frame_hook.h
     src/hit_sink.cpp
     src/hit_sink.h
+    src/death_sink.cpp
+    src/death_sink.h
     src/log.h
 )
 

@@ -312,6 +312,52 @@ namespace MTFPulse::Papyrus {
             Roster::Instance().TriggerFlash(actor, base_slot, norm);
         }
 
+        // ── Fade on death (v0.1.4) ───────────────────────────────────────
+        // Arm fade on (actor, base_slot). Requires a pre-existing roster
+        // entry — caller must run SetActorPulse(WithTransition) first.
+        //
+        // mode: 0 = overlay (em→0, alpha→0; corpse invisible tattoo)
+        //       1 = emissive (em→1.0 baseline; texture visible, no glow)
+        //       2 = inverted (em down then back; flicker effect)
+        // durationMs: full animation duration. For mode=2 the dip + recover
+        //             each take durationMs/2.
+        void SetActorFade(
+            RE::StaticFunctionTag* /*tag*/,
+            RE::Actor*   actor,
+            std::int32_t base_slot,
+            std::int32_t mode,
+            std::int32_t duration_ms)
+        {
+            if (!actor) {
+                return;
+            }
+            Roster::Instance().SetFadeParams(
+                actor, base_slot,
+                std::clamp(mode, 0, 2),
+                static_cast<float>(std::max(1, duration_ms)));
+        }
+
+        void ClearActorFade(RE::StaticFunctionTag* /*tag*/,
+                            RE::Actor* actor, std::int32_t base_slot)
+        {
+            if (!actor) {
+                return;
+            }
+            Roster::Instance().ClearFade(actor, base_slot);
+        }
+
+        // Manual fire (for testing or custom triggers — death sink is the
+        // primary path). Returns nothing; Roster::TriggerFade is no-op if
+        // entry missing / not armed / already active.
+        void TriggerActorFade(RE::StaticFunctionTag* /*tag*/,
+                              RE::Actor* actor, std::int32_t base_slot)
+        {
+            if (!actor) {
+                return;
+            }
+            Roster::Instance().TriggerFade(actor, base_slot);
+        }
+
     }  // namespace
 
     bool Register(RE::BSScript::IVirtualMachine* vm)
@@ -329,6 +375,9 @@ namespace MTFPulse::Papyrus {
         vm->RegisterFunction("SetActorFlash",     kClassName, SetActorFlash);
         vm->RegisterFunction("ClearActorFlash",   kClassName, ClearActorFlash);
         vm->RegisterFunction("TriggerActorFlash", kClassName, TriggerActorFlash);
+        vm->RegisterFunction("SetActorFade",      kClassName, SetActorFade);
+        vm->RegisterFunction("ClearActorFade",    kClassName, ClearActorFade);
+        vm->RegisterFunction("TriggerActorFade",  kClassName, TriggerActorFade);
         spdlog::info("Papyrus natives registered under '{}'", kClassName);
         return true;
     }

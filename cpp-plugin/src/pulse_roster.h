@@ -111,6 +111,44 @@ namespace MTFPulse {
         std::string   flash_last_tag      {};          // the tag the last trigger carried
         float         flash_intensity     { 0.0f };    // [0,1]
         float         flash_last_tick     { 0.0f };    // for dt computation
+
+        // ── Fade on death (v0.1.4 one-shot) ───────────────────────────────
+        // Independent lane from flash. When a preset binds the
+        // mtf.base:ondeath.fade effect, its onActivate calls
+        // SetActorFade(actor, base_slot, mode, durationMs) — this writes
+        // fade_mode/fade_duration_ms and sets fade_armed=true. The entry
+        // stays in the roster idle.
+        //
+        // When a TESDeathEvent fires for this actor (global C++ sink in
+        // death_sink.cpp), Roster::TriggerFadeAllSlotsForActor walks the
+        // roster, finds every entry with fade_armed=true, snapshots
+        // last_interp_em_mult/alpha into fade_from_em/alpha, sets
+        // fade_active=true, and stamps fade_start_sec=now. fade_armed
+        // stays true so re-arming after manual revival just works, but
+        // we gate by `!fade_active` so double-trigger from
+        // dying-then-dead double-fire is a no-op.
+        //
+        // Tick interpolates per mode:
+        //   kOverlay  : em → 0, alpha → 0 over duration.
+        //   kEmissive : em → 1.0 (baseline), alpha unchanged.
+        //   kInverted : em from→0 in first half, then 0→from in second
+        //               half. Alpha unchanged. End state matches start.
+        //
+        // When elapsed >= duration, Tick writes the final frame, marks
+        // the entry for deferred removal, and the Tick post-pass pops it
+        // out of entries_. One-shot — animation runs once, entry dies.
+        enum FadeMode : std::int32_t {
+            kFadeOverlay  = 0,
+            kFadeEmissive = 1,
+            kFadeInverted = 2,
+        };
+        std::int32_t fade_mode         { kFadeOverlay };
+        float        fade_duration_ms  { 0.0f };  // 0 disables
+        bool         fade_armed        { false }; // preset bound, awaiting death
+        bool         fade_active       { false }; // animation in flight
+        float        fade_start_sec    { 0.0f };
+        std::array<float, 4> fade_from_em    {};
+        std::array<float, 4> fade_from_alpha {};
     };
 
     class Roster
@@ -169,6 +207,27 @@ namespace MTFPulse {
         // accepted the trigger.
         std::size_t TriggerFlashAllSlotsForActor(RE::Actor* actor,
                                                  std::string_view tag);
+
+        // ── Fade on death (v0.1.4) ────────────────────────────────────────
+        // Arm fade on (actor, base_slot). Like SetFlashParams, requires
+        // an existing steady roster entry — caller must have run a prior
+        // SetActorPulse(WithTransition) so the slot exists.
+        // mode: 0=overlay, 1=emissive, 2=inverted. durationMs >= 1.
+        bool SetFadeParams(RE::Actor* actor, std::int32_t base_slot,
+                           std::int32_t mode, float duration_ms);
+
+        // Disarm fade on (actor, base_slot). If an animation is in
+        // flight it's cancelled in place — last interp values stick.
+        bool ClearFade(RE::Actor* actor, std::int32_t base_slot);
+
+        // Manual one-shot fire of armed fade on a single (actor, base_slot).
+        // Returns true if a fade was started. No-op if no entry, not
+        // armed, or already active.
+        bool TriggerFade(RE::Actor* actor, std::int32_t base_slot);
+
+        // Death-sink entry point: fire armed fade on EVERY entry whose
+        // actor_formID matches `actor`. Returns count of fades started.
+        std::size_t TriggerFadeAllSlotsForActor(RE::Actor* actor);
 
         // Called from the per-frame hook.
         void Tick();

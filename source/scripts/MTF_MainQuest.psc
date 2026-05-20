@@ -269,6 +269,19 @@ int   _pulseTier = -1
 int   _pulseLayerN = 0
 bool  _pulseIsFemale = false
 
+; Per-preset fade-on-death config (v0.1.4). Edited via the MCM Preset
+; Editor, persisted into the .fadeondeath block of the active preset
+; JSON, and forwarded to the C++ roster via MTFPulse.SetActorFade
+; whenever a roster entry is registered (in _applyPulse for the player
+; MCM-driven base and in _rosterAddOrUpdate for stacked / NPC presets).
+;
+; Preset-wide rather than per-slot: one toggle/mode/duration controls
+; every overlay that this preset arms. When the toggle is off, every
+; arming site calls ClearActorFade so the roster's fade lane stays cold.
+bool  _sFadeOnDeathEnabled = false
+int   _sFadeOnDeathMode = 0
+int   _sFadeOnDeathDurationMs = 2000
+
 int Function MAX_EFFECTS_PER_SLOT() global
     return 4
 EndFunction
@@ -297,10 +310,21 @@ EndEvent
 Function _onTrackedActorKilled(Actor victim)
 {Tracked actor died → revert each applied preset to tier 0 and back out
  active effects so any lingering applied magnitudes (drains, cost penalty)
- come off the corpse. mtf.killed prevents evaluation from re-triggering.}
+ come off the corpse. mtf.killed prevents evaluation from re-triggering.
+
+ v0.1.4 fade-on-death race: this Papyrus handler runs ~100ms after the
+ C++ DeathSink already armed fade_active on the roster entry. If we naively
+ do the visual cleanup (tier-0 redraw + _rosterRemoveActor) the fade
+ animation dies before the player can see it — the tier-0 redraw clobbers
+ the C++ Tick's NiOverride writes, and _rosterRemoveActor pulls the entry
+ out from under the still-running Tick. Skip the visual cleanup when ANY
+ preset on this actor has fade-on-death enabled; the C++ Tick's deferred-
+ removal of finished fade entries naturally cleans up the roster after the
+ animation completes.}
     if victim == None || !IsTrackedActor(victim)
         return
     endif
+    bool fadeArmed = _actorHasArmedFade(victim)
     int n = GetActorPresetCount(victim)
     int i = 0
     while i < n
@@ -311,18 +335,57 @@ Function _onTrackedActorKilled(Actor victim)
                 _deactivateSlotEffectsForActor(victim, prevTier, true, nm)
             endif
             _setActorPresetTier(victim, nm, 0)
-            ; Draw tier 0 (baseline) for a clean corpse overlay.
-            if _loadPresetToScratch(nm)
+            ; Draw tier 0 (baseline) for a clean corpse overlay. Skip when
+            ; fade is armed — the C++ side owns the overlay until the
+            ; animation completes.
+            if !fadeArmed && _loadPresetToScratch(nm)
                 _drawPresetOnActor(victim, nm, 0)
             endif
         endif
         i += 1
     endwhile
-    if n <= 0
+    if !fadeArmed && n <= 0
         removeOverlayForActor(victim)
     endif
-    _rosterRemoveActor(victim)
+    if !fadeArmed
+        _rosterRemoveActor(victim)
+    elseif DebugMode
+        Debug.Notification("[MTF fade] death cleanup deferred — fade running on " + victim.GetDisplayName())
+    endif
     _setActorKilled(victim, true)
+EndFunction
+
+bool Function _presetHasFadeOnDeath(string presetName)
+{Read .fadeondeath.enabled directly from the preset JSON file — does NOT
+ touch _loadPresetToScratch so it's safe to call from a context where a
+ different preset is already scratch-loaded (e.g. inside the loop in
+ _onTrackedActorKilled).}
+    if presetName == ""
+        return false
+    endif
+    string f = _presetFile(presetName)
+    if !JsonUtil.JsonExists(f)
+        return false
+    endif
+    return JsonUtil.GetPathIntValue(f, ".fadeondeath.enabled", 0) > 0
+EndFunction
+
+bool Function _actorHasArmedFade(Actor a)
+{True if any preset applied to `a` has fade-on-death enabled. Used to gate
+ the visual cleanup in _onTrackedActorKilled so the C++ fade animation can
+ play to completion.}
+    if a == None
+        return false
+    endif
+    int n = GetActorPresetCount(a)
+    int i = 0
+    while i < n
+        if _presetHasFadeOnDeath(GetActorPresetAt(a, i))
+            return true
+        endif
+        i += 1
+    endwhile
+    return false
 EndFunction
 
 Function _onTrackedActorAttached(Actor target)
@@ -1072,18 +1135,15 @@ bool Function _slotHasFlashEffect(int slot)
 EndFunction
 
 Function _resyncPulseCache(int tier)
-{Snapshot the per-tier overlay context so the fast pulse tick can run
- with only int/float ops and NiOverride writes — no JsonUtil lookups,
- no actor base/sex queries. Call from drawOverlay on tier change.
-
- Triggers on pulse OR any bound flash.onhit effect — flash-only tiers
- also need a roster entry so MTFPulse.SetActorFlash has somewhere to
- write.}
+{Snapshot per-tier overlay context for the fast pulse tick. Triggers a
+ roster entry when the tier has pulse, a flash.onhit effect, OR the
+ preset-wide fade-on-death toggle is on. Fade params themselves live in
+ _sFadeOnDeath... and are read directly at the arming sites.}
     _pulseTier = -1
     if tier < 0 || tier >= 8 || PlayerRef == None
         return
     endif
-    if !_slotHasPulse(tier) && !_slotHasFlashEffect(tier)
+    if !_slotHasPulse(tier) && !_slotHasFlashEffect(tier) && !_sFadeOnDeathEnabled
         return
     endif
     string packId  = ResolveSlotPackId(tier)
@@ -1106,6 +1166,9 @@ Function _resyncPulseCache(int tier)
     _pulseIsFemale = PlayerRef.GetLeveledActorBase().GetSex() as bool
     _pulseLayerN = layerN
     _pulseTier = tier
+    if DebugMode && _sFadeOnDeathEnabled
+        Debug.Notification("[MTF fade] cache armed tier=" + tier + " mode=" + _sFadeOnDeathMode + " dur=" + _sFadeOnDeathDurationMs + "ms")
+    endif
 EndFunction
 
 Function _applyPulse()
@@ -1123,8 +1186,23 @@ Function _applyPulse()
  SetActorFlash into. C++ Tick treats wave=0 → pulsed=1 → ceiling passes
  through; flash_add adds on top.
 
+ v0.1.4 dead-actor gate: once the player actually dies, the C++ fade
+ lane plays out and self-evicts via Tick's deferred-removal. Without
+ this gate, the very next 10 Hz cycle would call SetActorPulse again
+ and re-create the entry — fade_armed re-set by SetActorFade, normal
+ pulse processing writing emissive but not alpha, leaving the alpha=0
+ from the final fade frame stuck in NiOverride. Stopping recreation
+ lets the corpse keep its faded visual cleanly. Bleedout for essential
+ / protected actors doesn't reach IsDead()=true so this gate doesn't
+ fire for recoverable knockdowns.
+
  If the MTFPulse plugin isn't loaded, the natives log a Papyrus warning
  once and the visual is just "no pulse" — graceful degradation.}
+    if PlayerRef != None && PlayerRef.IsDead()
+        MTFPulse.ClearActorAt(PlayerRef, OverlaySlot)
+        _pulseTier = -1
+        return
+    endif
     if _pulseTier < 0 || _pulseLayerN <= 0 || PlayerRef == None
         ; Drop just the base-layer pulse entry. Stacked presets sit at
         ; their own base_slots and must keep pulsing — only kill ours
@@ -1152,6 +1230,16 @@ Function _applyPulse()
     MTFPulse.SetActorPulse(PlayerRef, rate, depthPct, pause, \
                            _pulseLayerN, _pulseStartRT, emMults, \
                            OverlaySlot, _pulseIsFemale, lut)
+
+    ; v0.1.4 per-preset fade: re-arm or clear after the roster entry is
+    ; up. Idempotent on the C++ side — re-issuing the same params each
+    ; tick is a no-op for an already-armed entry; an in-flight fade
+    ; (fade_active=true) isn't disturbed by SetActorFade either.
+    if _sFadeOnDeathEnabled
+        MTFPulse.SetActorFade(PlayerRef, OverlaySlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs)
+    else
+        MTFPulse.ClearActorFade(PlayerRef, OverlaySlot)
+    endif
 EndFunction
 
 ; Hit-class counters (7 classes: ANY/BLUNT/BLADED/RANGED/FIRE/FROST/SHOCK).
@@ -1335,6 +1423,16 @@ bool Function SavePreset(string rawName)
     ; buffer — including zero, which legitimately disables fading.
     JsonUtil.SetPathFloatValue(f, ".transition.duration", _sTransitionDuration)
 
+    ; Preset-wide fade-on-death config (v0.1.4). Always persist all three
+    ; keys so legacy presets that lack the block get cleanly upgraded on
+    ; first re-save and downstream JsonUtil reads see consistent shape.
+    JsonUtil.SetPathIntValue(f, ".fadeondeath.enabled",    _sFadeOnDeathEnabled as int)
+    JsonUtil.SetPathIntValue(f, ".fadeondeath.mode",       _sFadeOnDeathMode)
+    JsonUtil.SetPathIntValue(f, ".fadeondeath.durationms", _sFadeOnDeathDurationMs)
+    if DebugMode && _sFadeOnDeathEnabled
+        Debug.Notification("[MTF fade] saved preset fade enabled=1 mode=" + _sFadeOnDeathMode + " dur=" + _sFadeOnDeathDurationMs + "ms")
+    endif
+
     EnsureArrays()
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -1462,6 +1560,21 @@ bool Function LoadPreset(string name)
     ; the MCM Transition Duration slider reflects whatever was saved. Default
     ; 1.0s when the key is absent (legacy presets pre-v0.1.1).
     _sTransitionDuration = JsonUtil.GetPathFloatValue(f, ".transition.duration", 1.0)
+
+    ; Preset-wide fade-on-death (v0.1.4). Defaults to disabled when block
+    ; is absent — legacy presets keep their existing behavior.
+    _sFadeOnDeathEnabled    = JsonUtil.GetPathIntValue(f, ".fadeondeath.enabled", 0) > 0
+    _sFadeOnDeathMode       = JsonUtil.GetPathIntValue(f, ".fadeondeath.mode", 0)
+    if _sFadeOnDeathMode < 0 || _sFadeOnDeathMode > 2
+        _sFadeOnDeathMode = 0
+    endif
+    _sFadeOnDeathDurationMs = JsonUtil.GetPathIntValue(f, ".fadeondeath.durationms", 2000)
+    if _sFadeOnDeathDurationMs < 1
+        _sFadeOnDeathDurationMs = 2000
+    endif
+    if DebugMode && _sFadeOnDeathEnabled
+        Debug.Notification("[MTF fade] loaded preset fade enabled=1 mode=" + _sFadeOnDeathMode + " dur=" + _sFadeOnDeathDurationMs + "ms")
+    endif
 
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -1600,6 +1713,9 @@ Function ResetEditor()
     currentTier = -1
 
     _sTransitionDuration = 1.0
+    _sFadeOnDeathEnabled    = false
+    _sFadeOnDeathMode       = 0
+    _sFadeOnDeathDurationMs = 2000
 
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -3599,6 +3715,17 @@ bool Function _loadPresetToScratch(string name)
     ; can speed it up or disable with "transition": { "duration": 0.0 }
     ; at the preset root.
     _sTransitionDuration = JsonUtil.GetPathFloatValue(f, ".transition.duration", 1.0)
+
+    ; Per-preset fade-on-death (v0.1.4). Off when block absent.
+    _sFadeOnDeathEnabled    = JsonUtil.GetPathIntValue(f, ".fadeondeath.enabled", 0) > 0
+    _sFadeOnDeathMode       = JsonUtil.GetPathIntValue(f, ".fadeondeath.mode", 0)
+    if _sFadeOnDeathMode < 0 || _sFadeOnDeathMode > 2
+        _sFadeOnDeathMode = 0
+    endif
+    _sFadeOnDeathDurationMs = JsonUtil.GetPathIntValue(f, ".fadeondeath.durationms", 2000)
+    if _sFadeOnDeathDurationMs < 1
+        _sFadeOnDeathDurationMs = 2000
+    endif
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
     ; Build into LOCAL arrays inside the loop, then assign each whole array
@@ -3800,6 +3927,93 @@ Function SetTransitionDuration(float v)
     endif
     _sTransitionDuration = v
     setRedraw()
+EndFunction
+
+; ── Preset-level fade-on-death accessors (v0.1.4) ─────────────────────────
+; MCM Preset Editor binds three controls (toggle/mode/duration) to these.
+; SavePreset persists them under .fadeondeath.{enabled,mode,durationms}.
+; All three arming sites (_applyPulse, _rosterAddOrUpdate) read the script
+; vars directly — no caching layer needed, the vars themselves are the
+; live source of truth for the scratch-loaded preset.
+
+bool Function GetFadeOnDeathEnabled()
+    return _sFadeOnDeathEnabled
+EndFunction
+
+Function SetFadeOnDeathEnabled(bool v)
+    _sFadeOnDeathEnabled = v
+    ; Force a pulse-cache resync against the current tier so the roster
+    ; entry survives even when the only reason to keep it alive is fade
+    ; (no pulse, no flash). Without this, toggling fade ON for a pulse-
+    ; less preset would leave _pulseTier=-1 and _applyPulse early-out,
+    ; never calling SetActorFade.
+    if currentTier >= 0
+        _resyncPulseCache(currentTier)
+        _applyPulse()
+    endif
+    setRedraw()
+EndFunction
+
+int Function GetFadeOnDeathMode()
+    return _sFadeOnDeathMode
+EndFunction
+
+Function SetFadeOnDeathMode(int v)
+    if v < 0 || v > 2
+        v = 0
+    endif
+    _sFadeOnDeathMode = v
+    if _sFadeOnDeathEnabled && currentTier >= 0
+        _applyPulse()
+    endif
+EndFunction
+
+int Function GetFadeOnDeathDurationMs()
+    return _sFadeOnDeathDurationMs
+EndFunction
+
+Function SetFadeOnDeathDurationMs(int v)
+    if v < 1
+        v = 1
+    endif
+    _sFadeOnDeathDurationMs = v
+    if _sFadeOnDeathEnabled && currentTier >= 0
+        _applyPulse()
+    endif
+EndFunction
+
+; Console-callable diagnostic — bypasses the unreliable player.kill path
+; (player is essential, TESDeathEvent often doesn't fire) by directly
+; invoking the C++ fade trigger on the player's OverlaySlot. Call via
+;   cqf MTF DebugFireFade
+; (where MTF is the quest's editor ID) to verify SetActorFade arming and
+; Tick interpolation are working independently of the death-event sink.
+Function DebugFireFade()
+    if PlayerRef == None
+        Debug.Notification("[MTF fade] DebugFireFade: no PlayerRef")
+        return
+    endif
+    MTFPulse.TriggerActorFade(PlayerRef, OverlaySlot)
+    Debug.Notification("[MTF fade] DebugFireFade fired against OverlaySlot=" + OverlaySlot)
+EndFunction
+
+; Recovery from stuck-alpha state. If the player's tattoo ends up invisible
+; — typically because fade was triggered (player death event fired during
+; bleedout / godmode testing / DebugFireFade) and the animation's final
+; alpha=0 frame stuck in NiOverride after the entry self-evicted — call:
+;   cqf MTF DebugRestorePlayerOverlay
+; This clears any in-flight fade, drops the roster entry, and forces a
+; full redraw so _drawOverlayForActorAt re-writes alpha to the configured
+; per-tier value.
+Function DebugRestorePlayerOverlay()
+    if PlayerRef == None
+        Debug.Notification("[MTF] DebugRestorePlayerOverlay: no PlayerRef")
+        return
+    endif
+    MTFPulse.ClearActorFade(PlayerRef, OverlaySlot)
+    MTFPulse.ClearActorAt(PlayerRef, OverlaySlot)
+    setRedraw()
+    Debug.Notification("[MTF] Player overlay restore requested — redraw next tick")
 EndFunction
 
 string Function _g_resolvePackId(int slot, bool useScratch)
@@ -4280,6 +4494,21 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
                                          layerN, startRT, emMults, \
                                          baseSlot, isFemale, lut, \
                                          tints, alphas, emissives, tDur)
+
+    ; v0.1.4 per-preset fade-on-death: arm the fade lane on the roster
+    ; entry we just registered using the preset-wide _sFadeOnDeath* state
+    ; (loaded from .fadeondeath block of whatever preset was scratch-
+    ; loaded before this call). When the C++ TESDeathEvent sink sees this
+    ; actor die, TriggerFadeAllSlotsForActor finds the armed entry and
+    ; runs the one-shot animation against the baked-in mode/duration.
+    if _sFadeOnDeathEnabled
+        MTFPulse.SetActorFade(a, baseSlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs)
+        if DebugMode
+            Debug.Notification("[MTF fade] armed " + a.GetDisplayName() + " slot=" + baseSlot + " mode=" + _sFadeOnDeathMode)
+        endif
+    else
+        MTFPulse.ClearActorFade(a, baseSlot)
+    endif
 EndFunction
 
 ; ── Tracked actor evaluation (full pass — Step 6 adds stagger + distance) ──

@@ -301,12 +301,105 @@ namespace MTFPulse {
             return;
         }
 
+        // Deferred-removal list for one-shot fade entries that complete
+        // during this Tick. We can't RemoveAtLocked mid-iteration (it
+        // swaps with the last entry, breaking the forward walk), so we
+        // collect indices and drain in descending order at the end.
+        std::vector<std::size_t> to_remove;
+
         for (std::size_t i = 0; i < count_; ++i) {
             auto& e = entries_[i];
             auto* actor = e.actor.get().get();
             if (!actor) {
                 continue;
             }
+
+            // ── Fade-on-death one-shot override (v0.1.4) ──────────────────
+            // When fade_active, the fade lerp fully owns em_mult/alpha
+            // for the duration; steady pulse, flash, and cross-fade
+            // transition logic are all skipped. We still need to issue
+            // SKEE writes per layer, then either continue (mid-animation)
+            // or queue for removal (animation complete).
+            if (e.fade_active) {
+                const float dur_sec = e.fade_duration_ms * 0.001f;
+                const float elapsed = now - e.fade_start_sec;
+                const float raw_t   = (dur_sec > 0.0f)
+                    ? std::clamp(elapsed / dur_sec, 0.0f, 1.0f)
+                    : 1.0f;
+                const bool finished = (raw_t >= 1.0f);
+
+                char node[32];
+                for (std::int32_t li = 0; li < e.layer_count; ++li) {
+                    const auto L = static_cast<std::size_t>(li);
+                    std::snprintf(node, sizeof(node), "Body [ovl%d]",
+                                  static_cast<int>(e.base_slot + li));
+
+                    float em    = e.fade_from_em[L];
+                    float alpha = e.fade_from_alpha[L];
+                    switch (e.fade_mode) {
+                        case PulseEntry::kFadeOverlay: {
+                            const float k = EaseInOut(raw_t);
+                            em    = e.fade_from_em[L]    * (1.0f - k);
+                            alpha = e.fade_from_alpha[L] * (1.0f - k);
+                            break;
+                        }
+                        case PulseEntry::kFadeEmissive: {
+                            const float k = EaseInOut(raw_t);
+                            // Lerp em → 1.0 baseline. Alpha unchanged.
+                            em    = e.fade_from_em[L] + (1.0f - e.fade_from_em[L]) * k;
+                            alpha = e.fade_from_alpha[L];
+                            break;
+                        }
+                        case PulseEntry::kFadeInverted: {
+                            // First half: em → 0. Second half: 0 → from.
+                            // Alpha unchanged across both halves.
+                            float k;
+                            if (raw_t < 0.5f) {
+                                k  = EaseInOut(raw_t * 2.0f);
+                                em = e.fade_from_em[L] * (1.0f - k);
+                            } else {
+                                k  = EaseInOut((raw_t - 0.5f) * 2.0f);
+                                em = e.fade_from_em[L] * k;
+                            }
+                            alpha = e.fade_from_alpha[L];
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+
+                    skee_bridge::WriteEmissiveMult(actor, e.is_female, node, em);
+                    skee_bridge::WriteAlpha(actor, e.is_female, node, alpha);
+                    e.last_interp_em_mult[L] = em;
+                    e.last_interp_alpha[L]   = alpha;
+                }
+                e.has_last_interp = true;
+
+                if (finished) {
+                    // Recovery path: if the actor isn't actually dead at
+                    // animation end, restore the target visual state.
+                    // Skyrim's essential / protected actors fire
+                    // TESDeathEvent during bleedout but recover; without
+                    // this restore, alpha=0 from the final fade frame
+                    // sticks in NiOverride and the tattoo stays invisible
+                    // until something triggers a full redraw. For truly
+                    // dead actors IsDead() is true and we leave the faded
+                    // state as the final corpse visual (the entry is
+                    // queued for removal so the C++ Tick stops writing).
+                    if (!actor->IsDead()) {
+                        for (std::int32_t li = 0; li < e.layer_count; ++li) {
+                            const auto L = static_cast<std::size_t>(li);
+                            std::snprintf(node, sizeof(node), "Body [ovl%d]",
+                                          static_cast<int>(e.base_slot + li));
+                            skee_bridge::WriteEmissiveMult(actor, e.is_female, node, e.layer_base_em_mult[L]);
+                            skee_bridge::WriteAlpha(actor, e.is_female, node, e.target_alpha[L]);
+                        }
+                    }
+                    to_remove.push_back(i);
+                }
+                continue;
+            }
+
             const float t      = now - e.start_time;
             const float depth  = e.depth;
             const float floorM = 1.0f - depth;
@@ -445,6 +538,17 @@ namespace MTFPulse {
             }
             e.has_last_interp = true;
         }
+
+        // Drain completed one-shot fade entries. Sort descending so each
+        // RemoveAtLocked's swap-with-last doesn't pull a still-active
+        // entry into a slot we're about to remove. (We pushed in
+        // ascending order during the forward walk; reversing gives us
+        // descending.)
+        if (!to_remove.empty()) {
+            for (auto it = to_remove.rbegin(); it != to_remove.rend(); ++it) {
+                RemoveAtLocked(*it);
+            }
+        }
     }
 
     bool Roster::SetFlashParams(RE::Actor* actor, std::int32_t base_slot,
@@ -555,6 +659,128 @@ namespace MTFPulse {
             ++hits;
         }
         return hits;
+    }
+
+    // ── Fade on death (v0.1.4) ───────────────────────────────────────────
+    bool Roster::SetFadeParams(RE::Actor* actor, std::int32_t base_slot,
+                               std::int32_t mode, float duration_ms)
+    {
+        if (!actor) {
+            return false;
+        }
+        std::lock_guard lock(mtx_);
+        const auto formID = actor->GetFormID();
+        const std::int32_t slot = FindLocked(formID, base_slot);
+        if (slot < 0) {
+            spdlog::warn("MTFFade SetFadeParams MISS formID=0x{:08x} base_slot={} count={}",
+                         formID, base_slot, count_);
+            return false;
+        }
+        auto& e = entries_[slot];
+        // Clamp mode to the known enum range so a hand-edited preset
+        // value of 99 doesn't index out-of-bounds in Tick. Unknown ->
+        // kFadeOverlay (the most visually-obvious mode, safest default
+        // for "user typed something unexpected").
+        if (mode < PulseEntry::kFadeOverlay || mode > PulseEntry::kFadeInverted) {
+            mode = PulseEntry::kFadeOverlay;
+        }
+        e.fade_mode        = mode;
+        e.fade_duration_ms = std::max(1.0f, duration_ms);
+        e.fade_armed       = true;
+        // Don't clobber fade_active: re-arming mid-fire is a no-op
+        // (Tick is still driving the animation through to completion
+        // and removal).
+        return true;
+    }
+
+    bool Roster::ClearFade(RE::Actor* actor, std::int32_t base_slot)
+    {
+        if (!actor) {
+            return false;
+        }
+        std::lock_guard lock(mtx_);
+        const std::int32_t slot = FindLocked(actor->GetFormID(), base_slot);
+        if (slot < 0) {
+            return false;
+        }
+        auto& e = entries_[slot];
+        e.fade_armed  = false;
+        e.fade_active = false;
+        return true;
+    }
+
+    namespace {
+        // Capture last-rendered em/alpha as the fade "from" state. Called
+        // from both TriggerFade and TriggerFadeAllSlotsForActor with mtx_
+        // already held by the caller.
+        void StartFade(PulseEntry& e, float now)
+        {
+            for (std::int32_t li = 0; li < e.layer_count; ++li) {
+                const auto L = static_cast<std::size_t>(li);
+                if (e.has_last_interp) {
+                    e.fade_from_em[L]    = e.last_interp_em_mult[L];
+                    e.fade_from_alpha[L] = e.last_interp_alpha[L];
+                } else {
+                    // Tick hasn't run yet on this entry — fall back to the
+                    // configured ceiling and target alpha so the lerp has
+                    // a sensible starting point.
+                    e.fade_from_em[L]    = e.layer_base_em_mult[L];
+                    e.fade_from_alpha[L] = e.target_alpha[L];
+                }
+            }
+            e.fade_active    = true;
+            e.fade_start_sec = now;
+            // Quench any in-flight flash on the same entry — during a
+            // one-shot fade we want the fade visual to dominate. The
+            // flash lane stays configured (tags / peak / etc. survive)
+            // so a future re-arm of fade after revival could let flashes
+            // resume; but for the one-shot duration we zero intensity.
+            e.flash_intensity = 0.0f;
+        }
+    }  // namespace
+
+    bool Roster::TriggerFade(RE::Actor* actor, std::int32_t base_slot)
+    {
+        if (!actor) {
+            return false;
+        }
+        std::lock_guard lock(mtx_);
+        const auto formID = actor->GetFormID();
+        const std::int32_t slot = FindLocked(formID, base_slot);
+        if (slot < 0) {
+            spdlog::warn("MTFFade TriggerFade MISS_ENTRY formID=0x{:08x} base_slot={}",
+                         formID, base_slot);
+            return false;
+        }
+        auto& e = entries_[slot];
+        if (!e.fade_armed || e.fade_active) {
+            return false;
+        }
+        StartFade(e, NowSec());
+        return true;
+    }
+
+    std::size_t Roster::TriggerFadeAllSlotsForActor(RE::Actor* actor)
+    {
+        if (!actor) {
+            return 0;
+        }
+        std::lock_guard lock(mtx_);
+        const auto formID = actor->GetFormID();
+        const auto now    = NowSec();
+        std::size_t fired = 0;
+        for (std::size_t i = 0; i < count_; ++i) {
+            auto& e = entries_[i];
+            if (e.actor_formID != formID) {
+                continue;
+            }
+            if (!e.fade_armed || e.fade_active) {
+                continue;
+            }
+            StartFade(e, now);
+            ++fired;
+        }
+        return fired;
     }
 
 }  // namespace MTFPulse

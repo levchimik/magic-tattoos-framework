@@ -9,6 +9,7 @@
 // is intentionally ignorant of conditions, presets, cooldowns — those stay
 // in Papyrus where they're fine.
 
+#include "death_sink.h"
 #include "frame_hook.h"
 #include "hit_sink.h"
 #include "log.h"
@@ -46,6 +47,12 @@ namespace {
                 // place. (v0.1.3 — was previously player-only via the
                 // Papyrus MTF_HitListener alias.)
                 HitSink::Install();
+                // Death sink: global TESDeathEvent → fade dispatch on
+                // every actor that has a roster entry armed with
+                // mtf.base:ondeath.fade. One-shot per death; Tick drops
+                // the entry after the animation completes. (v0.1.4 —
+                // mirrors HitSink's global-sink-replaces-alias pattern.)
+                DeathSink::Install();
                 break;
 
             case SKSE::MessagingInterface::kPostLoad:
