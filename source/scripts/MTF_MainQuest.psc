@@ -75,9 +75,9 @@ int[]    _sCondLayerAlpha
 float[]  _sCondPulseRate
 int[]    _sCondPulseDepth
 string[] _sCondWaveform
-string[] _sEffectKey
-int[]    _sEffectParam
-int[]    _sEffectParam2
+; _sEffectKey/Param/Param2 removed in v0.1.5 — scratch effect bindings
+; now live in StorageUtil under mtf.fx.scratch.<slot>.<idx>.* (parallel to
+; the player live keyspace mtf.fx.<slot>.<idx>.*).
 int[]    _sCooldownMin
 int[]    _sCooldownMode
 ; Per-preset cross-fade duration (seconds) read from .transition.duration
@@ -283,6 +283,27 @@ int   _sFadeOnDeathMode = 0
 int   _sFadeOnDeathDurationMs = 2000
 
 int Function MAX_EFFECTS_PER_SLOT() global
+    ; Storage cap — how many effect bindings the runtime can dispatch per
+    ; condition slot. JSON presets and the dispatch loops obey this; the
+    ; MCM page draws at most MAX_EFFECTS_PER_SLOT_MCM() rows regardless.
+    ; Hidden effects (rows beyond the MCM cap) still dispatch normally —
+    ; if you clear a visible row, CompactEffectsAfter shifts hidden ones
+    ; up into view.
+    ;
+    ; v0.1.5: effect bindings moved to StorageUtil (see _readFxKey /
+    ; _writeFxKey). The previous 128-element Papyrus array ceiling no
+    ; longer applies — raise this freely up to the practical preset-JSON
+    ; size limit (~128/slot before LoadPreset starts taking noticeable
+    ; time). 32 doubles v0.1.4 with headroom to spare.
+    return 32
+EndFunction
+
+int Function MAX_EFFECTS_PER_SLOT_MCM() global
+    ; UI cap — how many `_drawEffectRow` calls fire in the conditions
+    ; page. Each visible row needs 6 SkyUI state blocks
+    ; (SLOT_EFFECT_<i>_TYPE, _PARAM, _P2, _EX1/2/3); Papyrus state names
+    ; are compile-time so this can't be looped at runtime. Raising
+    ; requires adding state-block boilerplate in MTF_MCMQuest.psc.
     return 4
 EndFunction
 
@@ -406,12 +427,17 @@ bool Property _arraysReady = false Auto Hidden
 int Property _migrationLevel = 0 Auto Hidden
 
 Function EnsureArrays()
-{One-shot allocation. Pulse rate/depth/waveform are NOT Auto arrays — they
- live in StorageUtil per-slot and don't need allocation here.}
-    if _arraysReady
+{One-shot allocation for per-slot Auto arrays. Effect bindings (key,
+ param, param2) moved to StorageUtil in v0.1.5; pulse rate/depth/waveform
+ already lived there. This only allocates the 8-element per-slot
+ condition/layer/cooldown arrays. Calling repeatedly is cheap (early-
+ return on the _arraysReady flag).}
+    if _arraysReady && condPluginId != None && condPluginId.Length == 8
+        _migrateEffectArraysToStorageUtil()
         return
     endif
-    Trace("[MTF_Main] EnsureArrays: allocating arrays")
+
+    Trace("[MTF_Main] EnsureArrays: allocating per-slot arrays")
     condPluginId          = new string[8]
     condParam             = new int[8]
     condPackId            = new string[8]
@@ -420,22 +446,56 @@ Function EnsureArrays()
     condLayerEmissive     = new int[32]
     condLayerEmissiveMult = new float[32]
     condLayerAlpha        = new int[32]
-    effectKey             = new string[32]    ; 8 slots × 4 effects
-    effectParam           = new int[32]
-    effectParam2          = new int[32]       ; optional 2nd param per effect slot
     cooldownMin           = new int[8]
     cooldownMode          = new int[8]
     cooldownUntilGT       = new float[8]
     registeredPlugins     = new Form[32]
     pluginCount           = 0
     _arraysReady          = true
+    _migrateEffectArraysToStorageUtil()
+EndFunction
+
+Function _migrateEffectArraysToStorageUtil()
+{v0.1.5 one-shot migration: copy any legacy flat-array effect bindings
+ (effectKey/effectParam/effectParam2 Auto array properties) into the new
+ StorageUtil keyspace. The legacy properties are still declared in v0.1.5
+ so VMAD attachment doesn't break — they get removed plus a VMAD cleanup
+ in v0.1.6. After migration, _migrationLevel is bumped to 2 so this never
+ runs again on the same save. Fresh new games have empty source arrays
+ and bump straight to level 2 with no work.}
+    if _migrationLevel >= 2
+        return
+    endif
+    if effectKey == None || effectKey.Length == 0
+        _migrationLevel = 2
+        return
+    endif
+    int oldPerSlot = effectKey.Length / 8
+    Trace("[MTF_Main] migrating effect arrays from flat (" + effectKey.Length \
+        + " elements, " + oldPerSlot + "/slot) to StorageUtil")
+    int s = 0
+    while s < 8
+        int e = 0
+        while e < oldPerSlot
+            int oldI = s * oldPerSlot + e
+            string k = effectKey[oldI]
+            if k != ""
+                _writeFxKey(s, e, false, k)
+                _writeFxParam(s, e, false, effectParam[oldI])
+                _writeFxParam2(s, e, false, effectParam2[oldI])
+            endif
+            e += 1
+        endwhile
+        s += 1
+    endwhile
+    _migrationLevel = 2
 EndFunction
 
 ; Inheritance helpers — slots 1-7 with empty condPackId fall back to slot 0.
 ; The "<none>" sentinel means "explicit no-texture / effects-only" and never
 ; inherits; drawOverlay skips drawing when it sees this value.
 string Function ResolveSlotPackId(int slot)
-    if condPackId == None
+    if !_arraysReady
         return ""
     endif
     string pid = condPackId[slot]
@@ -446,10 +506,10 @@ string Function ResolveSlotPackId(int slot)
 EndFunction
 
 string Function ResolveSlotEntryId(int slot)
-    if condEntryId == None
+    if !_arraysReady
         return ""
     endif
-    if slot > 0 && condPackId != None && condPackId[slot] == ""
+    if slot > 0 && condPackId[slot] == ""
         return condEntryId[0]
     endif
     return condEntryId[slot]
@@ -1476,20 +1536,20 @@ bool Function SavePreset(string rawName)
         endwhile
         int e = 0
         while e < maxE
-            int fxI = s * maxE + e
             ; Skip serializing effect rows with empty key — load uses defaults.
-            if effectKey[fxI] != ""
+            string fxKey = _readFxKey(s, e, false)
+            if fxKey != ""
                 string ep = sp + ".effect[" + e + "]"
-                JsonUtil.SetPathStringValue(f, ep + ".key",    effectKey[fxI])
-                JsonUtil.SetPathIntValue(f,    ep + ".param",  effectParam[fxI])
-                JsonUtil.SetPathIntValue(f,    ep + ".param2", effectParam2[fxI])
+                JsonUtil.SetPathStringValue(f, ep + ".key",    fxKey)
+                JsonUtil.SetPathIntValue(f,    ep + ".param",  _readFxParam(s, e, false))
+                JsonUtil.SetPathIntValue(f,    ep + ".param2", _readFxParam2(s, e, false))
                 ; v0.1.3 extras — per-effect named float fields (ramp/decay/etc.)
                 ; Walk the bound plugin's declared extra field names and emit
                 ; each one. JsonUtil lowercases keys; our spec already uses
                 ; lowercase ASCII names so round-trip is faithful.
-                MTF_Plugin pSerExt = ResolvePluginByKey(effectKey[fxI])
+                MTF_Plugin pSerExt = ResolvePluginByKey(fxKey)
                 if pSerExt != None
-                    int itemIdxSerExt = _effectIdxFor(pSerExt, _keyItemId(effectKey[fxI]))
+                    int itemIdxSerExt = _effectIdxFor(pSerExt, _keyItemId(fxKey))
                     if itemIdxSerExt >= 0
                         int xN = pSerExt.GetEffectExtraFieldCount(itemIdxSerExt)
                         int xi = 0
@@ -1545,11 +1605,12 @@ bool Function LoadPreset(string name)
     EnsureArrays()
 
     ; Tear down whatever is currently active BEFORE we overwrite the slot
-    ; arrays. _deactivateSlotEffects reads effectKey/effectParam — if we
-    ; let LoadPreset clobber those first, it removes the wrong effects (or
-    ; none) and the old buffs linger forever. Also force currentTier = -1
-    ; so the next OnUpdate sees a real tier change even when the new
-    ; preset evaluates to the same integer tier index as the old one.
+    ; storage. _deactivateSlotEffects reads the StorageUtil mtf.fx.* keys —
+    ; if we let LoadPreset clobber those first, it removes the wrong
+    ; effects (or none) and the old buffs linger forever. Also force
+    ; currentTier = -1 so the next OnUpdate sees a real tier change even
+    ; when the new preset evaluates to the same integer tier index as the
+    ; old one.
     if currentTier >= 0
         _deactivateSlotEffects(currentTier)
     endif
@@ -1593,9 +1654,6 @@ bool Function LoadPreset(string name)
     int[]    aLEmiss   = condLayerEmissive
     float[]  aLEmult   = condLayerEmissiveMult
     int[]    aLAlpha   = condLayerAlpha
-    string[] aFxKey    = effectKey
-    int[]    aFxParam  = effectParam
-    int[]    aFxParam2 = effectParam2
 
     int s = 0
     while s < 8
@@ -1623,25 +1681,24 @@ bool Function LoadPreset(string name)
         endwhile
         int e = 0
         while e < maxE
-            int fxI = s * maxE + e
             string ep = sp + ".effect[" + e + "]"
-            ; Wipe the OLD effect's extras (effectKey[] still holds the
-            ; previous binding until we write back the local arrays at the
-            ; end of LoadPreset). Without this, switching presets leaves
-            ; stale extras floats laying around.
+            ; Wipe the OLD effect's extras BEFORE overwriting the key — the
+            ; helper needs the live key string in StorageUtil to look up
+            ; declared extra field names. _writeFxKey below clobbers it.
             _clearEffectExtras(s, e)
-            aFxKey[fxI]    = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
-            aFxParam[fxI]  = JsonUtil.GetPathIntValue(f,    ep + ".param",  0)
-            aFxParam2[fxI] = JsonUtil.GetPathIntValue(f,    ep + ".param2", 0)
+            string newKey = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
+            _writeFxKey(s, e, false, newKey)
+            _writeFxParam(s, e, false, JsonUtil.GetPathIntValue(f,    ep + ".param",  0))
+            _writeFxParam2(s, e, false, JsonUtil.GetPathIntValue(f,    ep + ".param2", 0))
             ; v0.1.3 extras restore — read each declared extra field from
             ; JSON, falling back to the plugin's declared default when the
             ; preset omits the key. Stamps directly into StorageUtil (the
             ; per-slot/effectIdx float keyspace) — not part of the array
             ; round-trip above.
-            if aFxKey[fxI] != ""
-                MTF_Plugin pLoadExt = ResolvePluginByKey(aFxKey[fxI])
+            if newKey != ""
+                MTF_Plugin pLoadExt = ResolvePluginByKey(newKey)
                 if pLoadExt != None
-                    int itemIdxLoadExt = _effectIdxFor(pLoadExt, _keyItemId(aFxKey[fxI]))
+                    int itemIdxLoadExt = _effectIdxFor(pLoadExt, _keyItemId(newKey))
                     if itemIdxLoadExt >= 0
                         int xN = pLoadExt.GetEffectExtraFieldCount(itemIdxLoadExt)
                         int xi = 0
@@ -1663,7 +1720,9 @@ bool Function LoadPreset(string name)
     endwhile
 
     ; Write the whole arrays back through the property setters so the
-    ; per-index mutations actually persist.
+    ; per-index mutations actually persist. (Effect arrays moved to
+    ; StorageUtil in v0.1.5 and are written directly above, no bulk
+    ; assign needed for fx.)
     condPackId            = aPackId
     condEntryId           = aEntryId
     cooldownMin           = aCdMin
@@ -1672,9 +1731,6 @@ bool Function LoadPreset(string name)
     condLayerEmissive     = aLEmiss
     condLayerEmissiveMult = aLEmult
     condLayerAlpha        = aLAlpha
-    effectKey             = aFxKey
-    effectParam           = aFxParam
-    effectParam2          = aFxParam2
 
     int p = 0
     while p < pluginCount
@@ -1730,9 +1786,6 @@ Function ResetEditor()
     int[]    aLEmiss   = condLayerEmissive
     float[]  aLEmult   = condLayerEmissiveMult
     int[]    aLAlpha   = condLayerAlpha
-    string[] aFxKey    = effectKey
-    int[]    aFxParam  = effectParam
-    int[]    aFxParam2 = effectParam2
 
     int s = 0
     while s < 8
@@ -1758,13 +1811,12 @@ Function ResetEditor()
         endwhile
         int e = 0
         while e < maxE
-            int fxI = s * maxE + e
             ; Wipe extras for the old binding before clearing the key
             ; (the helper needs the live key to look up field names).
             _clearEffectExtras(s, e)
-            aFxKey[fxI]    = ""
-            aFxParam[fxI]  = 0
-            aFxParam2[fxI] = 0
+            _writeFxKey(s, e, false, "")
+            _writeFxParam(s, e, false, 0)
+            _writeFxParam2(s, e, false, 0)
             e += 1
         endwhile
         s += 1
@@ -1778,9 +1830,6 @@ Function ResetEditor()
     condLayerEmissive     = aLEmiss
     condLayerEmissiveMult = aLEmult
     condLayerAlpha        = aLAlpha
-    effectKey             = aFxKey
-    effectParam           = aFxParam
-    effectParam2          = aFxParam2
 
     forceRedraw = true
 EndFunction
@@ -1927,7 +1976,7 @@ EndFunction
 ; ── Plugin registry ──────────────────────────────────────────────────────────
 Function RegisterPlugin(MTF_Plugin p)
 {Called by MTF_Plugin._tryRegister(). Idempotent.}
-    if p == None || registeredPlugins == None
+    if p == None || !_arraysReady
         return
     endif
     string pid = p.GetPluginId()
@@ -1948,7 +1997,7 @@ Function RegisterPlugin(MTF_Plugin p)
 EndFunction
 
 int Function FindPluginIndex(string pid)
-    if pid == "" || registeredPlugins == None
+    if pid == "" || !_arraysReady
         return -1
     endif
     int i = 0
@@ -2143,48 +2192,84 @@ EndFunction
 ; from O(N^2) cross-script calls (the old GetVisibleConditionKey/Label loop)
 ; into O(N) total with only a handful of cross-script hops.
 
-Function _ensureMenuArrays()
-    ; Force-reallocate every call so any stale 0-length array from prior
-    ; broken builds gets overwritten.
-    menuKeys = new string[64]
-    menuLabels = new string[64]
-EndFunction
-
 Function _stripDiagnostics()
 EndFunction
 
 Function BuildVisibleConditionMenu(string includeKey)
-    _ensureMenuArrays()
-    int total = GetTotalConditionItemCount()
+    ; Walk plugins ONCE and inline the global-idx → plugin/item resolution.
+    ; The old version called GetGlobalConditionKey(i) and
+    ; GetGlobalConditionLabel(i) per i — each of those re-walks plugins,
+    ; turning the menu rebuild into O(N²) cross-script calls (60 effects ×
+    ; 2 lookups × ~120 cross-script ops = ~14k calls = ~20s page load).
+    ; Build into LOCAL arrays — indexed writes to Auto array properties
+    ; silently no-op ([[project_papyrus_property_array_writes]]).
+    string[] localKeys   = new string[64]
+    string[] localLabels = new string[64]
     int n = 0
-    int i = 0
-    while i < total && n < 64
-        string k = GetGlobalConditionKey(i)
-        if IsItemEnabled(k) || k == includeKey
-            menuKeys[n] = k
-            menuLabels[n] = GetGlobalConditionLabel(i)
-            n += 1
+    int pi = 0
+    while pi < pluginCount && n < 64
+        MTF_Plugin p = GetPluginAt(pi)
+        if p != None
+            string pl = p.GetPluginLabel()
+            string pid = p.GetPluginId()
+            int cCount = p.GetConditionCount()
+            int ei = 0
+            while ei < cCount && n < 64
+                string k = pid + ":" + p.GetConditionId(ei)
+                if IsItemEnabled(k) || k == includeKey
+                    localKeys[n] = k
+                    string il = p.GetConditionLabel(ei)
+                    if pl == ""
+                        localLabels[n] = il
+                    else
+                        localLabels[n] = pl + " — " + il
+                    endif
+                    n += 1
+                endif
+                ei += 1
+            endwhile
         endif
-        i += 1
+        pi += 1
     endwhile
-    menuCount = n
+    menuKeys   = localKeys
+    menuLabels = localLabels
+    menuCount  = n
 EndFunction
 
 Function BuildVisibleEffectMenu(string includeKey)
-    _ensureMenuArrays()
-    int total = GetTotalEffectItemCount()
+    ; See BuildVisibleConditionMenu — single plugin pass to avoid O(N²)
+    ; cross-script calls.
+    string[] localKeys   = new string[64]
+    string[] localLabels = new string[64]
     int n = 0
-    int i = 0
-    while i < total && n < 64
-        string k = GetGlobalEffectKey(i)
-        if IsItemEnabled(k) || k == includeKey
-            menuKeys[n] = k
-            menuLabels[n] = GetGlobalEffectLabel(i)
-            n += 1
+    int pi = 0
+    while pi < pluginCount && n < 64
+        MTF_Plugin p = GetPluginAt(pi)
+        if p != None
+            string pl = p.GetPluginLabel()
+            string pid = p.GetPluginId()
+            int eCount = p.GetEffectCount()
+            int ei = 0
+            while ei < eCount && n < 64
+                string k = pid + ":" + p.GetEffectId(ei)
+                if IsItemEnabled(k) || k == includeKey
+                    localKeys[n] = k
+                    string il = p.GetEffectLabel(ei)
+                    if pl == ""
+                        localLabels[n] = il
+                    else
+                        localLabels[n] = pl + " — " + il
+                    endif
+                    n += 1
+                endif
+                ei += 1
+            endwhile
         endif
-        i += 1
+        pi += 1
     endwhile
-    menuCount = n
+    menuKeys   = localKeys
+    menuLabels = localLabels
+    menuCount  = n
 EndFunction
 
 ; ── Visible (enabled-only) views, with currently-bound key kept visible ─────
@@ -2282,44 +2367,106 @@ string Function GetVisibleEffectLabel(int visIdx, string includeKey)
     return GetGlobalEffectLabel(gi)
 EndFunction
 
+; ── StorageUtil-backed effect storage ───────────────────────────────────────
+; Effect bindings (key/param/param2 per slot+idx) live in PapyrusUtil cosave
+; rather than Auto array properties. Three reasons:
+;  • Papyrus arrays cap at 128 elements; flat 8*N indexing topped out at N=16.
+;    With StorageUtil we can raise MAX_EFFECTS_PER_SLOT freely.
+;  • Auto array properties added post-release sometimes fail to attach to an
+;    existing save instance (see [[project_papyrus_property_attach]]). Each
+;    new array we add risks repeating the wipe we hit on 2026-05-19.
+;  • Per-effect extras (mtf.fx.<s>.<e>.ex.*) already live in StorageUtil;
+;    moving key/param/param2 alongside keeps the keyspace uniform.
+; useScratch picks the prefix: `false` → player live (mtf.fx.), `true` →
+; NPC scratch (mtf.fx.scratch.). _loadPresetToScratch overwrites every
+; (slot, idx) on switch so stale scratch from a previous actor is naturally
+; replaced; no explicit clear needed.
+
+string Function _readFxKey(int slot, int idx, bool useScratch)
+    if useScratch
+        return StorageUtil.GetStringValue(None, "mtf.fx.scratch." + slot + "." + idx + ".key", "")
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.fx." + slot + "." + idx + ".key", "")
+EndFunction
+
+int Function _readFxParam(int slot, int idx, bool useScratch)
+    if useScratch
+        return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + slot + "." + idx + ".param", 0)
+    endif
+    return StorageUtil.GetIntValue(None, "mtf.fx." + slot + "." + idx + ".param", 0)
+EndFunction
+
+int Function _readFxParam2(int slot, int idx, bool useScratch)
+    if useScratch
+        return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + slot + "." + idx + ".param2", 0)
+    endif
+    return StorageUtil.GetIntValue(None, "mtf.fx." + slot + "." + idx + ".param2", 0)
+EndFunction
+
+Function _writeFxKey(int slot, int idx, bool useScratch, string val)
+    if useScratch
+        StorageUtil.SetStringValue(None, "mtf.fx.scratch." + slot + "." + idx + ".key", val)
+        return
+    endif
+    StorageUtil.SetStringValue(None, "mtf.fx." + slot + "." + idx + ".key", val)
+EndFunction
+
+Function _writeFxParam(int slot, int idx, bool useScratch, int val)
+    if useScratch
+        StorageUtil.SetIntValue(None, "mtf.fx.scratch." + slot + "." + idx + ".param", val)
+        return
+    endif
+    StorageUtil.SetIntValue(None, "mtf.fx." + slot + "." + idx + ".param", val)
+EndFunction
+
+Function _writeFxParam2(int slot, int idx, bool useScratch, int val)
+    if useScratch
+        StorageUtil.SetIntValue(None, "mtf.fx.scratch." + slot + "." + idx + ".param2", val)
+        return
+    endif
+    StorageUtil.SetIntValue(None, "mtf.fx." + slot + "." + idx + ".param2", val)
+EndFunction
+
 ; ── Per-slot effect-list helpers ─────────────────────────────────────────────
+; _fxBaseIdx is retained for backward-compat with any external script that
+; computed flat indices directly; the internal hot path now reads via
+; _readFx*/_writeFx*. Will be removed in a follow-up sweep.
 int Function _fxBaseIdx(int slot)
     return slot * MAX_EFFECTS_PER_SLOT()
 EndFunction
 
 string Function GetSlotEffectKey(int slot, int effectIdx)
-    if effectKey == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return ""
     endif
-    return effectKey[_fxBaseIdx(slot) + effectIdx]
+    return _readFxKey(slot, effectIdx, false)
 EndFunction
 
 int Function GetSlotEffectParam(int slot, int effectIdx)
-    if effectParam == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return 0
     endif
-    return effectParam[_fxBaseIdx(slot) + effectIdx]
+    return _readFxParam(slot, effectIdx, false)
 EndFunction
 
 int Function GetSlotEffectParam2(int slot, int effectIdx)
-    if effectParam2 == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return 0
     endif
-    return effectParam2[_fxBaseIdx(slot) + effectIdx]
+    return _readFxParam2(slot, effectIdx, false)
 EndFunction
 
 Function SetSlotEffect(int slot, int effectIdx, string key, int param)
 {Legacy 4-arg setter — preserves existing param2.}
-    if effectKey == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
-    int globalI = _fxBaseIdx(slot) + effectIdx
     bool live = (slot == currentTier)
     if live
         _deactivateSingleEffect(slot, effectIdx)
     endif
-    effectKey[globalI] = key
-    effectParam[globalI] = param
+    _writeFxKey(slot, effectIdx, false, key)
+    _writeFxParam(slot, effectIdx, false, param)
     if live && key != ""
         _activateSingleEffect(slot, effectIdx)
     endif
@@ -2329,19 +2476,19 @@ Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int p
 {Sets all three at once. Used when picking a new effect type so the
  default param2 is applied alongside default param. Also wipes the old
  effect's extras and stamps the new effect's declared defaults.}
-    if effectKey == None || effectParam2 == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
-    int globalI = _fxBaseIdx(slot) + effectIdx
     bool live = (slot == currentTier)
     if live
         _deactivateSingleEffect(slot, effectIdx)
     endif
-    ; Wipe extras tied to the OLD key (we still have it on effectKey[globalI]).
+    ; Wipe extras tied to the OLD key (StorageUtil still has the old binding
+    ; for the duration of this call, so _clearEffectExtras can look up names).
     _clearEffectExtras(slot, effectIdx)
-    effectKey[globalI] = key
-    effectParam[globalI] = param
-    effectParam2[globalI] = param2
+    _writeFxKey(slot, effectIdx, false, key)
+    _writeFxParam(slot, effectIdx, false, param)
+    _writeFxParam2(slot, effectIdx, false, param2)
     ; Populate extras defaults for the NEW key (no-op if key=="" or no extras).
     _populateEffectExtrasDefaults(slot, effectIdx, key)
     if live
@@ -2372,19 +2519,18 @@ Function CompactEffectsAfter(int slot, int fromIdx)
  the snapshot overwrite is required to carry actual user-tuned values.
 
  Stops early at the first empty src — nothing beyond a gap to compact.}
-    if effectKey == None || slot < 0 || slot >= 8 || fromIdx < 0 || fromIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot >= 8 || fromIdx < 0 || fromIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
     int maxE = MAX_EFFECTS_PER_SLOT()
     int i = fromIdx
     while i < maxE - 1
-        int srcG = _fxBaseIdx(slot) + (i + 1)
-        string srcKey = effectKey[srcG]
+        string srcKey = _readFxKey(slot, i + 1, false)
         if srcKey == ""
             return
         endif
-        int srcParam = effectParam[srcG]
-        int srcParam2 = effectParam2[srcG]
+        int srcParam = _readFxParam(slot, i + 1, false)
+        int srcParam2 = _readFxParam2(slot, i + 1, false)
         ; Snapshot src extras before SetSlotEffectFull resets dst extras.
         MTF_Plugin p = ResolvePluginByKey(srcKey)
         int xN = 0
@@ -2429,11 +2575,10 @@ EndFunction
 ; effect's onDeactivate is never called and its applied state lingers
 ; (Magic/Fire resist abilities stay on, +pct shifts stay applied, …).
 Function _deactivateSingleEffect(int slot, int effectIdx)
-    if effectKey == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
-    int globalI = _fxBaseIdx(slot) + effectIdx
-    string key = effectKey[globalI]
+    string key = _readFxKey(slot, effectIdx, false)
     if key == ""
         return
     endif
@@ -2444,17 +2589,16 @@ Function _deactivateSingleEffect(int slot, int effectIdx)
     int itemIdx = _effectIdxFor(p, _keyItemId(key))
     if itemIdx >= 0
         _setDispatchContext(slot, effectIdx)
-        p.onDeactivate(itemIdx, PlayerRef, effectParam[globalI], effectParam2[globalI])
+        p.onDeactivate(itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
         _clearDispatchContext()
     endif
 EndFunction
 
 Function _activateSingleEffect(int slot, int effectIdx)
-    if effectKey == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
-    int globalI = _fxBaseIdx(slot) + effectIdx
-    string key = effectKey[globalI]
+    string key = _readFxKey(slot, effectIdx, false)
     if key == ""
         return
     endif
@@ -2465,21 +2609,21 @@ Function _activateSingleEffect(int slot, int effectIdx)
     int itemIdx = _effectIdxFor(p, _keyItemId(key))
     if itemIdx >= 0
         _setDispatchContext(slot, effectIdx)
-        p.onActivate(itemIdx, PlayerRef, effectParam[globalI], effectParam2[globalI])
+        p.onActivate(itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
         _clearDispatchContext()
     endif
 EndFunction
 
 Function SetSlotEffectParam2(int slot, int effectIdx, int param2)
-    if effectParam2 == None || slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
-    effectParam2[_fxBaseIdx(slot) + effectIdx] = param2
+    _writeFxParam2(slot, effectIdx, false, param2)
 EndFunction
 
 ; ── Priority evaluation ───────────────────────────────────────────────────────
 int Function evaluateTier()
-    if condPluginId == None
+    if !_arraysReady
         return 0
     endif
     float now = Utility.GetCurrentGameTime()
@@ -2487,11 +2631,8 @@ int Function evaluateTier()
     while i < 8
         string key = condPluginId[i]
         if key != ""
-            bool timerActive = (cooldownUntilGT != None && now < cooldownUntilGT[i])
-            int mode = 0
-            if cooldownMode != None
-                mode = cooldownMode[i]
-            endif
+            bool timerActive = (now < cooldownUntilGT[i])
+            int mode = cooldownMode[i]
             if mode == 1 && timerActive
                 ; Lock-on-activate: slot is locked active. We've already
                 ; checked higher-priority slots (lower i) above; they
@@ -2520,7 +2661,7 @@ EndFunction
 Function _armCooldownTimer(int slot)
 {Sets cooldownUntilGT[slot] = now + cooldownMin[slot] minutes. Caller decides
  whether to arm based on mode (deactivate vs activate edge).}
-    if slot <= 0 || slot >= 8 || cooldownMin == None || cooldownUntilGT == None
+    if slot <= 0 || slot >= 8 || !_arraysReady
         return
     endif
     int mins = cooldownMin[slot]
@@ -2535,23 +2676,22 @@ EndFunction
 ; OverlaySlot — for NPCs and stacked player presets, the parallel
 ; ForActor variants do their own _setDispatchBaseSlot per preset.
 Function _activateSlotEffects(int slot)
-    if effectKey == None || slot < 0 || slot >= 8
+    if slot < 0 || slot >= 8
         return
     endif
     _setDispatchBaseSlot(OverlaySlot)
     _setDispatchUseScratch(false)
-    int base = _fxBaseIdx(slot)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
-        string key = effectKey[base + e]
+        string key = _readFxKey(slot, e, false)
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onActivate(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
+                    p.onActivate(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
                 endif
             endif
         endif
@@ -2561,23 +2701,22 @@ Function _activateSlotEffects(int slot)
 EndFunction
 
 Function _deactivateSlotEffects(int slot)
-    if effectKey == None || slot < 0 || slot >= 8
+    if slot < 0 || slot >= 8
         return
     endif
     _setDispatchBaseSlot(OverlaySlot)
     _setDispatchUseScratch(false)
-    int base = _fxBaseIdx(slot)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
-        string key = effectKey[base + e]
+        string key = _readFxKey(slot, e, false)
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onDeactivate(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
+                    p.onDeactivate(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
                 endif
             endif
         endif
@@ -2587,23 +2726,22 @@ Function _deactivateSlotEffects(int slot)
 EndFunction
 
 Function _tickSlotEffects(int slot)
-    if effectKey == None || slot < 0 || slot >= 8
+    if slot < 0 || slot >= 8
         return
     endif
     _setDispatchBaseSlot(OverlaySlot)
     _setDispatchUseScratch(false)
-    int base = _fxBaseIdx(slot)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
-        string key = effectKey[base + e]
+        string key = _readFxKey(slot, e, false)
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onTick(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
+                    p.onTick(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
                 endif
             endif
         endif
@@ -2613,22 +2751,21 @@ Function _tickSlotEffects(int slot)
 EndFunction
 
 Function _gameTickSlotEffects(int slot)
-    if effectKey == None || slot < 0 || slot >= 8
+    if slot < 0 || slot >= 8
         return
     endif
     _setDispatchBaseSlot(OverlaySlot)
-    int base = _fxBaseIdx(slot)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
-        string key = effectKey[base + e]
+        string key = _readFxKey(slot, e, false)
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onGameTime(itemIdx, PlayerRef, effectParam[base + e], effectParam2[base + e])
+                    p.onGameTime(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
                 endif
             endif
         endif
@@ -2638,14 +2775,13 @@ Function _gameTickSlotEffects(int slot)
 EndFunction
 
 bool Function _slotHasEffects(int slot)
-    if effectKey == None || slot < 0 || slot >= 8
+    if slot < 0 || slot >= 8
         return false
     endif
-    int base = _fxBaseIdx(slot)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
-        if effectKey[base + e] != ""
+        if _readFxKey(slot, e, false) != ""
             return true
         endif
         e += 1
@@ -2668,17 +2804,16 @@ Function _notifyTierChangeForActor(Actor target, int tier, bool useScratch)
         return
     endif
     string msg = "MTF: " + nm + " - Tier " + tier
-    int base = _fxBaseIdx(tier)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
-        string key = _g_effectKey(base + e, useScratch)
+        string key = _readFxKey(tier, e, useScratch)
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    msg += " - " + p.GetEffectLabel(itemIdx) + " " + _g_effectParam(base + e, useScratch)
+                    msg += " - " + p.GetEffectLabel(itemIdx) + " " + _readFxParam(tier, e, useScratch)
                 endif
             endif
         endif
@@ -2697,17 +2832,16 @@ Function _notifyTierChange(int tier)
         return
     endif
     string msg = "MTF: Tier " + tier
-    int base = _fxBaseIdx(tier)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
-        string key = effectKey[base + e]
+        string key = _readFxKey(tier, e, false)
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    msg += " - " + p.GetEffectLabel(itemIdx) + " " + effectParam[base + e]
+                    msg += " - " + p.GetEffectLabel(itemIdx) + " " + _readFxParam(tier, e, false)
                 endif
             endif
         endif
@@ -2768,7 +2902,7 @@ State checkingAroused
                 if tierChanged && currentTier >= 0
                     _deactivateSlotEffects(currentTier)
                     ; Mode 0: arm cooldown so the slot can't reactivate.
-                    if cooldownMode != None && cooldownMode[currentTier] == 0
+                    if _arraysReady && cooldownMode[currentTier] == 0
                         _armCooldownTimer(currentTier)
                     endif
                 endif
@@ -2786,7 +2920,7 @@ State checkingAroused
                     _applyPulse()
                     _activateSlotEffects(currentTier)
                     ; Mode 1: arm lock so the slot stays active for the duration.
-                    if currentTier > 0 && cooldownMode != None && cooldownMode[currentTier] == 1
+                    if currentTier > 0 && _arraysReady && cooldownMode[currentTier] == 1
                         _armCooldownTimer(currentTier)
                     endif
                     _notifyTierChange(currentTier)
@@ -3737,9 +3871,6 @@ Function _ensureScratchArrays()
         _sCondPulseRate         = new float[8]
         _sCondPulseDepth        = new int[8]
         _sCondWaveform          = new string[8]
-        _sEffectKey             = new string[32]
-        _sEffectParam           = new int[32]
-        _sEffectParam2          = new int[32]
         _sCooldownMin           = new int[8]
         _sCooldownMode          = new int[8]
     endif
@@ -3811,9 +3942,6 @@ bool Function _loadPresetToScratch(string name)
     int[]    localLayerEmissive   = new int[32]
     float[]  localLayerEmMult     = new float[32]
     int[]    localLayerAlpha      = new int[32]
-    string[] localEffectKey       = new string[32]
-    int[]    localEffectParam     = new int[32]
-    int[]    localEffectParam2    = new int[32]
     int s = 0
     while s < 8
         string sp = ".slot[" + s + "]"
@@ -3839,11 +3967,14 @@ bool Function _loadPresetToScratch(string name)
         endwhile
         int e = 0
         while e < maxE
-            int fxI = s * maxE + e
             string ep = sp + ".effect[" + e + "]"
-            localEffectKey[fxI]    = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
-            localEffectParam[fxI]  = JsonUtil.GetPathIntValue(f,    ep + ".param",  0)
-            localEffectParam2[fxI] = JsonUtil.GetPathIntValue(f,    ep + ".param2", 0)
+            ; Scratch effect storage lives in StorageUtil under
+            ; mtf.fx.scratch.<slot>.<idx>.*. Every (slot, idx) is overwritten
+            ; on each call so stale state from a prior actor is naturally
+            ; replaced (defaults to "" / 0 when the preset omits the entry).
+            _writeFxKey(s, e, true, JsonUtil.GetPathStringValue(f, ep + ".key", ""))
+            _writeFxParam(s, e, true, JsonUtil.GetPathIntValue(f, ep + ".param", 0))
+            _writeFxParam2(s, e, true, JsonUtil.GetPathIntValue(f, ep + ".param2", 0))
             ; Load this effect's known extras into scratch StorageUtil keys
             ; so GetSlotEffectExtra can read them under the dispatch scratch
             ; flag. Currently the only effect with extras is flash.onhit; if
@@ -3856,7 +3987,8 @@ bool Function _loadPresetToScratch(string name)
         endwhile
         s += 1
     endwhile
-    ; Whole-array reference assignments — the safe pattern.
+    ; Whole-array reference assignments — the safe pattern. (Effect arrays
+    ; moved to StorageUtil scratch keys above; no array assign needed.)
     _sCondPluginId          = localCondPluginId
     _sCondParam             = localCondParam
     _sCondPackId            = localCondPackId
@@ -3870,9 +4002,6 @@ bool Function _loadPresetToScratch(string name)
     _sCondLayerEmissive     = localLayerEmissive
     _sCondLayerEmissiveMult = localLayerEmMult
     _sCondLayerAlpha        = localLayerAlpha
-    _sEffectKey             = localEffectKey
-    _sEffectParam           = localEffectParam
-    _sEffectParam2          = localEffectParam2
     _scratchLoadedFor = name
     return true
 EndFunction
@@ -3891,7 +4020,7 @@ string Function _g_condPluginId(int slot, bool useScratch)
         endif
         return _sCondPluginId[slot]
     endif
-    if condPluginId == None
+    if !_arraysReady
         return ""
     endif
     return condPluginId[slot]
@@ -3904,7 +4033,7 @@ int Function _g_condParam(int slot, bool useScratch)
         endif
         return _sCondParam[slot]
     endif
-    if condParam == None
+    if !_arraysReady
         return 0
     endif
     return condParam[slot]
@@ -3917,7 +4046,7 @@ int Function _g_cooldownMode(int slot, bool useScratch)
         endif
         return _sCooldownMode[slot]
     endif
-    if cooldownMode == None
+    if !_arraysReady
         return 0
     endif
     return cooldownMode[slot]
@@ -3930,7 +4059,7 @@ int Function _g_cooldownMin(int slot, bool useScratch)
         endif
         return _sCooldownMin[slot]
     endif
-    if cooldownMin == None
+    if !_arraysReady
         return 0
     endif
     return cooldownMin[slot]
@@ -4145,42 +4274,9 @@ int Function _g_layerAlpha(int lidx, bool useScratch)
     return condLayerAlpha[lidx]
 EndFunction
 
-string Function _g_effectKey(int fxIdx, bool useScratch)
-    if useScratch
-        if _sEffectKey == None
-            return ""
-        endif
-        return _sEffectKey[fxIdx]
-    endif
-    if effectKey == None
-        return ""
-    endif
-    return effectKey[fxIdx]
-EndFunction
-int Function _g_effectParam(int fxIdx, bool useScratch)
-    if useScratch
-        if _sEffectParam == None
-            return 0
-        endif
-        return _sEffectParam[fxIdx]
-    endif
-    if effectParam == None
-        return 0
-    endif
-    return effectParam[fxIdx]
-EndFunction
-int Function _g_effectParam2(int fxIdx, bool useScratch)
-    if useScratch
-        if _sEffectParam2 == None
-            return 0
-        endif
-        return _sEffectParam2[fxIdx]
-    endif
-    if effectParam2 == None
-        return 0
-    endif
-    return effectParam2[fxIdx]
-EndFunction
+; _g_effectKey/Param/Param2 removed in v0.1.5 — effect storage moved to
+; StorageUtil. Call sites now use _readFxKey/Param/Param2(slot, idx, useScratch)
+; directly with the natural (slot, idx) shape instead of a flat fxIdx.
 
 ; ── Generalized eval + effect dispatch ──────────────────────────────────────
 int Function evaluateTierForActor(Actor target, string presetName, bool useScratch)
@@ -4251,18 +4347,17 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
     endif
     _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
     _setDispatchUseScratch(useScratch)
-    int base = slot * MAX_EFFECTS_PER_SLOT()
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
-        string key = _g_effectKey(base + e, useScratch)
+        string key = _readFxKey(slot, e, useScratch)
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onActivate(itemIdx, target, _g_effectParam(base + e, useScratch), _g_effectParam2(base + e, useScratch))
+                    p.onActivate(itemIdx, target, _readFxParam(slot, e, useScratch), _readFxParam2(slot, e, useScratch))
                 endif
             endif
         endif
@@ -4277,18 +4372,17 @@ Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch,
     endif
     _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
     _setDispatchUseScratch(useScratch)
-    int base = slot * MAX_EFFECTS_PER_SLOT()
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
-        string key = _g_effectKey(base + e, useScratch)
+        string key = _readFxKey(slot, e, useScratch)
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onDeactivate(itemIdx, target, _g_effectParam(base + e, useScratch), _g_effectParam2(base + e, useScratch))
+                    p.onDeactivate(itemIdx, target, _readFxParam(slot, e, useScratch), _readFxParam2(slot, e, useScratch))
                 endif
             endif
         endif
@@ -4303,18 +4397,17 @@ Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch, strin
     endif
     _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
     _setDispatchUseScratch(useScratch)
-    int base = slot * MAX_EFFECTS_PER_SLOT()
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
-        string key = _g_effectKey(base + e, useScratch)
+        string key = _readFxKey(slot, e, useScratch)
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onTick(itemIdx, target, _g_effectParam(base + e, useScratch), _g_effectParam2(base + e, useScratch))
+                    p.onTick(itemIdx, target, _readFxParam(slot, e, useScratch), _readFxParam2(slot, e, useScratch))
                 endif
             endif
         endif

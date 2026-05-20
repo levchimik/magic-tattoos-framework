@@ -1,4 +1,5 @@
 #include "papyrus.h"
+#include "config.h"
 #include "log.h"
 #include "pulse_roster.h"
 
@@ -358,6 +359,20 @@ namespace MTFPulse::Papyrus {
             Roster::Instance().TriggerFade(actor, base_slot);
         }
 
+        // Read an int from Data/SKSE/Plugins/MagicTattoosFramework.ini.
+        // `key` may be a bare name (resolved against [General]) or the
+        // "section.name" form for non-default sections. Returns the
+        // supplied default if the file or key is missing.
+        std::int32_t GetConfigInt(RE::StaticFunctionTag* /*tag*/,
+                                  RE::BSFixedString key,
+                                  std::int32_t      default_value)
+        {
+            std::string_view v = key.empty()
+                ? std::string_view{}
+                : std::string_view(key.c_str());
+            return Config::GetInt(v, default_value);
+        }
+
     }  // namespace
 
     bool Register(RE::BSScript::IVirtualMachine* vm)
@@ -378,6 +393,7 @@ namespace MTFPulse::Papyrus {
         vm->RegisterFunction("SetActorFade",      kClassName, SetActorFade);
         vm->RegisterFunction("ClearActorFade",    kClassName, ClearActorFade);
         vm->RegisterFunction("TriggerActorFade",  kClassName, TriggerActorFade);
+        vm->RegisterFunction("GetConfigInt",      kClassName, GetConfigInt);
         spdlog::info("Papyrus natives registered under '{}'", kClassName);
         return true;
     }

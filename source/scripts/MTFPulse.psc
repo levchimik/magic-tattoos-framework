@@ -135,3 +135,18 @@ Function ClearActorFade(Actor aktor, Int baseOverlaySlot) Global Native
 ;
 ; No-op if no entry, not armed, or fade already in flight.
 Function TriggerActorFade(Actor aktor, Int baseOverlaySlot) Global Native
+
+; ── Runtime config (v0.1.5) ─────────────────────────────────────────────────
+; Read an int from Data/SKSE/Plugins/MagicTattoosFramework.ini. The DLL
+; resolves the path next to itself, then reads via Win32
+; GetPrivateProfileInt (Win32 maintains its own in-process file cache, so
+; repeated calls don't hit disk). INI edits take effect on Skyrim restart.
+;
+;   key           — bare name (resolved against the [General] section) or
+;                   "section.name" form for non-default sections. Bethesda
+;                   convention: type-prefix the name (iFoo / fFoo / bFoo).
+;   defaultValue  — returned when the INI file is absent, the key is
+;                   missing, or the C++ plugin failed to load (the
+;                   "function MTFPulse.GetConfigInt not found" path falls
+;                   through to the caller's own default).
+Int Function GetConfigInt(String key, Int defaultValue) Global Native

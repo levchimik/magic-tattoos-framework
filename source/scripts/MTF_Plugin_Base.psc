@@ -848,7 +848,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 39
+    return 56
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -942,6 +942,40 @@ string Function _effectIdHigh(int idx)
         return "modify.absorbChance"
     elseif idx == 38
         return "modify.reflectDamage"
+    elseif idx == 39
+        return "modify.oneHanded"
+    elseif idx == 40
+        return "modify.twoHanded"
+    elseif idx == 41
+        return "modify.archery"
+    elseif idx == 42
+        return "modify.block"
+    elseif idx == 43
+        return "modify.heavyArmor"
+    elseif idx == 44
+        return "modify.lightArmor"
+    elseif idx == 45
+        return "modify.smithing"
+    elseif idx == 46
+        return "modify.enchanting"
+    elseif idx == 47
+        return "modify.alchemy"
+    elseif idx == 48
+        return "modify.destruction"
+    elseif idx == 49
+        return "modify.restoration"
+    elseif idx == 50
+        return "modify.alteration"
+    elseif idx == 51
+        return "modify.illusion"
+    elseif idx == 52
+        return "modify.conjuration"
+    elseif idx == 53
+        return "modify.speech"
+    elseif idx == 54
+        return "modify.lockpicking"
+    elseif idx == 55
+        return "modify.pickpocket"
     endif
     return ""
 EndFunction
@@ -1037,6 +1071,40 @@ string Function _effectLabelHigh(int idx)
         return "Modify Spell Absorb"
     elseif idx == 38
         return "Modify Reflect Damage"
+    elseif idx == 39
+        return "Modify One-Handed"
+    elseif idx == 40
+        return "Modify Two-Handed"
+    elseif idx == 41
+        return "Modify Archery"
+    elseif idx == 42
+        return "Modify Block"
+    elseif idx == 43
+        return "Modify Heavy Armor"
+    elseif idx == 44
+        return "Modify Light Armor"
+    elseif idx == 45
+        return "Modify Smithing"
+    elseif idx == 46
+        return "Modify Enchanting"
+    elseif idx == 47
+        return "Modify Alchemy"
+    elseif idx == 48
+        return "Modify Destruction"
+    elseif idx == 49
+        return "Modify Restoration"
+    elseif idx == 50
+        return "Modify Alteration"
+    elseif idx == 51
+        return "Modify Illusion"
+    elseif idx == 52
+        return "Modify Conjuration"
+    elseif idx == 53
+        return "Modify Speech"
+    elseif idx == 54
+        return "Modify Lockpicking"
+    elseif idx == 55
+        return "Modify Pickpocket"
     endif
     return ""
 EndFunction
@@ -1124,6 +1192,40 @@ string Function _effectParamLabelHigh(int idx)
         return "Spell absorb chance shift (points; + absorb, - vulnerable)"
     elseif idx == 38
         return "Reflect damage chance shift (points; + reflect, - vulnerable)"
+    elseif idx == 39
+        return "One-Handed skill shift (points; + buff, - drain)"
+    elseif idx == 40
+        return "Two-Handed skill shift (points; + buff, - drain)"
+    elseif idx == 41
+        return "Archery skill shift (points; + buff, - drain)"
+    elseif idx == 42
+        return "Block skill shift (points; + buff, - drain)"
+    elseif idx == 43
+        return "Heavy Armor skill shift (points; + buff, - drain)"
+    elseif idx == 44
+        return "Light Armor skill shift (points; + buff, - drain)"
+    elseif idx == 45
+        return "Smithing skill shift (points; + buff, - drain)"
+    elseif idx == 46
+        return "Enchanting skill shift (points; + buff, - drain)"
+    elseif idx == 47
+        return "Alchemy skill shift (points; + buff, - drain)"
+    elseif idx == 48
+        return "Destruction skill shift (points; + buff, - drain)"
+    elseif idx == 49
+        return "Restoration skill shift (points; + buff, - drain)"
+    elseif idx == 50
+        return "Alteration skill shift (points; + buff, - drain)"
+    elseif idx == 51
+        return "Illusion skill shift (points; + buff, - drain)"
+    elseif idx == 52
+        return "Conjuration skill shift (points; + buff, - drain)"
+    elseif idx == 53
+        return "Speech skill shift (points; + buff, - drain)"
+    elseif idx == 54
+        return "Lockpicking skill shift (points; + buff, - drain)"
+    elseif idx == 55
+        return "Pickpocket skill shift (points; + buff, - drain)"
     endif
     return ""
 EndFunction
@@ -1467,10 +1569,11 @@ bool Function _isAbsShift(int idx)
     ;     ignore direct ModActorValue — Fire/Frost/Shock/Magic + Disease/
     ;     Poison. Each has a paired MGEF+Spell in MagicTattoosFramework.esp;
     ;     SetNthEffectMagnitude carries the signed param.
-    ;   • Direct ModActorValue (idx 16-18, 26-…, 37-38): UnarmedDamage,
-    ;     CriticalChance, BowSpeedBonus, AbsorbChance, ReflectDamage. These
-    ;     accept ModActorValue without spell routing.
-    return (idx >= 16 && idx <= 22) || (idx >= 35 && idx <= 38)
+    ;   • Direct ModActorValue: UnarmedDamage / CriticalChance / BowSpeedBonus
+    ;     (16-18), AbsorbChance / ReflectDamage (37-38), and the 17 vanilla
+    ;     skill AVs (39-55: OneHanded..Pickpocket; Sneak already covered by
+    ;     scale.sneak idx 2). All accept direct ModAV.
+    return (idx >= 16 && idx <= 22) || (idx >= 35 && idx <= 55)
 EndFunction
 
 bool Function _isToggle(int idx)
@@ -1553,6 +1656,45 @@ string Function _avNameForHigh(int idx)
         return "AbsorbChance"
     elseif idx == 38
         return "ReflectDamage"
+    elseif idx == 39
+        return "OneHanded"
+    elseif idx == 40
+        return "TwoHanded"
+    elseif idx == 41
+        ; Skyrim AV naming quirk — the Archery skill's AV is "Marksman",
+        ; a leftover Morrowind/Oblivion name. The skill-tree UI says
+        ; Archery; GetActorValue/ModActorValue need "Marksman".
+        return "Marksman"
+    elseif idx == 42
+        return "Block"
+    elseif idx == 43
+        return "HeavyArmor"
+    elseif idx == 44
+        return "LightArmor"
+    elseif idx == 45
+        return "Smithing"
+    elseif idx == 46
+        return "Enchanting"
+    elseif idx == 47
+        return "Alchemy"
+    elseif idx == 48
+        return "Destruction"
+    elseif idx == 49
+        return "Restoration"
+    elseif idx == 50
+        return "Alteration"
+    elseif idx == 51
+        return "Illusion"
+    elseif idx == 52
+        return "Conjuration"
+    elseif idx == 53
+        ; Skyrim AV naming quirk — the Speech skill's AV is "Speechcraft",
+        ; another Morrowind/Oblivion holdover. UI says Speech.
+        return "Speechcraft"
+    elseif idx == 54
+        return "Lockpicking"
+    elseif idx == 55
+        return "Pickpocket"
     endif
     return ""
 EndFunction

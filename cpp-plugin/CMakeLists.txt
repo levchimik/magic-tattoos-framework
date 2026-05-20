@@ -25,6 +25,8 @@ find_package(spdlog CONFIG REQUIRED)
 # ── Plugin DLL ──────────────────────────────────────────────────────────────
 add_library(${PROJECT_NAME} SHARED
     src/main.cpp
+    src/config.cpp
+    src/config.h
     src/pulse_roster.cpp
     src/pulse_roster.h
     src/papyrus.cpp

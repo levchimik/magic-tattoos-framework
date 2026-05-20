@@ -9,6 +9,7 @@
 // is intentionally ignorant of conditions, presets, cooldowns — those stay
 // in Papyrus where they're fine.
 
+#include "config.h"
 #include "death_sink.h"
 #include "frame_hook.h"
 #include "hit_sink.h"
@@ -57,6 +58,7 @@ namespace {
 
             case SKSE::MessagingInterface::kPostLoad:
                 spdlog::info("kPostLoad");
+                Config::Load();
                 break;
 
             case SKSE::MessagingInterface::kPostPostLoad:
