@@ -1,7 +1,9 @@
 *.bak
+*.bak-*
 *.bak2
 *.broken-stub.bak
 *.tmp
 *.log
 source/scripts/*.pex
+_build/
 _deps/
