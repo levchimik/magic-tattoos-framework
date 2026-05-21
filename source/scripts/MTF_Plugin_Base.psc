@@ -1515,103 +1515,127 @@ string Function GetEffectParamMenuOptionLabel(int idx, int optionIdx)
 EndFunction
 
 ; ── Extras (v0.1.3) — per-effect extra fields ────────────────────────────────
-; flash.onhit declares three time-related extras:
+; flash.onhit (idx 33) declares three envelope timing extras:
 ;   rampms    — 0→1 intensity ramp (1..2000 ms, default 80)
 ;   decayms   — 1→0 intensity decay after retrigger expires (1..5000 ms, default 350)
 ;   retrigms  — sustain window; while now − lastHit < retrigms, intensity holds
 ;               at 1.0. New hits inside the window reset lastHit, keeping the
 ;               flash alight. Outside the window, decay runs. (0..2000 ms,
 ;               default 150)
+; sound.play (idx 56) declares one mixer extra:
+;   volume    — 0..100% multiplier on Sound.SetInstanceVolume after Play
+;               (default 100). Range chosen percent-friendly so MCM slider
+;               reads naturally — internal mult is volume/100.0.
 int Function GetEffectExtraFieldCount(int idx)
     if idx == 33
         return 3
+    endif
+    if idx == 56
+        return 1
     endif
     return 0
 EndFunction
 
 string Function GetEffectExtraFieldName(int idx, int fieldIdx)
-    if idx != 33
-        return ""
+    if idx == 33
+        if fieldIdx == 0
+            return "rampms"
+        endif
+        if fieldIdx == 1
+            return "decayms"
+        endif
+        if fieldIdx == 2
+            return "retrigms"
+        endif
     endif
-    if fieldIdx == 0
-        return "rampms"
-    endif
-    if fieldIdx == 1
-        return "decayms"
-    endif
-    if fieldIdx == 2
-        return "retrigms"
+    if idx == 56
+        if fieldIdx == 0
+            return "volume"
+        endif
     endif
     return ""
 EndFunction
 
 string Function GetEffectExtraFieldLabel(int idx, int fieldIdx)
-    if idx != 33
-        return ""
+    if idx == 33
+        if fieldIdx == 0
+            return "Ramp up (ms)"
+        endif
+        if fieldIdx == 1
+            return "Decay (ms)"
+        endif
+        if fieldIdx == 2
+            return "Sustain window (ms)"
+        endif
     endif
-    if fieldIdx == 0
-        return "Ramp up (ms)"
-    endif
-    if fieldIdx == 1
-        return "Decay (ms)"
-    endif
-    if fieldIdx == 2
-        return "Sustain window (ms)"
+    if idx == 56
+        if fieldIdx == 0
+            return "Volume (%)"
+        endif
     endif
     return ""
 EndFunction
 
 int Function GetEffectExtraFieldMin(int idx, int fieldIdx)
-    if idx != 33
-        return 0
+    if idx == 33
+        if fieldIdx == 0
+            return 1
+        endif
+        if fieldIdx == 1
+            return 1
+        endif
+        if fieldIdx == 2
+            return 0
+        endif
     endif
-    if fieldIdx == 0
-        return 1
-    endif
-    if fieldIdx == 1
-        return 1
-    endif
-    if fieldIdx == 2
+    if idx == 56
         return 0
     endif
     return 0
 EndFunction
 
 int Function GetEffectExtraFieldMax(int idx, int fieldIdx)
-    if idx != 33
+    if idx == 33
+        if fieldIdx == 0
+            return 2000
+        endif
+        if fieldIdx == 1
+            return 5000
+        endif
+        if fieldIdx == 2
+            return 2000
+        endif
+    endif
+    if idx == 56
         return 100
-    endif
-    if fieldIdx == 0
-        return 2000
-    endif
-    if fieldIdx == 1
-        return 5000
-    endif
-    if fieldIdx == 2
-        return 2000
     endif
     return 100
 EndFunction
 
 int Function GetEffectExtraFieldStep(int idx, int fieldIdx)
-    if idx != 33
-        return 1
+    if idx == 33
+        return 10
     endif
-    return 10
+    if idx == 56
+        return 5
+    endif
+    return 1
 EndFunction
 
 int Function GetEffectExtraFieldDefault(int idx, int fieldIdx)
-    if idx != 33
-        return 0
+    if idx == 33
+        if fieldIdx == 0
+            return 150
+        endif
+        if fieldIdx == 1
+            return 500
+        endif
+        if fieldIdx == 2
+            return 800
+        endif
     endif
-    if fieldIdx == 0
-        return 150
-    endif
-    if fieldIdx == 1
-        return 500
-    endif
-    if fieldIdx == 2
-        return 800
+    if idx == 56
+        return 100
     endif
     return 0
 EndFunction
@@ -2829,14 +2853,22 @@ Function _tickShaderRow(Actor target, int shaderIdx, int param2)
 EndFunction
 
 ; ── sound.play (idx 56) — vanilla SoundDescriptor playback ──────────────────
-; Curated set of 18 ambient SNDR loops from Skyrim.esm covering the elemental
-; concentration / hazard families. param picks the catalog index; param2
-; picks playback mode (0 = loop, 1 = one-shot).
+; Curated set of 34 sounds from Skyrim.esm in two bands:
+;   idx 0..17 — ambient SNDR loops (elemental concentration / hazard families).
+;   idx 18..33 — short-stinger SOUNs (UI progression cues, dragon roars,
+;                conjure pops).
+; param picks the catalog index; param2 is duration in seconds (0 = until
+; tier deactivates).
 ;
-; Loop mode stores the Play instance handle so onDeactivate can stop it and
-; onTick can re-Play it after a session resume (GetCurrentRealTime drops to
-; a small value on load, signalling the stored handle is stale). One-shot
-; mode fires once and forgets — no handle tracked, no auto-stop.
+; The extras field "volume" (0..100%) multiplies the SNDR's intrinsic volume
+; via Sound.SetInstanceVolume after Play. 100 = no change, 0 = effectively
+; muted.
+;
+; Handle tracking is always on — Bethesda concentration SNDRs are Loop-flagged
+; and would play forever without StopInstance on deactivate. Even most "sting"
+; SNDRs are short enough to be safe as one-shots, but a few (Hagraven shriek,
+; portal whoosh) have audible tails — tracking the handle lets the tier exit
+; cut them off cleanly.
 ;
 ; Per-actor state under StorageUtil, keyed by (baseSlot, slot, effectIdx):
 ;   mtf.soundFx.<baseSlot>.<slot>.<eff>.id    — Sound.Play instance handle
@@ -2846,7 +2878,7 @@ EndFunction
 ; live on different overlay bases.
 
 int Function _soundCount()
-    return 18
+    return 34
 EndFunction
 
 int Function _soundFormId(int idx)
@@ -2909,6 +2941,54 @@ int Function _soundFormId(int idx)
     if idx == 17
         return 0x911
     endif
+    if idx == 18
+        return 0x912
+    endif
+    if idx == 19
+        return 0x913
+    endif
+    if idx == 20
+        return 0x914
+    endif
+    if idx == 21
+        return 0x915
+    endif
+    if idx == 22
+        return 0x916
+    endif
+    if idx == 23
+        return 0x917
+    endif
+    if idx == 24
+        return 0x918
+    endif
+    if idx == 25
+        return 0x919
+    endif
+    if idx == 26
+        return 0x91A
+    endif
+    if idx == 27
+        return 0x91B
+    endif
+    if idx == 28
+        return 0x91C
+    endif
+    if idx == 29
+        return 0x91D
+    endif
+    if idx == 30
+        return 0x91E
+    endif
+    if idx == 31
+        return 0x91F
+    endif
+    if idx == 32
+        return 0x920
+    endif
+    if idx == 33
+        return 0x921
+    endif
     return 0
 EndFunction
 
@@ -2967,6 +3047,59 @@ string Function _soundLabel(int idx)
     if idx == 17
         return "Illusion — ready hum"
     endif
+    ; ── Stings (one-shot stinger SOUNs, idx 18+) ────────────────────────────
+    ; UI / progression cues, dragon roars, conjure pops. Short bursts, no
+    ; loop tail. Pair with param2 > 0 (timed) for repeating beats, or
+    ; param2 = 0 (sustain) to let the engine play once and stay quiet
+    ; until the tier deactivates.
+    if idx == 18
+        return "UI — Level up"
+    endif
+    if idx == 19
+        return "UI — Skill up"
+    endif
+    if idx == 20
+        return "UI — New quest"
+    endif
+    if idx == 21
+        return "UI — Quest update"
+    endif
+    if idx == 22
+        return "UI — Quest complete"
+    endif
+    if idx == 23
+        return "UI — Shout learned"
+    endif
+    if idx == 24
+        return "UI — Shout pop (big)"
+    endif
+    if idx == 25
+        return "UI — Perk select"
+    endif
+    if idx == 26
+        return "UI — Journal open"
+    endif
+    if idx == 27
+        return "Dragon — flight roar"
+    endif
+    if idx == 28
+        return "Dragon — kill roar"
+    endif
+    if idx == 29
+        return "Hagraven shriek"
+    endif
+    if idx == 30
+        return "Conjure — portal open"
+    endif
+    if idx == 31
+        return "Conjure — portal close"
+    endif
+    if idx == 32
+        return "Conjure — bound weapon"
+    endif
+    if idx == 33
+        return "Conjure — impact"
+    endif
     return "Sound #" + idx
 EndFunction
 
@@ -3014,6 +3147,23 @@ Function _playSoundLoop(Actor target, int baseSlot, int slot, int eff, int sound
     int handle = s.Play(target)
     if handle <= 0
         return
+    endif
+    ; Apply per-row volume mixer (extras "volume", 0..100 percent).
+    ; Read from dispatch context — slot/eff already known. Default to 100
+    ; if missing so unconfigured rows still play at full volume.
+    MTF_MainQuest h = _host()
+    if h != None
+        float volPct = h.GetSlotEffectExtra(slot, eff, "volume")
+        if volPct <= 0.0
+            ; Either explicit 0 (mute) or unset extra (treat as 100 unless
+            ; the user wrote 0). We can't tell unset apart from 0 cleanly
+            ; via GetFloatValue, but the populated default is 100, so any
+            ; ≤0 here means either fresh-default-not-stamped or explicit
+            ; mute. Either way, skip SetInstanceVolume — Play() already
+            ; runs at the SNDR's intrinsic volume.
+        else
+            Sound.SetInstanceVolume(handle, volPct / 100.0)
+        endif
     endif
     StorageUtil.SetIntValue(target,   _soundFxKeyId(baseSlot, slot, eff),   handle)
     StorageUtil.SetFloatValue(target, _soundFxKeyTime(baseSlot, slot, eff), Utility.GetCurrentRealTime())
