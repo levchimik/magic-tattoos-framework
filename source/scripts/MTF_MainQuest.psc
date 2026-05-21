@@ -1971,6 +1971,26 @@ Function SetItemEnabled(string key, bool on)
     endif
 EndFunction
 
+; ── Per-plugin enable/disable ───────────────────────────────────────────────
+; Plugin-level toggle reuses the disabledItems[] storage with a "plugin:<pid>"
+; key shape. Same persistence, same scratch wipe semantics — just a different
+; key namespace. When a plugin is disabled, all of its conditions and effects
+; are hidden from the slot dropdowns (regardless of per-item flags).
+
+bool Function IsPluginEnabled(string pid)
+    if pid == ""
+        return true
+    endif
+    return IsItemEnabled("plugin:" + pid)
+EndFunction
+
+Function SetPluginEnabled(string pid, bool on)
+    if pid == ""
+        return
+    endif
+    SetItemEnabled("plugin:" + pid, on)
+EndFunction
+
 ; ── Plugin registry ──────────────────────────────────────────────────────────
 Function RegisterPlugin(MTF_Plugin p)
 {Called by MTF_Plugin._tryRegister(). Idempotent.}
@@ -2210,11 +2230,19 @@ Function BuildVisibleConditionMenu(string includeKey)
         if p != None
             string pl = p.GetPluginLabel()
             string pid = p.GetPluginId()
+            ; Plugin-level disable hides all this plugin's conditions from
+            ; the selector unless the currently-bound key is one of them
+            ; (so users can see what's wired in even while the plugin is off).
+            bool pluginOn = IsPluginEnabled(pid)
             int cCount = p.GetConditionCount()
             int ei = 0
             while ei < cCount && n < 64
                 string k = pid + ":" + p.GetConditionId(ei)
-                if IsItemEnabled(k) || k == includeKey
+                bool keep = k == includeKey
+                if !keep && pluginOn && IsItemEnabled(k)
+                    keep = true
+                endif
+                if keep
                     localKeys[n] = k
                     string il = p.GetConditionLabel(ei)
                     if pl == ""
@@ -2246,11 +2274,16 @@ Function BuildVisibleEffectMenu(string includeKey)
         if p != None
             string pl = p.GetPluginLabel()
             string pid = p.GetPluginId()
+            bool pluginOn = IsPluginEnabled(pid)
             int eCount = p.GetEffectCount()
             int ei = 0
             while ei < eCount && n < 64
                 string k = pid + ":" + p.GetEffectId(ei)
-                if IsItemEnabled(k) || k == includeKey
+                bool keep = k == includeKey
+                if !keep && pluginOn && IsItemEnabled(k)
+                    keep = true
+                endif
+                if keep
                     localKeys[n] = k
                     string il = p.GetEffectLabel(ei)
                     if pl == ""
@@ -2271,13 +2304,36 @@ Function BuildVisibleEffectMenu(string includeKey)
 EndFunction
 
 ; ── Visible (enabled-only) views, with currently-bound key kept visible ─────
+;
+; A composite "pluginId:itemId" key is visible iff:
+;   (a) it matches the currently-bound key (always shown so users see what's
+;       wired), OR
+;   (b) its plugin is enabled AND the item itself is enabled.
+
+bool Function _isKeyVisible(string k, string includeKey)
+    if k == ""
+        return false
+    endif
+    if k == includeKey
+        return true
+    endif
+    int colon = StringUtil.Find(k, ":")
+    if colon > 0
+        string pid = StringUtil.Substring(k, 0, colon)
+        if !IsPluginEnabled(pid)
+            return false
+        endif
+    endif
+    return IsItemEnabled(k)
+EndFunction
+
 int Function GetVisibleConditionCount(string includeKey)
     int total = GetTotalConditionItemCount()
     int n = 0
     int i = 0
     while i < total
         string k = GetGlobalConditionKey(i)
-        if IsItemEnabled(k) || k == includeKey
+        if _isKeyVisible(k, includeKey)
             n += 1
         endif
         i += 1
@@ -2291,7 +2347,7 @@ int Function _visibleConditionGlobalIdx(int visIdx, string includeKey)
     int i = 0
     while i < total
         string k = GetGlobalConditionKey(i)
-        if IsItemEnabled(k) || k == includeKey
+        if _isKeyVisible(k, includeKey)
             if seen == visIdx
                 return i
             endif
@@ -2324,7 +2380,7 @@ int Function GetVisibleEffectCount(string includeKey)
     int i = 0
     while i < total
         string k = GetGlobalEffectKey(i)
-        if IsItemEnabled(k) || k == includeKey
+        if _isKeyVisible(k, includeKey)
             n += 1
         endif
         i += 1
@@ -2338,7 +2394,7 @@ int Function _visibleEffectGlobalIdx(int visIdx, string includeKey)
     int i = 0
     while i < total
         string k = GetGlobalEffectKey(i)
-        if IsItemEnabled(k) || k == includeKey
+        if _isKeyVisible(k, includeKey)
             if seen == visIdx
                 return i
             endif

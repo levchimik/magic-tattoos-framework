@@ -1,0 +1,49 @@
+{
+	"displayname" : "Test: Stings UI (3s)",
+	"int" :
+	{
+		"valid" : 0
+	},
+	"schemaversion" : 7,
+	"transition" :
+	{
+		"duration" : 0.3
+	},
+	"slot" :
+	[
+		{
+			"cond" :
+			{
+				"entryid" : "",
+				"packid" : "",
+				"param" : 0,
+				"pluginid" : ""
+			},
+			"cooldown" :
+			{
+				"min" : 0,
+				"mode" : 0
+			},
+			"effect" :
+			[
+				{ "key" : "mtf.base:sound.play", "param" : 18, "param2" : 3, "extras" : { "volume" : 100 } },
+				{ "key" : "mtf.base:sound.play", "param" : 19, "param2" : 3, "extras" : { "volume" : 100 } },
+				{ "key" : "mtf.base:sound.play", "param" : 20, "param2" : 3, "extras" : { "volume" : 100 } },
+				{ "key" : "mtf.base:sound.play", "param" : 21, "param2" : 3, "extras" : { "volume" : 100 } },
+				{ "key" : "mtf.base:sound.play", "param" : 22, "param2" : 3, "extras" : { "volume" : 100 } },
+				{ "key" : "mtf.base:sound.play", "param" : 23, "param2" : 3, "extras" : { "volume" : 100 } },
+				{ "key" : "mtf.base:sound.play", "param" : 24, "param2" : 3, "extras" : { "volume" : 100 } },
+				{ "key" : "mtf.base:sound.play", "param" : 25, "param2" : 3, "extras" : { "volume" : 100 } },
+				{ "key" : "mtf.base:sound.play", "param" : 26, "param2" : 3, "extras" : { "volume" : 100 } }
+			]
+		},
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
+	],
+	"valid" : 1
+}

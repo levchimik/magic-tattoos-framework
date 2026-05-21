@@ -54,3 +54,22 @@ if [[ -d "$DEPLOY" ]]; then
 else
     echo "WARNING: deploy dir not found, skipping: $DEPLOY"
 fi
+
+# Also deploy plugin-specific .pex files to their dedicated MO2 mod dirs.
+# Per-plugin ESPs (MTF_Plugin_*) live as standalone mods in MO2; their
+# scripts/ folder needs to hold the matching .pex or MO2's left-pane priority
+# can shadow them with stale copies. Mirror each MTF_Plugin_*.pex into its
+# own mod dir if one exists.
+MO2_MODS="F:/Modlists/Modding Essentials/mods"
+for pex in "$SRC"/MTF_Plugin_*.pex; do
+    name=$(basename "$pex" .pex)
+    if [[ "$name" == "MTF_Plugin_Base" ]]; then
+        # Base lives inside MagicTattoosFramework — already deployed above.
+        continue
+    fi
+    target="$MO2_MODS/$name/scripts"
+    if [[ -d "$target" ]]; then
+        cp -u "$pex" "$target/"
+        echo "Deployed $name.pex to $target"
+    fi
+done

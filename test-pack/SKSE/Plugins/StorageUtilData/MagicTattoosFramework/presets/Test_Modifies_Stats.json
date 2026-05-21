@@ -1,0 +1,55 @@
+{
+	"displayname" : "Test: Modifies (Stats)",
+	"int" :
+	{
+		"valid" : 0
+	},
+	"schemaversion" : 7,
+	"transition" :
+	{
+		"duration" : 0.3
+	},
+	"slot" :
+	[
+		{
+			"cond" :
+			{
+				"entryid" : "",
+				"packid" : "",
+				"param" : 0,
+				"pluginid" : ""
+			},
+			"cooldown" :
+			{
+				"min" : 0,
+				"mode" : 0
+			},
+			"effect" :
+			[
+				{ "key" : "mtf.base:modify.magickaRegen",   "param" : 20, "param2" : 0 },
+				{ "key" : "mtf.base:modify.carryWeight",    "param" : 50, "param2" : 0 },
+				{ "key" : "mtf.base:modify.sneak",          "param" : 20, "param2" : 0 },
+				{ "key" : "mtf.base:modify.movementSpeed",  "param" : 10, "param2" : 0 },
+				{ "key" : "mtf.base:modify.staminaRegen",   "param" : 20, "param2" : 0 },
+				{ "key" : "mtf.base:modify.attackDamage",   "param" : 20, "param2" : 0 },
+				{ "key" : "mtf.base:modify.healthRegen",    "param" : 20, "param2" : 0 },
+				{ "key" : "mtf.base:modify.maxMagicka",     "param" : 50, "param2" : 0 },
+				{ "key" : "mtf.base:modify.maxStamina",     "param" : 50, "param2" : 0 },
+				{ "key" : "mtf.base:modify.weaponSpeed",    "param" : 20, "param2" : 0 },
+				{ "key" : "mtf.base:modify.unarmedDamage",  "param" : 10, "param2" : 0 },
+				{ "key" : "mtf.base:modify.criticalChance", "param" : 5,  "param2" : 0 },
+				{ "key" : "mtf.base:modify.bowSpeed",       "param" : 20, "param2" : 0 },
+				{ "key" : "mtf.base:modify.absorbChance",   "param" : 20, "param2" : 0 },
+				{ "key" : "mtf.base:modify.reflectDamage",  "param" : 20, "param2" : 0 }
+			]
+		},
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
+	],
+	"valid" : 1
+}

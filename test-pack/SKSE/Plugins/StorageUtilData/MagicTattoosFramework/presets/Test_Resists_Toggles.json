@@ -1,0 +1,49 @@
+{
+	"displayname" : "Test: Resists + Toggles",
+	"int" :
+	{
+		"valid" : 0
+	},
+	"schemaversion" : 7,
+	"transition" :
+	{
+		"duration" : 0.3
+	},
+	"slot" :
+	[
+		{
+			"cond" :
+			{
+				"entryid" : "",
+				"packid" : "",
+				"param" : 0,
+				"pluginid" : ""
+			},
+			"cooldown" :
+			{
+				"min" : 0,
+				"mode" : 0
+			},
+			"effect" :
+			[
+				{ "key" : "mtf.base:modify.resistFire",    "param" : 30, "param2" : 0 },
+				{ "key" : "mtf.base:modify.resistFrost",   "param" : 30, "param2" : 0 },
+				{ "key" : "mtf.base:modify.resistShock",   "param" : 30, "param2" : 0 },
+				{ "key" : "mtf.base:modify.resistMagic",   "param" : 30, "param2" : 0 },
+				{ "key" : "mtf.base:modify.resistDisease", "param" : 30, "param2" : 0 },
+				{ "key" : "mtf.base:modify.resistPoison",  "param" : 30, "param2" : 0 },
+				{ "key" : "mtf.base:toggle.muffle",          "param" : 0, "param2" : 0 },
+				{ "key" : "mtf.base:toggle.waterbreathing",  "param" : 0, "param2" : 0 },
+				{ "key" : "mtf.base:toggle.waterWalking",    "param" : 0, "param2" : 0 }
+			]
+		},
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
+	],
+	"valid" : 1
+}

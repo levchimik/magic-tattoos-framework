@@ -1,0 +1,48 @@
+{
+	"displayname" : "Test: SLA Exposure Rate (>=10) + Set Rate",
+	"int" :
+	{
+		"valid" : 0
+	},
+	"schemaversion" : 7,
+	"transition" :
+	{
+		"duration" : 0.3
+	},
+	"slot" :
+	[
+		{
+			"cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" },
+			"cooldown" : { "min" : 0, "mode" : 0 },
+			"effect" :
+			[
+				{ "key" : "mtf.sla:set.exposure.rate", "param" : 50, "param2" : 0 }
+			]
+		},
+		{
+			"cond" :
+			{
+				"entryid" : "",
+				"packid" : "",
+				"param" : 10,
+				"pluginid" : "mtf.sla:exposure.rate"
+			},
+			"cooldown" :
+			{
+				"min" : 0,
+				"mode" : 0
+			},
+			"effect" :
+			[
+				{ "key" : "mtf.base:sound.play", "param" : 19, "param2" : 5, "extras" : { "volume" : 100 } }
+			]
+		},
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
+	],
+	"valid" : 1
+}
