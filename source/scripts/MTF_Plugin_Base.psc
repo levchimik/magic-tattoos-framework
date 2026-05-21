@@ -864,7 +864,7 @@ string Function _effectIdLow(int idx)
     elseif idx == 1
         return "scale.carryWeight"
     elseif idx == 2
-        return "scale.sneak"
+        return "modify.sneak"
     elseif idx == 3
         return "damage.magicka"
     elseif idx == 4
@@ -993,7 +993,7 @@ string Function _effectLabelLow(int idx)
     elseif idx == 1
         return "Scale Carry Weight"
     elseif idx == 2
-        return "Scale Sneak"
+        return "Modify Sneak"
     elseif idx == 3
         return "[!] Damage Magicka"
     elseif idx == 4
@@ -1122,7 +1122,7 @@ string Function _effectParamLabelLow(int idx)
     elseif idx == 1
         return "Shift % of current CarryWeight (+ buff, - drain)"
     elseif idx == 2
-        return "Shift % of current Sneak (+ buff, - drain)"
+        return "Sneak skill shift (points; + buff, - drain)"
     elseif idx == 3
         return "Burst % of base Magicka (+ restore, - damage)"
     elseif idx == 4
@@ -1560,7 +1560,9 @@ EndFunction
 bool Function _isPctShift(int idx)
     ; 16 (UnarmedDamage), 17 (CriticalChance), 18 (BowSpeedBonus) are abs shifts
     ; because their AVs default to 0 on most races — pct math gives 0.
-    return idx <= 2 || (idx >= 5 && idx <= 8) || (idx >= 12 && idx <= 15)
+    ; idx 2 (Sneak skill) was originally pct shift but is now abs to match the
+    ; 17 other vanilla skill modifiers (modify.oneHanded etc.). See _isAbsShift.
+    return idx <= 1 || (idx >= 5 && idx <= 8) || (idx >= 12 && idx <= 15)
 EndFunction
 
 bool Function _isAbsShift(int idx)
@@ -1569,11 +1571,11 @@ bool Function _isAbsShift(int idx)
     ;     ignore direct ModActorValue — Fire/Frost/Shock/Magic + Disease/
     ;     Poison. Each has a paired MGEF+Spell in MagicTattoosFramework.esp;
     ;     SetNthEffectMagnitude carries the signed param.
-    ;   • Direct ModActorValue: UnarmedDamage / CriticalChance / BowSpeedBonus
-    ;     (16-18), AbsorbChance / ReflectDamage (37-38), and the 17 vanilla
-    ;     skill AVs (39-55: OneHanded..Pickpocket; Sneak already covered by
-    ;     scale.sneak idx 2). All accept direct ModAV.
-    return (idx >= 16 && idx <= 22) || (idx >= 35 && idx <= 55)
+    ;   • Direct ModActorValue: Sneak (2), UnarmedDamage / CriticalChance /
+    ;     BowSpeedBonus (16-18), AbsorbChance / ReflectDamage (37-38), and
+    ;     the 17 vanilla skill AVs (39-55: OneHanded..Pickpocket — Sneak is
+    ;     at idx 2 for legacy reasons). All accept direct ModAV.
+    return idx == 2 || (idx >= 16 && idx <= 22) || (idx >= 35 && idx <= 55)
 EndFunction
 
 bool Function _isToggle(int idx)
@@ -1777,15 +1779,30 @@ Function _recomputeAbsShift(int idx, Actor target, int param)
     if prev == amt
         return
     endif
+    ; CRITICAL ORDER: write _setApplied (synchronous StorageUtil) BEFORE the
+    ; suspending ModActorValue calls. Without this, two concurrent stacks
+    ; (e.g. spell-driven initial apply + slow-tick re-eval running its own
+    ; _tickSlotEffectsForActor on the same preset) both read prev=0 from
+    ; storage and both call ModActorValue(+amt), doubling the AV shift.
+    ; Storage-then-mutate means the second stack reads prev=amt, hits the
+    ; early-out above, and skips. The half-finished AV state during A's
+    ; suspension is fine because ±amt deltas sum correctly regardless of
+    ; interleaving — the invariant is "applied delta == stored value", and
+    ; storage is the synchronization point. See 2026-05-21 partial-revert
+    ; diag where idx 51-54 (Illusion/Conjuration/Speechcraft/Lockpicking)
+    ; double-applied during TestAllNewEffects preset apply.
+    if param == 0
+        _setApplied(idx, target, 0.0)
+    else
+        _setApplied(idx, target, amt)
+    endif
     if prev != 0.0
         target.ModActorValue(av, -prev)
     endif
     if param == 0
-        _setApplied(idx, target, 0.0)
         return
     endif
     target.ModActorValue(av, amt)
-    _setApplied(idx, target, amt)
 EndFunction
 
 ; toggle: bind/unbind sets AV ±1 (or AddSpell/RemoveSpell for engine-managed
@@ -1899,14 +1916,20 @@ Function _absShiftSpell(Spell s, Actor target, int param, int idx)
     if prev == mag
         return
     endif
-    target.RemoveSpell(s)
+    ; CRITICAL ORDER: write storage BEFORE the suspending RemoveSpell /
+    ; AddSpell calls so concurrent stacks see prev=mag and hit the early-out
+    ; above. Same race as _recomputeAbsShift; see comment there for details.
     if param == 0
         _setApplied(idx, target, 0.0)
+    else
+        _setApplied(idx, target, mag)
+    endif
+    target.RemoveSpell(s)
+    if param == 0
         return
     endif
     s.SetNthEffectMagnitude(0, mag)
     target.AddSpell(s, false)
-    _setApplied(idx, target, mag)
 EndFunction
 
 Spell Function _resolveResistSpell(int idx)

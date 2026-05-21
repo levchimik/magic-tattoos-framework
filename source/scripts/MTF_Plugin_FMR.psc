@@ -46,6 +46,10 @@ Function _tryRegister()
         return
     endif
     if !_resolveDeps()
+        ; Deps not yet loaded (Fertility Mode may not be active, or its forms
+        ; aren't resolvable yet). Re-arm; without this the bail is silent and
+        ; nothing ever retries — we'd stay unregistered for the session.
+        RegisterForSingleUpdate(2.0)
         return
     endif
     MTF_MainQuest host = Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest

@@ -15,16 +15,33 @@ DEPLOY="F:/Modlists/Modding Essentials/mods/MagicTattoosFramework/scripts"
 cd "$SRC"
 
 if [[ $# -gt 0 ]]; then
-    targets=("$@")
+    # Explicit targets: compile only the named scripts (one per Caprica
+    # invocation so a per-file syntax error is easier to attribute).
+    for t in "$@"; do
+        f="${t%.psc}.psc"
+        echo "=== $f ==="
+        "$CAPRICA" --game skyrim -f "$FLAGS" -i ".;$DEPS" -o . "$f"
+    done
 else
-    targets=(MTF_HitListener MTF_Plugin MTF_Plugin_Base MTF_Plugin_FMR MTF_Plugin_SLA MTF_MainQuest MTF_MCMQuest MTF_ApplyTattoo MTFPulse)
+    # Auto-discover all .psc in source/scripts/ and compile in ONE
+    # Caprica invocation. Each separate invocation reloads the ~14k
+    # dep imports — batching keeps it to a single load. Roughly 10×
+    # wall-clock improvement on a full build vs the previous per-file
+    # loop.
+    #
+    # The `*.psc` glob matches exactly .psc (not .psc.bak etc.). Drop
+    # WIP scripts in a sibling folder (e.g. source/scripts/_wip/) if
+    # you don't want them auto-compiled.
+    shopt -s nullglob
+    sources=( *.psc )
+    shopt -u nullglob
+    if [[ ${#sources[@]} -eq 0 ]]; then
+        echo "ERROR: no .psc files found in $SRC"
+        exit 1
+    fi
+    echo "=== compiling ${#sources[@]} scripts ==="
+    "$CAPRICA" --game skyrim -f "$FLAGS" -i ".;$DEPS" -o . "${sources[@]}"
 fi
-
-for t in "${targets[@]}"; do
-    f="${t%.psc}.psc"
-    echo "=== $f ==="
-    "$CAPRICA" --game skyrim -f "$FLAGS" -i ".;$DEPS" -o . "$f"
-done
 echo "Build OK"
 
 # Deploy to MO2 so the running game / next launch picks up changes.

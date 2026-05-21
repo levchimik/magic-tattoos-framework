@@ -2907,6 +2907,20 @@ State checkingAroused
 
         if doEval
             _nextSlowRT = now + updateInterval
+            ; Plugin-registration heartbeat: alias scripts attached to each
+            ; plugin quest listen for this and call _tryRegister(). Survives
+            ; the Papyrus "function differs since save" quirk that drops
+            ; queued OnUpdate resumptions after a mid-save .pex rebuild —
+            ; mod events fire fresh function calls rather than resuming
+            ; queued ones. Already-registered plugins early-out cheaply.
+            ;
+            ; Uses the global ModEvent.Create/Send API rather than
+            ; SendModEvent (the latter is on Alias/AMF only — Quest scripts
+            ; can't call it). Zero args; the receiver callback takes none.
+            int kickHandle = ModEvent.Create("MTF_PluginKick")
+            if kickHandle != 0
+                ModEvent.Send(kickHandle)
+            endif
             int newTier = evaluateTier()
             bool tierChanged = (newTier != currentTier)
 
@@ -2994,8 +3008,6 @@ State checkingAroused
             ; without any fade. EndTransitionBatch runs unconditionally
             ; so a mid-loop early-return doesn't leave the C++ side
             ; permanently in batch mode.
-            Debug.Trace("[MTF-EVAL] slow-tick player loop rt=" + now + " playerPresetN=" + playerPresetN)
-
             ; Plan A (v0.2 perf pass): Two-pass slow-tick.
             ;
             ; Pass 1 — pre-eval. Walk every loaded preset and capture its
@@ -3034,8 +3046,18 @@ State checkingAroused
             int ppi = 0
             while ppi < playerPresetN
                 string ppName = presetNames[ppi]
-                bool loadedOk = ppName != "" && _loadPresetToScratch(ppName)
-                Debug.Trace("[MTF-EVAL] ppi=" + ppi + " name='" + ppName + "' loaded=" + loadedOk)
+                ; Concurrent-remove guard. RemoveAppliedPreset removes from
+                ; mtf.presets and then runs a long deactivate loop (21+
+                ; cross-script calls). If a slow-tick was already in flight
+                ; with this preset captured in the snapshot, _evalAndDraw
+                ; would still call _tickSlotEffectsForActor for it — and
+                ; onTick re-applies the AV shifts that the concurrent
+                ; deactivate just zeroed (it reads prev=0, sees amt=20, and
+                ; ModActorValue(+20) puts the buff right back). Re-check
+                ; list membership and skip if the preset was removed
+                ; between snapshot and now.
+                bool stillApplied = ppName != "" && _findActorPresetIdx(PlayerRef, ppName) >= 0
+                bool loadedOk = stillApplied && _loadPresetToScratch(ppName)
                 if loadedOk
                     if _evalAndDrawPresetForActorWithKnownTier(PlayerRef, ppName, preEvalTiers[ppi], true)
                         needPlayerApply = true
@@ -3777,7 +3799,26 @@ Function RemoveAppliedPreset(Actor target, string name)
         return
     endif
     int prevTier = _getActorPresetTier(target, name)
-    if prevTier > 0 && _loadPresetToScratch(name)
+    ; CRITICAL ORDER: drop the preset from mtf.presets BEFORE running the
+    ; deactivate loop. _deactivateSlotEffectsForActor makes 21+ cross-script
+    ; calls to plugin.onDeactivate; each cross-script call suspends the
+    ; MainQuest VM thread, letting OnUpdate's slow-tick interleave on a
+    ; different thread. If the preset is still in mtf.presets at that point,
+    ; the slow-tick fires _tickSlotEffectsForActor for this preset — which
+    ; calls _recomputeAbsShift(idx, target, 20). It sees prev=0 (the
+    ; deactivate just cleared it) and immediately RE-APPLIES the AV shift.
+    ; Net effect: dip-and-return; effects persist after removal.
+    ;
+    ; Removing from the list first means slow-tick interleaves see no
+    ; preset to iterate, so onTick can't fight the deactivate.
+    ;
+    ; Scratch read is still safe — useScratch=true reads
+    ; mtf.fx.scratch.<name>.* which is keyed by name, not list membership.
+    ; tier >= 0 (not > 0): baseline-slot effects (slot 0) are activated by
+    ; _applyPresetTierChange whenever any tier is selected — including
+    ; tier 0 itself.
+    StorageUtil.StringListRemoveAt(target, "mtf.presets", idx)
+    if prevTier >= 0 && _loadPresetToScratch(name)
         _deactivateSlotEffectsForActor(target, prevTier, true, name)
     endif
     ; Kill the C++ pulse entry for THIS preset before we wipe its state
@@ -3785,7 +3826,6 @@ Function RemoveAppliedPreset(Actor target, string name)
     ; actor keep pulsing — each owns its own (actor, base_slot) entry.
     _rosterRemovePreset(target, name)
     _clearPresetOverlayForActor(target, name)
-    StorageUtil.StringListRemoveAt(target, "mtf.presets", idx)
     _clearActorPresetState(target, name)
     ; Close the gap: re-pack remaining presets against the floor.
     _compactAppliedPresets(target)
@@ -3803,7 +3843,9 @@ Function RemoveTrackedActor(Actor target)
         string nm = GetActorPresetAt(target, i)
         if nm != ""
             int tier = _getActorPresetTier(target, nm)
-            if tier > 0 && _loadPresetToScratch(nm)
+            ; tier >= 0 (not > 0): see RemoveAppliedPreset for rationale —
+            ; baseline-slot effects need deactivation too.
+            if tier >= 0 && _loadPresetToScratch(nm)
                 _deactivateSlotEffectsForActor(target, tier, true, nm)
             endif
         endif
@@ -4817,7 +4859,6 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
  new effects, fire notification — plus the same-tier per-tick effect pulse.
  Caller is responsible for scratch load.}
     float rtNow = Utility.GetCurrentRealTime()
-    Debug.Trace("[MTF-EVAL] preset=" + name + " prev=" + prev + " now=" + now + " rt=" + rtNow)
     bool drew = false
     if now != prev
         if prev >= 0
