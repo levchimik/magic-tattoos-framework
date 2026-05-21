@@ -141,5 +141,7 @@ Function _apply(MTF_MainQuest mq, Actor subject, string presetName)
         Debug.Notification("MTF: preset '" + presetName + "' invalid")
     elseif rc == -6
         Debug.Notification("MTF: no overlay slots free on " + nm)
+    elseif rc == -7
+        Debug.Notification("MTF: '" + disp + "' would render truncated on " + nm + " — free overlay slots first")
     endif
 EndFunction

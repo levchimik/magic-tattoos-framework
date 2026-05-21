@@ -3689,10 +3689,10 @@ EndFunction
 
 int Function AddAppliedPreset(Actor target, string name)
 {Apply preset `name` to `target`. For NPCs, also tracks the actor.
- Computes base slot + reserved layer count per overlay area, truncating
- the reservation to fit remaining free slots. Per-preset state (tier,
- pulse start) is initialized; _evalAndDrawPresetForActor fires the first
- eval+draw cycle synchronously.
+ Computes base slot + reserved layer count per overlay area. Rejects with
+ -6 / -7 if visuals can't fit cleanly (see codes below). Per-preset state
+ (tier, pulse start) is initialized; _evalAndDrawPresetForActor fires the
+ first eval+draw cycle synchronously.
 
  Return codes:
    1  applied
@@ -3701,7 +3701,16 @@ int Function AddAppliedPreset(Actor target, string name)
   -3  tracked-subject cap reached (NPC only)
   -4  preset name empty
   -5  preset JSON missing / invalid schema
-  -6  no overlay slots free (every area is full)}
+  -6  preset wanted visual layers but every area is full (headless
+      presets — those that request zero layers in every area — bypass
+      this check and apply as effects-only)
+  -7  preset would render with a truncated visual: at least one area has
+      free slots, but fewer than max(GetEntryLayerCount) across the
+      preset's slots. Reserving fewer slots than the largest tier needs
+      means that tier's texture would render only its first N layers
+      (silent visual breakage). Hard-rejecting forces the user to free
+      slots before applying. Same protection threshold as -6 — only
+      headless presets (wantAny == 0) bypass.}
     if target == None
         return -2
     endif
@@ -3726,6 +3735,8 @@ int Function AddAppliedPreset(Actor target, string name)
     int[] bases = Utility.CreateIntArray(parts.Length, -1)
     int[] reservs = Utility.CreateIntArray(parts.Length, 0)
     int reservedAny = 0
+    int wantAny = 0
+    bool truncated = false
     int p = 0
     while p < parts.Length
         string area = parts[p]
@@ -3748,10 +3759,12 @@ int Function AddAppliedPreset(Actor target, string name)
             ; another mod's).
             base = _findFirstFreeOverlaySlotNPC(target, area)
         endif
+        int want = _computePresetReservedLayers(area, true)
+        wantAny += want
+        int reserved = 0
         int free = total - base
-        if free > 0
-            int want = _computePresetReservedLayers(area, true)
-            int reserved = want
+        if free > 0 && want > 0
+            reserved = want
             if reserved > free
                 reserved = free
             endif
@@ -3761,10 +3774,26 @@ int Function AddAppliedPreset(Actor target, string name)
                 reservedAny += reserved
             endif
         endif
+        ; Hard-reject visual truncation: if this area wanted N layers but
+        ; we could only reserve M < N, the largest tier's texture would
+        ; render only its first M layers (silent visual breakage). Flag it
+        ; and bail after the loop so the docstring's reservation table is
+        ; never persisted for a doomed-to-look-broken apply.
+        if want > 0 && reserved < want
+            truncated = true
+        endif
         p += 1
     endwhile
-    if reservedAny <= 0
+    ; Headless preset (no layers requested in any area) → bypass both the
+    ; -6 (no-room) and -7 (truncation) gates. Effects-only presets still
+    ; apply: _drawPresetOnActor early-outs per-area when reserved == 0,
+    ; and _activateSlotEffectsForActor / _tickSlotEffectsForActor iterate
+    ; slots independently of visual state.
+    if wantAny > 0 && reservedAny <= 0
         return -6
+    endif
+    if truncated
+        return -7
     endif
     ; Persist tracking + per-(actor, preset, area) state.
     if isNewTracked
@@ -4719,17 +4748,35 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
     endif
     _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
     _setDispatchUseScratch(useScratch)
-    int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
+    ; SNAPSHOT before dispatch — see _deactivateSlotEffectsForActor for
+    ; the full race-rationale comment. Short version: each p.onActivate is
+    ; a cross-script call that suspends our VM; during the suspension the
+    ; slow-tick can interleave and call _loadPresetToScratch(otherName),
+    ; rebinding the script-level _scratchLoadedFor. Without this snapshot,
+    ; subsequent _readFxKey/Param/Param2 calls read from the wrong preset's
+    ; scratch namespace and silently skip/mis-dispatch the remaining
+    ; effects.
+    string[] keys    = Utility.CreateStringArray(maxE, "")
+    int[]    params  = Utility.CreateIntArray(maxE, 0)
+    int[]    params2 = Utility.CreateIntArray(maxE, 0)
+    int e = 0
     while e < maxE
-        string key = _readFxKey(slot, e, useScratch)
+        keys[e]    = _readFxKey(slot, e, useScratch)
+        params[e]  = _readFxParam(slot, e, useScratch)
+        params2[e] = _readFxParam2(slot, e, useScratch)
+        e += 1
+    endwhile
+    e = 0
+    while e < maxE
+        string key = keys[e]
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onActivate(itemIdx, target, _readFxParam(slot, e, useScratch), _readFxParam2(slot, e, useScratch))
+                    p.onActivate(itemIdx, target, params[e], params2[e])
                 endif
             endif
         endif
@@ -4744,17 +4791,46 @@ Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch,
     endif
     _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
     _setDispatchUseScratch(useScratch)
-    int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
+    ; SNAPSHOT effect bindings into locals BEFORE the dispatch loop. Each
+    ; p.onDeactivate is a cross-script call that suspends our VM thread.
+    ; During the suspension the slow-tick can interleave on a different
+    ; thread and call _loadPresetToScratch(otherName) — this rebinds the
+    ; script-level _scratchLoadedFor. When our loop resumes, the next
+    ; _readFxKey(slot, e, useScratch=true) reads from the WRONG preset's
+    ; namespace ("mtf.fx.scratch.<otherName>.<slot>.<e>.key") and either
+    ; returns "" (we skip the rest of OUR preset's effects) or a stale
+    ; key from the other preset (we dispatch the wrong onDeactivate).
+    ;
+    ; Snapshotting all 32 bindings via SKSE-native StorageUtil reads
+    ; before any suspending call eliminates the race: the snapshot phase
+    ; is atomic (no suspends), and the dispatch phase reads from local
+    ; arrays that no other thread can mutate.
+    ;
+    ; Symptom this fixes (2026-05-21): 17-effect Test_Modifies_Skills
+    ; preset only reverts ~3 skills on RemoveAppliedPreset; the rest
+    ; stay shifted forever because their _readFxKey returned "" from a
+    ; clobbered _scratchLoadedFor namespace.
+    string[] keys    = Utility.CreateStringArray(maxE, "")
+    int[]    params  = Utility.CreateIntArray(maxE, 0)
+    int[]    params2 = Utility.CreateIntArray(maxE, 0)
+    int e = 0
     while e < maxE
-        string key = _readFxKey(slot, e, useScratch)
+        keys[e]    = _readFxKey(slot, e, useScratch)
+        params[e]  = _readFxParam(slot, e, useScratch)
+        params2[e] = _readFxParam2(slot, e, useScratch)
+        e += 1
+    endwhile
+    e = 0
+    while e < maxE
+        string key = keys[e]
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onDeactivate(itemIdx, target, _readFxParam(slot, e, useScratch), _readFxParam2(slot, e, useScratch))
+                    p.onDeactivate(itemIdx, target, params[e], params2[e])
                 endif
             endif
         endif
@@ -4769,17 +4845,30 @@ Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch, strin
     endif
     _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
     _setDispatchUseScratch(useScratch)
-    int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
+    ; SNAPSHOT before dispatch — see _deactivateSlotEffectsForActor for
+    ; the race-rationale. _scratchLoadedFor gets clobbered by interleaved
+    ; _loadPresetToScratch calls during suspending p.onTick dispatches.
+    string[] keys    = Utility.CreateStringArray(maxE, "")
+    int[]    params  = Utility.CreateIntArray(maxE, 0)
+    int[]    params2 = Utility.CreateIntArray(maxE, 0)
+    int e = 0
     while e < maxE
-        string key = _readFxKey(slot, e, useScratch)
+        keys[e]    = _readFxKey(slot, e, useScratch)
+        params[e]  = _readFxParam(slot, e, useScratch)
+        params2[e] = _readFxParam2(slot, e, useScratch)
+        e += 1
+    endwhile
+    e = 0
+    while e < maxE
+        string key = keys[e]
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onTick(itemIdx, target, _readFxParam(slot, e, useScratch), _readFxParam2(slot, e, useScratch))
+                    p.onTick(itemIdx, target, params[e], params2[e])
                 endif
             endif
         endif
