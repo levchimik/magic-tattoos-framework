@@ -75,7 +75,30 @@ event OnVersionUpdate(int Version)
     ; applied. Once we ship, the next migration must be a non-destructive
     ; ml<20 block added below this one.
     int ml = MainQuest._migrationLevel
+    if ml >= 38
+        return
+    endif
+    ; ml=38: backend for IsItemEnabled / SetItemEnabled moved from the Auto
+    ; Hidden `disabledItems[]` array Property to a StorageUtil StringList at
+    ; `mtf.disabled`. The Property suffered the indexed-write transient-copy
+    ; bug, so toggles set via the MCM never persisted to the cosave — every
+    ; re-open re-read the empty initial state. Copy any surviving entries
+    ; from the Property into the StringList. The Property itself stays in
+    ; cosave (harmless; new code never reads it).
     if ml >= 37
+        if MainQuest.disabledItems != None
+            int di = 0
+            while di < MainQuest.disabledItems.Length
+                string dk = MainQuest.disabledItems[di]
+                if dk != ""
+                    if StorageUtil.StringListFind(MainQuest, "mtf.disabled", dk) < 0
+                        StorageUtil.StringListAdd(MainQuest, "mtf.disabled", dk, false)
+                    endif
+                endif
+                di += 1
+            endwhile
+        endif
+        MainQuest._migrationLevel = 38
         return
     endif
     ; ml=37: "Menu Options" page removed. Per-item enable/disable was retired

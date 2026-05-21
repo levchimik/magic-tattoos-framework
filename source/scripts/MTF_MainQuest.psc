@@ -1929,44 +1929,39 @@ Function EnsureDisabledArray()
     _disabledReady = true
 EndFunction
 
+; v0.1.16: backend moved from the Auto Hidden `disabledItems[]` Property to
+; StorageUtil StringList `mtf.disabled`. The old Property suffered the
+; indexed-write transient-copy bug — `disabledItems[i] = key` silently
+; no-op'd on this quest script, so every toggle reverted on MCM re-open.
+; (See KB → Properties/Arrays → "Indexed cross-script writes" + MEMORY
+; "Papyrus array indexed-writes hit transient copy".) StorageUtil natives
+; bypass the Property attach + indexed-write traps entirely.
+;
+; The `disabledItems` Property is retained ONLY for the ml=38 migration
+; (MCMQuest.OnVersionUpdate copies any surviving entries on first load).
+; Do not read or write it from new code.
+
 bool Function IsItemEnabled(string key)
-    EnsureDisabledArray()
     if key == ""
         return true
     endif
-    int i = 0
-    while i < disabledItems.Length
-        if disabledItems[i] == key
-            return false
-        endif
-        i += 1
-    endwhile
-    return true
+    return StorageUtil.StringListFind(self, "mtf.disabled", key) < 0
 EndFunction
 
 Function SetItemEnabled(string key, bool on)
-    EnsureDisabledArray()
     if key == ""
         return
     endif
-    int existing = -1
-    int empty = -1
-    int i = 0
-    while i < disabledItems.Length
-        if disabledItems[i] == key
-            existing = i
-        elseif empty < 0 && disabledItems[i] == ""
-            empty = i
-        endif
-        i += 1
-    endwhile
+    int idx = StorageUtil.StringListFind(self, "mtf.disabled", key)
     if on
-        if existing >= 0
-            disabledItems[existing] = ""
+        if idx >= 0
+            ; Remove ALL instances in case the legacy migration ever
+            ; double-added (it can't currently, but defensive).
+            StorageUtil.StringListRemove(self, "mtf.disabled", key, true)
         endif
     else
-        if existing < 0 && empty >= 0
-            disabledItems[empty] = key
+        if idx < 0
+            StorageUtil.StringListAdd(self, "mtf.disabled", key, false)
         endif
     endif
 EndFunction
