@@ -848,21 +848,27 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 56
+    return 55
 EndFunction
 
 string Function GetEffectId(int idx)
-    if idx < 14
+    if idx < 13
         return _effectIdLow(idx)
     endif
     return _effectIdHigh(idx)
 EndFunction
 
+; v0.1.10: idx 8 (was "modify.armor", direct DamageResist) was removed
+; because direct ModActorValue on DamageResist is unreliable — engine
+; recomputes per frame. Use idx 27 (spell.modifyArmor) instead. After
+; removal the idx 9-55 range was shifted down to 8-54 to close the gap;
+; all key strings (modify.sneak etc.) are unchanged so presets remain
+; valid, but any code referencing old idx numbers had to be updated.
 string Function _effectIdLow(int idx)
     if idx == 0
-        return "scale.magickaRegen"
+        return "modify.magickaRegen"
     elseif idx == 1
-        return "scale.carryWeight"
+        return "modify.carryWeight"
     elseif idx == 2
         return "modify.sneak"
     elseif idx == 3
@@ -870,118 +876,116 @@ string Function _effectIdLow(int idx)
     elseif idx == 4
         return "damage.stamina"
     elseif idx == 5
-        return "scale.movementSpeed"
+        return "modify.movementSpeed"
     elseif idx == 6
-        return "scale.staminaRegen"
+        return "modify.staminaRegen"
     elseif idx == 7
-        return "scale.attackDamage"
+        return "modify.attackDamage"
     elseif idx == 8
-        return "scale.armor"
-    elseif idx == 9
         return "burst.stagger"
-    elseif idx == 10
+    elseif idx == 9
         return "burst.blowCover"
-    elseif idx == 11
+    elseif idx == 10
         return "scale.magickaCost"
+    elseif idx == 11
+        return "modify.healthRegen"
     elseif idx == 12
-        return "scale.healthRegen"
-    elseif idx == 13
-        return "scale.maxMagicka"
+        return "modify.maxMagicka"
     endif
     return ""
 EndFunction
 
 string Function _effectIdHigh(int idx)
-    if idx == 14
-        return "scale.maxStamina"
+    if idx == 13
+        return "modify.maxStamina"
+    elseif idx == 14
+        return "modify.weaponSpeed"
     elseif idx == 15
-        return "scale.weaponSpeed"
-    elseif idx == 16
         return "modify.unarmedDamage"
-    elseif idx == 17
+    elseif idx == 16
         return "modify.criticalChance"
-    elseif idx == 18
+    elseif idx == 17
         return "modify.bowSpeed"
-    elseif idx == 19
+    elseif idx == 18
         return "modify.resistFire"
-    elseif idx == 20
+    elseif idx == 19
         return "modify.resistFrost"
-    elseif idx == 21
+    elseif idx == 20
         return "modify.resistShock"
-    elseif idx == 22
+    elseif idx == 21
         return "modify.resistMagic"
-    elseif idx == 23
+    elseif idx == 22
         return "toggle.muffle"
-    elseif idx == 24
+    elseif idx == 23
         return "toggle.waterbreathing"
-    elseif idx == 25
+    elseif idx == 24
         return "toggle.waterWalking"
-    elseif idx == 26
+    elseif idx == 25
         return "damage.health"
-    elseif idx == 27
+    elseif idx == 26
         return "burst.bounty"
-    elseif idx == 28
+    elseif idx == 27
         return "spell.modifyArmor"
-    elseif idx == 29
+    elseif idx == 28
         return "spell.detectLife"
-    elseif idx == 30
+    elseif idx == 29
         return "spell.slowTime"
-    elseif idx == 31
+    elseif idx == 30
         return "spell.flameCloak"
-    elseif idx == 32
+    elseif idx == 31
         return "spell.frostCloak"
-    elseif idx == 33
+    elseif idx == 32
         return "spell.lightningCloak"
-    elseif idx == 34
+    elseif idx == 33
         return "flash.onhit"
-    elseif idx == 35
+    elseif idx == 34
         return "modify.resistDisease"
-    elseif idx == 36
+    elseif idx == 35
         return "modify.resistPoison"
-    elseif idx == 37
+    elseif idx == 36
         return "modify.absorbChance"
-    elseif idx == 38
+    elseif idx == 37
         return "modify.reflectDamage"
-    elseif idx == 39
+    elseif idx == 38
         return "modify.oneHanded"
-    elseif idx == 40
+    elseif idx == 39
         return "modify.twoHanded"
-    elseif idx == 41
+    elseif idx == 40
         return "modify.archery"
-    elseif idx == 42
+    elseif idx == 41
         return "modify.block"
-    elseif idx == 43
+    elseif idx == 42
         return "modify.heavyArmor"
-    elseif idx == 44
+    elseif idx == 43
         return "modify.lightArmor"
-    elseif idx == 45
+    elseif idx == 44
         return "modify.smithing"
-    elseif idx == 46
+    elseif idx == 45
         return "modify.enchanting"
-    elseif idx == 47
+    elseif idx == 46
         return "modify.alchemy"
-    elseif idx == 48
+    elseif idx == 47
         return "modify.destruction"
-    elseif idx == 49
+    elseif idx == 48
         return "modify.restoration"
-    elseif idx == 50
+    elseif idx == 49
         return "modify.alteration"
-    elseif idx == 51
+    elseif idx == 50
         return "modify.illusion"
-    elseif idx == 52
+    elseif idx == 51
         return "modify.conjuration"
-    elseif idx == 53
+    elseif idx == 52
         return "modify.speech"
-    elseif idx == 54
+    elseif idx == 53
         return "modify.lockpicking"
-    elseif idx == 55
+    elseif idx == 54
         return "modify.pickpocket"
     endif
     return ""
 EndFunction
 
 string Function GetEffectLabel(int idx)
-    if idx < 14
+    if idx < 13
         return _effectLabelLow(idx)
     endif
     return _effectLabelHigh(idx)
@@ -989,9 +993,9 @@ EndFunction
 
 string Function _effectLabelLow(int idx)
     if idx == 0
-        return "Scale Magicka Regen"
+        return "Modify Magicka Regen"
     elseif idx == 1
-        return "Scale Carry Weight"
+        return "Modify Carry Weight"
     elseif idx == 2
         return "Modify Sneak"
     elseif idx == 3
@@ -999,118 +1003,116 @@ string Function _effectLabelLow(int idx)
     elseif idx == 4
         return "[!] Damage Stamina"
     elseif idx == 5
-        return "Scale Movement Speed"
+        return "Modify Movement Speed"
     elseif idx == 6
-        return "Scale Stamina Regen"
+        return "Modify Stamina Regen"
     elseif idx == 7
-        return "Scale Attack Damage"
+        return "Modify Attack Damage"
     elseif idx == 8
-        return "Scale Armor"
-    elseif idx == 9
         return "[!] Stagger"
-    elseif idx == 10
+    elseif idx == 9
         return "[!] Blow Cover"
-    elseif idx == 11
+    elseif idx == 10
         return "Scale Magicka Cost"
+    elseif idx == 11
+        return "Modify Health Regen"
     elseif idx == 12
-        return "Scale Health Regen"
-    elseif idx == 13
-        return "Scale Max Magicka"
+        return "Modify Max Magicka"
     endif
     return ""
 EndFunction
 
 string Function _effectLabelHigh(int idx)
-    if idx == 14
-        return "Scale Max Stamina"
+    if idx == 13
+        return "Modify Max Stamina"
+    elseif idx == 14
+        return "Modify Weapon Speed"
     elseif idx == 15
-        return "Scale Weapon Speed"
-    elseif idx == 16
         return "Modify Unarmed Damage"
-    elseif idx == 17
+    elseif idx == 16
         return "Modify Critical Chance"
-    elseif idx == 18
+    elseif idx == 17
         return "Modify Bow Speed"
-    elseif idx == 19
+    elseif idx == 18
         return "Modify Fire Resist"
-    elseif idx == 20
+    elseif idx == 19
         return "Modify Frost Resist"
-    elseif idx == 21
+    elseif idx == 20
         return "Modify Shock Resist"
-    elseif idx == 22
+    elseif idx == 21
         return "Modify Magic Resist"
-    elseif idx == 23
+    elseif idx == 22
         return "[+] Muffle"
-    elseif idx == 24
+    elseif idx == 23
         return "[+] Waterbreathing"
-    elseif idx == 25
+    elseif idx == 24
         return "[+] Water Walking"
-    elseif idx == 26
+    elseif idx == 25
         return "[!] Damage Health"
-    elseif idx == 27
+    elseif idx == 26
         return "[!] Add Bounty"
-    elseif idx == 28
+    elseif idx == 27
         return "[+] Modify Armor"
-    elseif idx == 29
+    elseif idx == 28
         return "[+] Detect Life"
-    elseif idx == 30
+    elseif idx == 29
         return "[+] Slow Time"
-    elseif idx == 31
+    elseif idx == 30
         return "[+] Flame Cloak"
-    elseif idx == 32
+    elseif idx == 31
         return "[+] Frost Cloak"
-    elseif idx == 33
+    elseif idx == 32
         return "[+] Lightning Cloak"
-    elseif idx == 34
+    elseif idx == 33
         return "[!] Flash on Hit"
-    elseif idx == 35
+    elseif idx == 34
         return "Modify Disease Resist"
-    elseif idx == 36
+    elseif idx == 35
         return "Modify Poison Resist"
-    elseif idx == 37
+    elseif idx == 36
         return "Modify Spell Absorb"
-    elseif idx == 38
+    elseif idx == 37
         return "Modify Reflect Damage"
-    elseif idx == 39
+    elseif idx == 38
         return "Modify One-Handed"
-    elseif idx == 40
+    elseif idx == 39
         return "Modify Two-Handed"
-    elseif idx == 41
+    elseif idx == 40
         return "Modify Archery"
-    elseif idx == 42
+    elseif idx == 41
         return "Modify Block"
-    elseif idx == 43
+    elseif idx == 42
         return "Modify Heavy Armor"
-    elseif idx == 44
+    elseif idx == 43
         return "Modify Light Armor"
-    elseif idx == 45
+    elseif idx == 44
         return "Modify Smithing"
-    elseif idx == 46
+    elseif idx == 45
         return "Modify Enchanting"
-    elseif idx == 47
+    elseif idx == 46
         return "Modify Alchemy"
-    elseif idx == 48
+    elseif idx == 47
         return "Modify Destruction"
-    elseif idx == 49
+    elseif idx == 48
         return "Modify Restoration"
-    elseif idx == 50
+    elseif idx == 49
         return "Modify Alteration"
-    elseif idx == 51
+    elseif idx == 50
         return "Modify Illusion"
-    elseif idx == 52
+    elseif idx == 51
         return "Modify Conjuration"
-    elseif idx == 53
+    elseif idx == 52
         return "Modify Speech"
-    elseif idx == 54
+    elseif idx == 53
         return "Modify Lockpicking"
-    elseif idx == 55
+    elseif idx == 54
         return "Modify Pickpocket"
     endif
     return ""
 EndFunction
 
 string Function GetEffectParamLabel(int idx)
-    if idx < 14
+    if idx < 13
         return _effectParamLabelLow(idx)
     endif
     return _effectParamLabelHigh(idx)
@@ -1118,9 +1120,9 @@ EndFunction
 
 string Function _effectParamLabelLow(int idx)
     if idx == 0
-        return "Shift % of current MagickaRateMult (+ buff, - drain)"
+        return "Magicka regen rate shift (mult points; + faster, - slower)"
     elseif idx == 1
-        return "Shift % of current CarryWeight (+ buff, - drain)"
+        return "Carry weight shift (points; + buff, - drain)"
     elseif idx == 2
         return "Sneak skill shift (points; + buff, - drain)"
     elseif idx == 3
@@ -1128,230 +1130,228 @@ string Function _effectParamLabelLow(int idx)
     elseif idx == 4
         return "Burst % of base Stamina (+ restore, - damage)"
     elseif idx == 5
-        return "Shift % of current SpeedMult (+ buff, - drain)"
+        return "Movement speed shift (mult points; + faster, - slower)"
     elseif idx == 6
-        return "Shift % of current StaminaRateMult (+ buff, - drain)"
+        return "Stamina regen rate shift (mult points; + faster, - slower)"
     elseif idx == 7
-        return "Shift % of current AttackDamageMult (+ buff, - drain)"
+        return "Attack damage shift (% points; + buff, - drain)"
     elseif idx == 8
-        return "Shift % of current DamageResist (+ buff, - drain)"
-    elseif idx == 9
         return ""
-    elseif idx == 10
+    elseif idx == 9
         return "Alert radius (feet)"
-    elseif idx == 11
+    elseif idx == 10
         return "Spell cost shift % across all schools (+ discount, - penalty)"
+    elseif idx == 11
+        return "Health regen rate shift (mult points; + faster, - slower)"
     elseif idx == 12
-        return "Shift % of current HealRateMult (+ buff, - drain)"
-    elseif idx == 13
-        return "Shift % of current Magicka (+ buff, - drain)"
+        return "Max magicka shift (points; + buff, - drain)"
     endif
     return ""
 EndFunction
 
 string Function _effectParamLabelHigh(int idx)
-    if idx == 14
-        return "Shift % of current Stamina (+ buff, - drain)"
+    if idx == 13
+        return "Max stamina shift (points; + buff, - drain)"
+    elseif idx == 14
+        return "Weapon speed shift (% points; + faster, - slower)"
     elseif idx == 15
-        return "Shift % of current WeaponSpeedMult (+ buff, - drain)"
-    elseif idx == 16
         return "Unarmed damage shift (points; + buff, - drain)"
-    elseif idx == 17
+    elseif idx == 16
         return "Critical chance shift (points; + buff, - drain)"
-    elseif idx == 18
+    elseif idx == 17
         return "Bow speed bonus shift (units; + faster draw, - slower)"
-    elseif idx == 19
+    elseif idx == 18
         return "Fire resist shift (points; + resist, - weakness)"
-    elseif idx == 20
+    elseif idx == 19
         return "Frost resist shift (points; + resist, - weakness)"
-    elseif idx == 21
+    elseif idx == 20
         return "Shock resist shift (points; + resist, - weakness)"
-    elseif idx == 22
+    elseif idx == 21
         return "Magic resist shift (points; + resist, - weakness)"
-    elseif idx == 23 || idx == 24 || idx == 25
+    elseif idx == 22 || idx == 23 || idx == 24
         return ""
-    elseif idx == 26
+    elseif idx == 25
         return "Burst % of base Health (+ restore, - damage)"
-    elseif idx == 27
+    elseif idx == 26
         return "Bounty change (gold; + add, - remove)"
-    elseif idx == 28
+    elseif idx == 27
         return "Armor rating points"
-    elseif idx == 29
+    elseif idx == 28
         return "Detect radius (feet)"
-    elseif idx == 30
+    elseif idx == 29
         return "Time speed % (lower = slower; 100 = normal)"
-    elseif idx == 31 || idx == 32 || idx == 33
+    elseif idx == 30 || idx == 31 || idx == 32
         return "Damage per second"
-    elseif idx == 34
+    elseif idx == 33
         return "Trigger event"
-    elseif idx == 35
+    elseif idx == 34
         return "Disease resist shift (points; + resist, - weakness)"
-    elseif idx == 36
+    elseif idx == 35
         return "Poison resist shift (points; + resist, - weakness)"
-    elseif idx == 37
+    elseif idx == 36
         return "Spell absorb chance shift (points; + absorb, - vulnerable)"
-    elseif idx == 38
+    elseif idx == 37
         return "Reflect damage chance shift (points; + reflect, - vulnerable)"
-    elseif idx == 39
+    elseif idx == 38
         return "One-Handed skill shift (points; + buff, - drain)"
-    elseif idx == 40
+    elseif idx == 39
         return "Two-Handed skill shift (points; + buff, - drain)"
-    elseif idx == 41
+    elseif idx == 40
         return "Archery skill shift (points; + buff, - drain)"
-    elseif idx == 42
+    elseif idx == 41
         return "Block skill shift (points; + buff, - drain)"
-    elseif idx == 43
+    elseif idx == 42
         return "Heavy Armor skill shift (points; + buff, - drain)"
-    elseif idx == 44
+    elseif idx == 43
         return "Light Armor skill shift (points; + buff, - drain)"
-    elseif idx == 45
+    elseif idx == 44
         return "Smithing skill shift (points; + buff, - drain)"
-    elseif idx == 46
+    elseif idx == 45
         return "Enchanting skill shift (points; + buff, - drain)"
-    elseif idx == 47
+    elseif idx == 46
         return "Alchemy skill shift (points; + buff, - drain)"
-    elseif idx == 48
+    elseif idx == 47
         return "Destruction skill shift (points; + buff, - drain)"
-    elseif idx == 49
+    elseif idx == 48
         return "Restoration skill shift (points; + buff, - drain)"
-    elseif idx == 50
+    elseif idx == 49
         return "Alteration skill shift (points; + buff, - drain)"
-    elseif idx == 51
+    elseif idx == 50
         return "Illusion skill shift (points; + buff, - drain)"
-    elseif idx == 52
+    elseif idx == 51
         return "Conjuration skill shift (points; + buff, - drain)"
-    elseif idx == 53
+    elseif idx == 52
         return "Speech skill shift (points; + buff, - drain)"
-    elseif idx == 54
+    elseif idx == 53
         return "Lockpicking skill shift (points; + buff, - drain)"
-    elseif idx == 55
+    elseif idx == 54
         return "Pickpocket skill shift (points; + buff, - drain)"
     endif
     return ""
 EndFunction
 
 int Function GetEffectParamMin(int idx)
-    if idx == 9 || idx == 23 || idx == 24 || idx == 25
+    if idx == 8 || idx == 22 || idx == 23 || idx == 24
         return 0
-    elseif idx == 10 || idx == 29
+    elseif idx == 9 || idx == 28
         return 5
-    elseif idx == 11
+    elseif idx == 10
         return -400
-    elseif idx == 27
+    elseif idx == 26
         return -10000
-    elseif idx == 28
+    elseif idx == 27
         return 0
-    elseif idx == 30
+    elseif idx == 29
         return 5
-    elseif idx == 31 || idx == 32 || idx == 33
+    elseif idx == 30 || idx == 31 || idx == 32
         return 1
-    elseif idx == 34
+    elseif idx == 33
         return 0
     endif
     return -100
 EndFunction
 int Function GetEffectParamMax(int idx)
-    if idx == 9 || idx == 23 || idx == 24 || idx == 25
+    if idx == 8 || idx == 22 || idx == 23 || idx == 24
         return 0
-    elseif idx == 10
+    elseif idx == 9
         return 300
-    elseif idx == 11
+    elseif idx == 10
         return 400
-    elseif idx == 27
+    elseif idx == 26
         return 10000
+    elseif idx == 27
+        return 500
     elseif idx == 28
         return 500
     elseif idx == 29
-        return 500
-    elseif idx == 30
         return 100
-    elseif idx == 31 || idx == 32 || idx == 33
+    elseif idx == 30 || idx == 31 || idx == 32
         return 200
-    elseif idx == 34
+    elseif idx == 33
         return 127
     endif
     return 100
 EndFunction
 int Function GetEffectParamDefault(int idx)
-    if idx == 10
+    if idx == 9
         return 80
+    elseif idx == 27
+        return 100
     elseif idx == 28
         return 100
     elseif idx == 29
-        return 100
-    elseif idx == 30
         return 50
-    elseif idx == 31 || idx == 32 || idx == 33
+    elseif idx == 30 || idx == 31 || idx == 32
         return 8
-    elseif idx == 34
+    elseif idx == 33
         return 1  ; ANY wildcard — fires on every hit
     endif
     return 0
 EndFunction
 
 int Function GetEffectParamStep(int idx)
-    if idx == 11
+    if idx == 10
+        return 5
+    elseif idx == 26
+        return 50
+    elseif idx == 9
         return 5
     elseif idx == 27
-        return 50
-    elseif idx == 10
-        return 5
+        return 10
     elseif idx == 28
         return 10
     elseif idx == 29
-        return 10
-    elseif idx == 30
         return 5
-    elseif idx == 31 || idx == 32 || idx == 33
+    elseif idx == 30 || idx == 31 || idx == 32
         return 1
-    elseif idx == 34
+    elseif idx == 33
         return 1
     endif
     return 1
 EndFunction
 
 string Function GetEffectParam2Label(int idx)
-    ; Cloak radius slider (idx 31-33). Outer spell Area is written via
+    ; Cloak radius slider (idx 30-32). Outer spell Area is written via
     ; SetNthEffectArea in _applyCloak, converting feet → game units.
-    if idx == 31 || idx == 32 || idx == 33
+    if idx == 30 || idx == 31 || idx == 32
         return "Radius (feet)"
-    elseif idx == 34
+    elseif idx == 33
         return "Peak emissive (additive, % of 1.0)"
     endif
     return ""
 EndFunction
 int Function GetEffectParam2Min(int idx)
-    if idx == 31 || idx == 32 || idx == 33
+    if idx == 30 || idx == 31 || idx == 32
         return 3
-    elseif idx == 34
+    elseif idx == 33
         return 0
     endif
     return 0
 EndFunction
 int Function GetEffectParam2Max(int idx)
-    if idx == 31 || idx == 32 || idx == 33
+    if idx == 30 || idx == 31 || idx == 32
         return 500
-    elseif idx == 34
+    elseif idx == 33
         return 1000
     endif
     return 100
 EndFunction
 int Function GetEffectParam2Default(int idx)
-    if idx == 31 || idx == 32 || idx == 33
+    if idx == 30 || idx == 31 || idx == 32
         return 5
-    elseif idx == 34
+    elseif idx == 33
         return 300  ; +3.0 additive emissive at peak — visible spike
     endif
     return 0
 EndFunction
 int Function GetEffectParam2Step(int idx)
-    if idx == 34
+    if idx == 33
         return 10
     endif
     return 1
 EndFunction
 string Function GetEffectParam2Format(int idx)
-    if idx == 34
+    if idx == 33
         return "{0}%"
     endif
     return "{0}"
@@ -1359,7 +1359,7 @@ EndFunction
 
 ; ── Dropdown options (v0.1.3) — param/param2 as menus ────────────────────────
 int Function GetEffectParamMenuOptionCount(int idx)
-    if idx == 34
+    if idx == 33
         return 11
     endif
     return 0
@@ -1370,7 +1370,7 @@ int Function GetEffectParamMenuOptionValue(int idx, int optionIdx)
     ; classMask=1) is intentionally NOT in the MCM list anymore — it's
     ; reserved for hand-edited presets and external-mod tag broadcasters
     ; (see _classMaskToTags). MCM users pick from explicit combat classes.
-    if idx != 34
+    if idx != 33
         return 0
     endif
     if optionIdx == 0
@@ -1413,7 +1413,7 @@ string Function GetEffectParamMenuOptionLabel(int idx, int optionIdx)
     ; flash.onhit trigger-event presets. Each preset maps (in
     ; _classMaskToTags below) to a C++ tag CSV. Hand-edited preset JSON
     ; with off-list ints still works (MCM shows "Custom: N").
-    if idx != 34
+    if idx != 33
         return ""
     endif
     if optionIdx == 0
@@ -1461,14 +1461,14 @@ EndFunction
 ;               flash alight. Outside the window, decay runs. (0..2000 ms,
 ;               default 150)
 int Function GetEffectExtraFieldCount(int idx)
-    if idx == 34
+    if idx == 33
         return 3
     endif
     return 0
 EndFunction
 
 string Function GetEffectExtraFieldName(int idx, int fieldIdx)
-    if idx != 34
+    if idx != 33
         return ""
     endif
     if fieldIdx == 0
@@ -1484,7 +1484,7 @@ string Function GetEffectExtraFieldName(int idx, int fieldIdx)
 EndFunction
 
 string Function GetEffectExtraFieldLabel(int idx, int fieldIdx)
-    if idx != 34
+    if idx != 33
         return ""
     endif
     if fieldIdx == 0
@@ -1500,7 +1500,7 @@ string Function GetEffectExtraFieldLabel(int idx, int fieldIdx)
 EndFunction
 
 int Function GetEffectExtraFieldMin(int idx, int fieldIdx)
-    if idx != 34
+    if idx != 33
         return 0
     endif
     if fieldIdx == 0
@@ -1516,7 +1516,7 @@ int Function GetEffectExtraFieldMin(int idx, int fieldIdx)
 EndFunction
 
 int Function GetEffectExtraFieldMax(int idx, int fieldIdx)
-    if idx != 34
+    if idx != 33
         return 100
     endif
     if fieldIdx == 0
@@ -1532,14 +1532,14 @@ int Function GetEffectExtraFieldMax(int idx, int fieldIdx)
 EndFunction
 
 int Function GetEffectExtraFieldStep(int idx, int fieldIdx)
-    if idx != 34
+    if idx != 33
         return 1
     endif
     return 10
 EndFunction
 
 int Function GetEffectExtraFieldDefault(int idx, int fieldIdx)
-    if idx != 34
+    if idx != 33
         return 0
     endif
     if fieldIdx == 0
@@ -1557,37 +1557,51 @@ EndFunction
 ; Signed-convention classifiers. Positive param = buff, negative = penalty.
 ; Applied magnitudes stored in mtf.shift.<idx> on the target so
 ; deactivate/recompute can roll them back precisely.
-bool Function _isPctShift(int idx)
-    ; 16 (UnarmedDamage), 17 (CriticalChance), 18 (BowSpeedBonus) are abs shifts
-    ; because their AVs default to 0 on most races — pct math gives 0.
-    ; idx 2 (Sneak skill) was originally pct shift but is now abs to match the
-    ; 17 other vanilla skill modifiers (modify.oneHanded etc.). See _isAbsShift.
-    return idx <= 1 || (idx >= 5 && idx <= 8) || (idx >= 12 && idx <= 15)
-EndFunction
-
 bool Function _isAbsShift(int idx)
-    ; Additive AV shifts. Two underlying paths inside _recomputeAbsShift:
-    ;   • Spell-routed (idx 19-22, 35-36): engine-managed Resist* AVs that
+    ; Additive AV shifts. Three underlying paths inside _recomputeAbsShift:
+    ;   • Spell-routed (idx 18-21, 34-35): engine-managed Resist* AVs that
     ;     ignore direct ModActorValue — Fire/Frost/Shock/Magic + Disease/
     ;     Poison. Each has a paired MGEF+Spell in MagicTattoosFramework.esp;
     ;     SetNthEffectMagnitude carries the signed param.
-    ;   • Direct ModActorValue: Sneak (2), UnarmedDamage / CriticalChance /
-    ;     BowSpeedBonus (16-18), AbsorbChance / ReflectDamage (37-38), and
-    ;     the 17 vanilla skill AVs (39-55: OneHanded..Pickpocket — Sneak is
-    ;     at idx 2 for legacy reasons). All accept direct ModAV.
-    return idx == 2 || (idx >= 16 && idx <= 22) || (idx >= 35 && idx <= 55)
+    ;   • Direct ModActorValue, integer units: most AVs accept param as-is.
+    ;     MagickaRegen/StaminaRegen/HealRegen/SpeedMult (the vanilla
+    ;     *RateMult / SpeedMult set whose baseline is 100, so +N = +N
+    ;     percentage points), CarryWeight, Magicka, Stamina (raw points),
+    ;     all vanilla skill AVs (38-54), plus Sneak (2) for legacy slot
+    ;     reasons, plus UnarmedDamage/CritChance/BowSpeed (15-17),
+    ;     AbsorbChance/ReflectDamage (36-37).
+    ;   • Direct ModActorValue, float-mult units (idx 7, 14 —
+    ;     AttackDamageMult / WeaponSpeedMult): vanilla baseline 1.0, so
+    ;     param is divided by 100 inside _recomputeAbsShift via
+    ;     _absShiftMagnitude. param=20 means +0.2 (=20%) on the mult.
+    ;
+    ; Pre-v0.1.10 these were pct shifts via _recomputeShift; converted to
+    ; abs to close the double-apply race. See project_papyrus_storage_before
+    ; _suspend memory note. v0.1.10 also dropped the old idx 8 (modify.armor
+    ; — direct DamageResist, unreliable because the engine recomputes it per
+    ; frame) and shifted everything past it down by one. Use idx 27
+    ; (spell.modifyArmor) for armor changes.
+    return idx <= 2 || (idx >= 5 && idx <= 7) || (idx >= 11 && idx <= 21) || (idx >= 34 && idx <= 54)
+EndFunction
+
+bool Function _isAbsShiftFloatMult(int idx)
+    ; AttackDamageMult / WeaponSpeedMult: vanilla baseline 1.0, not 100.
+    ; param is interpreted as percent-point shift so param=20 → +0.2 on the
+    ; mult (= +20% damage / +20% swing speed). Same idea as vanilla
+    ; "Smithing — Damage" perk which does ModActorValue(AttackDamageMult, 0.2).
+    return idx == 7 || idx == 14
 EndFunction
 
 bool Function _isToggle(int idx)
-    return idx >= 23 && idx <= 25
+    return idx >= 22 && idx <= 24
 EndFunction
 
 bool Function _isBurstAV(int idx)
-    return idx == 3 || idx == 4 || idx == 26
+    return idx == 3 || idx == 4 || idx == 25
 EndFunction
 
 string Function _avNameFor(int idx)
-    if idx < 14
+    if idx < 13
         return _avNameForLow(idx)
     endif
     return _avNameForHigh(idx)
@@ -1610,92 +1624,90 @@ string Function _avNameForLow(int idx)
         return "StaminaRateMult"
     elseif idx == 7
         return "AttackDamageMult"
-    elseif idx == 8
-        return "DamageResist"
-    elseif idx == 12
+    elseif idx == 11
         return "HealRateMult"
-    elseif idx == 13
+    elseif idx == 12
         return "Magicka"
     endif
     return ""
 EndFunction
 
 string Function _avNameForHigh(int idx)
-    if idx == 14
+    if idx == 13
         return "Stamina"
-    elseif idx == 15
+    elseif idx == 14
         return "WeaponSpeedMult"
-    elseif idx == 16
+    elseif idx == 15
         return "UnarmedDamage"
-    elseif idx == 17
+    elseif idx == 16
         return "CriticalChance"
-    elseif idx == 18
+    elseif idx == 17
         return "BowSpeedBonus"
-    elseif idx == 19
+    elseif idx == 18
         return "ResistFire"
-    elseif idx == 20
+    elseif idx == 19
         return "ResistFrost"
-    elseif idx == 21
+    elseif idx == 20
         return "ResistShock"
-    elseif idx == 22
+    elseif idx == 21
         return "ResistMagic"
-    elseif idx == 23
+    elseif idx == 22
         return "Muffled"
-    elseif idx == 24
+    elseif idx == 23
         return "WaterBreathing"
-    elseif idx == 25
+    elseif idx == 24
         return "WaterWalking"
-    elseif idx == 26
+    elseif idx == 25
         return "Health"
-    elseif idx == 35
+    elseif idx == 34
         return "ResistDisease"
-    elseif idx == 36
+    elseif idx == 35
         ; Skyrim AV naming quirk — poison resist is "PoisonResist", not
         ; "ResistPoison" (inverted vs. ResistFire/Frost/Shock/Magic). The
         ; MGEF in the ESP uses ActorValue: PoisonResist for the same reason.
         return "PoisonResist"
-    elseif idx == 37
+    elseif idx == 36
         return "AbsorbChance"
-    elseif idx == 38
+    elseif idx == 37
         return "ReflectDamage"
-    elseif idx == 39
+    elseif idx == 38
         return "OneHanded"
-    elseif idx == 40
+    elseif idx == 39
         return "TwoHanded"
-    elseif idx == 41
+    elseif idx == 40
         ; Skyrim AV naming quirk — the Archery skill's AV is "Marksman",
         ; a leftover Morrowind/Oblivion name. The skill-tree UI says
         ; Archery; GetActorValue/ModActorValue need "Marksman".
         return "Marksman"
-    elseif idx == 42
+    elseif idx == 41
         return "Block"
-    elseif idx == 43
+    elseif idx == 42
         return "HeavyArmor"
-    elseif idx == 44
+    elseif idx == 43
         return "LightArmor"
-    elseif idx == 45
+    elseif idx == 44
         return "Smithing"
-    elseif idx == 46
+    elseif idx == 45
         return "Enchanting"
-    elseif idx == 47
+    elseif idx == 46
         return "Alchemy"
-    elseif idx == 48
+    elseif idx == 47
         return "Destruction"
-    elseif idx == 49
+    elseif idx == 48
         return "Restoration"
-    elseif idx == 50
+    elseif idx == 49
         return "Alteration"
-    elseif idx == 51
+    elseif idx == 50
         return "Illusion"
-    elseif idx == 52
+    elseif idx == 51
         return "Conjuration"
-    elseif idx == 53
+    elseif idx == 52
         ; Skyrim AV naming quirk — the Speech skill's AV is "Speechcraft",
         ; another Morrowind/Oblivion holdover. UI says Speech.
         return "Speechcraft"
-    elseif idx == 54
+    elseif idx == 53
         return "Lockpicking"
-    elseif idx == 55
+    elseif idx == 54
         return "Pickpocket"
     endif
     return ""
@@ -1724,34 +1736,7 @@ Function _setApplied(int idx, Actor target, float v)
     endif
 EndFunction
 
-; pct shift: signed `param` % of CURRENT AV.
-Function _recomputeShift(int idx, Actor target, int param)
-    string av = _avNameFor(idx)
-    if av == "" || target == None
-        return
-    endif
-    float prev = _getApplied(idx, target)
-    if prev != 0.0
-        target.ModActorValue(av, -prev)
-    endif
-    if param == 0
-        _setApplied(idx, target, 0.0)
-        return
-    endif
-    float current = target.GetActorValue(av)
-    ; Allow buff (positive param) even when current<=0 — useful for ResistFire
-    ; etc. starting at 0. But pct shift would multiply by 0; only abs shifts
-    ; can buff a zero baseline. So bail here for pct.
-    if current <= 0.0
-        _setApplied(idx, target, 0.0)
-        return
-    endif
-    float amt = current * param / 100.0
-    target.ModActorValue(av, amt)
-    _setApplied(idx, target, amt)
-EndFunction
-
-; abs shift: signed `param` in AV points (no scaling).
+; abs shift: signed `param` in AV points (no scaling, except _isAbsShiftFloatMult).
 Function _recomputeAbsShift(int idx, Actor target, int param)
     if target == None
         return
@@ -1759,9 +1744,9 @@ Function _recomputeAbsShift(int idx, Actor target, int param)
     ; Engine-managed Resist* AVs ignore direct ModActorValue. Route through
     ; an Ability spell with ValueModifier archetype (vanilla AbResistFire
     ; pattern). Magnitude is set per-cast, signed via SetNthEffectMagnitude.
-    ; idx 19-22: elemental (Fire/Frost/Shock/Magic). idx 35-36: Disease/
+    ; idx 18-21: elemental (Fire/Frost/Shock/Magic). idx 34-35: Disease/
     ; Poison — same engine-managed quirk, same routing.
-    if (idx >= 19 && idx <= 22) || idx == 35 || idx == 36
+    if (idx >= 18 && idx <= 21) || idx == 34 || idx == 35
         _absShiftSpell(_resolveResistSpell(idx), target, param, idx)
         return
     endif
@@ -1771,6 +1756,14 @@ Function _recomputeAbsShift(int idx, Actor target, int param)
     endif
     float prev = _getApplied(idx, target)
     float amt  = param as float
+    if _isAbsShiftFloatMult(idx)
+        ; AttackDamageMult / WeaponSpeedMult are float multipliers (baseline
+        ; 1.0), not percent-baselined like the *RateMult set (baseline 100).
+        ; Treat the int param as percent points → divide by 100 so param=20
+        ; means +0.2 on the mult (= +20%). Storage is in the SAME float-mult
+        ; units so revert math stays simple.
+        amt = amt / 100.0
+    endif
     ; Early-out: onTick fires every poll (10 Hz default). Without this guard
     ; we'd revert+re-apply every tick, which is wasteful and — for laggy
     ; engine-managed AVs like PoisonResist — keeps the value flickering at
@@ -1814,13 +1807,13 @@ Function _recomputeToggle(int idx, Actor target, bool on)
     endif
     ; Engine-managed AVs need an ability spell (constant-effect ability).
     ; Direct ModActorValue silently no-ops on Muffled/WaterBreathing/WaterWalking.
-    if idx == 23
+    if idx == 22
         _toggleSpell(_resolveMuffleSpell(), target, on, idx)
         return
-    elseif idx == 24
+    elseif idx == 23
         _toggleSpell(_resolveWaterBreathingSpell(), target, on, idx)
         return
-    elseif idx == 25
+    elseif idx == 24
         _toggleSpell(_resolveWaterWalkingSpell(), target, on, idx)
         return
     endif
@@ -1933,32 +1926,32 @@ Function _absShiftSpell(Spell s, Actor target, int param, int idx)
 EndFunction
 
 Spell Function _resolveResistSpell(int idx)
-    if idx == 19
+    if idx == 18
         if _resistFireSpell == None
             _resistFireSpell = Game.GetFormFromFile(0x837, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistFireSpell
-    elseif idx == 20
+    elseif idx == 19
         if _resistFrostSpell == None
             _resistFrostSpell = Game.GetFormFromFile(0x839, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistFrostSpell
-    elseif idx == 21
+    elseif idx == 20
         if _resistShockSpell == None
             _resistShockSpell = Game.GetFormFromFile(0x83B, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistShockSpell
-    elseif idx == 22
+    elseif idx == 21
         if _resistMagicSpell == None
             _resistMagicSpell = Game.GetFormFromFile(0x83D, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistMagicSpell
-    elseif idx == 35
+    elseif idx == 34
         if _resistDiseaseSpell == None
             _resistDiseaseSpell = Game.GetFormFromFile(0x851, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistDiseaseSpell
-    elseif idx == 36
+    elseif idx == 35
         if _resistPoisonSpell == None
             _resistPoisonSpell = Game.GetFormFromFile(0x853, "MagicTattoosFramework.esp") as Spell
         endif
@@ -2476,9 +2469,7 @@ Function _alertNearby(Actor target, int paramFeet)
 EndFunction
 
 Function onActivate(int idx, Actor target, int param, int param2)
-    if _isPctShift(idx)
-        _recomputeShift(idx, target, param)
-    elseif _isAbsShift(idx)
+    if _isAbsShift(idx)
         _recomputeAbsShift(idx, target, param)
     elseif _isToggle(idx)
         _recomputeToggle(idx, target, true)
@@ -2486,83 +2477,79 @@ Function onActivate(int idx, Actor target, int param, int param2)
         _burstDelta("Magicka", target, param)
     elseif idx == 4
         _burstDelta("Stamina", target, param)
-    elseif idx == 9
+    elseif idx == 8
         if target != None
             Debug.SendAnimationEvent(target, "staggerStart")
         endif
-    elseif idx == 10
+    elseif idx == 9
         _alertNearby(target, param)
-    elseif idx == 11
+    elseif idx == 10
         _applyCostPenalty(target, param)
-    elseif idx == 26
+    elseif idx == 25
         _burstDelta("Health", target, param)
-    elseif idx == 27
+    elseif idx == 26
         _modBounty(target, param)
-    elseif idx == 28
+    elseif idx == 27
         _applyFlesh(target, param)
-    elseif idx == 29
+    elseif idx == 28
         _applyDetectAll(target, param)
-    elseif idx == 30
+    elseif idx == 29
         _applySlowTime(target, param)
-    elseif idx == 31
+    elseif idx == 30
         _applyCloak(_resolveFlameCloakSpell(), _resolveFlameCloakDmgSpell(), target, param, param2, "mtf.shift.flameCloak")
-    elseif idx == 32
+    elseif idx == 31
         _applyCloak(_resolveFrostCloakSpell(), _resolveFrostCloakDmgSpell(), target, param, param2, "mtf.shift.frostCloak")
-    elseif idx == 33
+    elseif idx == 32
         _applyCloak(_resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
-    elseif idx == 34
+    elseif idx == 33
         _applyFlashOnHit(target, param, param2)
     endif
 EndFunction
 
 Function onDeactivate(int idx, Actor target, int param, int param2)
-    if _isPctShift(idx)
-        _recomputeShift(idx, target, 0)
-    elseif _isAbsShift(idx)
+    if _isAbsShift(idx)
         _recomputeAbsShift(idx, target, 0)
     elseif _isToggle(idx)
         _recomputeToggle(idx, target, false)
-    elseif idx == 11
+    elseif idx == 10
         _removeCostPenalty(target)
-    elseif idx == 28
+    elseif idx == 27
         _removeFlesh(target)
-    elseif idx == 29
+    elseif idx == 28
         _removeDetectAll(target)
-    elseif idx == 30
+    elseif idx == 29
         _removeSlowTime(target)
-    elseif idx == 31
+    elseif idx == 30
         _removeCloak(_resolveFlameCloakSpell(), target, "mtf.shift.flameCloak")
-    elseif idx == 32
+    elseif idx == 31
         _removeCloak(_resolveFrostCloakSpell(), target, "mtf.shift.frostCloak")
-    elseif idx == 33
+    elseif idx == 32
         _removeCloak(_resolveLightningCloakSpell(), target, "mtf.shift.lightningCloak")
-    elseif idx == 34
+    elseif idx == 33
         _removeFlashOnHit(target)
     endif
 EndFunction
 
 Function onTick(int idx, Actor target, int param, int param2)
-    if _isPctShift(idx)
-        _recomputeShift(idx, target, param)
-    elseif _isAbsShift(idx)
+    if _isAbsShift(idx)
         _recomputeAbsShift(idx, target, param)
     elseif _isToggle(idx)
         _recomputeToggle(idx, target, true)
-    elseif idx == 11
+    elseif idx == 10
         ; Re-apply if param changed (slider) or after save/load (magnitude
         ; reverts to ESP default which is 0). Skip when already in sync.
         float applied = StorageUtil.GetFloatValue(target, "mtf.shift.spellcost", 0.0)
         if applied != -(param as float)
             _applyCostPenalty(target, param)
         endif
-    elseif idx == 28
+    elseif idx == 27
         ; Constant-effect ability — no time-based refresh needed. Just
         ; re-apply if magnitude (param) changed since last application.
         float stored = StorageUtil.GetFloatValue(target, "mtf.shift.flesh", -99999.0)
         if stored != (param as float)
             _applyFlesh(target, param)
         endif
-    elseif idx == 29
+    elseif idx == 28
         ; FAF DetectLife only scans actors at cast time — new actors entering
         ; the radius mid-duration don't get painted. Refresh on EVERY slow
         ; tick (≤2s) so newcomers get picked up. _applyDetectAll dispels
@@ -2574,7 +2561,7 @@ Function onTick(int idx, Actor target, int param, int param2)
         if storedDA != (param as float) || deltaDA > 1.5 || deltaDA < 0.0
             _applyDetectAll(target, param)
         endif
-    elseif idx == 30
+    elseif idx == 29
         ; FAF spell with 30s Duration. Refresh every ~25s by re-casting OR on
         ; slider change OR after save/load (delta < 0 because GetCurrentRealTime
         ; resets to a small value on session start).
@@ -2585,13 +2572,13 @@ Function onTick(int idx, Actor target, int param, int param2)
         if storedMag != (param as float) || delta > 25.0 || delta < 0.0
             _applySlowTime(target, param)
         endif
-    elseif idx == 31
+    elseif idx == 30
         _tickCloak(idx, _resolveFlameCloakSpell(), _resolveFlameCloakDmgSpell(), target, param, param2, "mtf.shift.flameCloak")
-    elseif idx == 32
+    elseif idx == 31
         _tickCloak(idx, _resolveFrostCloakSpell(), _resolveFrostCloakDmgSpell(), target, param, param2, "mtf.shift.frostCloak")
-    elseif idx == 33
+    elseif idx == 32
         _tickCloak(idx, _resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
-    elseif idx == 34
+    elseif idx == 33
         ; Re-push flash params every slow tick. Cheap (one Roster lookup +
         ; field write) and means MCM slider edits on ramp/decay/retrig/peak
         ; take effect within ~2s without needing a tier rebuild.

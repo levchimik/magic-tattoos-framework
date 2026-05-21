@@ -185,7 +185,31 @@ EndFunction
 Function onDeactivate(int idx, Actor target, int param, int param2)
 {Called when effect `idx` stops being active. Must restore any persistent
  changes (AV mods, applied magic effects, etc.). Safe to call even if
- onActivate was never called.}
+ onActivate was never called.
+
+ WARNING — silent footgun: the default is a no-op. If your effect mutates
+ persistent engine state in onActivate (ModActorValue, AddSpell,
+ SetNthEffectMagnitude on a stored Spell, persistent shader effects, etc.)
+ and you forget to override onDeactivate, removing the tattoo will SILENTLY
+ LEAVE THE STATE APPLIED — no compile error, no log line, no visible signal
+ until a player reports "removing the tattoo doesn't actually remove the
+ buff". There is no framework-side rescue: MTF doesn't know what state
+ your onActivate touched.
+
+ Two cases where the no-op default IS correct, so you can leave it alone:
+   1. Transient one-shot effects (bursts, stagger, alerts, bounty bumps) —
+      they finish during onActivate and have no rolling state.
+   2. State that lives in another framework's storage and is meant to
+      decay/expire naturally (SLA exposure deltas, FMR ovulation timers).
+      Symmetric cleanup would either be wrong (refund could push to
+      negative) or impossible (no cancel API on the other side).
+
+ If your effect mutates a Skyrim AV directly via ModActorValue, you almost
+ certainly want to mirror the MTF_Plugin_Base pattern: store the applied
+ delta in StorageUtil under a per-actor key, revert by -delta in
+ onDeactivate, and write the storage BEFORE the suspending ModActorValue
+ call to avoid the two-stack apply race (see
+ project_papyrus_storage_before_suspend memory note).}
 EndFunction
 
 Function onTick(int idx, Actor target, int param, int param2)
