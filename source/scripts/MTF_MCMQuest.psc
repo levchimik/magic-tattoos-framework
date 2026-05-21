@@ -1662,7 +1662,12 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string para
         string xlabel = p.GetEffectExtraFieldLabel(itemIdx, xi)
         if xname != "" && xlabel != ""
             int xval = MainQuest.GetSlotEffectExtra(slot, effectIdx, xname) as int
-            AddSliderOptionST(extraIds[xi], "  " + xlabel, xval)
+            if p.GetEffectExtraFieldMenuOptionCount(itemIdx, xi) > 0
+                AddMenuOptionST(extraIds[xi], "  " + xlabel, \
+                    _menuLabelForExtra(p, itemIdx, xi, xval))
+            else
+                AddSliderOptionST(extraIds[xi], "  " + xlabel, xval)
+            endif
         endif
         xi += 1
     endwhile
@@ -2319,6 +2324,94 @@ Function _acceptEffectExtra(int effectIdx, int extraSlot, float value)
     SetSliderOptionValueST(value as int)
 EndFunction
 
+; ── Extras dropdown variant (mirrors _open/_acceptEffectParamMenu) ──────────
+; Mounted on the same SLOT_EFFECT_n_EXm state as the slider; SkyUI picks
+; which event fires based on whether _drawEffectRow registered Add*Slider* or
+; Add*Menu*. Branch is per-render so the same state can swap modes mid-row
+; (e.g. when a new effect is bound that uses dropdowns instead of sliders).
+string Function _menuLabelForExtra(MTF_Plugin p, int itemIdx, int fieldIdx, int curVal)
+    int n = p.GetEffectExtraFieldMenuOptionCount(itemIdx, fieldIdx)
+    int i = 0
+    while i < n
+        if p.GetEffectExtraFieldMenuOptionValue(itemIdx, fieldIdx, i) == curVal
+            return p.GetEffectExtraFieldMenuOptionLabel(itemIdx, fieldIdx, i)
+        endif
+        i += 1
+    endwhile
+    return "Custom: " + curVal
+EndFunction
+
+Function _openEffectExtraMenu(int effectIdx, int extraSlot)
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetEffectExtraFieldCount(itemIdx)
+    if extraSlot < 0 || extraSlot >= n
+        return
+    endif
+    string fieldName = p.GetEffectExtraFieldName(itemIdx, extraSlot)
+    if fieldName == ""
+        return
+    endif
+    int mn = p.GetEffectExtraFieldMenuOptionCount(itemIdx, extraSlot)
+    if mn <= 0
+        return
+    endif
+    int curVal     = MainQuest.GetSlotEffectExtra(selectedCondition, effectIdx, fieldName) as int
+    int defaultVal = p.GetEffectExtraFieldDefault(itemIdx, extraSlot)
+    string[] labels = _newOpts(mn)
+    int curSel = 0
+    int defaultSel = 0
+    int i = 0
+    while i < mn
+        int v = p.GetEffectExtraFieldMenuOptionValue(itemIdx, extraSlot, i)
+        labels[i] = p.GetEffectExtraFieldMenuOptionLabel(itemIdx, extraSlot, i)
+        if v == curVal
+            curSel = i
+        endif
+        if v == defaultVal
+            defaultSel = i
+        endif
+        i += 1
+    endwhile
+    SetMenuDialogStartIndex(curSel)
+    SetMenuDialogDefaultIndex(defaultSel)
+    SetMenuDialogOptions(labels)
+EndFunction
+
+Function _acceptEffectExtraMenu(int effectIdx, int extraSlot, int index)
+    if index < 0
+        return
+    endif
+    string fieldName = _getEffectExtraFieldName(effectIdx, extraSlot)
+    if fieldName == ""
+        return
+    endif
+    string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int mn = p.GetEffectExtraFieldMenuOptionCount(itemIdx, extraSlot)
+    if index >= mn
+        return
+    endif
+    int newVal = p.GetEffectExtraFieldMenuOptionValue(itemIdx, extraSlot, index)
+    string label = p.GetEffectExtraFieldMenuOptionLabel(itemIdx, extraSlot, index)
+    MainQuest.SetSlotEffectExtra(selectedCondition, effectIdx, fieldName, newVal as float)
+    SetMenuOptionValueST(label)
+EndFunction
+
 Function _defaultEffectExtra(int effectIdx, int extraSlot)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
     MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
@@ -2339,7 +2432,13 @@ Function _defaultEffectExtra(int effectIdx, int extraSlot)
     endif
     float defVal = p.GetEffectExtraFieldDefault(itemIdx, extraSlot) as float
     MainQuest.SetSlotEffectExtra(selectedCondition, effectIdx, fieldName, defVal)
-    SetSliderOptionValueST(defVal as int)
+    ; Match how _drawEffectRow registered this widget — Set*Slider* won't take
+    ; on a menu-mode control and vice versa.
+    if p.GetEffectExtraFieldMenuOptionCount(itemIdx, extraSlot) > 0
+        SetMenuOptionValueST(_menuLabelForExtra(p, itemIdx, extraSlot, defVal as int))
+    else
+        SetSliderOptionValueST(defVal as int)
+    endif
 EndFunction
 
 Function _highlightEffectExtra(int effectIdx, int extraSlot)
@@ -2369,6 +2468,12 @@ state SLOT_EFFECT_1_EX1
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(0, 0, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(0, 0)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(0, 0, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectExtra(0, 0)
     endEvent
@@ -2383,6 +2488,12 @@ state SLOT_EFFECT_1_EX2
     endEvent
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(0, 1, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(0, 1)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(0, 1, index)
     endEvent
     event OnDefaultST()
         _defaultEffectExtra(0, 1)
@@ -2399,6 +2510,12 @@ state SLOT_EFFECT_1_EX3
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(0, 2, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(0, 2)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(0, 2, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectExtra(0, 2)
     endEvent
@@ -2413,6 +2530,12 @@ state SLOT_EFFECT_2_EX1
     endEvent
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(1, 0, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(1, 0)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(1, 0, index)
     endEvent
     event OnDefaultST()
         _defaultEffectExtra(1, 0)
@@ -2429,6 +2552,12 @@ state SLOT_EFFECT_2_EX2
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(1, 1, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(1, 1)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(1, 1, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectExtra(1, 1)
     endEvent
@@ -2443,6 +2572,12 @@ state SLOT_EFFECT_2_EX3
     endEvent
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(1, 2, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(1, 2)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(1, 2, index)
     endEvent
     event OnDefaultST()
         _defaultEffectExtra(1, 2)
@@ -2459,6 +2594,12 @@ state SLOT_EFFECT_3_EX1
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(2, 0, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(2, 0)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(2, 0, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectExtra(2, 0)
     endEvent
@@ -2473,6 +2614,12 @@ state SLOT_EFFECT_3_EX2
     endEvent
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(2, 1, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(2, 1)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(2, 1, index)
     endEvent
     event OnDefaultST()
         _defaultEffectExtra(2, 1)
@@ -2489,6 +2636,12 @@ state SLOT_EFFECT_3_EX3
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(2, 2, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(2, 2)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(2, 2, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectExtra(2, 2)
     endEvent
@@ -2503,6 +2656,12 @@ state SLOT_EFFECT_4_EX1
     endEvent
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(3, 0, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(3, 0)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(3, 0, index)
     endEvent
     event OnDefaultST()
         _defaultEffectExtra(3, 0)
@@ -2519,6 +2678,12 @@ state SLOT_EFFECT_4_EX2
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(3, 1, value)
     endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(3, 1)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(3, 1, index)
+    endEvent
     event OnDefaultST()
         _defaultEffectExtra(3, 1)
     endEvent
@@ -2533,6 +2698,12 @@ state SLOT_EFFECT_4_EX3
     endEvent
     event OnSliderAcceptST(float value)
         _acceptEffectExtra(3, 2, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectExtraMenu(3, 2)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectExtraMenu(3, 2, index)
     endEvent
     event OnDefaultST()
         _defaultEffectExtra(3, 2)

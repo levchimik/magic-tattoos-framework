@@ -4115,10 +4115,17 @@ EndFunction
 ; and get cold-rebuilt on next access.
 
 int Function CACHED_SCRATCH_VERSION() global
-{Bump when the _s* field set changes — old caches will fail the version
- check and get cold-rebuilt on next _loadPresetToScratch. Single-source
- of truth for the cache layout version.}
-    return 1
+{Bump when the _s* field set OR the FX scratch keys written during cold
+ load change — old caches will fail the version check and get
+ cold-rebuilt on next _loadPresetToScratch. Single-source of truth for
+ the cache layout version.
+
+ v2: extras loader switched from hardcoded list (flash.onhit's rampms/
+ decayms/retrigms only) to plugin-driven walk over GetEffectExtraField*.
+ Caches written under v1 are missing shader.play's `sound` extra in the
+ FX scratch namespace; bumping invalidates them so cold load re-runs
+ with the plugin-driven path.}
+    return 2
 EndFunction
 
 bool Function _isScratchCached(string name)
@@ -4312,17 +4319,37 @@ bool Function _loadPresetToScratch(string name)
             ; skip these writes — each preset's effect bindings persist
             ; across swaps under its own key segment. Missing entries
             ; default to "" / 0.
-            _writeFxKey(s, e, true, JsonUtil.GetPathStringValue(f, ep + ".key", ""))
+            string effKey = JsonUtil.GetPathStringValue(f, ep + ".key", "")
+            _writeFxKey(s, e, true, effKey)
             _writeFxParam(s, e, true, JsonUtil.GetPathIntValue(f, ep + ".param", 0))
             _writeFxParam2(s, e, true, JsonUtil.GetPathIntValue(f, ep + ".param2", 0))
-            ; Load this effect's known extras into scratch StorageUtil keys
-            ; so GetSlotEffectExtra can read them under the dispatch scratch
-            ; flag. Currently the only effect with extras is flash.onhit; if
-            ; more get added, extend this list. Reading non-existent extras
-            ; returns 0 which is harmless.
-            _loadScratchExtra(f, ep, s, e, "rampms")
-            _loadScratchExtra(f, ep, s, e, "decayms")
-            _loadScratchExtra(f, ep, s, e, "retrigms")
+            ; Plugin-driven extras load — walk the bound effect's declared
+            ; extra fields and copy each one from JSON into the scratch
+            ; namespace so GetSlotEffectExtra can read them under the
+            ; dispatch scratch flag. Pre-v0.2.x this was a hardcoded list of
+            ; flash.onhit's three fields (rampms/decayms/retrigms); any
+            ; newly-added extras silently dropped to scratch default 0,
+            ; producing "preset value ignored on apply" bugs (shader.play's
+            ; `sound` toggle was the first casualty). Discovering via the
+            ; plugin keeps this future-proof — adding an extra to any
+            ; plugin's effect declaration automatically participates.
+            if effKey != ""
+                MTF_Plugin pLoadX = ResolvePluginByKey(effKey)
+                if pLoadX != None
+                    int itemIdxX = _effectIdxFor(pLoadX, _keyItemId(effKey))
+                    if itemIdxX >= 0
+                        int xN = pLoadX.GetEffectExtraFieldCount(itemIdxX)
+                        int xi = 0
+                        while xi < xN
+                            string xname = pLoadX.GetEffectExtraFieldName(itemIdxX, xi)
+                            if xname != ""
+                                _loadScratchExtra(f, ep, s, e, xname)
+                            endif
+                            xi += 1
+                        endwhile
+                    endif
+                endif
+            endif
             e += 1
         endwhile
         s += 1

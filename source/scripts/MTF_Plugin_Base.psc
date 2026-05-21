@@ -848,7 +848,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 55
+    return 56
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -980,6 +980,8 @@ string Function _effectIdHigh(int idx)
         return "modify.lockpicking"
     elseif idx == 54
         return "modify.pickpocket"
+    elseif idx == 55
+        return "shader.play"
     endif
     return ""
 EndFunction
@@ -1107,6 +1109,8 @@ string Function _effectLabelHigh(int idx)
         return "Modify Lockpicking"
     elseif idx == 54
         return "Modify Pickpocket"
+    elseif idx == 55
+        return "[+] Vanilla Shader"
     endif
     return ""
 EndFunction
@@ -1226,6 +1230,8 @@ string Function _effectParamLabelHigh(int idx)
         return "Lockpicking skill shift (points; + buff, - drain)"
     elseif idx == 54
         return "Pickpocket skill shift (points; + buff, - drain)"
+    elseif idx == 55
+        return "Shader"
     endif
     return ""
 EndFunction
@@ -1247,6 +1253,8 @@ int Function GetEffectParamMin(int idx)
         return 1
     elseif idx == 33
         return 0
+    elseif idx == 55
+        return 0  ; shader index; rendered as dropdown via Menu APIs
     endif
     return -100
 EndFunction
@@ -1269,6 +1277,8 @@ int Function GetEffectParamMax(int idx)
         return 200
     elseif idx == 33
         return 127
+    elseif idx == 55
+        return _shaderCount() - 1
     endif
     return 100
 EndFunction
@@ -1285,6 +1295,8 @@ int Function GetEffectParamDefault(int idx)
         return 8
     elseif idx == 33
         return 1  ; ANY wildcard — fires on every hit
+    elseif idx == 55
+        return 0  ; first shader in catalog
     endif
     return 0
 EndFunction
@@ -1306,6 +1318,8 @@ int Function GetEffectParamStep(int idx)
         return 1
     elseif idx == 33
         return 1
+    elseif idx == 55
+        return 1
     endif
     return 1
 EndFunction
@@ -1317,6 +1331,8 @@ string Function GetEffectParam2Label(int idx)
         return "Radius (feet)"
     elseif idx == 33
         return "Peak emissive (additive, % of 1.0)"
+    elseif idx == 55
+        return "Duration (s, 0 = until removed)"
     endif
     return ""
 EndFunction
@@ -1324,6 +1340,8 @@ int Function GetEffectParam2Min(int idx)
     if idx == 30 || idx == 31 || idx == 32
         return 3
     elseif idx == 33
+        return 0
+    elseif idx == 55
         return 0
     endif
     return 0
@@ -1333,6 +1351,8 @@ int Function GetEffectParam2Max(int idx)
         return 500
     elseif idx == 33
         return 1000
+    elseif idx == 55
+        return 60
     endif
     return 100
 EndFunction
@@ -1341,6 +1361,8 @@ int Function GetEffectParam2Default(int idx)
         return 5
     elseif idx == 33
         return 300  ; +3.0 additive emissive at peak — visible spike
+    elseif idx == 55
+        return 0  ; until-removed; tick re-Plays after save/load
     endif
     return 0
 EndFunction
@@ -1361,6 +1383,8 @@ EndFunction
 int Function GetEffectParamMenuOptionCount(int idx)
     if idx == 33
         return 11
+    elseif idx == 55
+        return _shaderCount()
     endif
     return 0
 EndFunction
@@ -1370,6 +1394,10 @@ int Function GetEffectParamMenuOptionValue(int idx, int optionIdx)
     ; classMask=1) is intentionally NOT in the MCM list anymore — it's
     ; reserved for hand-edited presets and external-mod tag broadcasters
     ; (see _classMaskToTags). MCM users pick from explicit combat classes.
+    if idx == 55
+        ; shader.play — value IS the shader catalog index, identity map.
+        return optionIdx
+    endif
     if idx != 33
         return 0
     endif
@@ -1413,6 +1441,9 @@ string Function GetEffectParamMenuOptionLabel(int idx, int optionIdx)
     ; flash.onhit trigger-event presets. Each preset maps (in
     ; _classMaskToTags below) to a C++ tag CSV. Hand-edited preset JSON
     ; with off-list ints still works (MCM shows "Custom: N").
+    if idx == 55
+        return _shaderLabel(optionIdx)
+    endif
     if idx != 33
         return ""
     endif
@@ -1552,6 +1583,26 @@ int Function GetEffectExtraFieldDefault(int idx, int fieldIdx)
         return 800
     endif
     return 0
+EndFunction
+
+; Extras-as-dropdown API (v0.1.x) — plugins return >0 from
+; GetEffectExtraFieldMenuOptionCount(idx, fieldIdx) to render an extra
+; field as a dropdown rather than a numeric slider. Currently unused (the
+; shader.play `sound` toggle that originally motivated this API was dropped
+; once we discovered vanilla EffectShader audio is baked into the visual
+; itself — see KNOWLEDGEBASE). Hooks kept on the abstract MTF_Plugin base
+; so any future plugin's enum-style extra can adopt the dropdown UI without
+; another schema change.
+int Function GetEffectExtraFieldMenuOptionCount(int idx, int fieldIdx)
+    return 0
+EndFunction
+
+int Function GetEffectExtraFieldMenuOptionValue(int idx, int fieldIdx, int optionIdx)
+    return 0
+EndFunction
+
+string Function GetEffectExtraFieldMenuOptionLabel(int idx, int fieldIdx, int optionIdx)
+    return ""
 EndFunction
 
 ; Signed-convention classifiers. Positive param = buff, negative = penalty.
@@ -2468,6 +2519,284 @@ Function _alertNearby(Actor target, int paramFeet)
     endwhile
 EndFunction
 
+; ── shader.play (idx 55) — vanilla EffectShader playback ────────────────────
+; param  = shader index into the curated _shaderFormId/_shaderLabel catalog
+; param2 = duration in whole seconds; 0 = "until removed" (re-Play every tick
+;          to survive save/load — Skyrim's EffectShader instance does not
+;          persist across save load even when the engine flag says it should)
+;
+; All entries are vanilla Skyrim.esm SHAD (xEdit signature EFSH) records.
+; FormIDs are 6-hex; load index 00 is always Skyrim.esm so GetFormFromFile
+; with the bare ID + "Skyrim.esm" resolves regardless of load order.
+;
+; The catalog is intentionally hand-curated for visual variety — fire/frost
+; cloaks, soultrap, ghost, flesh tints, healing motes, vampire/werewolf
+; bursts, ward shield. Adding entries: append to BOTH _shaderFormId and
+; _shaderLabel ladders and bump _shaderCount.
+
+int Function _shaderCount()
+    return 22
+EndFunction
+
+int Function _shaderFormId(int idx)
+    if idx == 0
+        return 0x0002acd8  ; Fire Cloak
+    endif
+    if idx == 1
+        return 0x0001b212  ; Fire Burst
+    endif
+    if idx == 2
+        return 0x0001f03a  ; Frost
+    endif
+    if idx == 3
+        return 0x0010a043  ; Frost Chillrend
+    endif
+    if idx == 4
+        return 0x00057c67  ; Shock
+    endif
+    if idx == 5
+        return 0x0003bf79  ; Shock Storm
+    endif
+    if idx == 6
+        return 0x00094161  ; Stoneflesh
+    endif
+    if idx == 7
+        return 0x00094162  ; Ebonyflesh
+    endif
+    if idx == 8
+        return 0x000e9ac8  ; Dragonhide
+    endif
+    if idx == 9
+        return 0x000506d7  ; Soul Trap
+    endif
+    if idx == 10
+        return 0x0003b6cb  ; Ghost (Ethereal)
+    endif
+    if idx == 11
+        return 0x000fe68c  ; Ghost Red
+    endif
+    if idx == 12
+        return 0x0002df92  ; Invisibility
+    endif
+    if idx == 13
+        return 0x000bcf25  ; Muffle
+    endif
+    if idx == 14
+        return 0x0001c858  ; Ward Shield
+    endif
+    if idx == 15
+        return 0x00075272  ; Reanimate
+    endif
+    if idx == 16
+        return 0x000e7557  ; Turn Undead Flames
+    endif
+    if idx == 17
+        return 0x00012fd9  ; Heal
+    endif
+    if idx == 18
+        return 0x000abeff  ; Absorb Health
+    endif
+    if idx == 19
+        return 0x000fd804  ; Vampire Change
+    endif
+    if idx == 20
+        return 0x000ebec5  ; Werewolf Transform
+    endif
+    if idx == 21
+        return 0x00000146  ; Detect Life
+    endif
+    return 0
+EndFunction
+
+string Function _shaderLabel(int idx)
+    if idx == 0
+        return "Fire Cloak"
+    endif
+    if idx == 1
+        return "Fire Burst"
+    endif
+    if idx == 2
+        return "Frost"
+    endif
+    if idx == 3
+        return "Frost Chillrend"
+    endif
+    if idx == 4
+        return "Shock"
+    endif
+    if idx == 5
+        return "Shock Storm"
+    endif
+    if idx == 6
+        return "Stoneflesh"
+    endif
+    if idx == 7
+        return "Ebonyflesh"
+    endif
+    if idx == 8
+        return "Dragonhide"
+    endif
+    if idx == 9
+        return "Soul Trap"
+    endif
+    if idx == 10
+        return "Ghost (Ethereal)"
+    endif
+    if idx == 11
+        return "Ghost Red"
+    endif
+    if idx == 12
+        return "Invisibility"
+    endif
+    if idx == 13
+        return "Muffle"
+    endif
+    if idx == 14
+        return "Ward Shield"
+    endif
+    if idx == 15
+        return "Reanimate"
+    endif
+    if idx == 16
+        return "Turn Undead Flames"
+    endif
+    if idx == 17
+        return "Heal"
+    endif
+    if idx == 18
+        return "Absorb Health"
+    endif
+    if idx == 19
+        return "Vampire Change"
+    endif
+    if idx == 20
+        return "Werewolf Transform"
+    endif
+    if idx == 21
+        return "Detect Life"
+    endif
+    return "Shader #" + idx
+EndFunction
+
+EffectShader Function _resolveShader(int shaderIdx)
+    int fid = _shaderFormId(shaderIdx)
+    if fid == 0
+        return None
+    endif
+    return Game.GetFormFromFile(fid, "Skyrim.esm") as EffectShader
+EndFunction
+
+Function _playShader(Actor target, int shaderIdx, int durationSec)
+    if target == None
+        return
+    endif
+    EffectShader es = _resolveShader(shaderIdx)
+    if es == None
+        return
+    endif
+    float dur = -1.0
+    if durationSec > 0
+        dur = durationSec as float
+    endif
+    es.Play(target, dur)
+EndFunction
+
+Function _stopShader(Actor target, int shaderIdx)
+    if target == None
+        return
+    endif
+    EffectShader es = _resolveShader(shaderIdx)
+    if es == None
+        return
+    endif
+    es.Stop(target)
+EndFunction
+
+; ── shader.play session-resume re-Play tracking ─────────────────────────────
+; A short note on what's NOT here. Earlier iterations carried a Sound /
+; SoundDescriptor catalog so each shader could play an auxiliary SNDR loop
+; alongside the visual. In testing the "muted" preset was indistinguishable
+; from the loud one: vanilla EffectShader records have their ambient audio
+; baked into the visual itself (FireCloakFXShader brings the fire crackle,
+; FrostCloakFXShader brings the freeze hiss). Sound.Play() can only ADD on
+; top, never silence the base layer, so the toggle was UX-noise — removed.
+; If a future need arises for an additive SNDR per row, the extras-dropdown
+; API on MTF_Plugin is still in place; just wire it back up.
+;
+; What remains: a per-(baseSlot,slot,effectIdx) timestamp of the last
+; EffectShader.Play call. _tickShaderRow uses it to detect session resume
+; (GetCurrentRealTime resets to a small value on load) and re-Play the
+; shader so the visual survives save/load — the engine doesn't persist
+; EffectShader.Play state.
+;
+;   mtf.shaderFx.<baseSlot>.<slot>.<eff>.time  — last Play's real-time
+
+string Function _shaderPlayKeyTime(int baseSlot, int slot, int eff)
+    return "mtf.shaderFx." + baseSlot + "." + slot + "." + eff + ".time"
+EndFunction
+
+Function _activateShaderRow(Actor target, int shaderIdx, int durationSec)
+    _playShader(target, shaderIdx, durationSec)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot      = h._getDispatchSlot()
+    int eff       = h._getDispatchEffectIdx()
+    int baseSlot  = h._getDispatchBaseSlot()
+    if slot < 0 || eff < 0
+        return
+    endif
+    ; Stamp the shader play time so onTick's session-resume check has a
+    ; baseline. Without this, lastPlay reads 0 every tick and delta is huge
+    ; positive → no re-Play; that's actually correct, but stamping makes the
+    ; intent explicit and lets the negative-delta detector fire on load.
+    StorageUtil.SetFloatValue(target, _shaderPlayKeyTime(baseSlot, slot, eff), Utility.GetCurrentRealTime())
+EndFunction
+
+Function _deactivateShaderRow(Actor target, int shaderIdx)
+    _stopShader(target, shaderIdx)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot      = h._getDispatchSlot()
+    int eff       = h._getDispatchEffectIdx()
+    int baseSlot  = h._getDispatchBaseSlot()
+    if slot < 0 || eff < 0
+        return
+    endif
+    StorageUtil.UnsetFloatValue(target, _shaderPlayKeyTime(baseSlot, slot, eff))
+EndFunction
+
+Function _tickShaderRow(Actor target, int shaderIdx, int param2)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot      = h._getDispatchSlot()
+    int eff       = h._getDispatchEffectIdx()
+    int baseSlot  = h._getDispatchBaseSlot()
+    if slot < 0 || eff < 0
+        return
+    endif
+    ; Shader re-Play — STRICTLY session-resume only. EffectShader.Play stacks
+    ; on the same target instead of replacing, so re-Playing every slow-tick
+    ; piles up dozens of fire layers within seconds (visible as a bonfire,
+    ; observed in testing). GetCurrentRealTime resets on load, so a negative
+    ; delta from the stored stamp = stale; that's our only re-Play trigger.
+    ; Finite-mode (param2 > 0) shaders are one-shot, never refreshed.
+    if param2 > 0
+        return
+    endif
+    float now = Utility.GetCurrentRealTime()
+    float lastFxPlay = StorageUtil.GetFloatValue(target, _shaderPlayKeyTime(baseSlot, slot, eff), 0.0)
+    if (now - lastFxPlay) < 0.0
+        _playShader(target, shaderIdx, 0)
+        StorageUtil.SetFloatValue(target, _shaderPlayKeyTime(baseSlot, slot, eff), now)
+    endif
+EndFunction
+
 Function onActivate(int idx, Actor target, int param, int param2)
     if _isAbsShift(idx)
         _recomputeAbsShift(idx, target, param)
@@ -2503,6 +2832,8 @@ Function onActivate(int idx, Actor target, int param, int param2)
         _applyCloak(_resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
     elseif idx == 33
         _applyFlashOnHit(target, param, param2)
+    elseif idx == 55
+        _activateShaderRow(target, param, param2)
     endif
 EndFunction
 
@@ -2527,6 +2858,8 @@ Function onDeactivate(int idx, Actor target, int param, int param2)
         _removeCloak(_resolveLightningCloakSpell(), target, "mtf.shift.lightningCloak")
     elseif idx == 33
         _removeFlashOnHit(target)
+    elseif idx == 55
+        _deactivateShaderRow(target, param)
     endif
 EndFunction
 
@@ -2583,6 +2916,12 @@ Function onTick(int idx, Actor target, int param, int param2)
         ; field write) and means MCM slider edits on ramp/decay/retrig/peak
         ; take effect within ~2s without needing a tier rebuild.
         _applyFlashOnHit(target, param, param2)
+    elseif idx == 55
+        ; Re-Play shader on slow-tick to survive save/load (the engine
+        ; doesn't persist EffectShader.Play state), and re-Play the bound
+        ; sound when its handle is stale (session resume) or when the
+        ; user opted into re-trigger mode for short SNDRs.
+        _tickShaderRow(target, param, param2)
     endif
 EndFunction
 

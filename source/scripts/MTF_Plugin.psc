@@ -329,6 +329,25 @@ int Function GetEffectExtraFieldDefault(int idx, int fieldIdx)
     return 0
 EndFunction
 
+; Optional dropdown rendering for an extra field. When OptionCount > 0 the
+; MCM renders the extra as a menu with named options instead of a slider; the
+; stored value is whichever int the picked option's Value resolves to. Lets
+; plugins surface enums (e.g. a sound catalog) on extras without overloading
+; param/param2. Defaults make this opt-in — existing extras keep rendering
+; as sliders.
+
+int Function GetEffectExtraFieldMenuOptionCount(int idx, int fieldIdx)
+    return 0
+EndFunction
+
+int Function GetEffectExtraFieldMenuOptionValue(int idx, int fieldIdx, int optionIdx)
+    return 0
+EndFunction
+
+string Function GetEffectExtraFieldMenuOptionLabel(int idx, int fieldIdx, int optionIdx)
+    return ""
+EndFunction
+
 ; ── OVERRIDE: plugin-level settings ──────────────────────────────────────────
 ; Global per-plugin sliders rendered on the MCM Plugins page under the
 ; plugin's header. Use for cross-item knobs.
