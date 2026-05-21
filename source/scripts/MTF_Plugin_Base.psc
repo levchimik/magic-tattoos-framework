@@ -848,7 +848,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 56
+    return 57
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -982,6 +982,8 @@ string Function _effectIdHigh(int idx)
         return "modify.pickpocket"
     elseif idx == 55
         return "shader.play"
+    elseif idx == 56
+        return "sound.play"
     endif
     return ""
 EndFunction
@@ -1111,6 +1113,8 @@ string Function _effectLabelHigh(int idx)
         return "Modify Pickpocket"
     elseif idx == 55
         return "[+] Vanilla Shader"
+    elseif idx == 56
+        return "[+] Vanilla Sound"
     endif
     return ""
 EndFunction
@@ -1232,6 +1236,8 @@ string Function _effectParamLabelHigh(int idx)
         return "Pickpocket skill shift (points; + buff, - drain)"
     elseif idx == 55
         return "Shader"
+    elseif idx == 56
+        return "Sound"
     endif
     return ""
 EndFunction
@@ -1255,6 +1261,8 @@ int Function GetEffectParamMin(int idx)
         return 0
     elseif idx == 55
         return 0  ; shader index; rendered as dropdown via Menu APIs
+    elseif idx == 56
+        return 0  ; sound index; rendered as dropdown via Menu APIs
     endif
     return -100
 EndFunction
@@ -1279,6 +1287,8 @@ int Function GetEffectParamMax(int idx)
         return 127
     elseif idx == 55
         return _shaderCount() - 1
+    elseif idx == 56
+        return _soundCount() - 1
     endif
     return 100
 EndFunction
@@ -1297,6 +1307,8 @@ int Function GetEffectParamDefault(int idx)
         return 1  ; ANY wildcard — fires on every hit
     elseif idx == 55
         return 0  ; first shader in catalog
+    elseif idx == 56
+        return 0  ; first sound in catalog
     endif
     return 0
 EndFunction
@@ -1320,6 +1332,8 @@ int Function GetEffectParamStep(int idx)
         return 1
     elseif idx == 55
         return 1
+    elseif idx == 56
+        return 1
     endif
     return 1
 EndFunction
@@ -1333,6 +1347,8 @@ string Function GetEffectParam2Label(int idx)
         return "Peak emissive (additive, % of 1.0)"
     elseif idx == 55
         return "Duration (s, 0 = until removed)"
+    elseif idx == 56
+        return "Duration (s, 0 = until removed)"
     endif
     return ""
 EndFunction
@@ -1342,6 +1358,8 @@ int Function GetEffectParam2Min(int idx)
     elseif idx == 33
         return 0
     elseif idx == 55
+        return 0
+    elseif idx == 56
         return 0
     endif
     return 0
@@ -1353,6 +1371,8 @@ int Function GetEffectParam2Max(int idx)
         return 1000
     elseif idx == 55
         return 60
+    elseif idx == 56
+        return 60
     endif
     return 100
 EndFunction
@@ -1362,6 +1382,8 @@ int Function GetEffectParam2Default(int idx)
     elseif idx == 33
         return 300  ; +3.0 additive emissive at peak — visible spike
     elseif idx == 55
+        return 0  ; until-removed; tick re-Plays after save/load
+    elseif idx == 56
         return 0  ; until-removed; tick re-Plays after save/load
     endif
     return 0
@@ -1385,6 +1407,8 @@ int Function GetEffectParamMenuOptionCount(int idx)
         return 11
     elseif idx == 55
         return _shaderCount()
+    elseif idx == 56
+        return _soundCount()
     endif
     return 0
 EndFunction
@@ -1396,6 +1420,10 @@ int Function GetEffectParamMenuOptionValue(int idx, int optionIdx)
     ; (see _classMaskToTags). MCM users pick from explicit combat classes.
     if idx == 55
         ; shader.play — value IS the shader catalog index, identity map.
+        return optionIdx
+    endif
+    if idx == 56
+        ; sound.play — value IS the sound catalog index, identity map.
         return optionIdx
     endif
     if idx != 33
@@ -1443,6 +1471,9 @@ string Function GetEffectParamMenuOptionLabel(int idx, int optionIdx)
     ; with off-list ints still works (MCM shows "Custom: N").
     if idx == 55
         return _shaderLabel(optionIdx)
+    endif
+    if idx == 56
+        return _soundLabel(optionIdx)
     endif
     if idx != 33
         return ""
@@ -2797,6 +2828,267 @@ Function _tickShaderRow(Actor target, int shaderIdx, int param2)
     endif
 EndFunction
 
+; ── sound.play (idx 56) — vanilla SoundDescriptor playback ──────────────────
+; Curated set of 18 ambient SNDR loops from Skyrim.esm covering the elemental
+; concentration / hazard families. param picks the catalog index; param2
+; picks playback mode (0 = loop, 1 = one-shot).
+;
+; Loop mode stores the Play instance handle so onDeactivate can stop it and
+; onTick can re-Play it after a session resume (GetCurrentRealTime drops to
+; a small value on load, signalling the stored handle is stale). One-shot
+; mode fires once and forgets — no handle tracked, no auto-stop.
+;
+; Per-actor state under StorageUtil, keyed by (baseSlot, slot, effectIdx):
+;   mtf.soundFx.<baseSlot>.<slot>.<eff>.id    — Sound.Play instance handle
+;   mtf.soundFx.<baseSlot>.<slot>.<eff>.time  — last Play's real-time
+; baseSlot inclusion keeps stacked presets from clobbering each other's
+; handles when two presets bind sound.play on the same per-preset slot but
+; live on different overlay bases.
+
+int Function _soundCount()
+    return 18
+EndFunction
+
+int Function _soundFormId(int idx)
+    ; MTF_SND_* wrapper SOUN records in MagicTattoosFramework.esp. Each wraps
+    ; a Skyrim.esm SNDR via SDSC (SoundDescriptor reference). The vanilla
+    ; Papyrus `Sound` script type covers ONLY SOUN, not SNDR — SNDR records
+    ; cast to None and Sound.Play silently no-ops on them. Hence the wrapper
+    ; layer. See _resolveSound for the GetFormFromFile + cast pattern.
+    if idx == 0
+        return 0x900
+    endif
+    if idx == 1
+        return 0x901
+    endif
+    if idx == 2
+        return 0x902
+    endif
+    if idx == 3
+        return 0x903
+    endif
+    if idx == 4
+        return 0x904
+    endif
+    if idx == 5
+        return 0x905
+    endif
+    if idx == 6
+        return 0x906
+    endif
+    if idx == 7
+        return 0x907
+    endif
+    if idx == 8
+        return 0x908
+    endif
+    if idx == 9
+        return 0x909
+    endif
+    if idx == 10
+        return 0x90A
+    endif
+    if idx == 11
+        return 0x90B
+    endif
+    if idx == 12
+        return 0x90C
+    endif
+    if idx == 13
+        return 0x90D
+    endif
+    if idx == 14
+        return 0x90E
+    endif
+    if idx == 15
+        return 0x90F
+    endif
+    if idx == 16
+        return 0x910
+    endif
+    if idx == 17
+        return 0x911
+    endif
+    return 0
+EndFunction
+
+string Function _soundLabel(int idx)
+    if idx == 0
+        return "Fire — ready loop"
+    endif
+    if idx == 1
+        return "Fire — secondary ready"
+    endif
+    if idx == 2
+        return "Fire — body on fire"
+    endif
+    if idx == 3
+        return "Fire — medium crackle"
+    endif
+    if idx == 4
+        return "Frost — ready loop"
+    endif
+    if idx == 5
+        return "Frost — concentration"
+    endif
+    if idx == 6
+        return "Frost — wall hum"
+    endif
+    if idx == 7
+        return "Shock — concentration"
+    endif
+    if idx == 8
+        return "Shock — projectile arc"
+    endif
+    if idx == 9
+        return "Shock — wall hum"
+    endif
+    if idx == 10
+        return "Soul Trap — active hum"
+    endif
+    if idx == 11
+        return "Ward — shimmer (stereo)"
+    endif
+    if idx == 12
+        return "Ward — shimmer (mono)"
+    endif
+    if idx == 13
+        return "Restoration — heal beam"
+    endif
+    if idx == 14
+        return "Restoration — circle hum"
+    endif
+    if idx == 15
+        return "Detect Life — pulse"
+    endif
+    if idx == 16
+        return "Alteration — ready hum"
+    endif
+    if idx == 17
+        return "Illusion — ready hum"
+    endif
+    return "Sound #" + idx
+EndFunction
+
+Sound Function _resolveSound(int soundIdx)
+    int fid = _soundFormId(soundIdx)
+    if fid == 0
+        return None
+    endif
+    return Game.GetFormFromFile(fid, "MagicTattoosFramework.esp") as Sound
+EndFunction
+
+string Function _soundFxKeyId(int baseSlot, int slot, int eff)
+    return "mtf.soundFx." + baseSlot + "." + slot + "." + eff + ".id"
+EndFunction
+
+string Function _soundFxKeyTime(int baseSlot, int slot, int eff)
+    return "mtf.soundFx." + baseSlot + "." + slot + "." + eff + ".time"
+EndFunction
+
+Function _stopSound(Actor target, int baseSlot, int slot, int eff)
+    if target == None || slot < 0 || eff < 0
+        return
+    endif
+    string keyId   = _soundFxKeyId(baseSlot, slot, eff)
+    string keyTime = _soundFxKeyTime(baseSlot, slot, eff)
+    int handle = StorageUtil.GetIntValue(target, keyId, -1)
+    if handle > 0
+        Sound.StopInstance(handle)
+    endif
+    StorageUtil.UnsetIntValue(target, keyId)
+    StorageUtil.UnsetFloatValue(target, keyTime)
+EndFunction
+
+Function _playSoundLoop(Actor target, int baseSlot, int slot, int eff, int soundIdx)
+    if target == None || slot < 0 || eff < 0
+        return
+    endif
+    ; Stop any prior handle before re-Playing — overlapping handles stack
+    ; on the same target and StopInstance only kills one.
+    _stopSound(target, baseSlot, slot, eff)
+    Sound s = _resolveSound(soundIdx)
+    if s == None
+        return
+    endif
+    int handle = s.Play(target)
+    if handle <= 0
+        return
+    endif
+    StorageUtil.SetIntValue(target,   _soundFxKeyId(baseSlot, slot, eff),   handle)
+    StorageUtil.SetFloatValue(target, _soundFxKeyTime(baseSlot, slot, eff), Utility.GetCurrentRealTime())
+EndFunction
+
+Function _activateSoundRow(Actor target, int soundIdx, int param2)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot      = h._getDispatchSlot()
+    int eff       = h._getDispatchEffectIdx()
+    int baseSlot  = h._getDispatchBaseSlot()
+    if slot < 0 || eff < 0
+        return
+    endif
+    ; Always go through _playSoundLoop (which stops any prior handle first).
+    ; param2 only affects onTick's session-resume policy, not whether we
+    ; track the handle. Several "one-shot looking" SNDRs in the curated
+    ; catalog are actually Loop-type sounds (Detect Life pulse, the
+    ; concentration loops). Playing those as fire-and-forget would loop
+    ; forever with no way to stop them. So we track ALL handles and stop
+    ; ALL on deactivate; mode only changes session-resume behavior.
+    _playSoundLoop(target, baseSlot, slot, eff, soundIdx)
+EndFunction
+
+Function _deactivateSoundRow(Actor target, int soundIdx, int param2)
+    ; Always stop, regardless of mode. See _activateSoundRow comment for
+    ; why one-shot still needs the cleanup path.
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot      = h._getDispatchSlot()
+    int eff       = h._getDispatchEffectIdx()
+    int baseSlot  = h._getDispatchBaseSlot()
+    if slot < 0 || eff < 0
+        return
+    endif
+    _stopSound(target, baseSlot, slot, eff)
+EndFunction
+
+Function _tickSoundRow(Actor target, int soundIdx, int param2)
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot      = h._getDispatchSlot()
+    int eff       = h._getDispatchEffectIdx()
+    int baseSlot  = h._getDispatchBaseSlot()
+    if slot < 0 || eff < 0
+        return
+    endif
+    float now      = Utility.GetCurrentRealTime()
+    float lastPlay = StorageUtil.GetFloatValue(target, _soundFxKeyTime(baseSlot, slot, eff), 0.0)
+    float elapsed  = now - lastPlay
+    ; Timed mode (param2 > 0): auto-stop once the requested duration elapses.
+    ; Idempotent — _stopSound clears the keys so subsequent ticks see lastPlay
+    ; = 0 and skip past this branch. (elapsed > 60 years for cleared keys
+    ; because now stays positive while lastPlay is 0.)
+    if param2 > 0 && lastPlay > 0.0 && elapsed >= (param2 as float)
+        _stopSound(target, baseSlot, slot, eff)
+        return
+    endif
+    ; Session resume re-Play, INFINITE mode only (param2 == 0). For timed
+    ; sounds we don't restart on load — the user picked a finite duration,
+    ; so the simplest semantic is "this stamp is dead after a load." If the
+    ; tier is still active they can re-trigger by re-applying the preset.
+    ; (Looped SNDRs self-continue while their handle is alive, so we don't
+    ; stomp every tick even in infinite mode — only on session resume.)
+    if elapsed < 0.0 && param2 == 0
+        _playSoundLoop(target, baseSlot, slot, eff, soundIdx)
+    endif
+EndFunction
+
 Function onActivate(int idx, Actor target, int param, int param2)
     if _isAbsShift(idx)
         _recomputeAbsShift(idx, target, param)
@@ -2834,6 +3126,8 @@ Function onActivate(int idx, Actor target, int param, int param2)
         _applyFlashOnHit(target, param, param2)
     elseif idx == 55
         _activateShaderRow(target, param, param2)
+    elseif idx == 56
+        _activateSoundRow(target, param, param2)
     endif
 EndFunction
 
@@ -2860,6 +3154,8 @@ Function onDeactivate(int idx, Actor target, int param, int param2)
         _removeFlashOnHit(target)
     elseif idx == 55
         _deactivateShaderRow(target, param)
+    elseif idx == 56
+        _deactivateSoundRow(target, param, param2)
     endif
 EndFunction
 
@@ -2922,6 +3218,10 @@ Function onTick(int idx, Actor target, int param, int param2)
         ; sound when its handle is stale (session resume) or when the
         ; user opted into re-trigger mode for short SNDRs.
         _tickShaderRow(target, param, param2)
+    elseif idx == 56
+        ; Loop-mode SNDRs need a re-Play after session resume (same engine
+        ; quirk as shaders: Sound.Play handles don't persist across save/load).
+        _tickSoundRow(target, param, param2)
     endif
 EndFunction
 
