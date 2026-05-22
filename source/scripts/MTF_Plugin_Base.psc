@@ -480,6 +480,103 @@ string Function GetConditionLabel(int idx)
     return ""
 EndFunction
 
+string Function GetConditionDescription(int idx)
+    if idx == 0
+        return "Triggers when the actor's magicka is at or above the chosen percentage."
+    elseif idx == 1
+        return "Triggers when the actor's magicka drops below the chosen percentage."
+    elseif idx == 2
+        return "Triggers when the actor's stamina is at or above the chosen percentage."
+    elseif idx == 3
+        return "Triggers when the actor's stamina drops below the chosen percentage."
+    elseif idx == 4
+        return "Triggers while the actor is in combat (engaged in active fight)."
+    elseif idx == 5
+        return "Triggers when hostile NPCs within the scan radius are alerted to the actor."
+    elseif idx == 6
+        return "Triggers when at least one hostile NPC is within the scan radius."
+    elseif idx == 7
+        return "Triggers stochastically when the actor takes any incoming hit."
+    elseif idx == 8
+        return "Triggers stochastically when the actor is struck by a blunt weapon (mace, warhammer, unarmed)."
+    elseif idx == 9
+        return "Triggers stochastically when the actor is struck by a bladed weapon."
+    elseif idx == 10
+        return "Triggers stochastically when the actor is hit by an arrow or bolt."
+    elseif idx == 11
+        return "Triggers stochastically when the actor takes fire-school magic damage."
+    elseif idx == 12
+        return "Triggers stochastically when the actor takes frost-school magic damage."
+    elseif idx == 13
+        return "Triggers stochastically when the actor takes shock-school magic damage."
+    elseif idx == 14
+        return "Triggers when the actor's health is at or above the chosen percentage."
+    elseif idx == 15
+        return "Triggers when the actor's health drops below the chosen percentage."
+    elseif idx == 16
+        return "Triggers whenever the actor is inside any interior cell."
+    elseif idx == 17
+        return "Triggers whenever the actor is in an exterior worldspace."
+    elseif idx == 18
+        return "Triggers when the actor is inside a location flagged as the player's home."
+    elseif idx == 19
+        return "Triggers when the actor is inside a dungeon-type location."
+    elseif idx == 20
+        return "Triggers when the actor is inside a city worldspace (Whiterun, Solitude, etc.)."
+    elseif idx == 21
+        return "Triggers when the actor is inside a town-type location."
+    elseif idx == 22
+        return "Triggers when the actor is inside an inn or tavern."
+    elseif idx == 23
+        return "Triggers when the actor is held in a jail cell."
+    elseif idx == 24
+        return "Triggers when the current weather is clear or sunny."
+    elseif idx == 25
+        return "Triggers when the current weather is cloudy."
+    elseif idx == 26
+        return "Triggers when the current weather is rainy."
+    elseif idx == 27
+        return "Triggers when the current weather is snowy."
+    elseif idx == 28
+        return "Triggers while the actor is sprinting."
+    elseif idx == 29
+        return "Triggers while the actor is running (not walking, not sprinting)."
+    elseif idx == 30
+        return "Triggers while the actor has a weapon or spell drawn."
+    elseif idx == 31
+        return "Triggers while the actor has the Lover's Embrace rested bonus active."
+    elseif idx == 32
+        return "Triggers while the actor is sneaking."
+    elseif idx == 33
+        return "Triggers while the actor is swimming."
+    elseif idx == 34
+        return "Triggers while the actor is mounted on a horse or other steed."
+    elseif idx == 35
+        return "Triggers while the actor is downed and bleeding out."
+    elseif idx == 36
+        return "Triggers between the configured start and end in-game hours (wraps midnight if end is earlier than start)."
+    elseif idx == 37
+        return "Triggers when the actor is one of the player's current followers."
+    elseif idx == 38
+        return "Triggers while a fire-keyword magic effect is active on the actor (burning)."
+    elseif idx == 39
+        return "Triggers while a frost-keyword magic effect is active on the actor (frozen)."
+    elseif idx == 40
+        return "Triggers while a shock-keyword magic effect is active on the actor (shocked)."
+    elseif idx == 41
+        return "Triggers while the actor is invisible."
+    elseif idx == 42
+        return "Triggers when at least one follower NPC is within the scan radius."
+    elseif idx == 43
+        return "Triggers when the actor's gold is at or above the threshold (measured in thousands)."
+    elseif idx == 44
+        return "Triggers when the actor is wearing a heavy-armor cuirass."
+    elseif idx == 45
+        return "Triggers when the actor is wearing a light-armor cuirass."
+    endif
+    return ""
+EndFunction
+
 string Function GetConditionParamLabel(int idx)
     if idx <= 3 || idx == 14 || idx == 15
         return "Health/Magicka/Stamina % threshold"
@@ -1115,6 +1212,137 @@ string Function _effectLabelHigh(int idx)
         return "[+] Vanilla Shader"
     elseif idx == 56
         return "[+] Vanilla Sound"
+    endif
+    return ""
+EndFunction
+
+string Function GetEffectDescription(int idx)
+    if idx < 13
+        return _effectDescriptionLow(idx)
+    endif
+    return _effectDescriptionHigh(idx)
+EndFunction
+
+string Function _effectDescriptionLow(int idx)
+    if idx == 0
+        return "Shifts the actor's magicka regeneration rate by the configured amount."
+    elseif idx == 1
+        return "Shifts the actor's carry-weight cap by the configured amount."
+    elseif idx == 2
+        return "Shifts the actor's Sneak skill by the configured amount."
+    elseif idx == 3
+        return "Burst — damages or restores the actor's magicka pool by a percentage of its base value when the tier activates."
+    elseif idx == 4
+        return "Burst — damages or restores the actor's stamina pool by a percentage of its base value when the tier activates."
+    elseif idx == 5
+        return "Shifts the actor's movement-speed multiplier (faster or slower)."
+    elseif idx == 6
+        return "Shifts the actor's stamina regeneration rate."
+    elseif idx == 7
+        return "Shifts the actor's outgoing attack damage by a percentage."
+    elseif idx == 8
+        return "Burst — staggers the actor when the tier activates."
+    elseif idx == 9
+        return "Burst — alerts every hostile NPC within the alert radius to the actor's presence (blows stealth)."
+    elseif idx == 10
+        return "Shifts the spell-cost multiplier across all magic schools (discount or penalty)."
+    elseif idx == 11
+        return "Shifts the actor's health regeneration rate."
+    elseif idx == 12
+        return "Shifts the actor's maximum magicka by the configured amount."
+    endif
+    return ""
+EndFunction
+
+string Function _effectDescriptionHigh(int idx)
+    if idx == 13
+        return "Shifts the actor's maximum stamina by the configured amount."
+    elseif idx == 14
+        return "Shifts the actor's weapon-swing speed (faster or slower)."
+    elseif idx == 15
+        return "Shifts the actor's unarmed melee damage."
+    elseif idx == 16
+        return "Shifts the actor's critical-strike chance."
+    elseif idx == 17
+        return "Shifts the actor's bow draw and release speed."
+    elseif idx == 18
+        return "Shifts the actor's fire resistance."
+    elseif idx == 19
+        return "Shifts the actor's frost resistance."
+    elseif idx == 20
+        return "Shifts the actor's shock resistance."
+    elseif idx == 21
+        return "Shifts the actor's magic resistance."
+    elseif idx == 22
+        return "Toggles silenced footsteps on the actor while active."
+    elseif idx == 23
+        return "Toggles waterbreathing on the actor while active."
+    elseif idx == 24
+        return "Toggles water-walking on the actor while active."
+    elseif idx == 25
+        return "Burst — damages or restores the actor's health pool by a percentage of its base value when the tier activates."
+    elseif idx == 26
+        return "Burst — adjusts the actor's bounty in their current hold (positive adds bounty, negative pays it off)."
+    elseif idx == 27
+        return "Toggles a flat armor-rating bonus on the actor while active."
+    elseif idx == 28
+        return "Toggles a Detect Life aura that highlights living NPCs within the configured radius while active."
+    elseif idx == 29
+        return "Toggles a slow-time effect that drags everything around the actor to the configured percentage of normal speed while active."
+    elseif idx == 30
+        return "Toggles a flame cloak that burns enemies within the radius while active."
+    elseif idx == 31
+        return "Toggles a frost cloak that chills enemies within the radius while active."
+    elseif idx == 32
+        return "Toggles a lightning cloak that shocks enemies within the radius while active."
+    elseif idx == 33
+        return "Causes the tattoo's emissive layer to briefly flash bright on every incoming hit of the configured class (any / melee / magic / etc.)."
+    elseif idx == 34
+        return "Shifts the actor's disease resistance."
+    elseif idx == 35
+        return "Shifts the actor's poison resistance."
+    elseif idx == 36
+        return "Shifts the actor's chance to absorb incoming spells."
+    elseif idx == 37
+        return "Shifts the actor's chance to reflect incoming melee damage."
+    elseif idx == 38
+        return "Shifts the actor's One-Handed weapon skill."
+    elseif idx == 39
+        return "Shifts the actor's Two-Handed weapon skill."
+    elseif idx == 40
+        return "Shifts the actor's Archery (Marksman) skill."
+    elseif idx == 41
+        return "Shifts the actor's Block skill."
+    elseif idx == 42
+        return "Shifts the actor's Heavy Armor skill."
+    elseif idx == 43
+        return "Shifts the actor's Light Armor skill."
+    elseif idx == 44
+        return "Shifts the actor's Smithing skill."
+    elseif idx == 45
+        return "Shifts the actor's Enchanting skill."
+    elseif idx == 46
+        return "Shifts the actor's Alchemy skill."
+    elseif idx == 47
+        return "Shifts the actor's Destruction magic skill."
+    elseif idx == 48
+        return "Shifts the actor's Restoration magic skill."
+    elseif idx == 49
+        return "Shifts the actor's Alteration magic skill."
+    elseif idx == 50
+        return "Shifts the actor's Illusion magic skill."
+    elseif idx == 51
+        return "Shifts the actor's Conjuration magic skill."
+    elseif idx == 52
+        return "Shifts the actor's Speech (persuasion / barter) skill."
+    elseif idx == 53
+        return "Shifts the actor's Lockpicking skill."
+    elseif idx == 54
+        return "Shifts the actor's Pickpocket skill."
+    elseif idx == 55
+        return "Plays a vanilla effect shader on the actor (visual-only — dragon-soul absorb, ash pile, frost cloak, etc.) while active."
+    elseif idx == 56
+        return "Plays a vanilla looping sound on the actor while active."
     endif
     return ""
 EndFunction

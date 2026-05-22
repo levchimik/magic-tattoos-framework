@@ -261,6 +261,60 @@ treat tattoos as semantic state, without depending on those mods directly.]]></d
               </typeDescriptor>
             </plugin>
 
+            <plugin name="MTF Plugin: SkyrimNet Bridge">
+              <description><![CDATA[Bridges MTF state to SkyrimNet so LLM-driven NPCs are aware of the
+player's currently visible tattoos and their effects.
+
+Auto-recommended if SkyrimNet.esp is active.
+
+What it does:
+ - Registers a `mtf_active_tattoos(actorUUID)` decorator with SkyrimNet so
+   prompt templates can inject a human-readable description of the
+   player's current tattoo + active effects.
+ - Listens for MTF_TierChanged and fires SkyrimNetApi.RegisterShortLivedEvent
+   (30s TTL, deduped) so a tier swap shows up in scene context for the
+   next LLM call.
+ - Ships a prompt submodule
+   (SKSE/Plugins/SkyrimNet/prompts/submodules/character_bio/0350_mtf_tattoos.prompt)
+   that renders the decorator output as a "Magic Tattoos" section in
+   character bios.
+
+Scope (v0.1.20):
+ - Player-only narration. NPC preset tier changes are also broadcast by
+   MTF's universal events, but the bridge ignores them — SkyrimNet's
+   scene-context routing is player-centric.
+ - Pack/entry/effect descriptions come from the optional `description`
+   fields authored on plugin scripts (effects, conditions) and pack
+   JSONs (entry visuals). Missing fields fall back to the short MCM
+   label so installations without authored prose still produce usable
+   output.
+
+Use case: have NPCs react to tattoos in dialogue without writing
+per-mod glue or YAML triggers.]]></description>
+              <files>
+                <folder source="16_plugin_skyrimnet" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="SkyrimNet.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="SkyrimNet.esp" state="Missing"/>
+                      </dependencies>
+                      <type name="NotUsable"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
           </plugins>
         </group>
 

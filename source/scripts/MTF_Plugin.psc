@@ -70,6 +70,15 @@ string Function GetConditionLabel(int idx)
     return ""
 EndFunction
 
+string Function GetConditionDescription(int idx)
+{One-sentence prose description of what this condition CHECKS. Consumed by
+ LLM-integration bridges (e.g. SkyrimNet) so an AI narrator can explain
+ WHEN a tattoo will activate without the user authoring per-prompt copy.
+ Plain language, no jargon: "Triggers when the actor's arousal exceeds the
+ threshold." Default empty — override per plugin.}
+    return ""
+EndFunction
+
 string Function GetConditionParamLabel(int idx)
 {Slider label. Return "" if this condition takes no parameter.}
     return ""
@@ -130,6 +139,15 @@ string Function GetEffectId(int idx)
 EndFunction
 
 string Function GetEffectLabel(int idx)
+    return ""
+EndFunction
+
+string Function GetEffectDescription(int idx)
+{One-sentence prose description of what this effect DOES while active.
+ Consumed by LLM-integration bridges (e.g. SkyrimNet) so an AI narrator
+ can explain a tattoo's effect to NPCs without the user authoring per-
+ prompt copy. Plain language: "Drains the actor's magicka faster, making
+ spellcasting riskier." Default empty — override per plugin.}
     return ""
 EndFunction
 

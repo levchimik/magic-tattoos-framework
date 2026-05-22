@@ -123,6 +123,23 @@ string Function GetConditionParamLabel(int idx)
     return ""
 EndFunction
 
+string Function GetConditionDescription(int idx)
+    if idx == 0
+        return "Triggers while the actor is currently in an OStim scene."
+    elseif idx == 1
+        return "Triggers when the actor's OStim excitement is at or above the threshold (scene-only)."
+    elseif idx == 2
+        return "Triggers when the actor's OStim excitement multiplier is at or above the threshold (scene-only)."
+    elseif idx == 3
+        return "Triggers when the actor has climaxed at least the configured number of times in the current scene."
+    elseif idx == 4
+        return "Triggers when the actor's climax-stalled flag matches the configured state."
+    elseif idx == 5
+        return "Triggers when the actor has a schlong-classified body equipped."
+    endif
+    return ""
+EndFunction
+
 int Function GetConditionParamMin(int idx)
     return 0
 EndFunction
@@ -232,6 +249,21 @@ string Function GetEffectParamLabel(int idx)
         return ""
     elseif idx == 4
         return "Multiplier (×1.0)"
+    endif
+    return ""
+EndFunction
+
+string Function GetEffectDescription(int idx)
+    if idx == 0
+        return "Burst — forces an OStim climax on the actor (optionally bypassing any active stall)."
+    elseif idx == 1
+        return "Burst — adds or subtracts the configured amount from the actor's OStim excitement."
+    elseif idx == 2
+        return "Burst — sets the actor's OStim excitement to an absolute value."
+    elseif idx == 3
+        return "Stalls the actor's OStim climax while active; releases the stall on deactivate."
+    elseif idx == 4
+        return "Burst — sets the actor's OStim excitement-rise multiplier (e.g. 3 = excitement accumulates 3x faster)."
     endif
     return ""
 EndFunction

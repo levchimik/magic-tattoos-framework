@@ -56,6 +56,7 @@ REQUIRED=(
     "$PROJ/MTF_Plugin_OStim.esp"
     "$PROJ/MTF_Plugin_BFNG.esp"
     "$PROJ/MTF_Plugin_SlaveTats.esp"
+    "$PROJ/MTF_Plugin_SkyrimNet.esp"
     "$SRC_SCRIPTS/MTF_MainQuest.pex"
     "$SRC_SCRIPTS/MTF_Plugin_FMR.pex"
     "$SRC_SCRIPTS/MTF_Plugin_SLA.pex"
@@ -63,6 +64,7 @@ REQUIRED=(
     "$SRC_SCRIPTS/MTF_Plugin_OStim.pex"
     "$SRC_SCRIPTS/MTF_Plugin_BFNG.pex"
     "$SRC_SCRIPTS/MTF_Plugin_SlaveTats.pex"
+    "$SRC_SCRIPTS/MTF_Plugin_SkyrimNet.pex"
     "$DATA/SKSE/Plugins/MagicTattoosFramework.ini"
     "$TEMPLATES/info.xml"
     "$TEMPLATES/ModuleConfig.xml"
@@ -159,6 +161,14 @@ stage_plugin "12_plugin_sexlab" "MTF_Plugin_SexLab.esp" "MTF_Plugin_SexLab.pex"
 stage_plugin "13_plugin_ostim"  "MTF_Plugin_OStim.esp"  "MTF_Plugin_OStim.pex"
 stage_plugin "14_plugin_bfng"      "MTF_Plugin_BFNG.esp"      "MTF_Plugin_BFNG.pex"
 stage_plugin "15_plugin_slavetats" "MTF_Plugin_SlaveTats.esp" "MTF_Plugin_SlaveTats.pex"
+stage_plugin "16_plugin_skyrimnet" "MTF_Plugin_SkyrimNet.esp" "MTF_Plugin_SkyrimNet.pex"
+# SkyrimNet bridge also ships an Inja prompt submodule that surfaces
+# MTF active tattoos in the LLM's character_bio context. Layered on top of
+# the bare ESP+PEX stage so a single FOMOD step delivers code AND prompt.
+if [[ -d "$CONTENT/skyrimnet-bridge" ]]; then
+    cp -r "$CONTENT/skyrimnet-bridge/." "$STAGE/16_plugin_skyrimnet/"
+    echo "  + skyrimnet-bridge prompt submodule layered into 16_plugin_skyrimnet"
+fi
 
 # -----------------------------------------------------------------------------
 # Content-pack folders (20-24): JSON catalogs only

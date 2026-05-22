@@ -149,6 +149,31 @@ string Function GetConditionParamLabel(int idx)
     return ""
 EndFunction
 
+string Function GetConditionDescription(int idx)
+    if idx == 0
+        return "Triggers while the actor is currently in a SexLab scene."
+    elseif idx == 1
+        return "Triggers when the actor has at least the configured total cum-layer count applied."
+    elseif idx == 2
+        return "Triggers when the actor has at least the configured vaginal cum-layer count applied."
+    elseif idx == 3
+        return "Triggers when the actor has at least the configured oral cum-layer count applied."
+    elseif idx == 4
+        return "Triggers when the actor has at least the configured anal cum-layer count applied."
+    elseif idx == 5
+        return "Triggers when the actor's SexLab vaginal lifetime XP is at or above the threshold."
+    elseif idx == 6
+        return "Triggers when the actor's SexLab anal lifetime XP is at or above the threshold."
+    elseif idx == 7
+        return "Triggers when the actor's SexLab oral lifetime XP is at or above the threshold."
+    elseif idx == 8
+        return "Triggers when the actor's signed purity score (positive = pure, negative = lewd) is at or above the threshold."
+    elseif idx == 9
+        return "Triggers when the actor has a strapon equipped."
+    endif
+    return ""
+EndFunction
+
 int Function GetConditionParamMin(int idx)
     if idx == 8
         ; v0.1.17: purity is a signed delta — negative = lewd, positive = pure.
@@ -267,6 +292,17 @@ string Function GetEffectParamLabel(int idx)
         return "Cum type to remove"
     elseif idx == 2
         return "XP amount"
+    endif
+    return ""
+EndFunction
+
+string Function GetEffectDescription(int idx)
+    if idx == 0
+        return "Burst — applies cum visual layers of the chosen type (vaginal/oral/anal) and count on the actor."
+    elseif idx == 1
+        return "Burst — removes cum layers of the chosen type from the actor (or all types)."
+    elseif idx == 2
+        return "Burst — adds the configured amount of XP to one of the actor's SexLab skills (vaginal/anal/oral/foreplay)."
     endif
     return ""
 EndFunction

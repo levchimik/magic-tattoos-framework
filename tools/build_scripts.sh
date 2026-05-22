@@ -73,3 +73,21 @@ for pex in "$SRC"/MTF_Plugin_*.pex; do
         echo "Deployed $name.pex to $target"
     fi
 done
+
+# Companion alias scripts that live alongside a plugin (e.g. SkyrimNet
+# bridge ships MTF_AliasSkyrimNet.pex on the same alias as
+# MTF_PluginAliasKick — Quest scripts can't RegisterForModEvent, so the
+# mod-event listener is hosted on the alias). Mapping alias→owning plugin
+# is explicit so a future bridge with multiple aliases stays declarative.
+declare -A ALIAS_TO_PLUGIN=(
+    [MTF_AliasSkyrimNet]=MTF_Plugin_SkyrimNet
+)
+for alias in "${!ALIAS_TO_PLUGIN[@]}"; do
+    apex="$SRC/${alias}.pex"
+    plugin="${ALIAS_TO_PLUGIN[$alias]}"
+    atgt="$MO2_MODS/$plugin/scripts"
+    if [[ -f "$apex" && -d "$atgt" ]]; then
+        cp -u "$apex" "$atgt/"
+        echo "Deployed $alias.pex to $atgt"
+    fi
+done

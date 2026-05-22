@@ -314,6 +314,14 @@ bool forceRedraw = false
 int currentTier = -1
 bool influenceTracking = false
 
+; v0.1.20: external accessor for currentTier. Promoting the variable to a
+; Property would migrate cleanly on existing saves but tradition for
+; transient state in this script is plain script-level vars, so we
+; expose a getter instead. Used by the SkyrimNet bridge decorator.
+int Function GetCurrentTier()
+    return currentTier
+EndFunction
+
 ; Pulse animation state (transient).
 float _pulseStartRT = 0.0
 float _nextSlowRT = 0.0
@@ -481,6 +489,11 @@ Function _onTrackedActorDetached(Actor target)
 EndFunction
 
 bool Property _arraysReady = false Auto Hidden
+; v0.1.20: fires MTF_FrameworkReady exactly once per save load (gated in
+; OnUpdate's slow tick after at least one plugin has registered). External
+; integrations (e.g. SkyrimNet bridge) use the event as their "MTF is alive
+; and discoverable" signal.
+bool Property _readyEmitted = false Auto Hidden
 ; _migrationLevel persists schema-level migration progress across saves.
 ; Read+written cross-script by MTF_MCMQuest.OnVersionUpdate; do not
 ; remove. v0.1.5 effect-storage migration ran inline in EnsureArrays and
@@ -837,6 +850,30 @@ string Function GetEntryLayerTexture(string packId, string entryId, int layer)
         return ""
     endif
     return JsonUtil.GetPathStringValue(f, ".entries[" + idx + "].layers[" + layer + "].texture", "")
+EndFunction
+
+; v0.1.20: optional per-entry human-readable description for LLM/AI
+; integrations (SkyrimNet). Pack JSONs MAY include a "description" string
+; on each entry; absent or empty falls back to "" so callers can use the
+; entry label instead. Decorators that surface tattoos to language models
+; should prefer this over the label when present.
+string Function GetEntryDescription(string packId, string entryId)
+    string f = _packFileById(packId)
+    int idx = _findEntryIdx(packId, entryId)
+    if f == "" || idx < 0
+        return ""
+    endif
+    return JsonUtil.GetPathStringValue(f, ".entries[" + idx + "].description", "")
+EndFunction
+
+; v0.1.20: optional pack-level description (e.g. "A set of fertility runes
+; from the Reach"). Same fallback: empty string when missing.
+string Function GetPackDescription(string packId)
+    string f = _packFileById(packId)
+    if f == ""
+        return ""
+    endif
+    return JsonUtil.GetPathStringValue(f, ".description", "")
 EndFunction
 
 ; Indexed write helpers — `obj.arrayProp[i] = val` syntax can fail to
@@ -2773,6 +2810,7 @@ Function _deactivateSingleEffect(int slot, int effectIdx)
     if itemIdx >= 0
         _setDispatchContext(slot, effectIdx)
         p.onDeactivate(itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
+        _emitEffectDeactivated(PlayerRef, key, slot)
         _clearDispatchContext()
     endif
 EndFunction
@@ -2793,6 +2831,7 @@ Function _activateSingleEffect(int slot, int effectIdx)
     if itemIdx >= 0
         _setDispatchContext(slot, effectIdx)
         p.onActivate(itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
+        _emitEffectActivated(PlayerRef, key, slot)
         _clearDispatchContext()
     endif
 EndFunction
@@ -2875,6 +2914,7 @@ Function _activateSlotEffects(int slot)
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
                     p.onActivate(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
+                    _emitEffectActivated(PlayerRef, key, slot)
                 endif
             endif
         endif
@@ -2900,6 +2940,7 @@ Function _deactivateSlotEffects(int slot)
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
                     p.onDeactivate(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
+                    _emitEffectDeactivated(PlayerRef, key, slot)
                 endif
             endif
         endif
@@ -3110,8 +3151,14 @@ State checkingAroused
             if kickHandle != 0
                 ModEvent.Send(kickHandle)
             endif
+            ; v0.1.20: one-shot framework-ready broadcast for external
+            ; integrations. Self-gated on pluginCount > 0 + _readyEmitted.
+            _emitFrameworkReady()
             int newTier = evaluateTier()
             bool tierChanged = (newTier != currentTier)
+            ; Snapshot before currentTier overwrite — _emitTierChanged
+            ; needs the prevTier value after the activation pass runs.
+            int prevTierForEmit = currentTier
 
             ; Batched Apply: defer NiOverride.ApplyNodeOverrides across the
             ; MCM-base draw AND every stacked-preset draw, then issue one
@@ -3151,6 +3198,10 @@ State checkingAroused
                         _armCooldownTimer(currentTier)
                     endif
                     _notifyTierChange(currentTier)
+                    ; v0.1.20: external-integration broadcast. After the
+                    ; activation pass so SkyrimNet decorators called from
+                    ; the listener see the new state's effects already on.
+                    _emitTierChanged(PlayerRef, "player", "", prevTierForEmit, currentTier)
                 endif
             endif
 
@@ -5144,6 +5195,7 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
                     p.onActivate(itemIdx, target, params[e], params2[e])
+                    _emitEffectActivated(target, key, slot)
                 endif
             endif
         endif
@@ -5198,6 +5250,7 @@ Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch,
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
                     p.onDeactivate(itemIdx, target, params[e], params2[e])
+                    _emitEffectDeactivated(target, key, slot)
                 endif
             endif
         endif
@@ -5365,6 +5418,8 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
             endif
         endif
         _notifyTierChangeForActor(target, now, true)
+        ; v0.1.20: external-integration broadcast for NPC preset tiers.
+        _emitTierChanged(target, "preset", name, prev, now)
     endif
     ; Same-tier path used to re-stamp the overlay every eval to handle the
     ; "freshly applied" edge. With AddAppliedPreset initializing tier=-1,
@@ -5681,4 +5736,108 @@ Function _processTrackedActorsSlowTick(int maxThisTick)
         endif
     endwhile
     _rotIdx = idx
+EndFunction
+
+; ══════════════════════════════════════════════════════════════════════════
+; EXTERNAL INTEGRATION EVENTS (v0.1.20)
+; ══════════════════════════════════════════════════════════════════════════
+; Universal mod events fired at well-defined transition points so third-
+; party integrations (LLM-driven NPCs, MCM mirrors, dialogue mods) can
+; react to tattoo state without polling.
+;
+; Quest scripts cannot call SendModEvent (Alias/AMF only) — use the global
+; ModEvent.Create/Push/Send API. Listeners register with:
+;   RegisterForModEvent("MTF_TierChanged", "OnMTFTierChanged")
+;   Event OnMTFTierChanged(string strArg, float numArg, Form sender)
+;
+; The (string, float, Form) signature matches SkyrimNet's YAML trigger
+; event-criteria fields (str_arg, num_arg, sender_form_id) so a SkyrimNet
+; user can author triggers against MTF events with zero Papyrus glue.
+;
+; ── EVENT CATALOG ──
+;
+;   MTF_FrameworkReady
+;     Fires once per save load, after at least one plugin has registered.
+;     str  = "<version>|<pluginCount>"          e.g. "0.1.20|5"
+;     num  = pluginCount as float
+;     sender = self (MTF_MainQuest)
+;
+;   MTF_TierChanged
+;     Fires every time a slot/preset transitions between tiers. Includes
+;     transitions to/from tier -1 (no slot winning). Fires AFTER the new
+;     tier's onActivate effects have run, so a listener calling back into
+;     MTF sees the new state.
+;     str  = "<scope>|<presetName>|<prevTier>|<newTier>"
+;            scope = "player" | "preset"  (player slots vs. NPC presets)
+;            presetName = "" for player, preset name for NPC
+;     num  = newTier as float
+;     sender = the actor (PlayerRef or NPC)
+;
+;   MTF_EffectActivated  /  MTF_EffectDeactivated
+;     Fires once per individual effect on tier transitions. A 3-effect tier
+;     fires 3 events. Listeners that only care about ANY-effect transitions
+;     can dedupe on MTF_TierChanged instead.
+;     str  = "<pluginId>:<effectId>|<slot>"     e.g. "mtf.base:modify.magickaRegen|3"
+;     num  = slot as float
+;     sender = the actor (PlayerRef or NPC)
+
+string Function MTF_VERSION() global
+    return "0.1.20"
+EndFunction
+
+Function _emitFrameworkReady()
+    if _readyEmitted || pluginCount <= 0
+        return
+    endif
+    int h = ModEvent.Create("MTF_FrameworkReady")
+    if h == 0
+        return
+    endif
+    ModEvent.PushString(h, MTF_VERSION() + "|" + pluginCount)
+    ModEvent.PushFloat(h, pluginCount as float)
+    ModEvent.PushForm(h, self as Form)
+    ModEvent.Send(h)
+    _readyEmitted = true
+EndFunction
+
+Function _emitTierChanged(Actor target, string scope, string presetName, int prevTier, int newTier)
+    if target == None
+        return
+    endif
+    int h = ModEvent.Create("MTF_TierChanged")
+    if h == 0
+        return
+    endif
+    ModEvent.PushString(h, scope + "|" + presetName + "|" + prevTier + "|" + newTier)
+    ModEvent.PushFloat(h, newTier as float)
+    ModEvent.PushForm(h, target as Form)
+    ModEvent.Send(h)
+EndFunction
+
+Function _emitEffectActivated(Actor target, string key, int slot)
+    if target == None || key == ""
+        return
+    endif
+    int h = ModEvent.Create("MTF_EffectActivated")
+    if h == 0
+        return
+    endif
+    ModEvent.PushString(h, key + "|" + slot)
+    ModEvent.PushFloat(h, slot as float)
+    ModEvent.PushForm(h, target as Form)
+    ModEvent.Send(h)
+EndFunction
+
+Function _emitEffectDeactivated(Actor target, string key, int slot)
+    if target == None || key == ""
+        return
+    endif
+    int h = ModEvent.Create("MTF_EffectDeactivated")
+    if h == 0
+        return
+    endif
+    ModEvent.PushString(h, key + "|" + slot)
+    ModEvent.PushFloat(h, slot as float)
+    ModEvent.PushForm(h, target as Form)
+    ModEvent.Send(h)
 EndFunction

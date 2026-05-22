@@ -1,0 +1,15 @@
+{# Magic Tattoos Framework (MTF) — visible tattoos & their effects.
+
+   The mtf_active_tattoos decorator is registered at runtime by the
+   MTF SkyrimNet Bridge plugin (MTF_Plugin_SkyrimNet.esp). When the
+   bridge isn't installed the decorator returns "" and the whole
+   block elides cleanly. Slot range 0300-0499 is the reserved
+   character_bio range for mod integrations.
+#}
+{% if render_mode == "full" or render_mode == "thoughts" or render_mode == "dialogue_target" or render_mode == "bio_appearance" %}
+    {% set mtf_line = mtf_active_tattoos(actorUUID) %}
+    {% if mtf_line %}
+        ## Magic Tattoos
+        {{ mtf_line }}
+    {% endif %}
+{% endif %}

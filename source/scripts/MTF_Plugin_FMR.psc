@@ -90,6 +90,15 @@ string Function GetConditionParamLabel(int idx)
     return ""
 EndFunction
 
+string Function GetConditionDescription(int idx)
+    if idx == 0
+        return "Triggers when the actor is pregnant and her belly stage is at or above the threshold."
+    elseif idx == 1
+        return "Triggers while the actor is in her ovulation window (recent ovulation, egg still alive)."
+    endif
+    return ""
+EndFunction
+
 int Function GetConditionParamMin(int idx)
     if idx == 0
         return 1
@@ -177,6 +186,13 @@ string Function GetEffectLabel(int idx)
 EndFunction
 
 string Function GetEffectParamLabel(int idx)
+    return ""
+EndFunction
+
+string Function GetEffectDescription(int idx)
+    if idx == 0
+        return "Burst — forces the actor to begin ovulating (no effect if already pregnant)."
+    endif
     return ""
 EndFunction
 

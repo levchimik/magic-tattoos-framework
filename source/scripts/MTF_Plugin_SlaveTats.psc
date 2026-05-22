@@ -145,6 +145,13 @@ string Function GetEffectParamLabel(int idx)
     return ""
 EndFunction
 
+string Function GetEffectDescription(int idx)
+    if idx == 0
+        return "Mirrors the slot's tattoo into SlaveTats's JFormDB so SlaveTats-aware mods (SLSF, etc.) can see and query the tattoo as if SlaveTats had painted it."
+    endif
+    return ""
+EndFunction
+
 ; ── Helpers ─────────────────────────────────────────────────────────────────
 string Function _areaToString(int areaIdx)
     if areaIdx == 1

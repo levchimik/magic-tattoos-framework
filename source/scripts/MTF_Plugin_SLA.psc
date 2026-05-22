@@ -117,6 +117,19 @@ string Function GetConditionParamLabel(int idx)
     return ""
 EndFunction
 
+string Function GetConditionDescription(int idx)
+    if idx == 0
+        return "Triggers when the actor's SexLab Aroused exposure reaches the threshold."
+    elseif idx == 1
+        return "Triggers when the actor has not orgasmed for at least the configured number of days."
+    elseif idx == 2
+        return "Triggers when the actor's exposure accrual rate is at or above the threshold."
+    elseif idx == 3
+        return "Triggers when the actor's arousal-locked flag matches the configured state (locked or unlocked)."
+    endif
+    return ""
+EndFunction
+
 int Function GetConditionParamMin(int idx)
     return 0
 EndFunction
@@ -210,6 +223,21 @@ string Function GetEffectParamLabel(int idx)
         return "Burst exposure added to self on switch"
     elseif idx == 3
         return "Exposure rate while active"
+    endif
+    return ""
+EndFunction
+
+string Function GetEffectDescription(int idx)
+    if idx == 0
+        return "Steadily raises the actor's own exposure by the configured amount every in-game hour while active."
+    elseif idx == 1
+        return "Steadily raises the exposure of nearby NPCs within the aura radius every in-game hour (pheromone-style aura)."
+    elseif idx == 2
+        return "Burst — adds the configured exposure delta to the actor's arousal pool when the tier activates."
+    elseif idx == 3
+        return "Sets the actor's exposure accrual rate to the configured value while active, then restores the previous value on deactivate."
+    elseif idx == 4
+        return "Burst — resets the actor's 'days since orgasm' counter to zero when the tier activates."
     endif
     return ""
 EndFunction
