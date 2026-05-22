@@ -178,6 +178,27 @@ string[] Function _OVERLAY_PARTS() global
     return r
 EndFunction
 
+; PapyrusUtil's JsonUtil returns string values with inconsistent casing
+; (observed in 0.1.17: same content pack JSON literal "Body" comes back
+; as "BODY" for some files, "face" for others, "Hands" preserved -- not
+; reproducible to any single rule). Every consumer of `area` below
+; (_numOverlays, _maxLayerSlots, _areaToInt, _OVERLAY_PARTS-keyed
+; lookups, drawOverlay node-name building) uses case-sensitive ==
+; against title-case strings, so an unnormalized "BODY" silently
+; no-ops everywhere. Normalize once at the catalog read site.
+string Function _canonArea(string a) global
+    if a == "Body" || a == "body" || a == "BODY"
+        return "Body"
+    elseif a == "Face" || a == "face" || a == "FACE"
+        return "Face"
+    elseif a == "Hands" || a == "hands" || a == "HANDS" || a == "Hand" || a == "hand" || a == "HAND"
+        return "Hands"
+    elseif a == "Feet" || a == "feet" || a == "FEET" || a == "Foot" || a == "foot" || a == "FOOT"
+        return "Feet"
+    endif
+    return "Body"
+EndFunction
+
 int _numOvBodyCache = -1
 int _numOvFaceCache = -1
 int _numOvHandCache = -1
@@ -602,11 +623,13 @@ Function ForceReloadVisualCatalogs()
             string label = JsonUtil.GetPathStringValue(useFile, ".label", pid)
             ; v0.1.17 Phase 1 (multi-area): read .area; default to "Body" for
             ; legacy packs. Single area per pack (pack-level granularity).
-            string area = JsonUtil.GetPathStringValue(useFile, ".area", "Body")
-            if area == ""
-                area = "Body"
+            ; JsonUtil mangles string-value case unpredictably; normalize.
+            string rawArea = JsonUtil.GetPathStringValue(useFile, ".area", "Body")
+            if rawArea == ""
+                rawArea = "Body"
             endif
-            Trace("[MTF_Main] visual probe raw='" + raw + "' useFile='" + useFile + "' packId='" + pid + "' area='" + area + "'")
+            string area = _canonArea(rawArea)
+            Trace("[MTF_Main] visual probe raw='" + raw + "' useFile='" + useFile + "' packId='" + pid + "' rawArea='" + rawArea + "' area='" + area + "'")
             if pid != "" && _findPackFileIdx(useFile) < 0
                 visualPackIds[visualPackCount]    = pid
                 visualPackLabels[visualPackCount] = label
@@ -636,11 +659,12 @@ Function ForceReloadVisualCatalogs()
                 endif
             endif
             klabel = JsonUtil.GetPathStringValue(kf, ".label", kpid)
-            string karea = JsonUtil.GetPathStringValue(kf, ".area", "Body")
-            if karea == ""
-                karea = "Body"
+            string kareaRaw = JsonUtil.GetPathStringValue(kf, ".area", "Body")
+            if kareaRaw == ""
+                kareaRaw = "Body"
             endif
-            Trace("[MTF_Main] direct hit '" + kf + "' packId='" + kpid + "' area='" + karea + "'")
+            string karea = _canonArea(kareaRaw)
+            Trace("[MTF_Main] direct hit '" + kf + "' packId='" + kpid + "' rawArea='" + kareaRaw + "' area='" + karea + "'")
             if kpid != ""
                 visualPackIds[visualPackCount]    = kpid
                 visualPackLabels[visualPackCount] = klabel
@@ -3361,6 +3385,22 @@ Function _setAreaCurrentBaseSlot(string area, int value)
     endif
 EndFunction
 
+; Per-area record of how many layers the player MCM-base draw last
+; reserved. Needed by drawOverlayForActor's reserved==0 branch so a
+; transition from "pack configured (N layers)" to "(no texture)" can
+; clear the N slots we previously painted. Without this tracking the
+; old NiOverride state persists indefinitely and the user sees the
+; overlay stuck on. StorageUtil-backed (not an Auto property) so new
+; saves can pick it up mid-session without the
+; project_papyrus_property_attach footgun.
+int Function _areaLastReservedLayers(string area)
+    return StorageUtil.GetIntValue(self, "mtf.lastreserved." + area, 0)
+EndFunction
+
+Function _setAreaLastReservedLayers(string area, int value)
+    StorageUtil.SetIntValue(self, "mtf.lastreserved." + area, value)
+EndFunction
+
 int Function _playerBaseLayers(string area)
 {Player MCM base reservation per area. Max over cond slots 0..7 of the
  chosen entry's layer count, capped at MAX_LAYERS_PER_SLOT and at what
@@ -3463,10 +3503,32 @@ function drawOverlayForActor(actor akTarget, int idx, bool useScratch, bool defe
         int areaBase = _areaBaseSlot(area)
         int reserved = _playerBaseLayers(area)
         if reserved <= 0
-            ; No MCM base configured for this area — don't touch it. Empty
-            ; areas are common (most users only configure Body slots).
-            ; Mirror Current<Area>OverlaySlot = base anyway so the slow-tick's
-            ; "base changed" detection sees a stable value.
+            ; No MCM base configured for this area — but we may have
+            ; PAINTED here on the previous draw. Without an explicit clear,
+            ; the prior NiOverride state persists when the user transitions
+            ; a slot from a configured pack to "(no texture)" — visible
+            ; overlay stays on indefinitely (SlaveTats sees it as
+            ; "external", any consumer that scans NiOverride sees it as
+            ; live). Clear our previously-reserved range using the
+            ; PAINT-TIME base (_areaCurrentBaseSlot, not the live
+            ; _areaBaseSlot) so a mid-session OverlaySlot slider change
+            ; doesn't misroute the clear to fresh slots.
+            int lastReserved = _areaLastReservedLayers(area)
+            if lastReserved > 0
+                int prevBase = _areaCurrentBaseSlot(area)
+                bool isFemaleClear = akTarget.GetLeveledActorBase().GetSex() as bool
+                int ci = 0
+                while ci < lastReserved
+                    _clearOverlayDeferred(akTarget, isFemaleClear, area, prevBase + ci)
+                    ci += 1
+                endwhile
+                if !deferApply
+                    NiOverride.ApplyNodeOverrides(akTarget)
+                endif
+                if !useScratch
+                    _setAreaLastReservedLayers(area, 0)
+                endif
+            endif
             if !useScratch
                 _setAreaCurrentBaseSlot(area, areaBase)
             endif
@@ -3474,6 +3536,7 @@ function drawOverlayForActor(actor akTarget, int idx, bool useScratch, bool defe
             _drawOverlayForActorAt(akTarget, idx, useScratch, area, areaBase, reserved, deferApply)
             if !useScratch
                 _setAreaCurrentBaseSlot(area, areaBase)
+                _setAreaLastReservedLayers(area, reserved)
             endif
         endif
         p += 1

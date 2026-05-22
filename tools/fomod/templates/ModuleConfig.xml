@@ -205,6 +205,62 @@ active in your load order.]]></description>
               </typeDescriptor>
             </plugin>
 
+            <plugin name="MTF Plugin: SlaveTats Bridge">
+              <description><![CDATA[Bridges MTF tattoos into SlaveTats's per-actor state store so third-party
+mods that query SlaveTats (has_tattoo / query_applied_tattoos /
+has_applied_tattoos_with_attribute) see MTF tattoos as if they were
+applied via SlaveTats itself. Works for ALL pack roots, not just
+slavetats-prefixed ones.
+
+Auto-recommended if SlaveTats.esp is active.
+
+Requires JContainers SE (hard requirement of SlaveTats itself, so already
+present if you have SlaveTats installed).
+
+Effect: slavetats.mirror — when bound to an MTF slot, ghost-writes the
+slot's tattoo into JFormDB so polling consumers see it.
+
+How it stays safe for arbitrary pack roots:
+ - synchronize_tattoos (SlaveTats's renderer) is guarded by an "updated"
+   flag we never flip; in our normal flow it just doesn't run.
+ - If something else does flip the flag, synchronize respects SlaveTats's
+   own external_slots() detection: any slot whose NiOverride path doesn't
+   start with "Actors\Character\slavetats\" is treated as externally
+   owned and SlaveTats refuses to write or clear it. MTF paints first, so
+   non-slavetats slots stay safely "external".
+ - For slavetats-rooted packs (LewdMarks SlaveTats variant) the stored
+   texture is prefix-stripped so any re-render reconstructs the same
+   path MTF already painted (last-writer-wins on one slot, identical
+   pixels).
+ - upgrade_tattoos's wipe-on-first-touch is short-circuited by pre-setting
+   .SlaveTats.version on the actor when we write our first ghost.
+
+Use case: hook SlaveTats-aware mods (slavery mods, narrative mods) that
+treat tattoos as semantic state, without depending on those mods directly.]]></description>
+              <files>
+                <folder source="15_plugin_slavetats" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="SlaveTats.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="SlaveTats.esp" state="Missing"/>
+                      </dependencies>
+                      <type name="NotUsable"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
           </plugins>
         </group>
 

@@ -20,6 +20,7 @@ per-effect parameters.
 | **Magic Tattoos Framework** | `MagicTattoosFramework.esp` (ESL) | base | core engine, MCM, built-in conditions (magicka/stamina/combat/hits), built-in effects (drains, stagger, magic cost penalty) |
 | **MTF Plugin — FMR** | `MTF_Plugin_FMR.esp` (ESL) | optional | pregnancy / ovulation conditions from Fertility Mode |
 | **MTF Plugin — SLA** | `MTF_Plugin_SLA.esp` (ESL) | optional | arousal condition + exposure/aura effects from SexLab Aroused |
+| **MTF Plugin — SlaveTats Bridge** | `MTF_Plugin_SlaveTats.esp` (ESL) | optional | ghost-writes MTF tattoos into SlaveTats's state store so polling consumers (`has_tattoo` / `query_applied_tattoos`) see them. Universal — works for all pack roots; safety relies on SlaveTats's own `external_slots` detection and a one-time `.SlaveTats.version` preset to dodge `upgrade_tattoos`' first-touch wipe |
 | **MTF Content — LewdMarks** | — (no ESP) | optional | example pack: JSON catalogs for LewdMarks RaceMenu / SlaveTats textures |
 
 All three framework ESPs are flagged ESL — zero regular-plugin slots consumed.

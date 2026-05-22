@@ -10,7 +10,7 @@ CAPRICA="F:/stuff/Skyrim modding/tools/Caprica/Caprica.exe"
 FLAGS="S:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data/Source/Scripts/TESV_Papyrus_Flags.flg"
 SRC="$PROJ/source/scripts"
 DEPS="$PROJ/_deps"
-DEPLOY="F:/Modlists/Modding Essentials/mods/MagicTattoosFramework/scripts"
+DEPLOY="F:/Modlists/Modding Essentials/mods/Magic Tattoos Framework/scripts"
 
 cd "$SRC"
 
