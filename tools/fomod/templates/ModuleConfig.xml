@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
+
+  <moduleName>Magic Tattoos Framework</moduleName>
+
+  <installSteps order="Explicit">
+
+    <!-- ============================================================ -->
+    <!-- STEP 1: Core + integration plugins                            -->
+    <!-- ============================================================ -->
+    <installStep name="Core + Integrations">
+      <optionalFileGroups order="Explicit">
+
+        <!-- Required: base mod -->
+        <group name="Required" type="SelectExactlyOne">
+          <plugins order="Explicit">
+            <plugin name="Magic Tattoos Framework (core)">
+              <description><![CDATA[Required.
+
+Core engine: MTF ESL plugin, MCM, MTFPulse SKSE DLL, built-in conditions
+(magicka/stamina/combat/hits/time/etc.), built-in effects (drains, stagger,
+magic cost penalty, shaders, sounds, flashes, fades, transitions).
+
+Hard requirements (you must have these installed first):
+  - RaceMenu / SKEE (NiOverride)
+  - PapyrusUtil SE
+  - SKSE 64
+  - Skyrim SE 1.5.97 or Skyrim AE 1.6.x (CommonLibSSE-NG covers both)
+
+This installer cannot auto-detect those because FOMOD only checks ESP/ESM
+files, not DLLs. If you don't have them, abort, install them, retry.]]></description>
+              <files>
+                <folder source="00_base" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <type name="Required"/>
+              </typeDescriptor>
+            </plugin>
+          </plugins>
+        </group>
+
+        <!-- Integration plugins -->
+        <group name="Integration Plugins" type="SelectAny">
+          <plugins order="Explicit">
+
+            <plugin name="MTF Plugin: Fertility Mode Reloaded">
+              <description><![CDATA[Pregnancy / ovulation conditions backed by Fertility Mode Reloaded.
+
+Auto-recommended if Fertility Mode.esm is active.
+
+Conditions exposed: pregnancy (belly stage 1..100), ovulation.
+Effects exposed: trigger.ovulation (one-shot force ovulation).]]></description>
+              <files>
+                <folder source="10_plugin_fmr" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="Fertility Mode.esm" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="Fertility Mode.esm" state="Missing"/>
+                      </dependencies>
+                      <type name="NotUsable"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="MTF Plugin: SexLab Aroused">
+              <description><![CDATA[Arousal condition + exposure/aura effects from SexLab Aroused.
+
+Auto-recommended if SexLabAroused.esm is active (works with classic SLA,
+SLA Redux, OSL Aroused — all share the slaFrameworkScr class).
+
+Conditions: arousal, exposure rate, time since orgasm, time since last sex.
+Effects: arousal lock, exposure modifiers, trigger orgasm.]]></description>
+              <files>
+                <folder source="11_plugin_sla" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="SexLabAroused.esm" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="SexLabAroused.esm" state="Missing"/>
+                      </dependencies>
+                      <type name="NotUsable"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="MTF Plugin: SexLab Framework">
+              <description><![CDATA[Per-actor sex stats from SexLab Framework (P+, SE, classic).
+
+Auto-recommended if SexLab.esm is active.
+
+Conditions: in.scene, cum layers (oral/vaginal/anal), per-skill stats (Foreplay/
+Vaginal/Anal/Oral), purity (signed -500..500).
+Effects: skill XP grants, cum layer add/clear.]]></description>
+              <files>
+                <folder source="12_plugin_sexlab" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="SexLab.esm" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="SexLab.esm" state="Missing"/>
+                      </dependencies>
+                      <type name="NotUsable"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="MTF Plugin: OStim">
+              <description><![CDATA[OStim Standalone integration: scene gating + excitement-driven conditions.
+
+Auto-recommended if OStim.esp is active.
+
+Conditions: in.scene, excitement threshold.
+Effects: excitement.mult.set (scale excitement while preset active).]]></description>
+              <files>
+                <folder source="13_plugin_ostim" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="OStim.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="OStim.esp" state="Missing"/>
+                      </dependencies>
+                      <type name="NotUsable"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="MTF Plugin: Beeing Female NG">
+              <description><![CDATA[Pregnancy / cycle / birth conditions backed by Beeing Female NG.
+
+Auto-recommended if BeeingFemale.esm is active.
+
+Conditions: pregnancy (belly 1..100), ovulation, cycle.phase (4-tier enum),
+baby.health, num.births.
+Effects: trigger.ovulation.
+
+NOTE: ESP has BeeingFemale.esm as a hard master — only install if BFNG is
+active in your load order.]]></description>
+              <files>
+                <folder source="14_plugin_bfng" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="BeeingFemale.esm" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="BeeingFemale.esm" state="Missing"/>
+                      </dependencies>
+                      <type name="NotUsable"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+          </plugins>
+        </group>
+
+      </optionalFileGroups>
+    </installStep>
+
+    <!-- ============================================================ -->
+    <!-- STEP 2: Texture Pack Adapters (JSON catalogs that wire MTF   -->
+    <!-- onto third-party overlay texture mods)                        -->
+    <!-- ============================================================ -->
+    <installStep name="Texture Pack Adapters">
+      <optionalFileGroups order="Explicit">
+        <group name="Texture Pack Adapters" type="SelectAny">
+          <plugins order="Explicit">
+
+            <plugin name="LewdMarks catalog (Body)">
+              <description><![CDATA[JSON catalogs for LewdMarks textures (RaceMenu + SlaveTats variants).
+
+REQUIRES: LewdMarks by SavageDomain — install separately.
+Auto-recommended if LewdMarks.esp OR LewdMarksSlaveTats.esp is active.
+
+Area: Body.]]></description>
+              <files>
+                <folder source="20_content_lewdmarks" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies operator="Or">
+                        <fileDependency file="LewdMarks.esp" state="Active"/>
+                        <fileDependency file="LewdMarksSlaveTats.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="Obi's Tattoos catalog (Body)">
+              <description><![CDATA[JSON catalog for Obi's Tattoos for RaceMenu.
+
+REQUIRES: Obi's Tattoos for RaceMenu (ObiTattoos.esp) — install separately.
+Auto-recommended if ObiTattoos.esp is active.
+
+Area: Body.]]></description>
+              <files>
+                <folder source="21_content_obi" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="ObiTattoos.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="RX Overlays catalog (Body)">
+              <description><![CDATA[JSON catalog for RX Overlays (RXOverlays.esp).
+
+REQUIRES: RX'Overlays - Racemenu Tattoo and Overlays — install separately.
+Auto-recommended if RXOverlays.esp is active.
+
+Area: Body.]]></description>
+              <files>
+                <folder source="22_content_rx" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="RXOverlays.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="Bard's Nail Overlays catalog (Hands)">
+              <description><![CDATA[JSON catalog for Bard's Nail Overlays (nail polish pack).
+
+REQUIRES: Bard's Nail Overlays by Bardledorf — install separately.
+
+Area: Hands.]]></description>
+              <files>
+                <folder source="23_content_bardle" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <type name="Optional"/>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="Community Overlays 1 — Face catalog (Face)">
+              <description><![CDATA[JSON catalog for Community Overlays 1 — Female Face Overlays.
+
+REQUIRES: Community Overlays 1 (Face) — install separately.
+
+Area: Face.]]></description>
+              <files>
+                <folder source="24_content_co1_face" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <type name="Optional"/>
+              </typeDescriptor>
+            </plugin>
+
+          </plugins>
+        </group>
+      </optionalFileGroups>
+    </installStep>
+
+    <!-- ============================================================ -->
+    <!-- STEP 3: Extras                                                -->
+    <!-- ============================================================ -->
+    <installStep name="Extras">
+      <optionalFileGroups order="Explicit">
+        <group name="Extras" type="SelectAny">
+          <plugins order="Explicit">
+
+          <plugin name="NPC Overlays helper (bPlayerOnly=0)">
+            <description><![CDATA[Ships a skee64.ini override that sets:
+
+    [Overlays]
+    bPlayerOnly=0
+
+Required if you want MTF to apply overlays to NPCs (NiOverride only
+pre-allocates overlay slots on the player by default).
+
+After install: in MO2, place this mod AFTER RaceMenu Anniversary Edition
+so its skee64.ini wins the loose-file conflict. RAM use grows roughly
+proportional to active NPC population; RaceMenu's stock ini warns "NOT
+RECOMMENDED" for this reason but every NPC-tattoo mod requires it.]]></description>
+            <files>
+              <folder source="30_npc_overlays" destination="" priority="0"/>
+            </files>
+            <typeDescriptor>
+              <type name="Optional"/>
+            </typeDescriptor>
+          </plugin>
+
+          <plugin name="Test Pack (smoke-test presets)">
+            <description><![CDATA[JSON-only mod folder bundling MTF's smoke-test presets. Drives the
+framework into specific code paths from the MCM Presets dropdown.
+
+For development / verification use. Safe to skip if you don't intend
+to run the test scenarios documented in SMOKE_TESTS.md.]]></description>
+            <files>
+              <folder source="31_test_pack" destination="" priority="0"/>
+            </files>
+            <typeDescriptor>
+              <type name="Optional"/>
+            </typeDescriptor>
+          </plugin>
+
+          </plugins>
+        </group>
+      </optionalFileGroups>
+    </installStep>
+
+  </installSteps>
+
+  <!-- ============================================================ -->
+  <!-- Diagnostic: loose-file path check probe.                      -->
+  <!-- The FOMOD spec says <fileDependency> is for .esp/.esm/.esl    -->
+  <!-- only. Some installer implementations may extend it to loose   -->
+  <!-- paths (DLLs, textures). This block drops a marker file IFF    -->
+  <!-- the installer reports SKSE/Plugins/PapyrusUtil.dll Active.    -->
+  <!-- Verifiable post-install — no functional effect either way.    -->
+  <!-- ============================================================ -->
+  <conditionalFileInstalls>
+    <patterns>
+      <pattern>
+        <dependencies>
+          <fileDependency file="SKSE/Plugins/PapyrusUtil.dll" state="Active"/>
+        </dependencies>
+        <files>
+          <file source="_diagnostics/MTF_FOMOD_DIAGNOSTIC_loose_file_check_works.txt"
+                destination="MTF_FOMOD_DIAGNOSTIC_loose_file_check_works.txt"
+                priority="0"/>
+        </files>
+      </pattern>
+    </patterns>
+  </conditionalFileInstalls>
+</config>

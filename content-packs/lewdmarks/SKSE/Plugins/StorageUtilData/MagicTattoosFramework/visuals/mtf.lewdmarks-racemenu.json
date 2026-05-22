@@ -1,0 +1,1160 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.lewdmarks-racemenu",
+  "label": "LewdMarks (RaceMenu Overlays)",
+  "area": "Body",
+  "entries": [
+    {
+      "id": "001",
+      "label": "Mark 001",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\001.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\001.dds"
+        }
+      ]
+    },
+    {
+      "id": "002",
+      "label": "Mark 002",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\002.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\002.dds"
+        }
+      ]
+    },
+    {
+      "id": "003",
+      "label": "Mark 003",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\003.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\003.dds"
+        }
+      ]
+    },
+    {
+      "id": "004",
+      "label": "Mark 004",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\004.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\004.dds"
+        }
+      ]
+    },
+    {
+      "id": "005",
+      "label": "Mark 005",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\005.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\005.dds"
+        }
+      ]
+    },
+    {
+      "id": "006",
+      "label": "Mark 006",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\006.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\006.dds"
+        }
+      ]
+    },
+    {
+      "id": "007",
+      "label": "Mark 007",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\007.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\007.dds"
+        }
+      ]
+    },
+    {
+      "id": "008",
+      "label": "Mark 008",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\008.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\008.dds"
+        }
+      ]
+    },
+    {
+      "id": "009",
+      "label": "Mark 009",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\009.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\009.dds"
+        }
+      ]
+    },
+    {
+      "id": "010",
+      "label": "Mark 010",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\010.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\010.dds"
+        }
+      ]
+    },
+    {
+      "id": "011",
+      "label": "Mark 011",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\011.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\011.dds"
+        }
+      ]
+    },
+    {
+      "id": "012",
+      "label": "Mark 012",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\012.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\012.dds"
+        }
+      ]
+    },
+    {
+      "id": "013",
+      "label": "Mark 013",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\013.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\013.dds"
+        }
+      ]
+    },
+    {
+      "id": "014",
+      "label": "Mark 014",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\014.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\014.dds"
+        }
+      ]
+    },
+    {
+      "id": "015",
+      "label": "Mark 015",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\015.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\015.dds"
+        }
+      ]
+    },
+    {
+      "id": "016",
+      "label": "Mark 016",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\016.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\016.dds"
+        }
+      ]
+    },
+    {
+      "id": "017",
+      "label": "Mark 017",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\017.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\017.dds"
+        }
+      ]
+    },
+    {
+      "id": "018",
+      "label": "Mark 018",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\018.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\018.dds"
+        }
+      ]
+    },
+    {
+      "id": "019",
+      "label": "Mark 019",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\019.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\019.dds"
+        }
+      ]
+    },
+    {
+      "id": "020",
+      "label": "Mark 020",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\020.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\020.dds"
+        }
+      ]
+    },
+    {
+      "id": "021",
+      "label": "Mark 021",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\021.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\021.dds"
+        }
+      ]
+    },
+    {
+      "id": "022",
+      "label": "Mark 022",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\022.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\022.dds"
+        }
+      ]
+    },
+    {
+      "id": "023",
+      "label": "Mark 023",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\023.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\023.dds"
+        }
+      ]
+    },
+    {
+      "id": "024",
+      "label": "Mark 024",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\024.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\024.dds"
+        }
+      ]
+    },
+    {
+      "id": "025",
+      "label": "Mark 025",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\025.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\025.dds"
+        }
+      ]
+    },
+    {
+      "id": "026",
+      "label": "Mark 026",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\026.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\026.dds"
+        }
+      ]
+    },
+    {
+      "id": "027",
+      "label": "Mark 027",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\027.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\027.dds"
+        }
+      ]
+    },
+    {
+      "id": "028",
+      "label": "Mark 028",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\028.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\028.dds"
+        }
+      ]
+    },
+    {
+      "id": "029",
+      "label": "Mark 029",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\029.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\029.dds"
+        }
+      ]
+    },
+    {
+      "id": "030",
+      "label": "Mark 030",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\030.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\030.dds"
+        }
+      ]
+    },
+    {
+      "id": "031",
+      "label": "Mark 031",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\031.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\031.dds"
+        }
+      ]
+    },
+    {
+      "id": "032",
+      "label": "Mark 032",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\032.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\032.dds"
+        }
+      ]
+    },
+    {
+      "id": "033",
+      "label": "Mark 033",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\033.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\033.dds"
+        }
+      ]
+    },
+    {
+      "id": "034",
+      "label": "Mark 034",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\034.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\034.dds"
+        }
+      ]
+    },
+    {
+      "id": "035",
+      "label": "Mark 035",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\035.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\035.dds"
+        }
+      ]
+    },
+    {
+      "id": "036",
+      "label": "Mark 036",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\036.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\036.dds"
+        }
+      ]
+    },
+    {
+      "id": "037",
+      "label": "Mark 037",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\037.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\037.dds"
+        }
+      ]
+    },
+    {
+      "id": "038",
+      "label": "Mark 038",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\038.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\038.dds"
+        }
+      ]
+    },
+    {
+      "id": "039",
+      "label": "Mark 039",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\039.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\039.dds"
+        }
+      ]
+    },
+    {
+      "id": "040",
+      "label": "Mark 040",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\040.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\040.dds"
+        }
+      ]
+    },
+    {
+      "id": "041",
+      "label": "Mark 041",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\041.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\041.dds"
+        }
+      ]
+    },
+    {
+      "id": "042",
+      "label": "Mark 042",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\042.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\042.dds"
+        }
+      ]
+    },
+    {
+      "id": "043",
+      "label": "Mark 043",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\043.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\043.dds"
+        }
+      ]
+    },
+    {
+      "id": "044",
+      "label": "Mark 044",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\044.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\044.dds"
+        }
+      ]
+    },
+    {
+      "id": "045",
+      "label": "Mark 045",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\045.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\045.dds"
+        }
+      ]
+    },
+    {
+      "id": "046",
+      "label": "Mark 046",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\046.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\046.dds"
+        }
+      ]
+    },
+    {
+      "id": "047",
+      "label": "Mark 047",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\047.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\047.dds"
+        }
+      ]
+    },
+    {
+      "id": "048",
+      "label": "Mark 048",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\048.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\048.dds"
+        }
+      ]
+    },
+    {
+      "id": "049",
+      "label": "Mark 049",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\049.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\049.dds"
+        }
+      ]
+    },
+    {
+      "id": "050",
+      "label": "Mark 050",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\050.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\050.dds"
+        }
+      ]
+    },
+    {
+      "id": "051",
+      "label": "Mark 051",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\051.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\051.dds"
+        }
+      ]
+    },
+    {
+      "id": "052",
+      "label": "Mark 052",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\052.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\052.dds"
+        }
+      ]
+    },
+    {
+      "id": "053",
+      "label": "Mark 053",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\053.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\053.dds"
+        }
+      ]
+    },
+    {
+      "id": "054",
+      "label": "Mark 054",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\054.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\054.dds"
+        }
+      ]
+    },
+    {
+      "id": "055",
+      "label": "Mark 055",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\055.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\055.dds"
+        }
+      ]
+    },
+    {
+      "id": "056",
+      "label": "Mark 056",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\056.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\056.dds"
+        }
+      ]
+    },
+    {
+      "id": "057",
+      "label": "Mark 057",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\057.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\057.dds"
+        }
+      ]
+    },
+    {
+      "id": "058",
+      "label": "Mark 058",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\058.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\058.dds"
+        }
+      ]
+    },
+    {
+      "id": "059",
+      "label": "Mark 059",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\059.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\059.dds"
+        }
+      ]
+    },
+    {
+      "id": "060",
+      "label": "Mark 060",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\060.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\060.dds"
+        }
+      ]
+    },
+    {
+      "id": "061",
+      "label": "Mark 061",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\061.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\061.dds"
+        }
+      ]
+    },
+    {
+      "id": "062",
+      "label": "Mark 062",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\062.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\062.dds"
+        }
+      ]
+    },
+    {
+      "id": "063",
+      "label": "Mark 063",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\063.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\063.dds"
+        }
+      ]
+    },
+    {
+      "id": "064",
+      "label": "Mark 064",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\064.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\064.dds"
+        }
+      ]
+    },
+    {
+      "id": "065",
+      "label": "Mark 065",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\065.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\065.dds"
+        }
+      ]
+    },
+    {
+      "id": "066",
+      "label": "Mark 066",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\066.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\066.dds"
+        }
+      ]
+    },
+    {
+      "id": "067",
+      "label": "Mark 067",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\067.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\067.dds"
+        }
+      ]
+    },
+    {
+      "id": "068",
+      "label": "Mark 068",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\068.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\068.dds"
+        }
+      ]
+    },
+    {
+      "id": "069",
+      "label": "Mark 069",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\069.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\069.dds"
+        }
+      ]
+    },
+    {
+      "id": "070",
+      "label": "Mark 070",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\070.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\070.dds"
+        }
+      ]
+    },
+    {
+      "id": "071",
+      "label": "Mark 071",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\071.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\071.dds"
+        }
+      ]
+    },
+    {
+      "id": "072",
+      "label": "Mark 072",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\072.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\072.dds"
+        }
+      ]
+    },
+    {
+      "id": "073",
+      "label": "Mark 073",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\073.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\073.dds"
+        }
+      ]
+    },
+    {
+      "id": "074",
+      "label": "Mark 074",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\074.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\074.dds"
+        }
+      ]
+    },
+    {
+      "id": "075",
+      "label": "Mark 075",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\075.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\075.dds"
+        }
+      ]
+    },
+    {
+      "id": "076",
+      "label": "Mark 076",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\076.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\076.dds"
+        }
+      ]
+    },
+    {
+      "id": "077",
+      "label": "Mark 077",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\077.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\077.dds"
+        }
+      ]
+    },
+    {
+      "id": "078",
+      "label": "Mark 078",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\078.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\078.dds"
+        }
+      ]
+    },
+    {
+      "id": "079",
+      "label": "Mark 079",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\079.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\079.dds"
+        }
+      ]
+    },
+    {
+      "id": "080",
+      "label": "Mark 080",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\080.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\080.dds"
+        }
+      ]
+    },
+    {
+      "id": "081",
+      "label": "Mark 081",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\081.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\081.dds"
+        }
+      ]
+    },
+    {
+      "id": "082",
+      "label": "Mark 082",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\082.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\082.dds"
+        }
+      ]
+    },
+    {
+      "id": "083",
+      "label": "Mark 083",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\083.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\083.dds"
+        }
+      ]
+    },
+    {
+      "id": "084",
+      "label": "Mark 084",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\084.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\084.dds"
+        }
+      ]
+    },
+    {
+      "id": "085",
+      "label": "Mark 085",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\085.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\085.dds"
+        }
+      ]
+    },
+    {
+      "id": "086",
+      "label": "Mark 086",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\086.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\086.dds"
+        }
+      ]
+    },
+    {
+      "id": "087",
+      "label": "Mark 087",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\087.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\087.dds"
+        }
+      ]
+    },
+    {
+      "id": "088",
+      "label": "Mark 088",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\088.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\088.dds"
+        }
+      ]
+    },
+    {
+      "id": "089",
+      "label": "Mark 089",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\089.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\089.dds"
+        }
+      ]
+    },
+    {
+      "id": "090",
+      "label": "Mark 090",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\090.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\090.dds"
+        }
+      ]
+    },
+    {
+      "id": "091",
+      "label": "Mark 091",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\091.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\091.dds"
+        }
+      ]
+    },
+    {
+      "id": "092",
+      "label": "Mark 092",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\092.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\092.dds"
+        }
+      ]
+    },
+    {
+      "id": "093",
+      "label": "Mark 093",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\093.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\093.dds"
+        }
+      ]
+    },
+    {
+      "id": "094",
+      "label": "Mark 094",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\094.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\094.dds"
+        }
+      ]
+    },
+    {
+      "id": "095",
+      "label": "Mark 095",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\095.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\095.dds"
+        }
+      ]
+    },
+    {
+      "id": "096",
+      "label": "Mark 096",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks\\096.dds"
+        },
+        {
+          "texture": "actors\\character\\overlays\\lewdmarks-glow\\096.dds"
+        }
+      ]
+    }
+  ]
+}

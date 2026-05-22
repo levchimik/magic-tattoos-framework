@@ -40,6 +40,25 @@ run effects-only by picking "(no texture)" per slot in the MCM).
 - Fertility Mode Reloaded (for `MTF_Plugin_FMR.esp`)
 - SexLab Aroused / OSL Aroused (for `MTF_Plugin_SLA.esp`)
 
+## Distribution
+
+A FOMOD installer that bundles base MTF + the 5 integration plugins +
+JSON-only texture-pack adapters + optional extras (NPC overlays helper,
+test pack) lives at `tools/fomod/`. Rebuild with:
+
+```bash
+bash tools/fomod/build_fomod.sh
+```
+
+Output is `_build/MagicTattoosFramework-FOMOD-<version>.7z`. The installer
+auto-detects each integration's master plugin (`SexLab.esm`, `OStim.esp`, etc.)
+and pre-recommends only the addons whose dependencies are present. See
+`tools/fomod/README.md` for the layout and how to add new integrations.
+
+Texture pack adapters ship JSON catalogs only — the source mods (LewdMarks,
+Bard's Nail Overlays, Community Overlays 1 Face, etc.) provide the .dds
+textures and must be installed separately.
+
 ## Heritage
 
 Originated as `LewdMarks Effects`, based on LewdMarks Aroused by SavageDomain.

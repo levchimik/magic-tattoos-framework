@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.community-overlays-1-face",
+  "label": "Community Overlays 1 (Face)",
+  "area": "Face",
+  "entries": [
+    {
+      "id": "01",
+      "label": "Face 01",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\01 Head.dds" }
+      ]
+    },
+    {
+      "id": "02",
+      "label": "Face 02",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\02 Head.dds" }
+      ]
+    },
+    {
+      "id": "03",
+      "label": "Face 03",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\03 Head.dds" }
+      ]
+    },
+    {
+      "id": "04",
+      "label": "Face 04",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\04 Head.dds" }
+      ]
+    },
+    {
+      "id": "05",
+      "label": "Face 05",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\05 Head.dds" }
+      ]
+    },
+    {
+      "id": "06",
+      "label": "Face 06",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\06 Head.dds" }
+      ]
+    },
+    {
+      "id": "07",
+      "label": "Face 07 (+ Secondary)",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\07 Head.dds" },
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\07 Head Secondary.dds" }
+      ]
+    },
+    {
+      "id": "08",
+      "label": "Face 08 (+ Secondary)",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\08 Head.dds" },
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\08 Head Secondary.dds" }
+      ]
+    },
+    {
+      "id": "09",
+      "label": "Face 09 (+ Secondary)",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\09 Head.dds" },
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\09 Head Secondary.dds" }
+      ]
+    },
+    {
+      "id": "20",
+      "label": "Face 20",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\20 Head.dds" }
+      ]
+    },
+    {
+      "id": "21",
+      "label": "Face 21",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\21 Head.dds" }
+      ]
+    },
+    {
+      "id": "22",
+      "label": "Face 22",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\22 Head.dds" }
+      ]
+    },
+    {
+      "id": "26",
+      "label": "Face 26",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\26 Head.dds" }
+      ]
+    },
+    {
+      "id": "27",
+      "label": "Face 27",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\27 Head.dds" }
+      ]
+    },
+    {
+      "id": "28",
+      "label": "Face 28",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\28 Head.dds" }
+      ]
+    },
+    {
+      "id": "29",
+      "label": "Face 29",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\29 Head.dds" }
+      ]
+    },
+    {
+      "id": "30",
+      "label": "Face 30 (Base + Secondary)",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\30 Head Base.dds" },
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\30 Head Secondary.dds" }
+      ]
+    },
+    {
+      "id": "30w",
+      "label": "Face 30 W (Base W + Secondary W)",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\30 Head Base W.dds" },
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\30 Head Secondary W.dds" }
+      ]
+    },
+    {
+      "id": "extra-gemstone",
+      "label": "Extra: Gemstone",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Head Gemstone.dds" }
+      ]
+    },
+    {
+      "id": "extra-renegade",
+      "label": "Extra: Renegade",
+      "layers": [
+        { "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Head Renegade.dds" }
+      ]
+    }
+  ]
+}

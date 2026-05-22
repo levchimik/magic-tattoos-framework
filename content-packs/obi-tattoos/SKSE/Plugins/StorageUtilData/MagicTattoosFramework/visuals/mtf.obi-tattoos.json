@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.obi-tattoos",
+  "label": "Obi's Tattoos (3BA 4K)",
+  "area": "Body",
+  "entries": [
+    { "id": "1",  "label": "Tattoo 1",  "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo1.dds"  }] },
+    { "id": "2",  "label": "Tattoo 2",  "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo2.dds"  }] },
+    { "id": "3",  "label": "Tattoo 3",  "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo3.dds"  }] },
+    { "id": "4",  "label": "Tattoo 4",  "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo4.dds"  }] },
+    { "id": "5",  "label": "Tattoo 5",  "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo5.dds"  }] },
+    { "id": "6",  "label": "Tattoo 6",  "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo6.dds"  }] },
+    { "id": "7",  "label": "Tattoo 7",  "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo7.dds"  }] },
+    { "id": "8",  "label": "Tattoo 8",  "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo8.dds"  }] },
+    { "id": "9",  "label": "Tattoo 9",  "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo9.dds"  }] },
+    { "id": "10", "label": "Tattoo 10", "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo10.dds" }] },
+    { "id": "11", "label": "Tattoo 11", "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo11.dds" }] },
+    { "id": "12", "label": "Tattoo 12", "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo12.dds" }] },
+    { "id": "13", "label": "Tattoo 13", "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo13.dds" }] },
+    { "id": "14", "label": "Tattoo 14", "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo14.dds" }] },
+    { "id": "15", "label": "Tattoo 15", "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo15.dds" }] },
+    { "id": "16", "label": "Tattoo 16", "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo16.dds" }] },
+    { "id": "17", "label": "Tattoo 17", "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo17.dds" }] },
+    { "id": "18", "label": "Tattoo 18", "layers": [{ "texture": "actors\\character\\overlays\\ObiBody\\Tattoo18.dds" }] }
+  ]
+}

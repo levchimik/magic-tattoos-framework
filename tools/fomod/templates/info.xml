@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fomod>
+  <Name>Magic Tattoos Framework</Name>
+  <Author>MTF authors</Author>
+  <Version>@MTF_VERSION@</Version>
+  <Website>https://www.nexusmods.com/skyrimspecialedition/mods/@NEXUS_ID@</Website>
+  <Description><![CDATA[
+Skyrim SE/AE framework for dynamic, condition-driven tattoo overlays with gameplay effects.
+
+This installer bundles:
+  - Magic Tattoos Framework (core engine, MCM, MTFPulse SKSE DLL)
+  - 5 integration plugins (Fertility Mode Reloaded, SexLab Aroused, SexLab, OStim, Beeing Female NG)
+  - 5 JSON catalogs for popular overlay packs (LewdMarks, Obi's Tattoos, RX Overlays, Bard's Nail Overlays, Community Overlays 1 Face)
+  - Optional: NPC overlays helper (skee64.ini bPlayerOnly=0), Test Pack (smoke-test presets)
+
+Integration plugins auto-detect their target master plugin — only those whose dependencies are installed will be selectable.
+
+Content packs ship the JSON catalog only; you must install the source mod separately for textures.
+
+Hard requirements (NOT auto-checked): RaceMenu/SKEE, PapyrusUtil, SKSE 64.
+  ]]></Description>
+  <Groups>
+    <element>Body</element>
+    <element>Animation</element>
+    <element>Visuals and Graphics</element>
+  </Groups>
+</fomod>

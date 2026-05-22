@@ -1,0 +1,16 @@
+If you see this file in your installed MTF mod folder, it means your FOMOD
+installer (Vortex, MO2, or other) DOES honor loose-file path checks in
+<fileDependency> elements — specifically, it found:
+
+    SKSE/Plugins/PapyrusUtil.dll
+
+at state="Active".
+
+If this file is NOT present after install, but you DO have PapyrusUtil
+installed, then your installer treats <fileDependency file="..."> as
+plugin-only (.esp/.esm/.esl) and ignores loose-file paths. That's the
+spec'd behavior; nothing's broken.
+
+You can safely delete this file — it ships only as a diagnostic probe.
+
+Reported by: MTF FOMOD installer v0.1.17+

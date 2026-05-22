@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.bardle-nail-polish",
+  "label": "Bardle Nail Polish (Hand)",
+  "area": "Hands",
+  "entries": [
+    {
+      "id": "bubbles",
+      "label": "Bubbles",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishBubbles.dds" }
+      ]
+    },
+    {
+      "id": "dried-blood",
+      "label": "Dried Blood",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishDriedBlood.dds" }
+      ]
+    },
+    {
+      "id": "frost",
+      "label": "Frost",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFrost.dds" }
+      ]
+    },
+    {
+      "id": "full-dark",
+      "label": "Full Polish (Dark)",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFull_Dark.dds" }
+      ]
+    },
+    {
+      "id": "full-light",
+      "label": "Full Polish (Light)",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFull_Light.dds" }
+      ]
+    },
+    {
+      "id": "full-medium",
+      "label": "Full Polish (Medium)",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFull_Medium.dds" }
+      ]
+    },
+    {
+      "id": "gradient",
+      "label": "Gradient",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishGradient.dds" }
+      ]
+    },
+    {
+      "id": "gradient-invert",
+      "label": "Gradient (Inverted)",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishGradient_Invert.dds" }
+      ]
+    },
+    {
+      "id": "lightning",
+      "label": "Lightning",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishLightning.dds" }
+      ]
+    },
+    {
+      "id": "marble",
+      "label": "Marble",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishMarble.dds" }
+      ]
+    },
+    {
+      "id": "marble-reduced",
+      "label": "Marble (Reduced)",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishMarble_Reduced.dds" }
+      ]
+    },
+    {
+      "id": "semi-medium",
+      "label": "Semi-Polish (Medium)",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishSemi_Medium.dds" }
+      ]
+    },
+    {
+      "id": "semi-slanted",
+      "label": "Semi-Polish (Slanted)",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishSemi_Slanted.dds" }
+      ]
+    },
+    {
+      "id": "splatters",
+      "label": "Splatters",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishSplatters.dds" }
+      ]
+    },
+    {
+      "id": "no-tip",
+      "label": "No Tip",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolish_NoTip.dds" }
+      ]
+    },
+    {
+      "id": "tip-l",
+      "label": "Tip L",
+      "layers": [
+        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolish_Tip_L.dds" }
+      ]
+    }
+  ]
+}
