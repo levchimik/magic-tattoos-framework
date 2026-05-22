@@ -8,12 +8,16 @@ Scriptname MTF_Plugin_SexLab extends MTF_Plugin
    2  cum.vaginal    — vaginal cum layers >= param
    3  cum.oral       — oral cum layers >= param
    4  cum.anal       — anal cum layers >= param
-   5  skill.vaginal  — vaginal lifetime XP >= param × 10
-   6  skill.anal     — anal lifetime XP >= param × 10
-   7  skill.oral     — oral lifetime XP >= param × 10
-   8  lewd           — lewd stat >= param × 10
-   9  pure           — pure stat >= param × 10
-   10 has.strapon    — actor has a strapon equipped (HasStrapon)
+   5  skill.vaginal  — vaginal lifetime XP >= param  (0-500, step 1)
+   6  skill.anal     — anal lifetime XP >= param     (0-500, step 1)
+   7  skill.oral     — oral lifetime XP >= param     (0-500, step 1)
+   8  purity         — signed (Pure-Lewd)*1.5 >= param  (-500..500, step 1)
+                       Negative = lewd-leaning, 0 = neutral, positive = pure-leaning.
+                       Backed by SexLab's GetPurity. Replaces v0.1.16's separate
+                       `lewd`/`pure` raw counters — both grow over time and rarely
+                       answered the "is this actor pure right now" question users
+                       expected. The signed delta does.
+   9  has.strapon    — actor has a strapon equipped (HasStrapon)
 
  Effects:
    0  cum.apply      — one-shot AddCumFx (param = type 0=vaginal/1=oral/2=anal)
@@ -77,7 +81,7 @@ EndFunction
 ; ── Conditions ────────────────────────────────────────────────────────────────
 
 int Function GetConditionCount()
-    return 11
+    return 10
 EndFunction
 
 string Function GetConditionId(int idx)
@@ -98,10 +102,8 @@ string Function GetConditionId(int idx)
     elseif idx == 7
         return "skill.oral"
     elseif idx == 8
-        return "lewd"
+        return "purity"
     elseif idx == 9
-        return "pure"
-    elseif idx == 10
         return "has.strapon"
     endif
     return ""
@@ -125,10 +127,8 @@ string Function GetConditionLabel(int idx)
     elseif idx == 7
         return "Skill — Oral"
     elseif idx == 8
-        return "Lewd"
+        return "Purity (signed)"
     elseif idx == 9
-        return "Pure"
-    elseif idx == 10
         return "Has Strapon"
     endif
     return ""
@@ -140,22 +140,35 @@ string Function GetConditionParamLabel(int idx)
     elseif idx <= 4
         return "Min layers"
     elseif idx <= 7
-        return "Min skill XP (×10)"
-    elseif idx == 8 || idx == 9
-        return "Min stat (×10)"
-    elseif idx == 10
+        return "Min skill XP"
+    elseif idx == 8
+        return "Min purity (signed)"
+    elseif idx == 9
         return ""
     endif
     return ""
 EndFunction
 
 int Function GetConditionParamMin(int idx)
+    if idx == 8
+        ; v0.1.17: purity is a signed delta — negative = lewd, positive = pure.
+        ; -500 covers extreme degenerate-leaning characters; the underlying
+        ; GetPurity = (Pure-Lewd)*1.5 can theoretically reach ±750 but values
+        ; past ±500 are vanishingly rare in normal play.
+        return -500
+    endif
     return 0
 EndFunction
 
 int Function GetConditionParamMax(int idx)
     if idx <= 4
         return 30
+    elseif idx >= 5 && idx <= 8
+        ; Skill XP (Vaginal/Anal/Oral) and Purity stat on direct 0..500 (or
+        ; -500..500 for Purity) scale, step 1. Skill XP was previously
+        ; param×10 — re-scaled per user feedback so the slider value matches
+        ; the underlying value 1:1.
+        return 500
     endif
     return 100
 EndFunction
@@ -166,11 +179,13 @@ int Function GetConditionParamDefault(int idx)
     elseif idx >= 2 && idx <= 4
         return 1
     elseif idx >= 5 && idx <= 7
-        return 5
+        ; Was 5 (×10 = 50) before the scale change. Preserve equivalent
+        ; default threshold under the new direct 1:1 scale.
+        return 50
     elseif idx == 8
-        return 5
-    elseif idx == 9
-        return 5
+        ; Purity default = 0 (neutral). User can pull negative for "is lewd"
+        ; or positive for "is pure" thresholds.
+        return 0
     endif
     return 0
 EndFunction
@@ -193,28 +208,25 @@ bool Function checkCondition(int idx, Actor target, int param)
         if SLStats == None
             return false
         endif
-        return SLStats.GetSkill(target, "Vaginal") >= (param * 10)
+        return SLStats.GetSkill(target, "Vaginal") >= (param as float)
     elseif idx == 6
         if SLStats == None
             return false
         endif
-        return SLStats.GetSkill(target, "Anal") >= (param * 10)
+        return SLStats.GetSkill(target, "Anal") >= (param as float)
     elseif idx == 7
         if SLStats == None
             return false
         endif
-        return SLStats.GetSkill(target, "Oral") >= (param * 10)
+        return SLStats.GetSkill(target, "Oral") >= (param as float)
     elseif idx == 8
         if SLStats == None
             return false
         endif
-        return SLStats.GetLewd(target) >= (param * 10)
+        ; GetPurity returns float = (Pure - Lewd) * 1.5. Negative = lewd-
+        ; leaning, 0 = neutral, positive = pure-leaning.
+        return SLStats.GetPurity(target) >= (param as float)
     elseif idx == 9
-        if SLStats == None
-            return false
-        endif
-        return SLStats.GetPure(target) >= (param * 10)
-    elseif idx == 10
         return SexLab.HasStrapon(target)
     endif
     return false

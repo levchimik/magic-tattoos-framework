@@ -349,7 +349,12 @@ function drawGeneralPage()
     AddHeaderOption("General")
     AddToggleOptionST("GEN_MOD_ACTIVE",      "Enable",                MainQuest.ModActive)
     AddSliderOptionST("GEN_UPDATE_INTERVAL", "Update interval (sec)", MainQuest.updateInterval, "{2}")
-    AddSliderOptionST("SLOT_OVERLAY_SLOT",   "Overlay slot",          MainQuest.OverlaySlot)
+    AddSliderOptionST("SLOT_OVERLAY_SLOT",   "Overlay slot (Body)",   MainQuest.OverlaySlot)
+    ; v0.1.17 Phase 2 (multi-area): per-area base slot sliders. Defaults
+    ; sit at 0 so face/hand/feet packs paint into ovl0 upward by default.
+    AddSliderOptionST("SLOT_FACE_OVERLAY_SLOT", "Overlay slot (Face)", MainQuest.FaceOverlaySlot)
+    AddSliderOptionST("SLOT_HAND_OVERLAY_SLOT", "Overlay slot (Hand)", MainQuest.HandOverlaySlot)
+    AddSliderOptionST("SLOT_FEET_OVERLAY_SLOT", "Overlay slot (Feet)", MainQuest.FeetOverlaySlot)
     AddTextOptionST("GEN_RELOAD_VISUALS", "Reload visual packs", "(" + MainQuest.GetVisualPackCount() + " loaded)")
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
 endFunction
@@ -745,7 +750,78 @@ state SLOT_OVERLAY_SLOT
         MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
-        SetInfoText("Base NiOverride overlay slot. Two consecutive slots are used: this slot (mark) and slot+1 (halo). Avoid conflicts with other overlay mods.")
+        SetInfoText("Body base NiOverride overlay slot. Two consecutive slots are used: this slot (mark) and slot+1 (halo). Avoid conflicts with other overlay mods (SlaveTats, RaceMenu overlays).")
+    endEvent
+endState
+
+; v0.1.17 Phase 2 (multi-area): per-area base slot sliders. Each defaults
+; to 0 (paint into ovl0 upward) — there's no SlaveTats-equivalent body
+; convention for face/hand/feet, so 0 is the natural floor. NiOverride's
+; iNumOverlays for non-Body pools is typically 3 (skee64.ini default), so
+; the range 0..6 covers reasonable user setups.
+state SLOT_FACE_OVERLAY_SLOT
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.FaceOverlaySlot)
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 6)
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.FaceOverlaySlot = value as int
+        SetSliderOptionValueST(value as int)
+        MainQuest.setRedraw()
+    endEvent
+    event OnDefaultST()
+        MainQuest.FaceOverlaySlot = 0
+        SetSliderOptionValueST(0)
+        MainQuest.setRedraw()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Face base NiOverride overlay slot. Only meaningful when a Condition slot picks a pack with area=Face. Avoid conflicts with vanilla warpaints / face-overlay mods.")
+    endEvent
+endState
+
+state SLOT_HAND_OVERLAY_SLOT
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.HandOverlaySlot)
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 6)
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.HandOverlaySlot = value as int
+        SetSliderOptionValueST(value as int)
+        MainQuest.setRedraw()
+    endEvent
+    event OnDefaultST()
+        MainQuest.HandOverlaySlot = 0
+        SetSliderOptionValueST(0)
+        MainQuest.setRedraw()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Hand base NiOverride overlay slot. Only meaningful when a Condition slot picks a pack with area=Hand.")
+    endEvent
+endState
+
+state SLOT_FEET_OVERLAY_SLOT
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest.FeetOverlaySlot)
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 6)
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        MainQuest.FeetOverlaySlot = value as int
+        SetSliderOptionValueST(value as int)
+        MainQuest.setRedraw()
+    endEvent
+    event OnDefaultST()
+        MainQuest.FeetOverlaySlot = 0
+        SetSliderOptionValueST(0)
+        MainQuest.setRedraw()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Feet base NiOverride overlay slot. Only meaningful when a Condition slot picks a pack with area=Feet.")
     endEvent
 endState
 

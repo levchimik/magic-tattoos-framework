@@ -18,6 +18,39 @@ namespace MTFPulse {
     // two breaks Tick's tt = now - transition_start math.
     float NowSec();
 
+    // v0.1.17 Phase 3 (multi-area): which NiOverride overlay pool this
+    // entry writes into. Used to format the node name ("<Area> [ovlN]")
+    // and as part of the entry identity so the same actor can hold a
+    // body-area entry and a face-area entry that both happen to use
+    // base_slot=0 without colliding. Stored as uint8 (cheap to compare in
+    // FindLocked; we millions-of-frames-per-session) — Papyrus passes the
+    // matching int, papyrus.cpp clamps before constructing PulseEntry.
+    enum Area : std::uint8_t {
+        kAreaBody = 0,
+        kAreaFace = 1,
+        kAreaHand = 2,
+        kAreaFeet = 3,
+    };
+
+    // Map area enum to NiOverride node-name prefix. Unknown values fall
+    // back to "Body" — same behavior as a legacy caller that doesn't pass
+    // the area parameter at all (papyrus.cpp normalises to 0).
+    //
+    // Names verified against skee64.ini section headers:
+    //   [Overlays/Body]  → "Body [Ovl#]"
+    //   [Overlays/Face]  → "Face [Ovl#]"
+    //   [Overlays/Hands] → "Hands [Ovl#]"  (PLURAL)
+    //   [Overlays/Feet]  → "Feet [Ovl#]"   (plural noun)
+    inline const char* AreaName(std::uint8_t a) noexcept
+    {
+        switch (a) {
+        case kAreaFace: return "Face";
+        case kAreaHand: return "Hands";
+        case kAreaFeet: return "Feet";
+        default:        return "Body";
+        }
+    }
+
     // One pulse subject. Snapshotted at Set(); the per-frame hot loop reads
     // these without any Papyrus/JsonUtil contact.
     struct PulseEntry
@@ -29,6 +62,7 @@ namespace MTFPulse {
         float           pause{ 0.0f };      // seconds at trough between cycles
         float           start_time{ 0.0f }; // real-time epoch
         std::int32_t    base_slot{ 2 };     // NiOverride body overlay base slot (matches Papyrus OverlaySlot)
+        std::uint8_t    area{ kAreaBody };  // v0.1.17 Phase 3 — see Area enum
         std::int32_t    layer_count{ 0 };
         bool            is_female{ false };
         std::array<float, 4> layer_base_em_mult{};  // emissive intensity ceiling per layer
@@ -166,20 +200,22 @@ namespace MTFPulse {
         static Roster& Instance();
 
         // Capacity is fixed; eviction policy is farthest-from-player.
-        // Entries are keyed by (actor_formID, base_slot) so a single actor
-        // can hold multiple stacked-preset entries simultaneously, each
-        // driving its own disjoint NiOverride slot range.
+        // Entries are keyed by (actor_formID, area, base_slot) so a single
+        // actor can hold multiple stacked-preset entries simultaneously,
+        // each driving its own disjoint NiOverride slot range, AND
+        // entries for different areas (Body/Face/Hand/Feet) coexist even
+        // when their base_slots happen to collide.
         static constexpr std::size_t kCapacity = 128;
 
         void SetEnabled(bool on);
         bool IsEnabled() const { return enabled_.load(std::memory_order_relaxed); }
 
-        // Add or refresh. Identity = (actor formID, entry.base_slot).
+        // Add or refresh. Identity = (actor formID, entry.area, entry.base_slot).
         // Returns true if the entry is now in the roster.
         bool Set(RE::Actor* actor, const PulseEntry& entry);
 
-        // Remove ONE entry by (actor, base_slot). Returns true if removed.
-        bool ClearAt(RE::Actor* actor, std::int32_t base_slot);
+        // Remove ONE entry by (actor, area, base_slot). Returns true if removed.
+        bool ClearAt(RE::Actor* actor, std::uint8_t area, std::int32_t base_slot);
 
         // Remove EVERY entry for an actor (e.g. on death / unload).
         // Returns the count of entries removed.
@@ -192,21 +228,22 @@ namespace MTFPulse {
         // entry exists at (actor, base_slot) — caller must ensure a steady
         // roster entry has been registered first (via SetActorPulse or
         // SetActorPulseWithTransition with rate=0 / depth=0).
-        bool SetFlashParams(RE::Actor* actor, std::int32_t base_slot,
+        bool SetFlashParams(RE::Actor* actor, std::uint8_t area,
+                            std::int32_t base_slot,
                             float peak_emissive, float ramp_ms,
                             float decay_ms, float retrigger_ms,
                             std::unordered_set<std::string> tags);
 
-        // Empty the flash tag set on (actor, base_slot). Tick will let any
-        // in-flight intensity decay naturally on the next frames.
-        bool ClearFlash(RE::Actor* actor, std::int32_t base_slot);
+        // Empty the flash tag set on (actor, area, base_slot). Tick will let
+        // any in-flight intensity decay naturally on the next frames.
+        bool ClearFlash(RE::Actor* actor, std::uint8_t area, std::int32_t base_slot);
 
-        // Stamp the flash trigger time on (actor, base_slot) if the
+        // Stamp the flash trigger time on (actor, area, base_slot) if the
         // incoming `tag` matches the entry's tag set (either exact match
         // or via the "*" wildcard). No-op if no entry or no flash
         // configured. Returns true if the trigger was accepted.
-        bool TriggerFlash(RE::Actor* actor, std::int32_t base_slot,
-                          std::string_view tag);
+        bool TriggerFlash(RE::Actor* actor, std::uint8_t area,
+                          std::int32_t base_slot, std::string_view tag);
 
         // Convenience: trigger flash on EVERY entry whose actor_formID
         // matches `actor`. Used by the global TESHitEvent sink so a
@@ -222,17 +259,18 @@ namespace MTFPulse {
         // an existing steady roster entry — caller must have run a prior
         // SetActorPulse(WithTransition) so the slot exists.
         // mode: 0=overlay, 1=emissive, 2=inverted. durationMs >= 1.
-        bool SetFadeParams(RE::Actor* actor, std::int32_t base_slot,
+        bool SetFadeParams(RE::Actor* actor, std::uint8_t area,
+                           std::int32_t base_slot,
                            std::int32_t mode, float duration_ms);
 
-        // Disarm fade on (actor, base_slot). If an animation is in
+        // Disarm fade on (actor, area, base_slot). If an animation is in
         // flight it's cancelled in place — last interp values stick.
-        bool ClearFade(RE::Actor* actor, std::int32_t base_slot);
+        bool ClearFade(RE::Actor* actor, std::uint8_t area, std::int32_t base_slot);
 
-        // Manual one-shot fire of armed fade on a single (actor, base_slot).
+        // Manual one-shot fire of armed fade on (actor, area, base_slot).
         // Returns true if a fade was started. No-op if no entry, not
         // armed, or already active.
-        bool TriggerFade(RE::Actor* actor, std::int32_t base_slot);
+        bool TriggerFade(RE::Actor* actor, std::uint8_t area, std::int32_t base_slot);
 
         // Death-sink entry point: fire armed fade on EVERY entry whose
         // actor_formID matches `actor`. Returns count of fades started.
@@ -285,8 +323,9 @@ namespace MTFPulse {
         bool                                            in_batch_{ false };
         std::vector<std::pair<RE::Actor*, PulseEntry>>  pending_batch_;
 
-        // Find by (FormID, base_slot). -1 if not present. mtx_ held.
-        std::int32_t FindLocked(std::uint32_t formID, std::int32_t base_slot) const;
+        // Find by (FormID, area, base_slot). -1 if not present. mtx_ held.
+        std::int32_t FindLocked(std::uint32_t formID, std::uint8_t area,
+                                std::int32_t base_slot) const;
         void         RemoveAtLocked(std::size_t slot);
         void         EvictFarthestLocked(RE::TESObjectREFR* anchor);
 

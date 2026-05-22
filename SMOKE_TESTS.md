@@ -75,11 +75,57 @@ at least one SLAL anim pack installed).
 
 Requires OStim Standalone (not classic OStim).
 
+Excitement-family conditions are scene-gated in `MTF_Plugin_OStim.checkCondition`
+(return false outside `IsInOStim`), and effects are scene-gated in `onActivate`
+— OStim's own API already no-ops outside scenes, so no explicit `+ in.scene`
+conjunction is needed inside the preset's slot conditions.
+
 | Preset | What it exercises | How to trigger | Expected evidence |
 |---|---|---|---|
-| **Test_OStim_InScene** | `in.scene` condition | Start an OStim scene | Tier→1 while OActor.IsInOStim returns true. |
-| **Test_OStim_Excitement** | `excitement >= 30` condition + `set.excitement` effect | Load preset, then ModifyExcitement via OStim API or naturally raise via scene | Tier→1 at threshold; effect re-sets to preset value. |
-| **Test_OStim_TriggerClimax** | `trigger.climax` one-shot (bypass stall) | Load preset during an OStim scene | OActor.Climax fires; participants finish. |
+| **Test_OStim** | Excitement-ladder state machine. Slot 1 `times.climaxed>=2` → `sound.play` (highest priority — overrides everything post-2nd-climax). Slot 2 `excitement>=60` → `trigger.climax`. Slot 3 `excitement>=30` → `excitement.set 50`. Slot 4 `excitement>=10` → `excitement.mult.set 3`. | Start an OStim scene. Watch excitement rise: tier→4 at 10 (mult kicks in, excitement starts climbing 3×), tier→3 at 30 (jumps to 50), tier→2 at 60 (climax fires). After 2nd climax (typically manual via OStim UI since excitement doesn't reset post-climax), tier→1 (sfx). | NotificationLog: rapid tier sequence 4→3→2 as excitement climbs; tier stays at 2 post-climax since OStim doesn't reset excitement. Trigger a 2nd climax manually → tier→1 sfx plays. |
+
+### D2. Multi-area overlays (Phase 1-3)
+
+Requires content packs enabled in the modlist:
+- `MTF Content - Community Overlays 1 Face` — `mtf.community-overlays-1-face` (`"area": "Face"`)
+- `MTF Content - Bardle Nail Polish` — `mtf.bardle-nail-polish` (`"area": "Hand"`)
+
+Tests the v0.1.17 work that lets MTF paint into NiOverride's Face / Hand /
+Feet pools alongside Body.
+
+**Feet area content note:** No dedicated feet-overlay packs were
+identified in the local mod survey. The Feet routing exercises the *same
+code paths* as Hand (`PulseEntry.area`, `AreaName()`, `_areaIndex()`,
+`Feet [ovlN]` node format) — passing Hand tests is strong evidence Feet
+routing also works. When a Feet-area content pack lands, drop it in via
+the same recipe (`plans/tattoo_packs.md`) and copy `Test_MultiArea_HandApply`
+to `Test_MultiArea_FeetApply` with the new packid/entryid.
+
+The presets test the player MCM-base path (load preset → it becomes the
+active base; tier evaluation drives the face overlay). The Apply Tattoo
+spell path is exercised by **picking any of these presets and casting Apply
+Tattoo on self** — should land "applied" and paint the face entry above
+the MCM-base body presets.
+
+| Preset | What it exercises | How to trigger | Expected evidence |
+|---|---|---|---|
+| **Test_MultiArea_FaceApply** | Phase 1 apply path: face pack → `Face [ovlN]` nodes (not Body). MCM Face overlay-slot slider (default 0) determines the base. | Load preset, wait ≥3s. | Face overlay 01 paints onto the head (e.g. swirl on forehead/cheeks). Body untouched. NotificationLog: tier→0 entry. |
+| **Test_MultiArea_HandApply** | Phase 1 apply path: hand pack → `Hand [ovlN]` nodes. Same code path as Face but separate area. Strong proxy for Feet routing (identical code paths). | Load preset, wait ≥3s, look at character's hands/nails. | Bardle "Full Dark" nail polish paints on the fingernails. Body and face untouched. NotificationLog: tier→0 entry. |
+| **Test_MultiArea_FaceTier** | Phase 2 player draw path: face area participates in tier evaluation. `mtf.base:stamina.below` param=99 swaps face 01 → face 20 when stamina drops under 99%. | Load preset, sprint a few seconds (or `player.damageav stamina 30`). | Tier→0 at stamina>=99% (face 01), tier→1 at stamina<99% (face 20). Wait for stamina to fully regen → tier→0 again. Body untouched throughout. |
+| **Test_MultiArea_FacePulse** | Phase 3 C++ pulse: AreaName(e.area) routes to `Face [ovlN]`, not `Body [ovlN]`. 2-layer face entry "07" with orange glow on layer 1 (emissivemult=2.0), pulse 1Hz / 80% depth. | Load preset. | Face overlay 07's secondary layer glows orange and pulses at 1 Hz. Body untouched. Save+reload → pulse resumes via post-load redraw. |
+| **Test_MultiArea_FaceBody** | Area-filter correctness: body pack in slot 0, face pack on stamina<99% in slot 1. Verifies cross-area texture pollution doesn't happen. | Load preset, sprint to drop stamina under 99%, then wait for regen. | At stamina>=99% (tier=0): body LewdMarks 001 paints; face area clears (no face pack at tier 0). At stamina<99% (tier=1): face 07 paints; body area clears. Critical: face texture must NEVER appear on the body nodes, and body texture must NEVER appear on the face nodes — that's the area-filter regression test. |
+
+**Known limitation (deferred work):** Tier is shared across areas in the
+player MCM-base path. `_drawOverlayForActorAt` correctly clears the area
+whose pack doesn't match the tier's resolved pack (no cross-area texture
+pollution), but the consequence is that body and face can't both be
+"active" simultaneously through MCM conditions — a tier=1 face entry
+clears the body. To get body and face *simultaneously* visible, apply
+two separate presets via the Apply Tattoo spell (one body-only, one
+face-only). The Apply path's stacked presets keep their own per-(preset,
+area) tier state, so a body preset at its tier 0 + a face preset at its
+tier 0 (or any tier) coexist independently. Per-area condition eval on a
+single MCM-base preset is a future enhancement.
 
 ### E. BFNG — Beeing Female NG
 

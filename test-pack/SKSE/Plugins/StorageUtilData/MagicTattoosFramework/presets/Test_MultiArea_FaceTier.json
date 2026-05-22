@@ -1,5 +1,5 @@
 {
-	"displayname" : "Test: OStim Trigger Climax (one-shot, bypass stall)",
+	"displayname" : "Test: Multi-area — Face tier (Stamina < 99%)",
 	"int" :
 	{
 		"valid" : 0
@@ -12,15 +12,33 @@
 	"slot" :
 	[
 		{
-			"cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" },
+			"cond" :
+			{
+				"entryid" : "01",
+				"packid" : "mtf.community-overlays-1-face",
+				"param" : 0,
+				"pluginid" : ""
+			},
 			"cooldown" : { "min" : 0, "mode" : 0 },
-			"effect" :
+			"layer" :
 			[
-				{ "key" : "mtf.ostim:trigger.climax", "param" : 0, "param2" : 1 },
-				{ "key" : "mtf.base:sound.play", "param" : 30, "param2" : 5, "extras" : { "volume" : 100 } }
+				{ "tint" : "#FFFFFF", "emissive" : "#FFFFFF", "emissivemult" : 0.0, "alpha" : 100 }
 			]
 		},
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{
+			"cond" :
+			{
+				"entryid" : "20",
+				"packid" : "mtf.community-overlays-1-face",
+				"param" : 99,
+				"pluginid" : "mtf.base:stamina.below"
+			},
+			"cooldown" : { "min" : 0, "mode" : 0 },
+			"layer" :
+			[
+				{ "tint" : "#FFFFFF", "emissive" : "#FFFFFF", "emissivemult" : 0.0, "alpha" : 100 }
+			]
+		},
 		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
 		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
 		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },

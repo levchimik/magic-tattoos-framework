@@ -1,5 +1,5 @@
 {
-	"displayname" : "Test: OStim Excitement >=30 + Set",
+	"displayname" : "Test: Multi-area — Body + Face independence",
 	"int" :
 	{
 		"valid" : 0
@@ -12,29 +12,33 @@
 	"slot" :
 	[
 		{
-			"cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" },
+			"cond" :
+			{
+				"entryid" : "001",
+				"packid" : "mtf.lewdmarks-racemenu",
+				"param" : 0,
+				"pluginid" : ""
+			},
 			"cooldown" : { "min" : 0, "mode" : 0 },
-			"effect" :
+			"layer" :
 			[
-				{ "key" : "mtf.ostim:excitement.set", "param" : 50, "param2" : 0 }
+				{ "tint" : "#FFFFFF", "emissive" : "#FFFFFF", "emissivemult" : 0.0, "alpha" : 100 },
+				{ "tint" : "#FFFFFF", "emissive" : "#FFFFFF", "emissivemult" : 0.0, "alpha" : 100 }
 			]
 		},
 		{
 			"cond" :
 			{
-				"entryid" : "",
-				"packid" : "",
-				"param" : 30,
-				"pluginid" : "mtf.ostim:excitement"
+				"entryid" : "07",
+				"packid" : "mtf.community-overlays-1-face",
+				"param" : 99,
+				"pluginid" : "mtf.base:stamina.below"
 			},
-			"cooldown" :
-			{
-				"min" : 0,
-				"mode" : 0
-			},
-			"effect" :
+			"cooldown" : { "min" : 0, "mode" : 0 },
+			"layer" :
 			[
-				{ "key" : "mtf.base:sound.play", "param" : 19, "param2" : 5, "extras" : { "volume" : 100 } }
+				{ "tint" : "#FFFFFF", "emissive" : "#FFFFFF", "emissivemult" : 0.0, "alpha" : 100 },
+				{ "tint" : "#FFFFFF", "emissive" : "#FFFFFF", "emissivemult" : 0.0, "alpha" : 100 }
 			]
 		},
 		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },

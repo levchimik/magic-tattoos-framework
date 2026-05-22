@@ -136,8 +136,9 @@ Event OnPlayerLoadGame()
     if host != None
         Actor p = Game.GetPlayer()
         if p != None
-            MTFPulse.ClearActorFade(p, host.OverlaySlot)
-            MTFPulse.ClearActorAt(p, host.OverlaySlot)
+            ; v0.1.17 Phase 3 (multi-area): player MCM-base roster is body-only.
+            MTFPulse.ClearActorFade(p, host.OverlaySlot, 0)
+            MTFPulse.ClearActorAt(p, host.OverlaySlot, 0)
         endif
         host.setRedraw()
     endif

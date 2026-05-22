@@ -1,5 +1,5 @@
 {
-	"displayname" : "Test: OStim In Scene",
+	"displayname" : "Test: Multi-area — Face pulse (2-layer w/ glow)",
 	"int" :
 	{
 		"valid" : 0
@@ -11,25 +11,26 @@
 	},
 	"slot" :
 	[
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
 		{
 			"cond" :
 			{
-				"entryid" : "",
-				"packid" : "",
+				"entryid" : "01",
+				"packid" : "mtf.community-overlays-1-face",
 				"param" : 0,
-				"pluginid" : "mtf.ostim:in.scene"
+				"pluginid" : ""
 			},
-			"cooldown" :
+			"cooldown" : { "min" : 0, "mode" : 0 },
+			"pulse" :
 			{
-				"min" : 0,
-				"mode" : 0
+				"rate" : 1.0,
+				"depth" : 80
 			},
-			"effect" :
+			"layer" :
 			[
-				{ "key" : "mtf.base:sound.play", "param" : 27, "param2" : 5, "extras" : { "volume" : 100 } }
+				{ "tint" : "#FFFFFF", "emissive" : "#FF8040", "emissivemult" : 2.5, "alpha" : 100 }
 			]
 		},
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
 		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
 		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
 		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },

@@ -8,6 +8,17 @@ bool Property ModActive = false Auto
 bool Property DebugMode = false Auto
 int Property OverlaySlot = 2 Auto
 int Property CurrentOverlaySlot = 2 Auto
+; v0.1.17 Phase 2 (multi-area): per-area MCM base slot. Default = 0 so face
+; tattoos paint into "Face [ovl0]" and stack upward; users can shift via
+; MCM if other mods (SlaveTats, RaceMenu overlays) sit at the bottom face
+; slots. Current<Area>OverlaySlot mirrors the MCM-driven base so the slow
+; tick can detect MCM edits and wipe+redraw the affected area.
+int Property FaceOverlaySlot = 0 Auto
+int Property HandOverlaySlot = 0 Auto
+int Property FeetOverlaySlot = 0 Auto
+int Property CurrentFaceOverlaySlot = 0 Auto
+int Property CurrentHandOverlaySlot = 0 Auto
+int Property CurrentFeetOverlaySlot = 0 Auto
 float Property updateInterval = 0.1 Auto
 
 ; ── Visual pack catalog cache ───────────────────────────────────────────────
@@ -18,6 +29,12 @@ float Property updateInterval = 0.1 Auto
 string[] Property visualPackIds Auto Hidden
 string[] Property visualPackLabels Auto Hidden
 string[] Property visualPackFiles Auto Hidden   ; JsonUtil path: "MagicTattoosFramework/visuals/<basename>"
+; v0.1.17 Phase 1 (multi-area): each pack declares an "area" field in its
+; catalog JSON ("Body" | "Face" | "Hand" | "Feet"). Default "Body" for
+; legacy packs that omit it. One area per pack — mixed-area packs require
+; entry-level metadata (deferred). Populated alongside Ids/Labels/Files in
+; ForceReloadVisualCatalogs and consumed via GetPackArea(packId).
+string[] Property visualPackAreas Auto Hidden
 int Property visualPackCount = 0 Auto Hidden
 bool _visualsLoaded = false
 
@@ -133,13 +150,31 @@ int Function _layerIdx(int slot, int layer)
 EndFunction
 
 ; ── Multi-tattoo: overlay area helpers ──────────────────────────────────────
-; v1 supports "Body" only. The stub queries are issued through area-keyed
-; helpers so adding Face/Hand/Feet later is a const-list extension, not a
-; rewrite. NiOverride.GetNum<Area>Overlays returns the iNumOverlays setting
-; from skee64.ini; 0 (DLL missing) falls back to a sane default.
+; v0.1.17 Phase 1 (multi-area): all 4 NiOverride overlay pools are exposed.
+; The area-keyed helpers (_numOverlays, _findFirstFreeOverlaySlotNPC,
+; _drawOverlayForActorAt, _apply/_clearOverlayDeferred) already accept area
+; and format node names as `area + " [ovl" + N + "]"`. Callers that walk
+; this list (AddAppliedPreset, _drawPresetOnActor, _compactAppliedPresets)
+; will now iterate over all four areas automatically.
+;
+; Pack-level area: a visual pack declares its area via `.area` in its JSON
+; catalog (see GetPackArea / GetVisualPackAreaAt). Slots whose picked pack's
+; area doesn't match the iteration's area contribute 0 layers — the
+; _computePresetReservedLayers / _playerBaseLayers filter handles this.
+;
+; NiOverride node-name convention (verified against skee64.ini section
+; headers in v0.1.17): "Body [Ovl#]", "Face [Ovl#]", "Hands [Ovl#]"
+; (PLURAL), "Feet [Ovl#]" (plural). SKEE node lookup appears to be
+; case-insensitive in the bracket part — `Body [ovlN]` matches even though
+; the canonical form is `Body [OvlN]` — but the area prefix MUST match the
+; canonical name. Initial Phase 1 plan assumed "Hand" singular and was
+; wrong; "Hands" plural is correct.
 string[] Function _OVERLAY_PARTS() global
-    string[] r = new string[1]
+    string[] r = new string[4]
     r[0] = "Body"
+    r[1] = "Face"
+    r[2] = "Hands"
+    r[3] = "Feet"
     return r
 EndFunction
 
@@ -167,7 +202,7 @@ int Function _numOverlays(string area)
             _numOvFaceCache = n
         endif
         return _numOvFaceCache
-    elseif area == "Hand"
+    elseif area == "Hands"
         if _numOvHandCache < 0
             int n = NiOverride.GetNumHandOverlays()
             if n < 1
@@ -534,6 +569,7 @@ Function ForceReloadVisualCatalogs()
     visualPackIds    = new string[32]
     visualPackLabels = new string[32]
     visualPackFiles  = new string[32]
+    visualPackAreas  = new string[32]
     visualPackCount  = 0
 
     int rawCount = 0
@@ -564,11 +600,18 @@ Function ForceReloadVisualCatalogs()
                 pid = JsonUtil.GetPathStringValue(useFile, ".packId", "")
             endif
             string label = JsonUtil.GetPathStringValue(useFile, ".label", pid)
-            Trace("[MTF_Main] visual probe raw='" + raw + "' useFile='" + useFile + "' packId='" + pid + "'")
+            ; v0.1.17 Phase 1 (multi-area): read .area; default to "Body" for
+            ; legacy packs. Single area per pack (pack-level granularity).
+            string area = JsonUtil.GetPathStringValue(useFile, ".area", "Body")
+            if area == ""
+                area = "Body"
+            endif
+            Trace("[MTF_Main] visual probe raw='" + raw + "' useFile='" + useFile + "' packId='" + pid + "' area='" + area + "'")
             if pid != "" && _findPackFileIdx(useFile) < 0
                 visualPackIds[visualPackCount]    = pid
                 visualPackLabels[visualPackCount] = label
                 visualPackFiles[visualPackCount]  = useFile
+                visualPackAreas[visualPackCount]  = area
                 visualPackCount += 1
             endif
             i += 1
@@ -593,11 +636,16 @@ Function ForceReloadVisualCatalogs()
                 endif
             endif
             klabel = JsonUtil.GetPathStringValue(kf, ".label", kpid)
-            Trace("[MTF_Main] direct hit '" + kf + "' packId='" + kpid + "'")
+            string karea = JsonUtil.GetPathStringValue(kf, ".area", "Body")
+            if karea == ""
+                karea = "Body"
+            endif
+            Trace("[MTF_Main] direct hit '" + kf + "' packId='" + kpid + "' area='" + karea + "'")
             if kpid != ""
                 visualPackIds[visualPackCount]    = kpid
                 visualPackLabels[visualPackCount] = klabel
                 visualPackFiles[visualPackCount]  = kf
+                visualPackAreas[visualPackCount]  = karea
                 visualPackCount += 1
                 directHits += 1
             endif
@@ -647,6 +695,44 @@ string Function GetVisualPackLabelAt(int i)
         return ""
     endif
     return visualPackLabels[i]
+EndFunction
+
+string Function GetVisualPackAreaAt(int i)
+{v0.1.17 Phase 1 (multi-area): which NiOverride overlay pool this pack
+ paints into ("Body" | "Face" | "Hand" | "Feet"). Default "Body" for
+ legacy packs that pre-date the .area JSON field.}
+    LoadVisualCatalogs()
+    if i < 0 || i >= visualPackCount
+        return "Body"
+    endif
+    string a = visualPackAreas[i]
+    if a == ""
+        return "Body"
+    endif
+    return a
+EndFunction
+
+string Function GetPackArea(string packId)
+{Convenience: look up area by packId. Returns "Body" for unknown / empty.
+ Hot enough (called from _computePresetReservedLayers and _playerBaseLayers
+ over slots 0..7) to bother with a tight loop instead of FindVisualPackIndex
+ → GetVisualPackAreaAt double-bounce.}
+    if packId == ""
+        return "Body"
+    endif
+    LoadVisualCatalogs()
+    int i = 0
+    while i < visualPackCount
+        if visualPackIds[i] == packId
+            string a = visualPackAreas[i]
+            if a == ""
+                return "Body"
+            endif
+            return a
+        endif
+        i += 1
+    endwhile
+    return "Body"
 EndFunction
 
 int Function FindVisualPackIndex(string packId)
@@ -993,6 +1079,21 @@ int Function _getDispatchBaseSlot()
     return v
 EndFunction
 
+; v0.1.17 Phase 3 (multi-area): companion to _setDispatchBaseSlot — stores
+; the area integer (0=Body, 1=Face, 2=Hand, 3=Feet) for the currently-firing
+; preset. Effects that push C++ roster params (flash.onhit, ondeath.fade)
+; read this so they target the same roster entry _drawPresetOnActor wrote.
+Function _setDispatchArea(int areaIdx)
+    StorageUtil.SetIntValue(self, "mtf.dispatch.area", areaIdx)
+EndFunction
+
+int Function _getDispatchArea()
+{Returns 0..3; defaults to 0 (Body) when unset. Mirrors _getDispatchBaseSlot's
+ fallback so the player single-preset legacy path lands on the body roster
+ entry without needing per-call setup.}
+    return StorageUtil.GetIntValue(self, "mtf.dispatch.area", 0)
+EndFunction
+
 ; Scratch dispatch flag — when 1, GetSlotEffectExtra reads from the
 ; "mtf.scratch.fx.*" key family (populated by _loadPresetToScratch) instead
 ; of the player's "mtf.fx.*" persistent storage. Set by the ForActor
@@ -1248,7 +1349,9 @@ Function _applyPulse()
  If the MTFPulse plugin isn't loaded, the natives log a Papyrus warning
  once and the visual is just "no pulse" — graceful degradation.}
     if PlayerRef != None && PlayerRef.IsDead()
-        MTFPulse.ClearActorAt(PlayerRef, OverlaySlot)
+        ; v0.1.17 Phase 3 (multi-area): player MCM-base pulse cache is
+        ; body-only — pass area=0 (kAreaBody).
+        MTFPulse.ClearActorAt(PlayerRef, OverlaySlot, 0)
         _pulseTier = -1
         return
     endif
@@ -1256,7 +1359,7 @@ Function _applyPulse()
         ; Drop just the base-layer pulse entry. Stacked presets sit at
         ; their own base_slots and must keep pulsing — only kill ours
         ; (the MCM-driven OverlaySlot one).
-        MTFPulse.ClearActorAt(PlayerRef, OverlaySlot)
+        MTFPulse.ClearActorAt(PlayerRef, OverlaySlot, 0)
         return
     endif
 
@@ -1276,18 +1379,22 @@ Function _applyPulse()
     endwhile
 
     Float[] lut = _waveformLUTForTier(_pulseTier, false)
+    ; v0.1.17 Phase 3 (multi-area): player MCM-base pulse is body-only —
+    ; pass area=0 (kAreaBody). Face/Hand/Feet MCM-base packs apply
+    ; statically (no pulse on the MCM-driven base path; stacked-preset
+    ; pulse goes through _rosterAddOrUpdate which is multi-area aware).
     MTFPulse.SetActorPulse(PlayerRef, rate, depthPct, pause, \
                            _pulseLayerN, _pulseStartRT, emMults, \
-                           OverlaySlot, _pulseIsFemale, lut)
+                           OverlaySlot, _pulseIsFemale, lut, 0)
 
     ; v0.1.4 per-preset fade: re-arm or clear after the roster entry is
     ; up. Idempotent on the C++ side — re-issuing the same params each
     ; tick is a no-op for an already-armed entry; an in-flight fade
     ; (fade_active=true) isn't disturbed by SetActorFade either.
     if _sFadeOnDeathEnabled
-        MTFPulse.SetActorFade(PlayerRef, OverlaySlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs)
+        MTFPulse.SetActorFade(PlayerRef, OverlaySlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs, 0)
     else
-        MTFPulse.ClearActorFade(PlayerRef, OverlaySlot)
+        MTFPulse.ClearActorFade(PlayerRef, OverlaySlot, 0)
     endif
 EndFunction
 
@@ -1328,7 +1435,8 @@ Function DispatchFlashHit(string tag)
     if PlayerRef == None || tag == ""
         return
     endif
-    MTFPulse.TriggerActorFlash(PlayerRef, OverlaySlot, tag)
+    ; v0.1.17 Phase 3 (multi-area): player MCM-base flash is body-only.
+    MTFPulse.TriggerActorFlash(PlayerRef, OverlaySlot, tag, 0)
 EndFunction
 
 int Function GetHitCount(int classIdx)
@@ -2944,7 +3052,13 @@ State checkingAroused
             return
         endif
 
-        if CurrentOverlaySlot != OverlaySlot
+        ; v0.1.17 Phase 2 (multi-area): detect per-area MCM base slider edits.
+        ; Any of the four sliders moving triggers a full wipe + redraw so the
+        ; old slot range is cleared before the new one is painted.
+        if CurrentOverlaySlot != OverlaySlot \
+                || CurrentFaceOverlaySlot != FaceOverlaySlot \
+                || CurrentHandOverlaySlot != HandOverlaySlot \
+                || CurrentFeetOverlaySlot != FeetOverlaySlot
             removeOverlay(PlayerRef)
         endif
 
@@ -3037,13 +3151,31 @@ State checkingAroused
             ; _playerBaseLayers, re-pack the whole stack. Triggers naturally
             ; on OverlaySlot edits and pack/entry edits that change the
             ; max layer count of the player's cond config.
+            ;
+            ; v0.1.17 Phase 1 (multi-area) bug fix: walk presets to find the
+            ; first one with a BODY reservation (base >= 0). Face/Hand/Feet-
+            ; only presets store -1 as their Body base by default, and a
+            ; naive `firstBase != expectedFirstBase` check against -1 would
+            ; trip the compaction every tick → re-stamp → ApplyNodeOverrides
+            ; flash every 2s. The drift detector is body-floor-specific, so
+            ; only presets that actually own a body floor are relevant.
             int playerPresetN = GetActorPresetCount(PlayerRef)
             if playerPresetN > 0
                 int expectedFirstBase = OverlaySlot + _playerBaseLayers("Body")
-                string firstPP = GetActorPresetAt(PlayerRef, 0)
-                if firstPP != "" && _getActorPresetBase(PlayerRef, firstPP, "Body") != expectedFirstBase
-                    _compactAppliedPresets(PlayerRef)
-                endif
+                int driftIdx = 0
+                while driftIdx < playerPresetN
+                    string driftPP = GetActorPresetAt(PlayerRef, driftIdx)
+                    if driftPP != ""
+                        int driftBase = _getActorPresetBase(PlayerRef, driftPP, "Body")
+                        if driftBase >= 0
+                            if driftBase != expectedFirstBase
+                                _compactAppliedPresets(PlayerRef)
+                            endif
+                            driftIdx = playerPresetN  ; break — only check first body-using preset
+                        endif
+                    endif
+                    driftIdx += 1
+                endwhile
             endif
             ; Batch every roster update across the stacked-preset loop so
             ; the C++ side queues incoming SetActorPulse* calls and
@@ -3161,13 +3293,17 @@ EndState
 ; Trailing slots that the previous entry used but the new one doesn't are
 ; cleared so leftover textures don't bleed through after a tier change.
 
-int Function _maxLayerSlots()
-    ; Player MCM-base reachable slot count from OverlaySlot upward, clamped
-    ; to NiOverride's iNumOverlays. Used by the player legacy draw path and
-    ; pulse cache; stacked presets use their stored per-(preset, area)
-    ; reservation instead.
-    int total = _numOverlays("Body")
-    int rem = total - OverlaySlot
+int Function _maxLayerSlots(string area = "Body")
+    ; Player MCM-base reachable slot count from <Area>OverlaySlot upward,
+    ; clamped to NiOverride's iNumOverlays. Used by the player legacy draw
+    ; path and pulse cache; stacked presets use their stored per-
+    ; (preset, area) reservation instead.
+    ;
+    ; v0.1.17 Phase 2 (multi-area): default param keeps existing call sites
+    ; (pulse cache, etc.) body-only; removeOverlay loops _OVERLAY_PARTS() and
+    ; passes area explicitly to clear each area's MCM-base range.
+    int total = _numOverlays(area)
+    int rem = total - _areaBaseSlot(area)
     if rem < 1
         rem = 1
     endif
@@ -3177,21 +3313,74 @@ int Function _maxLayerSlots()
     return rem
 EndFunction
 
+int Function _areaBaseSlot(string area)
+{v0.1.17 Phase 2 (multi-area): MCM-driven base slot for the player, per
+ area. Used by AddAppliedPreset (player floor), _compactAppliedPresets,
+ _playerBaseLayers, drawOverlayForActor, and removeOverlay so the area-
+ specific MCM slider value is the single source of truth.}
+    if area == "Body"
+        return OverlaySlot
+    elseif area == "Face"
+        return FaceOverlaySlot
+    elseif area == "Hands"
+        return HandOverlaySlot
+    elseif area == "Feet"
+        return FeetOverlaySlot
+    endif
+    return 0
+EndFunction
+
+int Function _areaCurrentBaseSlot(string area)
+{Companion of _areaBaseSlot but reads the Current<Area>OverlaySlot mirror
+ — the value the slow tick wrote during the last successful redraw. Used
+ by removeOverlay so we clear the slots we actually painted, not the
+ slots the MCM was edited to AFTER the paint.}
+    if area == "Body"
+        return CurrentOverlaySlot
+    elseif area == "Face"
+        return CurrentFaceOverlaySlot
+    elseif area == "Hands"
+        return CurrentHandOverlaySlot
+    elseif area == "Feet"
+        return CurrentFeetOverlaySlot
+    endif
+    return 0
+EndFunction
+
+Function _setAreaCurrentBaseSlot(string area, int value)
+{Mirror writer for Current<Area>OverlaySlot. Called by drawOverlayForActor
+ after a successful per-area paint.}
+    if area == "Body"
+        CurrentOverlaySlot = value
+    elseif area == "Face"
+        CurrentFaceOverlaySlot = value
+    elseif area == "Hands"
+        CurrentHandOverlaySlot = value
+    elseif area == "Feet"
+        CurrentFeetOverlaySlot = value
+    endif
+EndFunction
+
 int Function _playerBaseLayers(string area)
 {Player MCM base reservation per area. Max over cond slots 0..7 of the
  chosen entry's layer count, capped at MAX_LAYERS_PER_SLOT and at what
  remains beyond OverlaySlot. Stacked presets on the player start at
- OverlaySlot + _playerBaseLayers(area).}
-    if area != "Body"
-        return 0
-    endif
+ OverlaySlot + _playerBaseLayers(area).
+
+ v0.1.17 Phase 1 (multi-area): only slots whose picked pack's declared
+ area matches `area` contribute. Phase 1 keeps the player MCM-base path
+ body-only at draw time (drawOverlayForActor still passes area="Body"),
+ so the non-Body branches here always return 0 for now — but Phase 2's
+ expanded draw path will reuse this directly. The early-return guard
+ isn't needed: a body-only preset returns 0 for Face/Hand/Feet naturally
+ because no slot picks a non-Body pack.}
     int maxL = 0
     int maxLayers = MAX_LAYERS_PER_SLOT()
     int s = 0
     while s < 8
         string packId  = ResolveSlotPackId(s)
         string entryId = ResolveSlotEntryId(s)
-        if packId != "" && packId != "<none>" && entryId != ""
+        if packId != "" && packId != "<none>" && entryId != "" && GetPackArea(packId) == area
             int L = GetEntryLayerCount(packId, entryId)
             if L > maxL
                 maxL = L
@@ -3202,7 +3391,9 @@ int Function _playerBaseLayers(string area)
     if maxL > maxLayers
         maxL = maxLayers
     endif
-    int rem = _numOverlays(area) - OverlaySlot
+    ; v0.1.17 Phase 2 (multi-area): per-area MCM base slot via helper.
+    int areaBase = _areaBaseSlot(area)
+    int rem = _numOverlays(area) - areaBase
     if rem < 0
         rem = 0
     endif
@@ -3216,17 +3407,20 @@ int Function _computePresetReservedLayers(string area, bool useScratch)
 {Reserved slot count for a preset (player cond* arrays or scratch). Same
  algorithm as _playerBaseLayers but reads from the generalized accessors
  so the same code works for NPC scratch and player cond* arrays. Caller
- is responsible for further capping to remaining free slots.}
-    if area != "Body"
-        return 0
-    endif
+ is responsible for further capping to remaining free slots.
+
+ v0.1.17 Phase 1 (multi-area): only slots whose picked pack's declared
+ area matches `area` contribute. A preset mixing body and face packs
+ across its 8 slots produces independent reservations for each area;
+ unused areas return 0 and AddAppliedPreset's per-area branch leaves
+ their `bases[]` at -1 (sentinel = "no reservation for this area").}
     int maxL = 0
     int maxLayers = MAX_LAYERS_PER_SLOT()
     int s = 0
     while s < 8
         string packId  = _g_resolvePackId(s, useScratch)
         string entryId = _g_resolveEntryId(s, useScratch)
-        if packId != "" && packId != "<none>" && entryId != ""
+        if packId != "" && packId != "<none>" && entryId != "" && GetPackArea(packId) == area
             int L = GetEntryLayerCount(packId, entryId)
             if L > maxL
                 maxL = L
@@ -3251,30 +3445,39 @@ endFunction
 
 function drawOverlayForActor(actor akTarget, int idx, bool useScratch, bool deferApply = false)
 {Legacy entry — used only by the player MCM-driven base layer path. Stamps
- at OverlaySlot upward with reservation sized to the player's cond config
- (_playerBaseLayers). NPC presets and player stacked presets go through
- _drawOverlayForActorAt directly with their stored base + layers.}
+ at <Area>OverlaySlot upward with reservation sized to the player's cond
+ config (_playerBaseLayers). NPC presets and player stacked presets go
+ through _drawOverlayForActorAt directly with their stored base + layers.
+
+ v0.1.17 Phase 2 (multi-area): loops over _OVERLAY_PARTS() so the player
+ MCM-base path also paints Face/Hand/Feet packs. Each area's reservation
+ is independent — a body-only preset paints only Body; a preset mixing
+ a face pack in slot 0 + body packs in 1..7 paints both.}
     if akTarget == None
         return
     endif
-    int reserved = _playerBaseLayers("Body")
-    if reserved <= 0
-        ; No MCM base configured — the slow tick redraw shouldn't touch
-        ; anything. The old fallback to _maxLayerSlots() blanket-cleared
-        ; OverlaySlot..MaxSlots, which wiped stacked applied-preset
-        ; overlays that the user had layered above the (empty) MCM base.
-        ; Symptom: tattoos visible at load (SKEE restore), wiped within
-        ; ~100ms by the first post-load slow tick. Removeoverlay() owns
-        ; intentional full-clear; this path is just the MCM base.
-        if !useScratch
-            CurrentOverlaySlot = OverlaySlot
+    string[] parts = _OVERLAY_PARTS()
+    int p = 0
+    while p < parts.Length
+        string area = parts[p]
+        int areaBase = _areaBaseSlot(area)
+        int reserved = _playerBaseLayers(area)
+        if reserved <= 0
+            ; No MCM base configured for this area — don't touch it. Empty
+            ; areas are common (most users only configure Body slots).
+            ; Mirror Current<Area>OverlaySlot = base anyway so the slow-tick's
+            ; "base changed" detection sees a stable value.
+            if !useScratch
+                _setAreaCurrentBaseSlot(area, areaBase)
+            endif
+        else
+            _drawOverlayForActorAt(akTarget, idx, useScratch, area, areaBase, reserved, deferApply)
+            if !useScratch
+                _setAreaCurrentBaseSlot(area, areaBase)
+            endif
         endif
-        return
-    endif
-    _drawOverlayForActorAt(akTarget, idx, useScratch, "Body", OverlaySlot, reserved, deferApply)
-    if !useScratch
-        CurrentOverlaySlot = OverlaySlot
-    endif
+        p += 1
+    endwhile
 endFunction
 
 function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string area, int baseSlot, int reservedLayers, bool deferApply = false)
@@ -3317,7 +3520,16 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
 
     int maxLayers = MAX_LAYERS_PER_SLOT()
     int layerN = 0
-    if packId != "" && packId != "<none>" && entryId != ""
+    ; v0.1.17 Phase 1 (multi-area) correctness fix: only paint this area's
+    ; nodes when the tier's resolved pack BELONGS to this area. Without
+    ; the area-match guard, a body-pack in slot 0 + face-pack in slot 1
+    ; would cause the face area's draw to paint the body texture into
+    ; "Face [ovlN]" (because the face reservation exists for the preset,
+    ; and the tier-0 draw blindly forwarded the resolved pack). Mismatch
+    ; → layerN stays 0, the trailing-clear branch wipes the area's slots
+    ; for this tier — which is the correct semantics ("tier 0 has no face
+    ; content; the face area shows nothing").
+    if packId != "" && packId != "<none>" && entryId != "" && GetPackArea(packId) == area
         layerN = GetEntryLayerCount(packId, entryId)
         if layerN > reservedLayers
             layerN = reservedLayers
@@ -3499,7 +3711,8 @@ Function _compactAppliedPresets(Actor target)
         int total = _numOverlays(area)
         int floor
         if isPlayer
-            floor = OverlaySlot + _playerBaseLayers(area)
+            ; v0.1.17 Phase 2 (multi-area): per-area MCM base slot via helper.
+            floor = _areaBaseSlot(area) + _playerBaseLayers(area)
         else
             floor = _findFirstFreeOverlaySlotNPC(target, area)
         endif
@@ -3680,11 +3893,22 @@ function removeOverlayForActor(actor akTarget)
     endif
     bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
     if akTarget == PlayerRef
-        int max = _maxLayerSlots()
-        int i = 0
-        while i < max
-            clearOverlay(akTarget, isFemale, "Body", CurrentOverlaySlot + i)
-            i += 1
+        ; v0.1.17 Phase 2 (multi-area): clear the MCM-base range per area
+        ; using the Current<Area>OverlaySlot mirror (where we actually
+        ; painted) so a mid-session MCM slider edit still clears the right
+        ; slots.
+        string[] parts = _OVERLAY_PARTS()
+        int pp = 0
+        while pp < parts.Length
+            string area = parts[pp]
+            int max = _maxLayerSlots(area)
+            int areaBase = _areaCurrentBaseSlot(area)
+            int i = 0
+            while i < max
+                clearOverlay(akTarget, isFemale, area, areaBase + i)
+                i += 1
+            endwhile
+            pp += 1
         endwhile
         _pulseTier = -1
     endif
@@ -3797,7 +4021,9 @@ int Function AddAppliedPreset(Actor target, string name)
             ; Stack after the player's MCM-driven base layer and any presets
             ; already applied. Each existing applied preset contributes its
             ; stored reserved layer count for THIS area.
-            base = OverlaySlot + _playerBaseLayers(area)
+            ;
+            ; v0.1.17 Phase 2 (multi-area): per-area MCM base slot via helper.
+            base = _areaBaseSlot(area) + _playerBaseLayers(area)
             int j = 0
             int nApplied = GetActorPresetCount(target)
             while j < nApplied
@@ -4609,7 +4835,7 @@ Function DebugFireFade()
         Debug.Notification("[MTF fade] DebugFireFade: no PlayerRef")
         return
     endif
-    MTFPulse.TriggerActorFade(PlayerRef, OverlaySlot)
+    MTFPulse.TriggerActorFade(PlayerRef, OverlaySlot, 0)
     Debug.Notification("[MTF fade] DebugFireFade fired against OverlaySlot=" + OverlaySlot)
 EndFunction
 
@@ -4626,8 +4852,8 @@ Function DebugRestorePlayerOverlay()
         Debug.Notification("[MTF] DebugRestorePlayerOverlay: no PlayerRef")
         return
     endif
-    MTFPulse.ClearActorFade(PlayerRef, OverlaySlot)
-    MTFPulse.ClearActorAt(PlayerRef, OverlaySlot)
+    MTFPulse.ClearActorFade(PlayerRef, OverlaySlot, 0)
+    MTFPulse.ClearActorAt(PlayerRef, OverlaySlot, 0)
     setRedraw()
     Debug.Notification("[MTF] Player overlay restore requested — redraw next tick")
 EndFunction
@@ -5143,18 +5369,38 @@ EndFunction
 ; remain declared above for save-compat; they are simply not written to.
 
 Function _rosterRemovePreset(Actor a, string name)
-{Clear the C++ pulse entry for ONE preset on actor `a`. Looks up the
- preset's stored base slot for "Body" — the only area we drive pulse for
- today — and forwards to MTFPulse.ClearActorAt. Safe to call with a None /
- unknown preset; just no-ops.}
+{Clear the C++ pulse entry for ONE preset on actor `a`. v0.1.17 Phase 3
+ (multi-area): loops every area's reservation since a single preset can
+ push entries into multiple area pools when it mixes body/face/hand/feet
+ packs across its 8 condition slots. Safe to call with a None / unknown
+ preset; just no-ops.}
     if a == None || name == ""
         return
     endif
-    int b = _getActorPresetBase(a, name, "Body")
-    if b < 0
-        return
+    string[] parts = _OVERLAY_PARTS()
+    int p = 0
+    while p < parts.Length
+        string area = parts[p]
+        int b = _getActorPresetBase(a, name, area)
+        if b >= 0
+            MTFPulse.ClearActorAt(a, b, _areaIndex(area))
+        endif
+        p += 1
+    endwhile
+EndFunction
+
+int Function _areaIndex(string area) global
+{Papyrus<->C++ area encoding: "Body"=0, "Face"=1, "Hands"=2, "Feet"=3.
+ (SKEE node names are pluralised for Hands and Feet — see _OVERLAY_PARTS.)
+ Unknown → 0 (Body) — same fallback as the C++ NormArea normaliser.}
+    if area == "Face"
+        return 1
+    elseif area == "Hands"
+        return 2
+    elseif area == "Feet"
+        return 3
     endif
-    MTFPulse.ClearActorAt(a, b)
+    return 0
 EndFunction
 
 Function _rosterRemoveActor(Actor a)
@@ -5191,83 +5437,89 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
     if a == None || name == "" || tier < 0 || tier >= 8
         return
     endif
-    int baseSlot = _getActorPresetBase(a, name, "Body")
-    if baseSlot < 0
-        return
+    ; v0.1.17 Phase 3 (multi-area): a preset can paint across multiple area
+    ; pools (a face pack in slot 0 + body packs in slots 1..7 produces
+    ; reservations for BOTH "Face" and "Body"). Iterate parts and push one
+    ; roster entry per area-with-reservation. The tier's picked pack
+    ; determines which area's reservation actually carries this tier's
+    ; texture — entries for other areas paint nothing for this tier
+    ; (layerN=0 → ClearActorAt branch) but stay registered so a future
+    ; tier whose pack matches THEIR area finds a live entry.
+    string packId  = _g_resolvePackId(tier, true)
+    string entryId = _g_resolveEntryId(tier, true)
+    string activeArea = ""
+    if packId != "" && packId != "<none>" && entryId != ""
+        activeArea = GetPackArea(packId)
     endif
     float rate  = _g_pulseRate(tier, true)
     int   depth = _g_pulseDepth(tier, true)
-    string packId  = _g_resolvePackId(tier, true)
-    string entryId = _g_resolveEntryId(tier, true)
-    int layerN = 0
-    if packId != "" && packId != "<none>" && entryId != ""
-        layerN = GetEntryLayerCount(packId, entryId)
-        int reserved = _getActorPresetLayers(a, name, "Body")
-        if layerN > reserved
-            layerN = reserved
-        endif
-        int maxLayers = MAX_LAYERS_PER_SLOT()
-        if layerN > maxLayers
-            layerN = maxLayers
-        endif
-    endif
-    if layerN <= 0
-        MTFPulse.ClearActorAt(a, baseSlot)
-        return
-    endif
-    bool isFemale = a.GetLeveledActorBase().GetSex() as bool
-    int maxL = MAX_LAYERS_PER_SLOT()
-    Float[] emMults   = Utility.CreateFloatArray(layerN)
-    Int[]   tints     = Utility.CreateIntArray(layerN)
-    Int[]   alphas    = Utility.CreateIntArray(layerN)
-    Int[]   emissives = Utility.CreateIntArray(layerN)
-    int L = 0
-    while L < layerN
-        int li = tier * maxL + L
-        emMults[L]   = _g_layerEmissiveMult(li, true)
-        tints[L]     = _g_layerTint(li, true)
-        alphas[L]    = _g_layerAlpha(li, true)
-        emissives[L] = _g_layerEmissive(li, true)
-        L += 1
-    endwhile
     Float[] lut = _waveformLUTForTier(tier, true)
     Float   tDur = _g_transitionDuration(tier, true)
-    ; SetActorPulseWithTransition is a strict superset of SetActorPulse:
-    ; with tDur <= 0 it behaves identically (instant snap, no cross-fade).
-    ; Calling it unconditionally keeps the C++ side aware of the target
-    ; alpha/tint/emissive at all times, so even non-transitioning calls
-    ; leave the entry in a state ready for a future transition to lerp
-    ; FROM the current visual.
-    ;
-    ; Emissive COLOR cross-fade was added after observing a "white flash"
-    ; on tier 1 → tier 0 transitions in v0.1.1 testing: with em_mult still
-    ; high on the first frames of the lerp, the (unfaded) tier-0 emissive
-    ; color — typically pure white — was multiplied by em_mult into a
-    ; visible bright flash before em_mult finished fading to zero. Lerping
-    ; emissive color in lockstep with em_mult eliminates the flash.
-    ; The C++ roster captures the actual cross-fade anchor at
-    ; EndTransitionBatch when the surrounding loop is wrapped in
-    ; BeginTransitionBatch / EndTransitionBatch; outside a batch this
-    ; behaves as the legacy single-shot install (NowSec at Set time).
-    MTFPulse.SetActorPulseWithTransition(a, rate, depth, _g_pulsePause(tier, true), \
-                                         layerN, startRT, emMults, \
-                                         baseSlot, isFemale, lut, \
-                                         tints, alphas, emissives, tDur)
+    int maxL = MAX_LAYERS_PER_SLOT()
+    bool isFemale = a.GetLeveledActorBase().GetSex() as bool
 
-    ; v0.1.4 per-preset fade-on-death: arm the fade lane on the roster
-    ; entry we just registered using the preset-wide _sFadeOnDeath* state
-    ; (loaded from .fadeondeath block of whatever preset was scratch-
-    ; loaded before this call). When the C++ TESDeathEvent sink sees this
-    ; actor die, TriggerFadeAllSlotsForActor finds the armed entry and
-    ; runs the one-shot animation against the baked-in mode/duration.
-    if _sFadeOnDeathEnabled
-        MTFPulse.SetActorFade(a, baseSlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs)
-        if DebugMode
-            Debug.Notification("[MTF fade] armed " + a.GetDisplayName() + " slot=" + baseSlot + " mode=" + _sFadeOnDeathMode)
+    string[] parts = _OVERLAY_PARTS()
+    int p = 0
+    while p < parts.Length
+        string area = parts[p]
+        int baseSlot = _getActorPresetBase(a, name, area)
+        if baseSlot >= 0
+            int areaIdx = _areaIndex(area)
+            int layerN = 0
+            if area == activeArea && packId != "" && packId != "<none>" && entryId != ""
+                layerN = GetEntryLayerCount(packId, entryId)
+                int reserved = _getActorPresetLayers(a, name, area)
+                if layerN > reserved
+                    layerN = reserved
+                endif
+                if layerN > maxL
+                    layerN = maxL
+                endif
+            endif
+            if layerN <= 0
+                ; This area has a reservation but the tier's pack lives in a
+                ; different area. Clear any stale entry so the C++ roster
+                ; doesn't pulse a slot that should be tier-empty.
+                MTFPulse.ClearActorAt(a, baseSlot, areaIdx)
+            else
+                Float[] emMults   = Utility.CreateFloatArray(layerN)
+                Int[]   tints     = Utility.CreateIntArray(layerN)
+                Int[]   alphas    = Utility.CreateIntArray(layerN)
+                Int[]   emissives = Utility.CreateIntArray(layerN)
+                int L = 0
+                while L < layerN
+                    int li = tier * maxL + L
+                    emMults[L]   = _g_layerEmissiveMult(li, true)
+                    tints[L]     = _g_layerTint(li, true)
+                    alphas[L]    = _g_layerAlpha(li, true)
+                    emissives[L] = _g_layerEmissive(li, true)
+                    L += 1
+                endwhile
+                ; SetActorPulseWithTransition is a strict superset of
+                ; SetActorPulse: with tDur <= 0 it behaves identically
+                ; (instant snap, no cross-fade). Calling it unconditionally
+                ; keeps the C++ side aware of the target alpha/tint/emissive
+                ; at all times — see v0.1.1 design notes preserved below.
+                MTFPulse.SetActorPulseWithTransition(a, rate, depth, _g_pulsePause(tier, true), \
+                                                     layerN, startRT, emMults, \
+                                                     baseSlot, isFemale, lut, \
+                                                     tints, alphas, emissives, tDur, \
+                                                     areaIdx)
+                ; v0.1.4 per-preset fade-on-death: arm the fade lane on the
+                ; roster entry. _sFadeOnDeath* state was loaded from the
+                ; scratch-loaded preset's .fadeondeath block by the caller.
+                if _sFadeOnDeathEnabled
+                    MTFPulse.SetActorFade(a, baseSlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs, areaIdx)
+                    if DebugMode
+                        Debug.Notification("[MTF fade] armed " + a.GetDisplayName() + " area=" + area + " slot=" + baseSlot + " mode=" + _sFadeOnDeathMode)
+                    endif
+                else
+                    MTFPulse.ClearActorFade(a, baseSlot, areaIdx)
+                endif
+            endif
         endif
-    else
-        MTFPulse.ClearActorFade(a, baseSlot)
-    endif
+        p += 1
+    endwhile
 EndFunction
 
 ; ── Tracked actor evaluation (full pass — Step 6 adds stagger + distance) ──

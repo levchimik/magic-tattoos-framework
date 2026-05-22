@@ -1,0 +1,52 @@
+{
+	"displayname" : "Test: OStim ladder",
+	"int" :
+	{
+		"valid" : 0
+	},
+	"schemaversion" : 7,
+	"transition" :
+	{
+		"duration" : 0.3
+	},
+	"slot" :
+	[
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{
+			"cond" : { "entryid" : "", "packid" : "", "param" : 2, "pluginid" : "mtf.ostim:times.climaxed" },
+			"cooldown" : { "min" : 0, "mode" : 0 },
+			"effect" :
+			[
+				{ "key" : "mtf.base:sound.play", "param" : 19, "param2" : 0, "extras" : { "volume" : 100 } }
+			]
+		},
+		{
+			"cond" : { "entryid" : "", "packid" : "", "param" : 60, "pluginid" : "mtf.ostim:excitement" },
+			"cooldown" : { "min" : 0, "mode" : 0 },
+			"effect" :
+			[
+				{ "key" : "mtf.ostim:trigger.climax", "param" : 0, "param2" : 1 }
+			]
+		},
+		{
+			"cond" : { "entryid" : "", "packid" : "", "param" : 30, "pluginid" : "mtf.ostim:excitement" },
+			"cooldown" : { "min" : 0, "mode" : 0 },
+			"effect" :
+			[
+				{ "key" : "mtf.ostim:excitement.set", "param" : 50, "param2" : 0 }
+			]
+		},
+		{
+			"cond" : { "entryid" : "", "packid" : "", "param" : 10, "pluginid" : "mtf.ostim:excitement" },
+			"cooldown" : { "min" : 0, "mode" : 0 },
+			"effect" :
+			[
+				{ "key" : "mtf.ostim:excitement.mult.set", "param" : 3, "param2" : 0 }
+			]
+		},
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
+	],
+	"valid" : 1
+}

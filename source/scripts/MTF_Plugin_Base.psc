@@ -2486,7 +2486,10 @@ Function _applyFlashOnHit(Actor target, int classMask, int peakPct)
     ; SetActorFlash wrote to the wrong roster slot, the right slot's
     ; tags stayed empty, hits silently no-op'd.
     int dispatchBase = h._getDispatchBaseSlot()
-    MTFPulse.SetActorFlash(target, dispatchBase, peakPct, rampMs, decayMs, retrigMs, tags)
+    ; v0.1.17 Phase 3 (multi-area): area mirrors dispatch base — set in
+    ; lockstep by the per-area iteration in _evalAndDrawPresetForActor.
+    int dispatchArea = h._getDispatchArea()
+    MTFPulse.SetActorFlash(target, dispatchBase, peakPct, rampMs, decayMs, retrigMs, tags, dispatchArea)
 EndFunction
 
 string Function _classMaskToTags(int classMask)
@@ -2547,7 +2550,7 @@ Function _removeFlashOnHit(Actor target)
     if h == None
         return
     endif
-    MTFPulse.ClearActorFlash(target, h._getDispatchBaseSlot())
+    MTFPulse.ClearActorFlash(target, h._getDispatchBaseSlot(), h._getDispatchArea())
 EndFunction
 
 Function _alertNearby(Actor target, int paramFeet)

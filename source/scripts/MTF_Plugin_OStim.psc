@@ -17,13 +17,16 @@ Scriptname MTF_Plugin_OStim extends MTF_Plugin
    5  has.schlong        — actor has a schlong equipped (HasSchlong)
 
  Effects:
-   0  trigger.climax     — one-shot: Climax(target, ignoreStall)
-                            param2 = 0 honors stall, 1 bypasses stall
-   1  excitement.modify  — one-shot: ModifyExcitement(target, param)
-                            param2 = 0 ignores mult, 1 respects mult
-   2  excitement.set     — one-shot: SetExcitement(target, param)
-   3  climax.stall       — toggle: while active StallClimax, restore on deactivate
-   4  metadata.add       — one-shot: AddMetadata(target, tag string param2 enum)}
+   0  trigger.climax        — one-shot: Climax(target, ignoreStall)
+                               param2 = 0 honors stall, 1 bypasses stall
+   1  excitement.modify     — one-shot: ModifyExcitement(target, param)
+                               param2 = 0 ignores mult, 1 respects mult
+   2  excitement.set        — one-shot: SetExcitement(target, param)
+   3  climax.stall          — toggle: while active StallClimax, restore on deactivate
+   4  excitement.mult.set   — one-shot: SetExcitementMultiplier(target, param)
+                               Lets a slot tier accelerate excitement rise.
+                               Param is the multiplier × 1 (slider 1-10 maps
+                               directly; e.g. param=3 → 3.0× rise rate).}
 
 GlobalVariable Property OStimProbe Auto Hidden
 
@@ -152,9 +155,21 @@ bool Function checkCondition(int idx, Actor target, int param)
     if target == None
         return false
     endif
+    ; in.scene + has.schlong are valid regardless of scene state.
     if idx == 0
         return OActor.IsInOStim(target)
-    elseif idx == 1
+    elseif idx == 5
+        return OActor.HasSchlong(target)
+    endif
+    ; Everything else (excitement, excitement.mult, times.climaxed,
+    ; climax.stalled) is per-scene state in OStim. Outside a scene the
+    ; underlying natives return 0/false, which would falsely satisfy
+    ; threshold-zero presets (e.g. `excitement >= 0`) or "not stalled"
+    ; (`climax.stalled == 0`) every slow-tick. Gate hard on IsInOStim.
+    if !OActor.IsInOStim(target)
+        return false
+    endif
+    if idx == 1
         return OActor.GetExcitement(target) >= (param as float)
     elseif idx == 2
         return OActor.GetExcitementMultiplier(target) >= ((param as float) * 0.01)
@@ -166,8 +181,6 @@ bool Function checkCondition(int idx, Actor target, int param)
             return stalled
         endif
         return !stalled
-    elseif idx == 5
-        return OActor.HasSchlong(target)
     endif
     return false
 EndFunction
@@ -175,7 +188,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 4
+    return 5
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -187,6 +200,8 @@ string Function GetEffectId(int idx)
         return "excitement.set"
     elseif idx == 3
         return "climax.stall"
+    elseif idx == 4
+        return "excitement.mult.set"
     endif
     return ""
 EndFunction
@@ -200,6 +215,8 @@ string Function GetEffectLabel(int idx)
         return "[!] Set Excitement"
     elseif idx == 3
         return "Stall Climax"
+    elseif idx == 4
+        return "[!] Set Excitement Multiplier"
     endif
     return ""
 EndFunction
@@ -213,6 +230,8 @@ string Function GetEffectParamLabel(int idx)
         return "Target excitement"
     elseif idx == 3
         return ""
+    elseif idx == 4
+        return "Multiplier (×1.0)"
     endif
     return ""
 EndFunction
@@ -227,6 +246,8 @@ EndFunction
 int Function GetEffectParamMax(int idx)
     if idx == 1 || idx == 2
         return 100
+    elseif idx == 4
+        return 10
     endif
     return 0
 EndFunction
@@ -236,6 +257,8 @@ int Function GetEffectParamDefault(int idx)
         return 20
     elseif idx == 2
         return 80
+    elseif idx == 4
+        return 3
     endif
     return 0
 EndFunction
@@ -283,6 +306,16 @@ Function onActivate(int idx, Actor target, int param, int param2)
     if target == None
         return
     endif
+    ; ALL current OStim effects mutate per-scene state — Climax,
+    ; Modify/SetExcitement, StallClimax. Outside an active scene the
+    ; natives are no-ops at best, silently corrupt at worst. Skip the
+    ; whole dispatch if the actor isn't in a scene. Callers should pair
+    ; these effects with `in.scene` (cond idx 0) so the tier never
+    ; activates outside a scene in the first place — this is a defensive
+    ; backstop for misconfigured presets.
+    if !OActor.IsInOStim(target)
+        return
+    endif
     if idx == 0
         ; trigger.climax: param2 = 0 honor stall, 1 bypass
         OActor.Climax(target, param2 == 1)
@@ -295,6 +328,9 @@ Function onActivate(int idx, Actor target, int param, int param2)
     elseif idx == 3
         ; climax.stall: hold the stall until deactivate
         OActor.StallClimax(target)
+    elseif idx == 4
+        ; excitement.mult.set: integer multiplier mapped to float (param=3 → 3.0×)
+        OActor.SetExcitementMultiplier(target, param as float)
     endif
 EndFunction
 
@@ -303,6 +339,10 @@ Function onDeactivate(int idx, Actor target, int param, int param2)
         return
     endif
     if idx == 3
+        ; PermitClimax outside a scene is a safe no-op (the engine
+        ; clears stall state when scenes end), so don't gate it on
+        ; IsInOStim — we still want to undo any stall we set while the
+        ; scene was running, even if the actor has since left.
         OActor.PermitClimax(target)
     endif
 EndFunction

@@ -1,5 +1,5 @@
 {
-	"displayname" : "Test: SexLab Skill Vaginal >=100 XP",
+	"displayname" : "Test: Multi-area — Hand apply (nail polish)",
 	"int" :
 	{
 		"valid" : 0
@@ -11,25 +11,21 @@
 	},
 	"slot" :
 	[
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
 		{
 			"cond" :
 			{
-				"entryid" : "",
-				"packid" : "",
-				"param" : 100,
-				"pluginid" : "mtf.sexlab:skill.vaginal"
+				"entryid" : "full-dark",
+				"packid" : "mtf.bardle-nail-polish",
+				"param" : 0,
+				"pluginid" : ""
 			},
-			"cooldown" :
-			{
-				"min" : 0,
-				"mode" : 0
-			},
-			"effect" :
+			"cooldown" : { "min" : 0, "mode" : 0 },
+			"layer" :
 			[
-				{ "key" : "mtf.base:sound.play", "param" : 19, "param2" : 5, "extras" : { "volume" : 100 } }
+				{ "tint" : "#FFFFFF", "emissive" : "#FFFFFF", "emissivemult" : 0.0, "alpha" : 100 }
 			]
 		},
+		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
 		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
 		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
 		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },

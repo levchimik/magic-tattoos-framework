@@ -78,10 +78,17 @@ namespace MTFPulse {
         return count_;
     }
 
-    std::int32_t Roster::FindLocked(std::uint32_t formID, std::int32_t base_slot) const
+    std::int32_t Roster::FindLocked(std::uint32_t formID, std::uint8_t area,
+                                    std::int32_t base_slot) const
     {
+        // v0.1.17 Phase 3 (multi-area): identity is (formID, area, base_slot).
+        // Same actor can hold a Body[ovl0] entry and a Face[ovl0] entry
+        // without collision.
         for (std::size_t i = 0; i < count_; ++i) {
-            if (entries_[i].actor_formID == formID && entries_[i].base_slot == base_slot) {
+            const auto& e = entries_[i];
+            if (e.actor_formID == formID
+                    && e.area == area
+                    && e.base_slot == base_slot) {
                 return static_cast<std::int32_t>(i);
             }
         }
@@ -162,7 +169,7 @@ namespace MTFPulse {
     {
         // Caller holds mtx_.
         const auto formID = actor->GetFormID();
-        std::int32_t slot = FindLocked(formID, src.base_slot);
+        std::int32_t slot = FindLocked(formID, src.area, src.base_slot);
 
         // Capture transition from-state from the existing entry's last
         // interpolated values (if any) BEFORE overwriting the slot. This
@@ -312,14 +319,14 @@ namespace MTFPulse {
         in_batch_ = false;
     }
 
-    bool Roster::ClearAt(RE::Actor* actor, std::int32_t base_slot)
+    bool Roster::ClearAt(RE::Actor* actor, std::uint8_t area, std::int32_t base_slot)
     {
         if (!actor) {
             return false;
         }
         std::lock_guard lock(mtx_);
         const auto formID = actor->GetFormID();
-        const std::int32_t slot = FindLocked(formID, base_slot);
+        const std::int32_t slot = FindLocked(formID, area, base_slot);
         if (slot < 0) {
             return false;
         }
@@ -418,7 +425,8 @@ namespace MTFPulse {
                 char node[32];
                 for (std::int32_t li = 0; li < e.layer_count; ++li) {
                     const auto L = static_cast<std::size_t>(li);
-                    std::snprintf(node, sizeof(node), "Body [ovl%d]",
+                    std::snprintf(node, sizeof(node), "%s [ovl%d]",
+                                  AreaName(e.area),
                                   static_cast<int>(e.base_slot + li));
 
                     float em    = e.fade_from_em[L];
@@ -476,7 +484,8 @@ namespace MTFPulse {
                     if (!actor->IsDead()) {
                         for (std::int32_t li = 0; li < e.layer_count; ++li) {
                             const auto L = static_cast<std::size_t>(li);
-                            std::snprintf(node, sizeof(node), "Body [ovl%d]",
+                            std::snprintf(node, sizeof(node), "%s [ovl%d]",
+                                          AreaName(e.area),
                                           static_cast<int>(e.base_slot + li));
                             skee_bridge::WriteEmissiveMult(actor, e.is_female, node, e.layer_base_em_mult[L]);
                             skee_bridge::WriteAlpha(actor, e.is_female, node, e.target_alpha[L]);
@@ -589,15 +598,21 @@ namespace MTFPulse {
             }
             e.flash_last_tick = now;
 
-            // One write per active layer: nodes are named "Body [ovlN]"
+            // One write per active layer: nodes are named "<Area> [ovlN]"
             // where N = base_slot + layer_index (matches MTF_MainQuest's
             // applyOverlay format). The per-layer base emissive multiplier
             // is the ceiling — pulse modulates between (1-depth)*ceiling
             // and 1.0*ceiling.
+            //
+            // v0.1.17 Phase 3 (multi-area): AreaName(e.area) selects the
+            // NiOverride node-name prefix per entry. Body entries (the
+            // legacy default) keep painting into "Body [ovlN]"; face/
+            // hand/feet pack entries paint into their own pools.
             char node[32];
             for (std::int32_t li = 0; li < e.layer_count; ++li) {
                 const auto L = static_cast<std::size_t>(li);
-                std::snprintf(node, sizeof(node), "Body [ovl%d]",
+                std::snprintf(node, sizeof(node), "%s [ovl%d]",
+                              AreaName(e.area),
                               static_cast<int>(e.base_slot + li));
 
                 // Steady-pulse target (used outside transitions and for
@@ -658,7 +673,8 @@ namespace MTFPulse {
         }
     }
 
-    bool Roster::SetFlashParams(RE::Actor* actor, std::int32_t base_slot,
+    bool Roster::SetFlashParams(RE::Actor* actor, std::uint8_t area,
+                                std::int32_t base_slot,
                                 float peak_emissive, float ramp_ms,
                                 float decay_ms, float retrigger_ms,
                                 std::unordered_set<std::string> tags)
@@ -668,10 +684,10 @@ namespace MTFPulse {
         }
         std::lock_guard lock(mtx_);
         const auto formID = actor->GetFormID();
-        const std::int32_t slot = FindLocked(formID, base_slot);
+        const std::int32_t slot = FindLocked(formID, area, base_slot);
         if (slot < 0) {
-            spdlog::warn("MTFFlash SetFlashParams MISS formID=0x{:08x} base_slot={} count={}",
-                         formID, base_slot, count_);
+            spdlog::warn("MTFFlash SetFlashParams MISS formID=0x{:08x} area={} base_slot={} count={}",
+                         formID, static_cast<int>(area), base_slot, count_);
             return false;
         }
         auto& e = entries_[slot];
@@ -683,13 +699,13 @@ namespace MTFPulse {
         return true;
     }
 
-    bool Roster::ClearFlash(RE::Actor* actor, std::int32_t base_slot)
+    bool Roster::ClearFlash(RE::Actor* actor, std::uint8_t area, std::int32_t base_slot)
     {
         if (!actor) {
             return false;
         }
         std::lock_guard lock(mtx_);
-        const std::int32_t slot = FindLocked(actor->GetFormID(), base_slot);
+        const std::int32_t slot = FindLocked(actor->GetFormID(), area, base_slot);
         if (slot < 0) {
             return false;
         }
@@ -697,18 +713,18 @@ namespace MTFPulse {
         return true;
     }
 
-    bool Roster::TriggerFlash(RE::Actor* actor, std::int32_t base_slot,
-                              std::string_view tag)
+    bool Roster::TriggerFlash(RE::Actor* actor, std::uint8_t area,
+                              std::int32_t base_slot, std::string_view tag)
     {
         if (!actor) {
             return false;
         }
         std::lock_guard lock(mtx_);
         const auto formID = actor->GetFormID();
-        const std::int32_t slot = FindLocked(formID, base_slot);
+        const std::int32_t slot = FindLocked(formID, area, base_slot);
         if (slot < 0) {
-            spdlog::warn("MTFFlash TriggerFlash MISS_ENTRY formID=0x{:08x} base_slot={} tag={}",
-                         formID, base_slot, std::string(tag));
+            spdlog::warn("MTFFlash TriggerFlash MISS_ENTRY formID=0x{:08x} area={} base_slot={} tag={}",
+                         formID, static_cast<int>(area), base_slot, std::string(tag));
             return false;
         }
         auto& e = entries_[slot];
@@ -769,7 +785,8 @@ namespace MTFPulse {
     }
 
     // ── Fade on death (v0.1.4) ───────────────────────────────────────────
-    bool Roster::SetFadeParams(RE::Actor* actor, std::int32_t base_slot,
+    bool Roster::SetFadeParams(RE::Actor* actor, std::uint8_t area,
+                               std::int32_t base_slot,
                                std::int32_t mode, float duration_ms)
     {
         if (!actor) {
@@ -777,10 +794,10 @@ namespace MTFPulse {
         }
         std::lock_guard lock(mtx_);
         const auto formID = actor->GetFormID();
-        const std::int32_t slot = FindLocked(formID, base_slot);
+        const std::int32_t slot = FindLocked(formID, area, base_slot);
         if (slot < 0) {
-            spdlog::warn("MTFFade SetFadeParams MISS formID=0x{:08x} base_slot={} count={}",
-                         formID, base_slot, count_);
+            spdlog::warn("MTFFade SetFadeParams MISS formID=0x{:08x} area={} base_slot={} count={}",
+                         formID, static_cast<int>(area), base_slot, count_);
             return false;
         }
         auto& e = entries_[slot];
@@ -800,13 +817,13 @@ namespace MTFPulse {
         return true;
     }
 
-    bool Roster::ClearFade(RE::Actor* actor, std::int32_t base_slot)
+    bool Roster::ClearFade(RE::Actor* actor, std::uint8_t area, std::int32_t base_slot)
     {
         if (!actor) {
             return false;
         }
         std::lock_guard lock(mtx_);
-        const std::int32_t slot = FindLocked(actor->GetFormID(), base_slot);
+        const std::int32_t slot = FindLocked(actor->GetFormID(), area, base_slot);
         if (slot < 0) {
             return false;
         }
@@ -846,17 +863,17 @@ namespace MTFPulse {
         }
     }  // namespace
 
-    bool Roster::TriggerFade(RE::Actor* actor, std::int32_t base_slot)
+    bool Roster::TriggerFade(RE::Actor* actor, std::uint8_t area, std::int32_t base_slot)
     {
         if (!actor) {
             return false;
         }
         std::lock_guard lock(mtx_);
         const auto formID = actor->GetFormID();
-        const std::int32_t slot = FindLocked(formID, base_slot);
+        const std::int32_t slot = FindLocked(formID, area, base_slot);
         if (slot < 0) {
-            spdlog::warn("MTFFade TriggerFade MISS_ENTRY formID=0x{:08x} base_slot={}",
-                         formID, base_slot);
+            spdlog::warn("MTFFade TriggerFade MISS_ENTRY formID=0x{:08x} area={} base_slot={}",
+                         formID, static_cast<int>(area), base_slot);
             return false;
         }
         auto& e = entries_[slot];

@@ -13,13 +13,18 @@ Scriptname MTFPulse Native Hidden
 ;   layerCount  — number of overlay layers to drive (max 4).
 ;   startTime   — real-time epoch in seconds, anchoring the wave phase.
 ;   emMults     — per-layer ceiling emissive multipliers (length == layerCount).
-;   baseOverlaySlot — NiOverride body overlay base index (typically 0 or 2).
+;   baseOverlaySlot — NiOverride overlay base index (typically 0 or 2).
 ;   isFemale    — sex flag for NiOverride node lookups.
 ;   waveLUT     — 64-entry [0,1]→[0,1] waveform sampled across one cycle.
 ;                 Empty or wrong-length array → C++ falls back to cosine.
+;   area        — v0.1.17 Phase 3 (multi-area): which NiOverride node pool
+;                 to paint into. 0=Body, 1=Face, 2=Hand, 3=Feet. Identity is
+;                 (actor, area, baseOverlaySlot) — same actor can hold a
+;                 Body[ovl0] and a Face[ovl0] entry without collision.
 Function SetActorPulse(Actor aktor, Float rate, Int depthPct, Float pause, \
                        Int layerCount, Float startTime, Float[] emMults, \
-                       Int baseOverlaySlot, Bool isFemale, Float[] waveLUT) Global Native
+                       Int baseOverlaySlot, Bool isFemale, Float[] waveLUT, \
+                       Int area) Global Native
 
 ; Set pulse + cross-fade transition in one call. Identical to SetActorPulse
 ; except the caller additionally passes:
@@ -38,7 +43,7 @@ Function SetActorPulseWithTransition(Actor aktor, Float rate, Int depthPct, Floa
                                      Int layerCount, Float startTime, Float[] emMults, \
                                      Int baseOverlaySlot, Bool isFemale, Float[] waveLUT, \
                                      Int[] tintRGBs, Int[] alphasPct, Int[] emissiveRGBs, \
-                                     Float transitionDuration) Global Native
+                                     Float transitionDuration, Int area) Global Native
 
 ; Same as SetActorPulseWithTransition, plus the caller pins the cross-fade
 ; anchor by passing `transitionStartRT` (Utility.GetCurrentRealTime() — the
@@ -57,7 +62,8 @@ Function SetActorPulseWithTransitionAt(Actor aktor, Float rate, Int depthPct, Fl
                                        Int layerCount, Float startTime, Float[] emMults, \
                                        Int baseOverlaySlot, Bool isFemale, Float[] waveLUT, \
                                        Int[] tintRGBs, Int[] alphasPct, Int[] emissiveRGBs, \
-                                       Float transitionDuration, Float transitionStartRT) Global Native
+                                       Float transitionDuration, Float transitionStartRT, \
+                                       Int area) Global Native
 
 ; The C++ clock Tick() reads and Roster::Set() stores into transition_start
 ; (steady_clock since DLL init). Sample this — NOT Utility.GetCurrentRealTime
@@ -86,9 +92,10 @@ Function EndTransitionBatch() Global Native
 ; Use on death / unload / total teardown.
 Function ClearActor(Actor aktor) Global Native
 
-; Remove ONE entry by (actor, baseOverlaySlot). Use when a single preset on
-; an actor with several stacked presets becomes inactive.
-Function ClearActorAt(Actor aktor, Int baseOverlaySlot) Global Native
+; Remove ONE entry by (actor, baseOverlaySlot, area). Use when a single preset
+; on an actor with several stacked presets becomes inactive.
+; v0.1.17 Phase 3 (multi-area): area param added (0=Body, 1=Face, 2=Hand, 3=Feet).
+Function ClearActorAt(Actor aktor, Int baseOverlaySlot, Int area) Global Native
 
 ; Empty the entire roster (e.g. on full plugin reset).
 Function ClearAll() Global Native
@@ -125,11 +132,11 @@ Int Function Size() Global Native
 ;                     (magic), "*" (any event).
 Function SetActorFlash(Actor aktor, Int baseOverlaySlot, \
                        Int peakEmissivePct, Int rampMs, Int decayMs, \
-                       Int retriggerMs, String tagsCsv) Global Native
+                       Int retriggerMs, String tagsCsv, Int area) Global Native
 
-; Empty the tag set on (aktor, baseOverlaySlot). Any in-flight intensity
+; Empty the tag set on (aktor, baseOverlaySlot, area). Any in-flight intensity
 ; eases out naturally on the next frames. Use on tier-deactivate.
-Function ClearActorFlash(Actor aktor, Int baseOverlaySlot) Global Native
+Function ClearActorFlash(Actor aktor, Int baseOverlaySlot, Int area) Global Native
 
 ; Stamp an event on (aktor, baseOverlaySlot). `tag` is a short ASCII
 ; identifier (case-insensitive); "blunt", "fire", "sla.aroused.over80", etc.
@@ -142,7 +149,7 @@ Function ClearActorFlash(Actor aktor, Int baseOverlaySlot) Global Native
 ; from its own event handlers (arousal changes, location enter, custom
 ; OnHit handling, etc.). MTF tiers binding flash.onhit with tagsCsv
 ; including "mytag" — or with the "*" wildcard — will flash on the event.
-Function TriggerActorFlash(Actor aktor, Int baseOverlaySlot, String tag) Global Native
+Function TriggerActorFlash(Actor aktor, Int baseOverlaySlot, String tag, Int area) Global Native
 
 ; ── Fade on death (v0.1.4, one-shot animation) ──────────────────────────────
 ; Arms a one-shot fade animation that fires when the actor dies. Like
@@ -163,12 +170,12 @@ Function TriggerActorFlash(Actor aktor, Int baseOverlaySlot, String tag) Global 
 ; we stop spending CPU on the corpse). The last-written em/alpha values
 ; persist on the NiOverride node, so the visible end state holds.
 Function SetActorFade(Actor aktor, Int baseOverlaySlot, \
-                      Int mode, Int durationMs) Global Native
+                      Int mode, Int durationMs, Int area) Global Native
 
-; Disarm fade on (aktor, baseOverlaySlot). Cancels an in-flight fade in
-; place if one was running — last interpolated em/alpha values stick on
+; Disarm fade on (aktor, baseOverlaySlot, area). Cancels an in-flight fade
+; in place if one was running — last interpolated em/alpha values stick on
 ; the node. Use on tier-deactivate.
-Function ClearActorFade(Actor aktor, Int baseOverlaySlot) Global Native
+Function ClearActorFade(Actor aktor, Int baseOverlaySlot, Int area) Global Native
 
 ; Manual one-shot trigger of an armed fade. Normally the C++ death sink
 ; fires this automatically; this native exists for unit tests, custom
@@ -176,7 +183,7 @@ Function ClearActorFade(Actor aktor, Int baseOverlaySlot) Global Native
 ; that want fade-on-event semantics without subclassing the death sink.
 ;
 ; No-op if no entry, not armed, or fade already in flight.
-Function TriggerActorFade(Actor aktor, Int baseOverlaySlot) Global Native
+Function TriggerActorFade(Actor aktor, Int baseOverlaySlot, Int area) Global Native
 
 ; ── Runtime config (v0.1.5) ─────────────────────────────────────────────────
 ; Read an int from Data/SKSE/Plugins/MagicTattoosFramework.ini. The DLL

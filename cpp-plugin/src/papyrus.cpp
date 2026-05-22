@@ -54,6 +54,17 @@ namespace MTFPulse::Papyrus {
         //
         // Signature mirrors what the Papyrus side already computes — see
         // MTF_MainQuest._rosterAddOrUpdate.
+        // v0.1.17 Phase 3 (multi-area): normalise the Papyrus area int into
+        // the C++ uint8 enum. Out-of-range values fall back to Body — same
+        // as a legacy caller that doesn't supply the parameter at all.
+        std::uint8_t NormArea(std::int32_t a)
+        {
+            if (a >= 0 && a <= 3) {
+                return static_cast<std::uint8_t>(a);
+            }
+            return kAreaBody;
+        }
+
         void SetActorPulse(
             RE::StaticFunctionTag*    /*tag*/,
             RE::Actor*                actor,
@@ -65,12 +76,14 @@ namespace MTFPulse::Papyrus {
             std::vector<float>        em_mults,
             std::int32_t              base_overlay_slot,
             bool                      is_female,
-            std::vector<float>        wave_lut)
+            std::vector<float>        wave_lut,
+            std::int32_t              area)
         {
             if (!actor) {
                 spdlog::warn("SetActorPulse called with null actor");
                 return;
             }
+            const std::uint8_t areaN = NormArea(area);
             // v0.1.3: only layer_count<=0 clears the entry now. Previously
             // we also cleared on rate<=0 or depth_pct<=0 since those make
             // the pulse mathematically inert — but flash-only tiers
@@ -78,7 +91,7 @@ namespace MTFPulse::Papyrus {
             // so SetActorFlash has somewhere to write. Tick handles rate=0
             // correctly: wave=0 ⇒ pulsed=1.0 ⇒ ceiling passes through.
             if (layer_count <= 0) {
-                Roster::Instance().ClearAt(actor, base_overlay_slot);
+                Roster::Instance().ClearAt(actor, areaN, base_overlay_slot);
                 return;
             }
             PulseEntry e{};
@@ -87,6 +100,7 @@ namespace MTFPulse::Papyrus {
             e.pause        = std::max(0.0f, pause);
             e.start_time   = start_time;
             e.base_slot    = base_overlay_slot;
+            e.area         = areaN;
             e.layer_count  = std::clamp(layer_count, 0, 4);
             e.is_female    = is_female;
             // Legacy entry point doesn't carry alpha/tint, so default the
@@ -143,12 +157,14 @@ namespace MTFPulse::Papyrus {
             std::vector<std::int32_t> tint_rgbs,
             std::vector<std::int32_t> alphas_pct,
             std::vector<std::int32_t> emissive_rgbs,
-            float                     transition_duration)
+            float                     transition_duration,
+            std::int32_t              area)
         {
             if (!actor) {
                 spdlog::warn("SetActorPulseWithTransition called with null actor");
                 return;
             }
+            const std::uint8_t areaN = NormArea(area);
             // v0.1.1 cross-fade: we accept rate=0 / depth_pct=0 entries.
             // The Papyrus side forwards "tier change" events regardless of
             // whether the target tier has a pulse, so the C++ roster has
@@ -160,7 +176,7 @@ namespace MTFPulse::Papyrus {
             //
             // The only hard-bail case is no layers — nothing to write.
             if (layer_count <= 0) {
-                Roster::Instance().ClearAt(actor, base_overlay_slot);
+                Roster::Instance().ClearAt(actor, areaN, base_overlay_slot);
                 return;
             }
             PulseEntry e{};
@@ -169,6 +185,7 @@ namespace MTFPulse::Papyrus {
             e.pause               = std::max(0.0f, pause);
             e.start_time          = start_time;
             e.base_slot           = base_overlay_slot;
+            e.area                = areaN;
             e.layer_count         = std::clamp(layer_count, 0, 4);
             e.is_female           = is_female;
             e.transition_duration = std::max(0.0f, transition_duration);
@@ -226,14 +243,16 @@ namespace MTFPulse::Papyrus {
             std::vector<std::int32_t> alphas_pct,
             std::vector<std::int32_t> emissive_rgbs,
             float                     transition_duration,
-            float                     transition_start_rt)
+            float                     transition_start_rt,
+            std::int32_t              area)
         {
             if (!actor) {
                 spdlog::warn("SetActorPulseWithTransitionAt called with null actor");
                 return;
             }
+            const std::uint8_t areaN = NormArea(area);
             if (layer_count <= 0) {
-                Roster::Instance().ClearAt(actor, base_overlay_slot);
+                Roster::Instance().ClearAt(actor, areaN, base_overlay_slot);
                 return;
             }
             PulseEntry e{};
@@ -242,6 +261,7 @@ namespace MTFPulse::Papyrus {
             e.pause               = std::max(0.0f, pause);
             e.start_time          = start_time;
             e.base_slot           = base_overlay_slot;
+            e.area                = areaN;
             e.layer_count         = std::clamp(layer_count, 0, 4);
             e.is_female           = is_female;
             e.transition_duration = std::max(0.0f, transition_duration);
@@ -320,14 +340,15 @@ namespace MTFPulse::Papyrus {
             Roster::Instance().ClearAllForActor(actor);
         }
 
-        // Removes one entry by (actor, base_slot). Use when a single preset
-        // becomes inactive on an actor that still owns other presets.
-        void ClearActorAt(RE::StaticFunctionTag* /*tag*/, RE::Actor* actor, std::int32_t base_slot)
+        // Removes one entry by (actor, area, base_slot). Use when a single
+        // preset becomes inactive on an actor that still owns other presets.
+        void ClearActorAt(RE::StaticFunctionTag* /*tag*/,
+                          RE::Actor* actor, std::int32_t base_slot, std::int32_t area)
         {
             if (!actor) {
                 return;
             }
-            Roster::Instance().ClearAt(actor, base_slot);
+            Roster::Instance().ClearAt(actor, NormArea(area), base_slot);
         }
 
         void ClearAll(RE::StaticFunctionTag* /*tag*/)
@@ -374,7 +395,8 @@ namespace MTFPulse::Papyrus {
             std::int32_t             ramp_ms,
             std::int32_t             decay_ms,
             std::int32_t             retrigger_ms,
-            RE::BSFixedString        tags_csv)
+            RE::BSFixedString        tags_csv,
+            std::int32_t             area)
         {
             if (!actor) {
                 return;
@@ -384,7 +406,7 @@ namespace MTFPulse::Papyrus {
                 ? std::string_view{}
                 : std::string_view(tags_csv.c_str());
             Roster::Instance().SetFlashParams(
-                actor, base_slot, peak,
+                actor, NormArea(area), base_slot, peak,
                 static_cast<float>(std::max(1, ramp_ms)),
                 static_cast<float>(std::max(1, decay_ms)),
                 static_cast<float>(std::max(0, retrigger_ms)),
@@ -392,12 +414,13 @@ namespace MTFPulse::Papyrus {
         }
 
         void ClearActorFlash(RE::StaticFunctionTag* /*tag*/,
-                             RE::Actor* actor, std::int32_t base_slot)
+                             RE::Actor* actor, std::int32_t base_slot,
+                             std::int32_t area)
         {
             if (!actor) {
                 return;
             }
-            Roster::Instance().ClearFlash(actor, base_slot);
+            Roster::Instance().ClearFlash(actor, NormArea(area), base_slot);
         }
 
         // Stamp an event. `tag` is a short identifier ("blunt", "fire",
@@ -407,7 +430,8 @@ namespace MTFPulse::Papyrus {
         void TriggerActorFlash(RE::StaticFunctionTag* /*tag*/,
                                RE::Actor*        actor,
                                std::int32_t      base_slot,
-                               RE::BSFixedString tag_str)
+                               RE::BSFixedString tag_str,
+                               std::int32_t      area)
         {
             if (!actor) {
                 return;
@@ -423,7 +447,7 @@ namespace MTFPulse::Papyrus {
                     }
                 }
             }
-            Roster::Instance().TriggerFlash(actor, base_slot, norm);
+            Roster::Instance().TriggerFlash(actor, NormArea(area), base_slot, norm);
         }
 
         // ── Fade on death (v0.1.4) ───────────────────────────────────────
@@ -440,36 +464,39 @@ namespace MTFPulse::Papyrus {
             RE::Actor*   actor,
             std::int32_t base_slot,
             std::int32_t mode,
-            std::int32_t duration_ms)
+            std::int32_t duration_ms,
+            std::int32_t area)
         {
             if (!actor) {
                 return;
             }
             Roster::Instance().SetFadeParams(
-                actor, base_slot,
+                actor, NormArea(area), base_slot,
                 std::clamp(mode, 0, 2),
                 static_cast<float>(std::max(1, duration_ms)));
         }
 
         void ClearActorFade(RE::StaticFunctionTag* /*tag*/,
-                            RE::Actor* actor, std::int32_t base_slot)
+                            RE::Actor* actor, std::int32_t base_slot,
+                            std::int32_t area)
         {
             if (!actor) {
                 return;
             }
-            Roster::Instance().ClearFade(actor, base_slot);
+            Roster::Instance().ClearFade(actor, NormArea(area), base_slot);
         }
 
         // Manual fire (for testing or custom triggers — death sink is the
         // primary path). Returns nothing; Roster::TriggerFade is no-op if
         // entry missing / not armed / already active.
         void TriggerActorFade(RE::StaticFunctionTag* /*tag*/,
-                              RE::Actor* actor, std::int32_t base_slot)
+                              RE::Actor* actor, std::int32_t base_slot,
+                              std::int32_t area)
         {
             if (!actor) {
                 return;
             }
-            Roster::Instance().TriggerFade(actor, base_slot);
+            Roster::Instance().TriggerFade(actor, NormArea(area), base_slot);
         }
 
         // Read an int from Data/SKSE/Plugins/MagicTattoosFramework.ini.
