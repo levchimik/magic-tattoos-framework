@@ -18,12 +18,14 @@ Event OnPlayerLoadGame()
     ; MTF_PluginAliasKick) — Papyrus's "function differs since save"
     ; quirk can drop queued OnInit resumptions after a .pex rebuild.
     RegisterForModEvent("MTF_TierChanged", "OnMTFTierChanged")
-    ; Also re-run SkyrimNet API registration. SkyrimNet's C++ side resets
-    ; its decorator/schema tables every game launch — without this call
-    ; the bridge silently loses its decorator after the first session and
-    ; `mtf_active_tattoos(actorUUID)` returns nothing. Owning Quest's
-    ; persistent _bridgeSetup guard (if any) would prevent the re-run, so
-    ; the bridge plugin script intentionally has no such guard.
+    ; Re-run SkyrimNet API registration. SkyrimNet's C++ side resets its
+    ; schema/decorator tables every game launch — without this call the
+    ; bridge would silently lose its registration after the first session.
+    ; _setupBridge ALSO re-seeds the player's StorageUtil bio string (see
+    ; the bridge's storage-bypass architecture comment), so the bio is
+    ; populated before any tier evaluation fires post-load.
+    ; The bridge intentionally has no persistent _bridgeSetup guard so
+    ; this re-poke isn't blocked.
     MTF_Plugin_SkyrimNet owner = GetOwningQuest() as MTF_Plugin_SkyrimNet
     if owner != None
         owner._setupBridge()
@@ -39,11 +41,12 @@ Function OnMTFTierChanged(string strArg, float numArg, Form sender)
     ;   strArg = "<scope>|<presetName>|<prevTier>|<newTier>"
     ;   numArg = newTier as float
     ;   sender = the actor (PlayerRef or NPC)
-    Debug.Trace("MTF.SkyrimNet alias: OnMTFTierChanged strArg=" + strArg + " numArg=" + numArg)
     MTF_Plugin_SkyrimNet host = GetOwningQuest() as MTF_Plugin_SkyrimNet
     if host != None
         host.HandleTierChange(strArg, numArg, sender)
     else
+        ; Kept as a Trace — only fires if the alias is orphaned from its
+        ; owning Quest, which would be a deep bug in our ESP wiring.
         Debug.Trace("MTF.SkyrimNet alias: owning quest is None — event dropped")
     endif
 EndFunction

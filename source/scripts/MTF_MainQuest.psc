@@ -421,6 +421,15 @@ Function _onTrackedActorKilled(Actor victim)
                 _deactivateSlotEffectsForActor(victim, prevTier, true, nm)
             endif
             _setActorPresetTier(victim, nm, 0)
+            ; Death forces tier=0 without going through _applyPresetTierChange,
+            ; which means the normal _emitTierChanged broadcast never fires.
+            ; Listeners (e.g. the SkyrimNet bridge's StorageUtil bio cache) would
+            ; otherwise miss the transition and keep showing the pre-death tier.
+            ; Only emit when the tier actually changed — corpses already at
+            ; tier 0 don't need an event.
+            if prevTier > 0
+                _emitTierChanged(victim, "preset", nm, prevTier, 0)
+            endif
             ; Draw tier 0 (baseline) for a clean corpse overlay. Skip when
             ; fade is armed — the C++ side owns the overlay until the
             ; animation completes.
@@ -4249,6 +4258,14 @@ Function RemoveAppliedPreset(Actor target, string name)
     _clearActorPresetState(target, name)
     ; Close the gap: re-pack remaining presets against the floor.
     _compactAppliedPresets(target)
+    ; Broadcast removal as a tier transition (prevTier -> -1). The bridge
+    ; uses this to invalidate per-actor caches (e.g. the SkyrimNet bridge's
+    ; pre-rendered StorageUtil bio string) — without it the bio would show
+    ; the preset until the next unrelated tier change happened to refresh.
+    ; Fired AFTER compact so listeners see the actor in its post-removal state.
+    if prevTier >= 0
+        _emitTierChanged(target, "preset", name, prevTier, -1)
+    endif
 EndFunction
 
 Function RemoveTrackedActor(Actor target)
@@ -4258,11 +4275,21 @@ Function RemoveTrackedActor(Actor target)
         return
     endif
     int n = GetActorPresetCount(target)
+    ; Snapshot (name,tier) pairs for the post-cleanup emit pass. We can't
+    ; emit during the deactivate loop — the bridge would call
+    ; _rebuildRenderedFor which iterates mtf.presets while we're still
+    ; mutating it. Defer to after _clearAllActorState wipes everything,
+    ; then emit prevTier->-1 for each so the bridge rebuilds once on an
+    ; empty preset list (producing the empty "no Magic Tattoos" bio).
+    string[] snapNames = Utility.CreateStringArray(n, "")
+    int[] snapTiers = Utility.CreateIntArray(n, -1)
     int i = n - 1
     while i >= 0
         string nm = GetActorPresetAt(target, i)
         if nm != ""
             int tier = _getActorPresetTier(target, nm)
+            snapNames[i] = nm
+            snapTiers[i] = tier
             ; tier >= 0 (not > 0): see RemoveAppliedPreset for rationale —
             ; baseline-slot effects need deactivation too.
             if tier >= 0 && _loadPresetToScratch(nm)
@@ -4275,6 +4302,20 @@ Function RemoveTrackedActor(Actor target)
     removeOverlayForActor(target)
     StorageUtil.FormListRemove(self, "mtf.tracked", target, true)
     _clearAllActorState(target)
+    ; Broadcast removal per-preset AFTER state is wiped. The bridge's
+    ; HandleTierChange will call _rebuildRenderedFor and find an empty
+    ; mtf.presets list, writing "" to the bio string. Multiple emits in
+    ; quick succession are fine — the rebuild is idempotent and the final
+    ; one wins (each writes the same empty result).
+    if snapNames != None
+        int j = 0
+        while j < snapNames.Length
+            if snapNames[j] != "" && snapTiers[j] >= 0
+                _emitTierChanged(target, "preset", snapNames[j], snapTiers[j], -1)
+            endif
+            j += 1
+        endwhile
+    endif
 EndFunction
 
 Function ClearAllTrackedActors()
