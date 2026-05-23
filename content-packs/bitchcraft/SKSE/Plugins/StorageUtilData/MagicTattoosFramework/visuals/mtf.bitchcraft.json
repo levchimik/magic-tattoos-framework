@@ -1,0 +1,473 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.bitchcraft",
+  "label": "Bitchcraft Tats",
+  "area": "Body",
+  "entries": [
+    {
+      "id": "BCT - Azura Back",
+      "label": "Azura Back",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\azuraback.dds"
+        }
+      ],
+      "tags": {
+        "subject": "Azura's-star medallion sigil, ringed border, lettered rim",
+        "style": "fine occult linework, circular medallion",
+        "placement": "high on the upper back, centered between the shoulder blades"
+      },
+      "description": "A small circular medallion bearing a many-pointed star at its center, ringed by a beaded border with archaic lettering or sigil-marks around the rim. Cardinal dots mark four compass points outside the ring, framing the central star like a planetary seal."
+    },
+    {
+      "id": "BCT - Azura Chest",
+      "label": "Azura Chest",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\azurachest.dds"
+        }
+      ],
+      "tags": {
+        "subject": "Azura's-star medallion sigil, ringed border, lettered rim",
+        "style": "fine occult linework, circular medallion",
+        "placement": "centered on the upper chest just below the collarbones"
+      },
+      "description": "The same compact celestial seal — a many-pointed star inside a beaded ring with sigil-marks around the rim — sized as a chest-piece between the breasts. Small cardinal dots flank the medallion at four compass points."
+    },
+    {
+      "id": "BCT - Hermaeus Mora Back",
+      "label": "Hermaeus Mora Back",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\moraback.dds"
+        }
+      ],
+      "tags": {
+        "subject": "eye-and-tentacle medallion, fringed appendages, ringed sigil",
+        "style": "intricate occult linework, radial symmetry",
+        "placement": "high on the upper back, centered between the shoulder blades"
+      },
+      "description": "A radial occult seal with a central pupil-iris eye nested inside a ringed border, surrounded by curling tentacle-like appendages that fan outward in every direction. Smaller eye-dots mark the perimeter, giving the medallion the feel of a many-eyed daedric icon."
+    },
+    {
+      "id": "BCT - Hermaeus Mora Chest",
+      "label": "Hermaeus Mora Chest",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\morachest.dds"
+        }
+      ],
+      "tags": {
+        "subject": "eye-and-tentacle medallion, fringed appendages, ringed sigil",
+        "style": "intricate occult linework, radial symmetry",
+        "placement": "centered on the sternum between the breasts"
+      },
+      "description": "A compact chest-piece version of the many-eyed daedric medallion — a central pupil eye in a beaded ring, fringed by tentacle curls, with smaller dotted eyes around the perimeter. Sized to sit between the breasts."
+    },
+    {
+      "id": "BCT - Sanguine Back",
+      "label": "Sanguine Back",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\sanguineback.dds"
+        }
+      ],
+      "tags": {
+        "subject": "pentacle medallion, ornate border ornaments, ringed sigil",
+        "style": "occult woodcut linework",
+        "placement": "high on the upper back, centered between the shoulder blades"
+      },
+      "description": "A ringed pentacle medallion with the five-pointed star inscribed within a circle, framed by small ornamental clusters at the cardinal points. Inner detail suggests miniature sigils or lettering tucked into the negative space between the star arms."
+    },
+    {
+      "id": "BCT - Sanguine Chest",
+      "label": "Sanguine Chest",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\sanguinechest.dds"
+        }
+      ],
+      "tags": {
+        "subject": "rose-and-ornament sigil, low diamond silhouette, scrollwork wings",
+        "style": "fine baroque linework, bilateral symmetry",
+        "placement": "centered on the sternum between the breasts"
+      },
+      "description": "A small low-diamond ornament with a central rose-like flourish, flanked by short scrolling wings that taper outward symmetrically. The piece reads as a single delicate chest-medallion sitting between the breasts."
+    },
+    {
+      "id": "BCT - Cat Skull Side L",
+      "label": "Cat Skull Side L",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\catskullsideL.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered winged skull fragments, three small pieces",
+        "style": "fragmented stencil cutouts",
+        "placement": "scattered along one side of the body — neck, ribs, and inner thigh"
+      },
+      "description": "Three small fragmented stencil shapes share the file: a tiny winged skull-like emblem near the collar, a partial winged mark on the side ribs, and a third winged emblem low near the inner thigh. The pieces appear designed as a coordinated scatter along one body side rather than a single anchored design."
+    },
+    {
+      "id": "BCT - Snake Chest",
+      "label": "Snake Chest",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\Chest_Snake.dds"
+        }
+      ],
+      "tags": {
+        "subject": "coiled serpent silhouette, looped body, slim tail",
+        "style": "smooth ink silhouette",
+        "placement": "centered on the upper chest just below the collarbones"
+      },
+      "description": "A coiled snake rendered in smooth black silhouette, its body looped through itself with a tapered tail trailing free. The piece sits low between the collarbones as a single compact emblem."
+    },
+    {
+      "id": "BCT - Skull Chest",
+      "label": "Skull Chest",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\chestskull.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged skull, scroll banner ornaments, central death's-head",
+        "style": "ornate filigree linework, bilateral symmetry",
+        "placement": "centered on the sternum between the breasts"
+      },
+      "description": "A central skull crowned by spreading filigree wings or banner scrolls, mirroring outward to either side. Small ornamental flourishes hang below the skull, lending the silhouette the look of a memento-mori crest."
+    },
+    {
+      "id": "BCT - Succubus Chest",
+      "label": "Succubus Chest",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\ChestSuccubus.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged succubus silhouette, horned head, splayed wings",
+        "style": "filled tribal silhouette",
+        "placement": "centered on the sternum between the breasts"
+      },
+      "description": "A small horned demonic figure with wings spread wide to either side, body filled in solid black with curling tendril accents at the wing tips. The silhouette reads as a stylized succubus crest sitting between the breasts."
+    },
+    {
+      "id": "BCT - Mehrunes Razor Thigh R",
+      "label": "Mehrunes Razor Thigh R",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\dagonthigh.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged dagger silhouette, blade pointing down, scrollwork hilt",
+        "style": "filled silhouette with ornate hilt detail",
+        "placement": "on the outer side of the thigh near the hip"
+      },
+      "description": "A slender downward-pointing dagger with an ornate winged hilt, the blade tapering to a sharp tip and the cross-guard sprouting curling wing-like scrollwork. The piece sits as a vertical mark high on the outer thigh."
+    },
+    {
+      "id": "BCT - Dragon Full Back",
+      "label": "Dragon Full Back",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\dragonback.dds"
+        }
+      ],
+      "tags": {
+        "subject": "twin antler-branch dragons, splayed claws, central spine",
+        "style": "stylized tribal silhouette, bilateral symmetry",
+        "placement": "spread across the upper back from shoulder to shoulder"
+      },
+      "description": "Two mirrored antler-like dragon forms rear up on either side of a central spine motif, their elongated branches splaying outward like clawed wings. A small triangular form anchors the centerline between them, giving the design the silhouette of a great spreading crest."
+    },
+    {
+      "id": "BCT - Dragon Wings Back and Shoulders",
+      "label": "Dragon Wings Back and Shoulders",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\dragonwingback.dds"
+        }
+      ],
+      "tags": {
+        "subject": "twin claw-fan wings, splayed tendril fingers, mirrored pair",
+        "style": "stylized tribal silhouette, bilateral symmetry",
+        "placement": "across the upper back spanning both shoulder blades"
+      },
+      "description": "A mirrored pair of clawed wing-fans sweep outward from a central axis, each composed of several elongated tendril-fingers splaying away from a small bunched root. The pair reads as a spreading set of dragon wings across the upper back."
+    },
+    {
+      "id": "BCT - Gem and Herbs Arm",
+      "label": "Gem and Herbs Arm",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\gemherbsshoulder.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horizontal sprig of herbs and a small set gemstone",
+        "style": "fine naturalistic linework",
+        "placement": "on the inner side of the upper arm"
+      },
+      "description": "A small horizontal sprig of leafy herbs runs across the inner arm, with a single faceted gemstone nestled into the bundle. The piece reads as a delicate apothecary's mark, fine and slim."
+    },
+    {
+      "id": "BCT - Rose Groin R",
+      "label": "Rose Groin R",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\Groin_Rose_R.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tiny cluster of small roses",
+        "style": "fine inked silhouette",
+        "placement": "low on the lower abdomen near one hip"
+      },
+      "description": "A very small cluster of three or four miniature rose buds with short curling stems, sized as a discreet accent rather than a large piece. Sits low on the abdomen above the pubic mound."
+    },
+    {
+      "id": "BCT - Skull Groin",
+      "label": "Skull Groin",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\groinskull.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horned skull with scroll wings, central death's-head crest",
+        "style": "ornate filigree linework, bilateral symmetry",
+        "placement": "centered low on the abdomen just above the pubic mound"
+      },
+      "description": "A central skull flanked by curling horn-and-scroll wings that sweep outward symmetrically. Smaller curling flourishes hang below the skull, framing it like a low-belly crest just above the pubic mound."
+    },
+    {
+      "id": "BCT - Magick Inner Arm",
+      "label": "Magick Inner Arm",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\innerarm.dds"
+        }
+      ],
+      "tags": {
+        "subject": "twin slender sigil ornaments, one per inner arm",
+        "style": "fine arcane linework",
+        "placement": "running along the inside of each upper arm"
+      },
+      "description": "A pair of slender mirrored sigil-shapes — fine curling glyphs with small star and bead accents — designed to sit along the inside of each upper arm. Each shape is delicate and elongated, reading more as a tally of arcane runes than a single dense piece."
+    },
+    {
+      "id": "BCT - Moon Chest",
+      "label": "Moon Chest",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\moonchest.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small crescent moon with star ornament",
+        "style": "fine miniature linework",
+        "placement": "centered on the upper chest just below the collarbones"
+      },
+      "description": "A small crescent moon cradles a tiny star-and-curl ornament at its inner hollow. The piece is sized as a delicate accent below the collarbones, more pendant than statement-piece."
+    },
+    {
+      "id": "BCT - Moon Forearm",
+      "label": "Moon Forearm",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\moonforearm.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small curling star-and-moon glyph",
+        "style": "fine miniature linework",
+        "placement": "on the inner side of the forearm"
+      },
+      "description": "A tiny twisted glyph combining a crescent and a small star, rendered as a delicate inner-forearm accent. Reads as a subtle astrological mark rather than a bold design."
+    },
+    {
+      "id": "BCT - Moon Shoulder",
+      "label": "Moon Shoulder",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\moonshoulder.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small crescent moon with trailing curl",
+        "style": "fine miniature linework",
+        "placement": "on the front of the shoulder near the collarbone"
+      },
+      "description": "A simple crescent moon with a small trailing curl off one tip, sized as a quiet accent at the front of the shoulder. Minimal and clean."
+    },
+    {
+      "id": "BCT - Moth Underboob",
+      "label": "Moth Underboob",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\moth underboob.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate moth with detailed wings, slim body, antennae",
+        "style": "fine naturalistic linework with patterned wings",
+        "placement": "centered below the breasts on the sternum"
+      },
+      "description": "A symmetric moth with broad detailed wings spread to either side, the wing patterns finely textured and the slim body extending downward between them. A short trailing accent drops below, anchoring the moth to the underbreast space."
+    },
+    {
+      "id": "BCT - Rose Arm L",
+      "label": "Rose Arm L",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\rosearmL.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single horizontal rose with stem",
+        "style": "filled silhouette with fine stem detail",
+        "placement": "along the inner side of the forearm"
+      },
+      "description": "A single rose in full bloom is rendered horizontally with a long thin stem trailing to one side, sized to lie along the inner forearm. The bloom is filled in solid black with delicate stem detail."
+    },
+    {
+      "id": "BCT - Rose Side L",
+      "label": "Rose Side L",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\rosesideL.dds"
+        }
+      ],
+      "tags": {
+        "subject": "paired rose cluster fragments, two anchor points",
+        "style": "fragmented stencil cutouts",
+        "placement": "scattered along the side of the torso and lower belly"
+      },
+      "description": "Two small rose-and-vine cluster fragments sit on the same body side — one anchored higher near the ribs/upper arm, the other lower near the hip and outer abdomen. The pieces read as a coordinated trail rather than a single contiguous design."
+    },
+    {
+      "id": "BCT - Snake Arm R",
+      "label": "Snake Arm R",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\snakearmR.dds"
+        }
+      ],
+      "tags": {
+        "subject": "coiled serpent silhouette, raised head",
+        "style": "smooth ink silhouette",
+        "placement": "wrapped along the side of the torso between rib and arm"
+      },
+      "description": "A coiled snake rendered in smooth black silhouette, body looped and raised head turned outward. The piece is sized to sit along the lateral torso just below the underarm."
+    },
+    {
+      "id": "BCT - Skull Underboob",
+      "label": "Skull Underboob",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\Underboob_Skull.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged skull, slim body, wing-fan ornaments",
+        "style": "fine filigree linework, bilateral symmetry",
+        "placement": "centered below the breasts on the sternum"
+      },
+      "description": "A small central skull is framed by a pair of long thin wing-fans that sweep horizontally to either side. A short trailing accent drops below, giving the piece the proportions of a delicate sternum-mounted crest."
+    },
+    {
+      "id": "BCT - Wolf Leg L",
+      "label": "Wolf Leg L",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\wolflegL.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horned wolf head, fanged maw, detailed mane",
+        "style": "filled silhouette with shaggy mane detail",
+        "placement": "on the outer side of the thigh"
+      },
+      "description": "A snarling horned wolf head fills a vertical patch, its mouth open showing fangs and the mane rendered in rough textured strokes around the crown. Stylized horns curl back over the skull, lending the silhouette a daedric look."
+    },
+    {
+      "id": "BCT - Wolf Leg R",
+      "label": "Wolf Leg R",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\wolflegR.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horned wolf head, fanged maw, detailed mane",
+        "style": "filled silhouette with shaggy mane detail",
+        "placement": "on the outer side of the thigh"
+      },
+      "description": "The same horned wolf head — snarling jaws, curled horns, shaggy textured mane — sized as a thigh patch. Used as the partner piece to its mirrored sibling for symmetric placement."
+    },
+    {
+      "id": "BCT - Wolf Side R",
+      "label": "Wolf Side R",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\wolfsideR.dds"
+        }
+      ],
+      "tags": {
+        "subject": "wolf head set, three pieces, scattered along one side",
+        "style": "filled silhouette with shaggy mane detail",
+        "placement": "wrapping one body side from collar to hip"
+      },
+      "description": "Three wolf-head fragments share the file: one small head near the collar, a larger head on the side of the ribs, and a third on the outer hip. Together they form a scattered single-side trail rather than a single anchored piece."
+    },
+    {
+      "id": "BCT - Succubus Womb 1",
+      "label": "Succubus Womb  1",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\womb1.dds"
+        }
+      ],
+      "tags": {
+        "subject": "thin ornate band with central crest",
+        "style": "fine baroque linework",
+        "placement": "low on the abdomen just above the pubic mound"
+      },
+      "description": "A slim horizontal band of ornate filigree rests above the pubic mound, with a small central crest or pendant detail at the midline. Reads as a delicate belt-band of decoration rather than a large figural piece."
+    },
+    {
+      "id": "BCT - uccubus Womb 2",
+      "label": "uccubus Womb  2",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\womb2.dds"
+        }
+      ],
+      "tags": {
+        "subject": "downward triangular pendant, filigree interior, pointed tip",
+        "style": "fine baroque linework",
+        "placement": "centered low on the abdomen just above the pubic mound"
+      },
+      "description": "A downward-pointing triangular ornament with intricate filigree filling its interior, its lower point aimed at the pubic mound. The shape suggests a stylized pendant or arrowhead crest centered on the lower belly."
+    },
+    {
+      "id": "BCT - Succubus Womb 3",
+      "label": "Succubus Womb  3",
+      "layers": [
+        {
+          "texture": "Actors\\Cridow Bitchcraft\\womb3.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged heart ornament, scroll wings, central heart",
+        "style": "fine baroque linework, bilateral symmetry",
+        "placement": "centered low on the abdomen just above the pubic mound"
+      },
+      "description": "A small central heart framed by curling scroll-wings that sweep outward symmetrically, the silhouette suggesting a heraldic winged-heart pendant. Sits just above the pubic mound as a delicate accent piece."
+    }
+  ]
+}

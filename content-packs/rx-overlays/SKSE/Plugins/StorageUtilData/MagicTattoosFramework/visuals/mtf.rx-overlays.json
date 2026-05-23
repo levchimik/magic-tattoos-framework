@@ -4,47 +4,620 @@
   "label": "RX'Overlays (3BA)",
   "area": "Body",
   "entries": [
-    { "id": "Abs Butterfly", "label": "Abs Butterfly", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Abs Butterfly.dds" }] },
-    { "id": "ArmL Turtle", "label": "ArmL Turtle", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ArmL Turtle.dds" }] },
-    { "id": "ArmR Fish", "label": "ArmR Fish", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ArmR Fish.dds" }] },
-    { "id": "Boob Dragons", "label": "Boob Dragons", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Boob Dragons.dds" }] },
-    { "id": "Butt Butterflies", "label": "Butt Butterflies", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Butt Butterflies.dds" }] },
-    { "id": "Butt Butterflies2", "label": "Butt Butterflies2", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Butt Butterflies2.dds" }] },
-    { "id": "Butt Cat", "label": "Butt Cat", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Butt Cat.dds" }] },
-    { "id": "ButtL Lips", "label": "ButtL Lips", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ButtL Lips.dds" }] },
-    { "id": "ButtR Lips", "label": "ButtR Lips", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ButtR Lips.dds" }] },
-    { "id": "Chest DragonFlower", "label": "Chest DragonFlower", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest DragonFlower.dds" }] },
-    { "id": "Chest DragonMoon", "label": "Chest DragonMoon", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest DragonMoon.dds" }] },
-    { "id": "Chest Dragons", "label": "Chest Dragons", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest Dragons.dds" }] },
-    { "id": "Chest Fairy", "label": "Chest Fairy", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest Fairy.dds" }] },
-    { "id": "Chest Knife", "label": "Chest Knife", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest Knife.dds" }] },
-    { "id": "Chest Lips", "label": "Chest Lips", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest Lips.dds" }] },
-    { "id": "Chest MoonFlower", "label": "Chest MoonFlower", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest MoonFlower.dds" }] },
-    { "id": "Chest StarsLeft", "label": "Chest StarsLeft", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest StarsLeft.dds" }] },
-    { "id": "Chest StarsRight", "label": "Chest StarsRight", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest StarsRight.dds" }] },
-    { "id": "Chest Sun", "label": "Chest Sun", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest Sun.dds" }] },
-    { "id": "Chest SunMoon", "label": "Chest SunMoon", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest SunMoon.dds" }] },
-    { "id": "Chest Sword Flower", "label": "Chest Sword Flower", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Chest Sword Flower.dds" }] },
-    { "id": "ChestL Birds", "label": "ChestL Birds", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ChestL Birds.dds" }] },
-    { "id": "ChestR Birds", "label": "ChestR Birds", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ChestR Birds.dds" }] },
-    { "id": "ChestR Dragon", "label": "ChestR Dragon", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ChestR Dragon.dds" }] },
-    { "id": "Down Fairy", "label": "Down Fairy", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Down Fairy.dds" }] },
-    { "id": "Hand Stars", "label": "Hand Stars", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Hand Stars.dds" }] },
-    { "id": "Magic Scar", "label": "Magic Scar", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Magic Scar.dds" }] },
-    { "id": "Moles", "label": "Moles", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Moles.dds" }] },
-    { "id": "Neck Sword", "label": "Neck Sword", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Neck Sword.dds" }] },
-    { "id": "Spine ButterflySars", "label": "Spine ButterflySars", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Spine ButterflySars.dds" }] },
-    { "id": "Spine Flower", "label": "Spine Flower", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Spine Flower.dds" }] },
-    { "id": "Spine MagicBook", "label": "Spine MagicBook", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX Spine MagicBook.dds" }] },
-    { "id": "SpineL Dragons", "label": "SpineL Dragons", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX SpineL Dragons.dds" }] },
-    { "id": "SpineR Dragons", "label": "SpineR Dragons", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX SpineR Dragons.dds" }] },
-    { "id": "ThighL Dragons", "label": "ThighL Dragons", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ThighL Dragons.dds" }] },
-    { "id": "ThighL Flower", "label": "ThighL Flower", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ThighL Flower.dds" }] },
-    { "id": "ThighL Stars", "label": "ThighL Stars", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ThighL Stars.dds" }] },
-    { "id": "ThighL Virgo", "label": "ThighL Virgo", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ThighL Virgo.dds" }] },
-    { "id": "ThighR Dragons", "label": "ThighR Dragons", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ThighR Dragons.dds" }] },
-    { "id": "ThighR Flower", "label": "ThighR Flower", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ThighR Flower.dds" }] },
-    { "id": "ThighR Stars", "label": "ThighR Stars", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ThighR Stars.dds" }] },
-    { "id": "ThingR Fairy", "label": "ThingR Fairy", "layers": [{ "texture": "actors\\character\\overlays\\RX\\RX ThingR Fairy.dds" }] }
+    {
+      "id": "Abs Butterfly",
+      "label": "Abs Butterfly",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Abs Butterfly.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single butterfly",
+        "style": "fine open linework with cross-hatched wings",
+        "placement": "lower abdomen, just below the navel"
+      },
+      "description": "A single butterfly with finely traced wings and detailed cross-hatched shading, inked on the lower abdomen just below the navel."
+    },
+    {
+      "id": "ArmL Turtle",
+      "label": "ArmL Turtle",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ArmL Turtle.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small ornamental turtle",
+        "style": "stylized silhouette with small stars",
+        "placement": "outer left forearm"
+      },
+      "description": "A tiny stylized turtle rendered as a solid silhouette with small star accents, inked on the outer left forearm."
+    },
+    {
+      "id": "ArmR Fish",
+      "label": "ArmR Fish",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ArmR Fish.dds"
+        }
+      ],
+      "tags": {
+        "subject": "paired koi-style fish",
+        "style": "fine flowing linework with tiny stars",
+        "placement": "outer right forearm"
+      },
+      "description": "A pair of koi-like fish curling around one another in fine flowing linework with small star accents, inked on the outer right forearm."
+    },
+    {
+      "id": "Boob Dragons",
+      "label": "Boob Dragons",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Boob Dragons.dds"
+        }
+      ],
+      "tags": {
+        "subject": "trio of winged dragons in flight",
+        "style": "solid silhouette with loose painterly edges",
+        "placement": "around the right nipple"
+      },
+      "description": "Three winged dragons in solid silhouette arc in flight around the right nipple, their tails trailing into loose painterly wisps as if circling overhead."
+    },
+    {
+      "id": "Butt Butterflies",
+      "label": "Butt Butterflies",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Butt Butterflies.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tiny butterfly cluster",
+        "style": "delicate fine linework",
+        "placement": "on the left buttock"
+      },
+      "description": "A very small cluster of finely inked butterflies on the left buttock, so subtle they read almost as marks on skin in fine sketchy linework."
+    },
+    {
+      "id": "Butt Butterflies2",
+      "label": "Butt Butterflies2",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Butt Butterflies2.dds"
+        }
+      ],
+      "tags": {
+        "subject": "two small butterflies",
+        "style": "delicate fine linework",
+        "placement": "on the left buttock"
+      },
+      "description": "A pair of tiny butterflies inked on the left buttock in delicate fine linework."
+    },
+    {
+      "id": "Butt Cat",
+      "label": "Butt Cat",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Butt Cat.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal cat face with crescent",
+        "style": "bold flowing brushwork",
+        "placement": "on the left buttock"
+      },
+      "description": "A stylized tribal cat face with flame-like fur strokes and a small crescent moon above its head, inked in bold flowing brushwork on the left buttock."
+    },
+    {
+      "id": "ButtL Lips",
+      "label": "ButtL Lips",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ButtL Lips.dds"
+        }
+      ],
+      "tags": {
+        "subject": "kissing lipstick mark",
+        "style": "bold smudged silhouette",
+        "placement": "left buttock"
+      },
+      "description": "A bold lipstick kiss mark inked as a single dense silhouette on the left buttock, with the texture of pressed lips clearly visible."
+    },
+    {
+      "id": "ButtR Lips",
+      "label": "ButtR Lips",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ButtR Lips.dds"
+        }
+      ],
+      "tags": {
+        "subject": "biting lips with crescents",
+        "style": "bold silhouette",
+        "placement": "right buttock"
+      },
+      "description": "A bold pair of parted, bitten lips flanked by small crescent shapes, inked as a solid silhouette on the right buttock."
+    },
+    {
+      "id": "Chest DragonFlower",
+      "label": "Chest DragonFlower",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest DragonFlower.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornamental sternum column with lotus and winged dragon",
+        "style": "ornate linework with bold accents",
+        "placement": "centered on chest, descending the sternum to the lower abdomen"
+      },
+      "description": "A vertical sternum piece: a stylized lotus and small medallions at the top, a beaded chain through the midline, and a winged dragon coiling at the lower belly."
+    },
+    {
+      "id": "Chest DragonMoon",
+      "label": "Chest DragonMoon",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest DragonMoon.dds"
+        }
+      ],
+      "tags": {
+        "subject": "celestial sternum column with winged dragon",
+        "style": "ornate linework with bold accents",
+        "placement": "centered on chest, descending the sternum to the lower abdomen"
+      },
+      "description": "A vertical sternum piece: a row of pointed stars and small celestial motifs at the top, threading down to a winged dragon coiled at the lower belly."
+    },
+    {
+      "id": "Chest Dragons",
+      "label": "Chest Dragons",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest Dragons.dds"
+        }
+      ],
+      "tags": {
+        "subject": "trio of winged dragons among stars",
+        "style": "detailed inked silhouettes with sparkles",
+        "placement": "upper chest, near the right collarbone"
+      },
+      "description": "Three small winged dragons in detailed inked silhouette arrayed in a tight cluster among scattered stars and tiny crosses, set on the upper chest near the right collarbone."
+    },
+    {
+      "id": "Chest Fairy",
+      "label": "Chest Fairy",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest Fairy.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged fairy above a radiant sun",
+        "style": "fine pencil-style linework",
+        "placement": "centered on the chest and down the sternum"
+      },
+      "description": "A slender winged fairy poised at the top of the sternum, with a radiant sun motif and small sparkles inked below her on the lower chest."
+    },
+    {
+      "id": "Chest Knife",
+      "label": "Chest Knife",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest Knife.dds"
+        }
+      ],
+      "tags": {
+        "subject": "upright dagger",
+        "style": "clean rendered linework with shading",
+        "placement": "centered vertically on the sternum"
+      },
+      "description": "An upright dagger with an ornate cross-guard, banded grip and pommel, blade pointing downward, inked vertically along the sternum."
+    },
+    {
+      "id": "Chest Lips",
+      "label": "Chest Lips",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest Lips.dds"
+        }
+      ],
+      "tags": {
+        "subject": "biting lips with crescent",
+        "style": "bold silhouette",
+        "placement": "centered between the breasts on the sternum"
+      },
+      "description": "A bold pair of lips parted around a bite, accented by a small crescent, inked as a single filled mark centered between the breasts on the sternum."
+    },
+    {
+      "id": "Chest MoonFlower",
+      "label": "Chest MoonFlower",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest MoonFlower.dds"
+        }
+      ],
+      "tags": {
+        "subject": "celestial floral sternum column with beaded arc",
+        "style": "ornate dotwork and linework",
+        "placement": "centered on the chest, descending the sternum, with a wide beaded arc across the lower belly"
+      },
+      "description": "A vertical sternum column of a stylized lotus, beaded dots and a crescent moon, fanning out into a wide beaded arc with hanging droplets across the lower abdomen."
+    },
+    {
+      "id": "Chest StarsLeft",
+      "label": "Chest StarsLeft",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest StarsLeft.dds"
+        }
+      ],
+      "tags": {
+        "subject": "sun, moon and scattered stars",
+        "style": "scattered celestial dotwork",
+        "placement": "right upper chest near the right collarbone"
+      },
+      "description": "A scatter of pointed stars, crosses and a small ringed planet drifting in a diagonal across the right side of the upper chest, with a bold radiant sun and crescent moon as focal points near the right collarbone."
+    },
+    {
+      "id": "Chest StarsRight",
+      "label": "Chest StarsRight",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest StarsRight.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stars and crescent moon",
+        "style": "scattered celestial dotwork",
+        "placement": "left upper chest near the left collarbone"
+      },
+      "description": "A bold radiant sun above a crescent moon as focal points on the left side of the upper chest near the left collarbone, surrounded by scattered pointed stars and small crosses."
+    },
+    {
+      "id": "Chest Sun",
+      "label": "Chest Sun",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest Sun.dds"
+        }
+      ],
+      "tags": {
+        "subject": "radiant sun medallion with dangling chains",
+        "style": "ornate dotwork and linework",
+        "placement": "centered on the sternum"
+      },
+      "description": "A radiant sun medallion with a smaller pointed star above it, inked along the sternum, with a fringe of beaded chains hanging in a fan below."
+    },
+    {
+      "id": "Chest SunMoon",
+      "label": "Chest SunMoon",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest SunMoon.dds"
+        }
+      ],
+      "tags": {
+        "subject": "sun, moon, and beaded chain pendant",
+        "style": "ornate dotwork and linework",
+        "placement": "centered on the chest, fanning across the lower belly"
+      },
+      "description": "A small celestial sternum piece with a starburst and crescent stacked vertically, opening into a beaded arc with hanging droplets that drapes across the lower abdomen."
+    },
+    {
+      "id": "Chest Sword Flower",
+      "label": "Chest Sword Flower",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Chest Sword Flower.dds"
+        }
+      ],
+      "tags": {
+        "subject": "downward sword wrapped in roses with a radiant medallion",
+        "style": "ornate linework with bold accents",
+        "placement": "centered on the chest, descending the sternum to the lower abdomen"
+      },
+      "description": "A long sword pointing downward, its blade wrapped in rose-and-vine accents, with a jeweled hilt above and a radiant medallion fanning out at the lower belly."
+    },
+    {
+      "id": "ChestL Birds",
+      "label": "ChestL Birds",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ChestL Birds.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small flock of birds",
+        "style": "scattered silhouettes in flight",
+        "placement": "left side of the chest, below the breast"
+      },
+      "description": "A small flock of bird silhouettes scattered as if mid-flight, inked on the left side of the chest below the breast."
+    },
+    {
+      "id": "ChestR Birds",
+      "label": "ChestR Birds",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ChestR Birds.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small flock of birds",
+        "style": "scattered silhouettes in flight",
+        "placement": "right side of the chest, below the breast"
+      },
+      "description": "A small flock of bird silhouettes drifting in scattered flight, inked on the right side of the chest below the breast."
+    },
+    {
+      "id": "ChestR Dragon",
+      "label": "ChestR Dragon",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ChestR Dragon.dds"
+        }
+      ],
+      "tags": {
+        "subject": "pair of winged dragons",
+        "style": "loose silhouette",
+        "placement": "right side of the upper chest"
+      },
+      "description": "Two winged dragons drawn in loose solid silhouette, facing each other on the right side of the upper chest with their tails curling behind them."
+    },
+    {
+      "id": "Down Fairy",
+      "label": "Down Fairy",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Down Fairy.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged fairy with trailing vines",
+        "style": "fine sketchy linework",
+        "placement": "low on the abdomen, descending toward the pubic mound"
+      },
+      "description": "A slender winged fairy figure drawn in fine sketchy lines, inked low on the abdomen with delicate vine-like trails reaching down toward the pubic mound."
+    },
+    {
+      "id": "Hand Stars",
+      "label": "Hand Stars",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Hand Stars.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stars, sparkles and crescent",
+        "style": "small celestial dotwork",
+        "placement": "right hand, on the index finger"
+      },
+      "description": "A small drift of pointed stars, sparkles and a tiny crescent moon inked along the right index finger."
+    },
+    {
+      "id": "Magic Scar",
+      "label": "Magic Scar",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Magic Scar.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornamental scar with sun medallion and floral wisp",
+        "style": "ornate flowing linework with sparkles",
+        "placement": "diagonal sweep down one side of the torso, from upper chest to lower abdomen"
+      },
+      "description": "A long ornament traced like a magical scar, anchored at the upper chest by a radiant sun medallion and sweeping diagonally down one side of the torso to the lower abdomen, dissolving into a wispy trail of vines and tiny sparkles at its lower end."
+    },
+    {
+      "id": "Moles",
+      "label": "Moles",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Moles.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered beauty marks",
+        "style": "tiny pinpoint dots",
+        "placement": "scattered across the torso"
+      },
+      "description": "A handful of very small pinpoint marks scattered randomly across the torso, reading as faint beauty spots rather than a deliberate design."
+    },
+    {
+      "id": "Spine ButterflySars",
+      "label": "Spine ButterflySars",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Spine ButterflySars.dds"
+        }
+      ],
+      "tags": {
+        "subject": "butterfly with stars and crescent",
+        "style": "fine open linework with sparkles",
+        "placement": "on the right shoulder blade, high on the upper back"
+      },
+      "description": "A pair of small butterflies among scattered pointed stars and a small crescent moon, inked on the right shoulder blade high on the upper back."
+    },
+    {
+      "id": "Spine Flower",
+      "label": "Spine Flower",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Spine Flower.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornamental floral chain",
+        "style": "ornate symmetrical linework",
+        "placement": "running down the spine from upper back toward lower back"
+      },
+      "description": "A long ornamental chain anchored by a symmetrical winged flourish at the top and tapering down through stacked floral medallions and beaded dotwork along the length of the spine."
+    },
+    {
+      "id": "Spine MagicBook",
+      "label": "Spine MagicBook",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX Spine MagicBook.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged tome with trailing roots",
+        "style": "bold illustration with splatter",
+        "placement": "centered between the shoulder blades on the upper back"
+      },
+      "description": "A bold winged tome inked between the shoulder blades, with twisting root-like tendrils and ink splatter spilling downward across the upper back."
+    },
+    {
+      "id": "SpineL Dragons",
+      "label": "SpineL Dragons",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX SpineL Dragons.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small dragon",
+        "style": "fine inked silhouette",
+        "placement": "left of the upper spine"
+      },
+      "description": "A small dragon in fine inked silhouette, set just left of the upper spine between the shoulder blades."
+    },
+    {
+      "id": "SpineR Dragons",
+      "label": "SpineR Dragons",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX SpineR Dragons.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small dragon with trailing tendrils",
+        "style": "fine inked silhouette",
+        "placement": "right of the upper spine, between the shoulder blades"
+      },
+      "description": "A small dragon rendered in fine inked silhouette with trailing wisp-like tendrils, set just right of the upper spine between the shoulder blades."
+    },
+    {
+      "id": "ThighL Dragons",
+      "label": "ThighL Dragons",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ThighL Dragons.dds"
+        }
+      ],
+      "tags": {
+        "subject": "minute dragon figures",
+        "style": "minimal sketchy linework",
+        "placement": "outer left thigh"
+      },
+      "description": "A few very small, minimally sketched dragon figures inked on the outer left thigh, so faint they read almost as ink ghosts on the skin."
+    },
+    {
+      "id": "ThighL Flower",
+      "label": "ThighL Flower",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ThighL Flower.dds"
+        }
+      ],
+      "tags": {
+        "subject": "floral sprigs and tiny figure",
+        "style": "delicate sketchy linework",
+        "placement": "down the outer left thigh"
+      },
+      "description": "Small floral sprigs and a tiny detailed accent piece spaced down the outer left thigh in delicate sketchy linework."
+    },
+    {
+      "id": "ThighL Stars",
+      "label": "ThighL Stars",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ThighL Stars.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered stars and sunbursts",
+        "style": "small celestial dotwork",
+        "placement": "outer left thigh"
+      },
+      "description": "A loose drift of small pointed stars, cross sparkles and a tiny sunburst inked in a curving line along the outer left thigh."
+    },
+    {
+      "id": "ThighL Virgo",
+      "label": "ThighL Virgo",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ThighL Virgo.dds"
+        }
+      ],
+      "tags": {
+        "subject": "Virgo maiden among foliage",
+        "style": "detailed pencil-style linework",
+        "placement": "outer left thigh"
+      },
+      "description": "A slender nude maiden figure crowned by a radiant sun and surrounded by dense foliage and vines, inked as an elaborate Virgo motif on the outer left thigh."
+    },
+    {
+      "id": "ThighR Dragons",
+      "label": "ThighR Dragons",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ThighR Dragons.dds"
+        }
+      ],
+      "tags": {
+        "subject": "minute dragon figures",
+        "style": "minimal sketchy linework",
+        "placement": "outer right thigh"
+      },
+      "description": "A few very small, minimally sketched dragon figures inked in loose linework on the outer right thigh."
+    },
+    {
+      "id": "ThighR Flower",
+      "label": "ThighR Flower",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ThighR Flower.dds"
+        }
+      ],
+      "tags": {
+        "subject": "floral sprigs and a tiny accent figure",
+        "style": "delicate sketchy linework",
+        "placement": "down the outer right thigh"
+      },
+      "description": "Small floral sprigs accompanied by a tiny detailed accent piece, spaced down the outer right thigh in delicate sketchy linework."
+    },
+    {
+      "id": "ThighR Stars",
+      "label": "ThighR Stars",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ThighR Stars.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered stars and sunbursts",
+        "style": "small celestial dotwork",
+        "placement": "outer right thigh"
+      },
+      "description": "A loose drift of small pointed stars, cross sparkles and a tiny sunburst inked in a curving line along the outer right thigh."
+    },
+    {
+      "id": "ThingR Fairy",
+      "label": "ThingR Fairy",
+      "layers": [
+        {
+          "texture": "actors\\character\\overlays\\RX\\RX ThingR Fairy.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged fairy in flight",
+        "style": "fine sketchy linework with bold wings",
+        "placement": "outer right thigh"
+      },
+      "description": "A nude winged fairy figure caught mid-flight with one knee tucked up, her wings sweeping behind her, inked in fine sketchy lines on the outer right thigh."
+    }
   ]
 }

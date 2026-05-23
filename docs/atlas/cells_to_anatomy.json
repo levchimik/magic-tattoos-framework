@@ -1,0 +1,66 @@
+{
+  "source": "Hand-verified from in-game screenshots of anatomy_atlas_5x5_sub.dds (2026-05-22).",
+  "canvas_size": 4096,
+  "notes": [
+    "Each cell's bbox is in 4096-canvas coords (x0, y0, x1, y1).",
+    "When resolving a tattoo at 2048-canvas, scale up by 2x first, OR use normalized [0,1] coords.",
+    "Consistent rule: canvas X < cell_midpoint -> character's RIGHT anatomy; X >= midpoint -> character's LEFT.",
+    "D3 horizontal midline (absolute y=2867) passes THROUGH the nipples.",
+    "Navel sits at the D3/E3 boundary (y=3277). ALL of E3 is BELOW the navel — E3a/E3b are just below navel, E3c/E3d are pubic-mound region.",
+    "C3 covers both shoulder blades plus nape. Logical L/R subdivision (C3-left, C3-right) added by canvas-X pattern but not separately color-marked in the atlas texture.",
+    "Back UV inverts: canvas-A row (y=0-819) = lower back / buttocks; canvas-B row = mid-back; canvas-C row = upper back / shoulder blades / nape. So canvas-up != body-up for the back half."
+  ],
+  "subdivisions": {
+    "D3": "central chest — split a/b/c/d at row/col midpoints",
+    "A3": "buttock cheeks + sacrum — split a/b/c/d at row/col midpoints",
+    "E3": "lower abdomen / pubic + L/R hip — split a/b/c/d at row/col midpoints"
+  },
+  "cells": [
+    {"cell": "A1", "bbox": [0, 0, 819, 819], "anatomy": "outer upper arm / shoulder rear", "side": "ambiguous"},
+    {"cell": "A2", "bbox": [819, 0, 1638, 819], "anatomy": "outer upper arm (alt zone)", "side": "ambiguous"},
+    {"cell": "A3a", "bbox": [1638, 0, 2048, 410], "anatomy": "sacrum / lower-lumbar right side", "side": "right"},
+    {"cell": "A3b", "bbox": [2048, 0, 2458, 410], "anatomy": "sacrum / lower-lumbar left side", "side": "left"},
+    {"cell": "A3c", "bbox": [1638, 410, 2048, 819], "anatomy": "right buttock", "side": "right"},
+    {"cell": "A3d", "bbox": [2048, 410, 2458, 819], "anatomy": "left buttock", "side": "left"},
+    {"cell": "A4", "bbox": [2458, 0, 3277, 819], "anatomy": "lumbar / lower back centerline", "side": "centered"},
+    {"cell": "A5", "bbox": [3277, 0, 4096, 819], "anatomy": "outer upper arm (alt zone)", "side": "ambiguous"},
+
+    {"cell": "B1", "bbox": [0, 819, 819, 1638], "anatomy": "outer arm / shoulder edge", "side": "ambiguous"},
+    {"cell": "B2", "bbox": [819, 819, 1638, 1638], "anatomy": "outer upper arm", "side": "ambiguous"},
+    {"cell": "B3", "bbox": [1638, 819, 2458, 1638], "anatomy": "upper back center / between shoulder blades", "side": "centered"},
+    {"cell": "B4", "bbox": [2458, 819, 3277, 1638], "anatomy": "upper arm rear / posterior shoulder", "side": "ambiguous"},
+    {"cell": "B5", "bbox": [3277, 819, 4096, 1638], "anatomy": "outer upper arm", "side": "ambiguous"},
+
+    {"cell": "C1", "bbox": [0, 1638, 819, 2458], "anatomy": "forearm", "side": "ambiguous"},
+    {"cell": "C2", "bbox": [819, 1638, 1638, 2458], "anatomy": "upper arm inner / lateral upper torso", "side": "ambiguous"},
+    {"cell": "C3", "bbox": [1638, 1638, 2458, 2458], "anatomy": "upper shoulder region — front (collarbone/chest near shoulder) AND back (shoulder blade, nape)", "side": "centered", "note": "wraps the shoulder ring around the body; split logically by canvas-X for L/R"},
+    {"cell": "C3-right", "bbox": [1638, 1638, 2048, 2458], "anatomy": "right shoulder area — right upper chest / right collarbone (front) OR right shoulder blade (back)", "side": "right", "logical_subdivision": true},
+    {"cell": "C3-left",  "bbox": [2048, 1638, 2458, 2458], "anatomy": "left shoulder area — left upper chest / left collarbone (front) OR left shoulder blade (back)", "side": "left", "logical_subdivision": true},
+    {"cell": "C4", "bbox": [2458, 1638, 3277, 2458], "anatomy": "lateral torso / outer side of body", "side": "ambiguous"},
+    {"cell": "C5", "bbox": [3277, 1638, 4096, 2458], "anatomy": "outer arm strip / lateral arm", "side": "ambiguous"},
+
+    {"cell": "D1a", "bbox": [0, 2458, 410, 2867], "anatomy": "right lower-buttock fold / right buttock-thigh junction", "side": "right"},
+    {"cell": "D1b", "bbox": [410, 2458, 819, 2867], "anatomy": "right upper-outer thigh", "side": "right"},
+    {"cell": "D1c", "bbox": [0, 2867, 410, 3277], "anatomy": "right outer mid-thigh", "side": "right"},
+    {"cell": "D1d", "bbox": [410, 2867, 819, 3277], "anatomy": "right lower-outer thigh", "side": "right"},
+    {"cell": "D2", "bbox": [819, 2458, 1638, 3277], "anatomy": "non-body UV region (hand back / lateral extremity)", "side": "ambiguous"},
+    {"cell": "D3a", "bbox": [1638, 2458, 2048, 2867], "anatomy": "upper chest / right collarbone (above right nipple)", "side": "right"},
+    {"cell": "D3b", "bbox": [2048, 2458, 2458, 2867], "anatomy": "upper chest / left collarbone (above left nipple)", "side": "left"},
+    {"cell": "D3c", "bbox": [1638, 2867, 2048, 3277], "anatomy": "right breast / underbreast (below right nipple)", "side": "right"},
+    {"cell": "D3d", "bbox": [2048, 2867, 2458, 3277], "anatomy": "left breast / underbreast (below left nipple)", "side": "left"},
+    {"cell": "D4", "bbox": [2458, 2458, 3277, 3277], "anatomy": "front of left thigh / outer left thigh", "side": "left"},
+    {"cell": "D5a", "bbox": [3277, 2458, 3687, 2867], "anatomy": "left upper-outer thigh / left lower-buttock fold", "side": "left"},
+    {"cell": "D5b", "bbox": [3687, 2458, 4096, 2867], "anatomy": "left outer thigh (around leg)", "side": "left"},
+    {"cell": "D5c", "bbox": [3277, 2867, 3687, 3277], "anatomy": "left outer mid-thigh", "side": "left"},
+    {"cell": "D5d", "bbox": [3687, 2867, 4096, 3277], "anatomy": "left lower-outer thigh", "side": "left"},
+
+    {"cell": "E1", "bbox": [0, 3277, 819, 4096], "anatomy": "inner-right thigh / right shin", "side": "right"},
+    {"cell": "E2", "bbox": [819, 3277, 1638, 4096], "anatomy": "right upper-outer thigh / right hip-thigh junction", "side": "right"},
+    {"cell": "E3a", "bbox": [1638, 3277, 2048, 3687], "anatomy": "lower abdomen just below navel, right side", "side": "right"},
+    {"cell": "E3b", "bbox": [2048, 3277, 2458, 3687], "anatomy": "lower abdomen just below navel, left side", "side": "left"},
+    {"cell": "E3c", "bbox": [1638, 3687, 2048, 4096], "anatomy": "pubic mound / right hip / very low abdomen", "side": "right"},
+    {"cell": "E3d", "bbox": [2048, 3687, 2458, 4096], "anatomy": "pubic mound / left hip / very low abdomen", "side": "left"},
+    {"cell": "E4", "bbox": [2458, 3277, 3277, 4096], "anatomy": "front of left thigh (lower half) / left shin", "side": "left"},
+    {"cell": "E5", "bbox": [3277, 3277, 4096, 4096], "anatomy": "left upper-outer thigh / left hip-thigh junction", "side": "left"}
+  ]
+}

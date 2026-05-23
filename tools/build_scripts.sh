@@ -81,6 +81,7 @@ done
 # is explicit so a future bridge with multiple aliases stays declarative.
 declare -A ALIAS_TO_PLUGIN=(
     [MTF_AliasSkyrimNet]=MTF_Plugin_SkyrimNet
+    [MTF_AliasPresetEventsTest]=MTF_Plugin_PresetEventsTest
 )
 for alias in "${!ALIAS_TO_PLUGIN[@]}"; do
     apex="$SRC/${alias}.pex"

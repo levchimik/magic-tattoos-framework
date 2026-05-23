@@ -8,113 +8,241 @@
       "id": "bubbles",
       "label": "Bubbles",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishBubbles.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishBubbles.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered bubble flecks",
+        "style": "fine speckled polish",
+        "placement": "all ten fingernails"
+      },
+      "description": "Scattered fine bubble-flecks across all ten fingernails, like a delicate speckled polish."
     },
     {
       "id": "dried-blood",
       "label": "Dried Blood",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishDriedBlood.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishDriedBlood.dds"
+        }
+      ],
+      "tags": {
+        "subject": "crescent stain at nail base",
+        "style": "stained half-moon",
+        "placement": "fingernail cuticles"
+      },
+      "description": "A small crescent stain at the base of each fingernail, as if dried blood has crusted around every cuticle."
     },
     {
       "id": "frost",
       "label": "Frost",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFrost.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFrost.dds"
+        }
+      ],
+      "tags": {
+        "subject": "feathery frost wisps",
+        "style": "delicate brushwork",
+        "placement": "all ten fingernails"
+      },
+      "description": "Delicate feathery frost wisps painted on each of the ten fingernails, like ice slowly forming across the polish."
     },
     {
       "id": "full-dark",
       "label": "Full Polish (Dark)",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFull_Dark.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFull_Dark.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full-coverage polish",
+        "style": "opaque dark fill",
+        "placement": "all ten fingernails"
+      },
+      "description": "Solid full-coverage polish across every fingernail in a deep dark tone."
     },
     {
       "id": "full-light",
       "label": "Full Polish (Light)",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFull_Light.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFull_Light.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full-coverage polish",
+        "style": "opaque light fill",
+        "placement": "all ten fingernails"
+      },
+      "description": "Solid full-coverage polish across every fingernail in a pale light tone."
     },
     {
       "id": "full-medium",
       "label": "Full Polish (Medium)",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFull_Medium.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishFull_Medium.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full-coverage polish",
+        "style": "opaque mid-tone fill",
+        "placement": "all ten fingernails"
+      },
+      "description": "Solid full-coverage polish across every fingernail in an even mid-tone shade."
     },
     {
       "id": "gradient",
       "label": "Gradient",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishGradient.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishGradient.dds"
+        }
+      ],
+      "tags": {
+        "subject": "gradient nail polish",
+        "style": "base-to-tip fade",
+        "placement": "all ten fingernails"
+      },
+      "description": "A gradient on every fingernail, lighter at the cuticle and deepening toward the tip."
     },
     {
       "id": "gradient-invert",
       "label": "Gradient (Inverted)",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishGradient_Invert.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishGradient_Invert.dds"
+        }
+      ],
+      "tags": {
+        "subject": "inverted gradient polish",
+        "style": "tip-to-base fade",
+        "placement": "all ten fingernails"
+      },
+      "description": "An inverted gradient on every fingernail, deepest at the cuticle and fading out toward the tip."
     },
     {
       "id": "lightning",
       "label": "Lightning",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishLightning.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishLightning.dds"
+        }
+      ],
+      "tags": {
+        "subject": "lightning bolt motif",
+        "style": "jagged single mark",
+        "placement": "all ten fingernails"
+      },
+      "description": "A small jagged lightning bolt etched onto each fingernail."
     },
     {
       "id": "marble",
       "label": "Marble",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishMarble.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishMarble.dds"
+        }
+      ],
+      "tags": {
+        "subject": "marble vein pattern",
+        "style": "fine irregular ink veining",
+        "placement": "all ten fingernails"
+      },
+      "description": "An irregular marble-vein pattern of fine ink lines and flecks across each fingernail."
     },
     {
       "id": "marble-reduced",
       "label": "Marble (Reduced)",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishMarble_Reduced.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishMarble_Reduced.dds"
+        }
+      ],
+      "tags": {
+        "subject": "sparse marble vein pattern",
+        "style": "subtle irregular ink veining",
+        "placement": "all ten fingernails"
+      },
+      "description": "A subtler marble-vein pattern on each fingernail, with sparser ink lines than the full marble polish."
     },
     {
       "id": "semi-medium",
       "label": "Semi-Polish (Medium)",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishSemi_Medium.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishSemi_Medium.dds"
+        }
+      ],
+      "tags": {
+        "subject": "central vertical stripe",
+        "style": "narrow centered polish band",
+        "placement": "down the middle of each fingernail"
+      },
+      "description": "A narrow vertical band of polish painted straight down the middle of each fingernail."
     },
     {
       "id": "semi-slanted",
       "label": "Semi-Polish (Slanted)",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishSemi_Slanted.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishSemi_Slanted.dds"
+        }
+      ],
+      "tags": {
+        "subject": "half-coverage slanted fill",
+        "style": "angled diagonal polish",
+        "placement": "all ten fingernails"
+      },
+      "description": "A diagonal half-coverage polish on each fingernail, slanted across from one side to the other."
     },
     {
       "id": "splatters",
       "label": "Splatters",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishSplatters.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolishSplatters.dds"
+        }
+      ],
+      "tags": {
+        "subject": "splatter speckles",
+        "style": "scattered fine flecks",
+        "placement": "all ten fingernails"
+      },
+      "description": "Tiny ink splatters speckled across all ten fingernails like flicked droplets of polish."
     },
     {
       "id": "no-tip",
       "label": "No Tip",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolish_NoTip.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolish_NoTip.dds"
+        }
+      ],
+      "tags": {
+        "subject": "polish with bare tip",
+        "style": "reverse french fill",
+        "placement": "fingernail base leaving the tip bare"
+      },
+      "description": "Solid polish covering each fingernail but stopping short, leaving a bare crescent at the very tip."
     },
     {
       "id": "tip-l",
       "label": "Tip L",
       "layers": [
-        { "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolish_Tip_L.dds" }
-      ]
+        {
+          "texture": "actors\\character\\character assets\\overlays\\BardledorfNailPolish\\BardleNailPolish_Tip_L.dds"
+        }
+      ],
+      "tags": {
+        "subject": "narrow edge stripe",
+        "style": "thin vertical accent line",
+        "placement": "along one edge of each fingernail"
+      },
+      "description": "A thin vertical accent line of polish running down one edge of every fingernail."
     }
   ]
 }

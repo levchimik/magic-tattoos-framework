@@ -21,6 +21,11 @@ the catalog's texture paths to resolve.
 | `bardle-nail-polish/` | `mtf.bardle-nail-polish.json` | Bard's Nail Overlays (by Bardledorf) | Hands |
 | `community-overlays-1-face/` | `mtf.community-overlays-1-face.json` | Community Overlays 1 — Female Face Overlays | Face |
 
+The `skyrimnet-bridge/` folder also lives here but is NOT a texture-pack
+adapter — it ships a SkyrimNet prompt template (`character_bio/0350_mtf_tattoos.prompt`)
+that the FOMOD bundles with the `MTF_Plugin_SkyrimNet.esp` step, not as a
+content-pack option. See `tools/fomod/README.md`.
+
 ## Adding a new adapter
 
 1. Create a new folder: `content-packs/<pack-id>/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/`

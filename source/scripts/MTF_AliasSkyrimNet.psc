@@ -18,6 +18,16 @@ Event OnPlayerLoadGame()
     ; MTF_PluginAliasKick) — Papyrus's "function differs since save"
     ; quirk can drop queued OnInit resumptions after a .pex rebuild.
     RegisterForModEvent("MTF_TierChanged", "OnMTFTierChanged")
+    ; Also re-run SkyrimNet API registration. SkyrimNet's C++ side resets
+    ; its decorator/schema tables every game launch — without this call
+    ; the bridge silently loses its decorator after the first session and
+    ; `mtf_active_tattoos(actorUUID)` returns nothing. Owning Quest's
+    ; persistent _bridgeSetup guard (if any) would prevent the re-run, so
+    ; the bridge plugin script intentionally has no such guard.
+    MTF_Plugin_SkyrimNet owner = GetOwningQuest() as MTF_Plugin_SkyrimNet
+    if owner != None
+        owner._setupBridge()
+    endif
 EndEvent
 
 Function OnMTFTierChanged(string strArg, float numArg, Form sender)
@@ -29,8 +39,11 @@ Function OnMTFTierChanged(string strArg, float numArg, Form sender)
     ;   strArg = "<scope>|<presetName>|<prevTier>|<newTier>"
     ;   numArg = newTier as float
     ;   sender = the actor (PlayerRef or NPC)
+    Debug.Trace("MTF.SkyrimNet alias: OnMTFTierChanged strArg=" + strArg + " numArg=" + numArg)
     MTF_Plugin_SkyrimNet host = GetOwningQuest() as MTF_Plugin_SkyrimNet
     if host != None
         host.HandleTierChange(strArg, numArg, sender)
+    else
+        Debug.Trace("MTF.SkyrimNet alias: owning quest is None — event dropped")
     endif
 EndFunction

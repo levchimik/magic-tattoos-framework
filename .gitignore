@@ -7,3 +7,6 @@
 source/scripts/*.pex
 _build/
 _deps/
+
+# Tattoo design vision-reference renders (large, regeneratable from textures)
+docs/visual-refs/

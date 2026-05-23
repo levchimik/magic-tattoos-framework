@@ -14,7 +14,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\001.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "fertility sigil, central heart, curling fallopian arms, ovary bulbs",
+        "style": "tribal linework, bilateral symmetry",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A tribal fertility sigil with a solid heart at the center, framed by two curling fallopian arms that sweep outward into bulbous ovary lobes capped by small horn-like tufts. A pointed descending tail drops from the lower midline as a stylized cervix; the overall silhouette suggests a uterus enclosing the central heart."
     },
     {
       "id": "002",
@@ -26,7 +32,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\002.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "openwork fertility sigil with winged arms and forked tails",
+        "style": "open tribal linework",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A small heart sits at the center, surrounded by twin upward-swept fallopian arms that flare into pointed wing tips with curled ovary terminals. From the base, a pair of slender forked cervix-tails descend symmetrically toward the pubic mound, with delicate filigree filling the negative space. The overall silhouette frames the heart in a uterus-shaped envelope of curls and points."
     },
     {
       "id": "003",
@@ -38,7 +50,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\003.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "v-shaped tribal sigil with central heart",
+        "style": "filled tribal silhouette with flame curls",
+        "placement": "lower abdomen fanning down toward the pubic mound"
+      },
+      "description": "A downward-pointing V-shaped tribal sigil with a small heart at its center, framed by curling arms that hint at a uterus enclosing the heart. Twin upward-curling flame-like tendrils rise from the shoulders and a long tapered tail drops to a point below. The whole design fans across the lower belly and narrows toward the pubic mound."
     },
     {
       "id": "004",
@@ -50,7 +68,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\004.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged sigil with central heart and ovary curls",
+        "style": "filled tribal silhouette",
+        "placement": "lower abdomen just above the pubic mound"
+      },
+      "description": "A solid filled tribal sigil with a small heart at the center, flanked by two long horn-like arms that taper outward and end in curled tips suggesting ovaries. A tiny heart accent sits inside each curl, and a clustered spike of tails drops below the central heart toward the pubic mound. The overall silhouette suggests a uterus wrapping the heart."
     },
     {
       "id": "005",
@@ -62,7 +86,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\005.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "heart-and-vines crest, twin ovary scrolls, descending fronds",
+        "style": "ornate tribal flourish, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A wide crest with a bold central heart held between two scroll-curled ovary lobes that taper into spiked tufts at the outer tips. Below the heart, layered feathered fronds and curling tendrils cascade downward like a stylized cervix and vaginal channel, hinting at fertility anatomy without literal labeling."
     },
     {
       "id": "006",
@@ -74,7 +104,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\006.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "filigree heart sigil with stacked heart accents",
+        "style": "ornamental linework with filled center",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "An ornate sigil built around a solid heart at its center, enclosed by a larger open heart-shaped frame of filigree linework with twin scrolling S-curls rising from the upper shoulders. A small heart accent crowns the top and another hangs as a pendant from the base, and the overall silhouette suggests a uterus cradling the central heart. Inked low and wide across the lower abdomen above the pubic mound."
     },
     {
       "id": "007",
@@ -86,7 +122,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\007.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "open heart with side curls",
+        "style": "thick outlined tribal linework",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A large open heart drawn in thick outline sits at the center, with a smaller inner heart nested inside it. Two scrolled tendrils sweep outward from the heart's shoulders and curl back on themselves like ram-horns. Inked low and wide across the lower belly above the pubic mound."
     },
     {
       "id": "008",
@@ -98,7 +140,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\008.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "mirrored fertility sigil with rolled ovary scrolls",
+        "style": "ornamental tribal scrollwork",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "Two large rolled scrolls bracket the center like coiled ovaries, their inner curls echoing each other in mirror symmetry. A small crown-like cluster of tiny lobes rises along the top axis, and a pair of descending tendrils trails downward to a forked cervix point. The composition reads as a stylized uterus with no single central heart, built entirely from paired scroll motifs."
     },
     {
       "id": "009",
@@ -110,7 +158,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\009.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "fertility sigil with ovum and three spermatozoa",
+        "style": "tribal linework with anatomical detail",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "An anatomical fertility sigil — a heart-shaped uterus holds a small round ovum at its center, orbited by three spermatozoa arranged at 120-degree intervals with curled flagella reaching back toward the uterine wall. Twin curling fallopian arms wrap outward from the uterus, and delicate filigree tracery fills the body of the sigil as it sits low and wide on the abdomen above the pubic mound."
     },
     {
       "id": "010",
@@ -122,7 +176,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\010.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "anatomical uterus with central heart",
+        "style": "detailed black-ink anatomical illustration",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A detailed anatomical uterus rendered in dense black ink, with a small heart nested inside the uterine body at the very center. Twin fallopian tubes curve outward and terminate in rounded ovary lobes on either side, while a tapered cervix and vaginal canal descend below to a fine point. The overall silhouette is unmistakably uterus-shaped, framing the central heart."
     },
     {
       "id": "011",
@@ -134,7 +194,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\011.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged womb sigil with leafy fallopian arms",
+        "style": "tribal linework with leaf flourishes",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A small heart at the center is framed by curling arms that hint at a uterus, with twin long fallopian tubes sweeping outward and ending in seed-shaped ovary lobes. Leafy fronds trail from each ovary tip and a short tapered cervix descends below the heart toward the pubic mound. Inked low and wide across the lower abdomen."
     },
     {
       "id": "012",
@@ -146,7 +212,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\012.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "anatomical uterus sigil with thorned arms and central heart",
+        "style": "fine tribal anatomical linework",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A small heart rests at the center of an anatomically suggestive uterus body, framed by two horizontally extended fallopian arms tipped with leaf-shaped ovary pods. Tiny thorn-spikes line the upper edge of each arm, and a slender beaded cervix column drops from the base to a small terminal flourish. The whole figure spreads wide and low across the abdomen."
     },
     {
       "id": "013",
@@ -158,7 +230,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\013.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "stylized uterus, small inner heart, ovary horns",
+        "style": "tribal anatomical glyph, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A clear uterine silhouette rendered as tribal linework — two outer arms curl up into hooked ovary horns, and a small heart sits centered inside the fundus where a womb cavity would be. A small star punctuates the top of the heart, and feathered tendrils descend through the cervix region into a pointed vaginal tail."
     },
     {
       "id": "014",
@@ -170,7 +248,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\014.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "anatomical uterus and ovaries diagram",
+        "style": "realistic anatomical illustration",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A near-medical rendering of the female reproductive system — a domed uterus sits at the center with a tiny heart marked on its body, flanked by twin fallopian tubes that arc upward and outward to round ovaries dotted with follicles. A ribbed cervical canal descends straight down from the uterus toward the pubic mound, with small ornamental curls accenting the ovary tips."
     },
     {
       "id": "015",
@@ -182,7 +266,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\015.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "leaf-pod fertility sigil with crowned heart-in-heart",
+        "style": "filled tribal silhouette with leafy flourishes",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A heart-in-heart sits at the center crowned by a small flame-like flourish, flanked by two pointed leaf-pod ovaries at either side. Symmetrical scrollwork curls outward from beneath the heart and a small tapered cervix-tail drops to a point below. The outer silhouette suggests a wide, low uterine envelope enclosing the central heart."
     },
     {
       "id": "016",
@@ -194,7 +284,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\016.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "stacked hearts with berry-tipped arms",
+        "style": "filled tribal silhouette with leafy curls",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A central heart sits above a smaller second heart, the pair stacked at the core of the sigil. Leafy arched arms sweep out to either side and terminate in small round berry-like bulbs that read as ovary lobes, with curling tails dropping below. The framing arms suggest a uterus cradling the twin hearts."
     },
     {
       "id": "017",
@@ -206,7 +302,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\017.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged heart fertility sigil",
+        "style": "filled tribal silhouette with flame wings",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A bold heart sits at the center with two short horn-tips rising from its lobes, flanked by sweeping bat-like wings made of layered flame-cuts. The wing tips curl inward at the bottom edges into rolled ovary terminals. There is no separate cervix-tail; the whole design reads as a heart enthroned within a winged uterine silhouette."
     },
     {
       "id": "018",
@@ -218,7 +320,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\018.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "nested hearts with leaf-eye arms",
+        "style": "tribal linework with pointed flourishes",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A heart at the center contains a smaller solid heart inside it, both crowned by a short spike. Two pointed leaf-shaped arms extend outward, each carrying an eye-like void at its tip, and a thin tapered tail drops from the base. The curving arms hint at a uterus enclosing the heart."
     },
     {
       "id": "019",
@@ -230,7 +338,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\019.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "wide-spread fertility sigil with stretched fallopian wings",
+        "style": "elongated tribal linework",
+        "placement": "lower abdomen, spread wide across the hips"
+      },
+      "description": "A central heart anchors a horizontally stretched composition, with two long pointed fallopian wings reaching far outward and terminating in small curled ovary tips. A short beaded vertical cervix accent drops below the heart to a small ornamental knot. The whole sigil spreads exceptionally wide across the lower abdomen."
     },
     {
       "id": "020",
@@ -242,7 +356,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\020.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "open horned womb sigil with central heart",
+        "style": "open ornamental linework",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "An openwork sigil with a small heart at the center, framed by curling arms that hint at a uterus and twin upswept horn-like fallopian tubes coiling outward at the shoulders. Forked scroll-tendrils descend from the base and curl back inward, with delicate flourishes filling the negative space. Sits low and wide across the lower abdomen above the pubic mound."
     },
     {
       "id": "021",
@@ -254,7 +374,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\021.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "diamond-crested fertility sigil with paired sperm motifs",
+        "style": "smooth tribal linework",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A small upright faceted diamond sits at the top center above paired heart-suggestive curls, with two large mirrored rolled scrolls flaring outward to ovary terminals at either side. Inside the central pocket, two spermatozoa face each other as bulb-headed curls with sweeping flagella. The outer silhouette closes downward into a uterine envelope without an explicit cervix-tail."
     },
     {
       "id": "022",
@@ -266,7 +392,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\022.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "small filled heart, broad winged tribal frame",
+        "style": "sharp tribal linework, sweeping symmetry",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A small filled heart sits at the visual center, cradled by two large inward-curling scrolls that mirror each other above and below it. The outer linework sweeps wide into long pointed wing-tips on either side, framing the heart in a broad shield-like silhouette that nods at a uterine outline."
     },
     {
       "id": "023",
@@ -278,7 +410,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\023.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "uterine sigil with central heart",
+        "style": "outlined tribal linework",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A small heart at the center is framed by two horn-like arms that arc upward and outward, with curled tips suggesting ovary lobes. A slender tapered cervix-tail descends below the heart with a small inner spike. The overall silhouette of the framing arms reads as a uterus enclosing the central heart."
     },
     {
       "id": "024",
@@ -290,7 +428,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\024.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "wide tribal heart with horn arms",
+        "style": "filled tribal silhouette",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A bold central heart anchors the design, framed by two long sweeping horn-like arms that taper to fine outward-curling points. A clustered cervix-tail drops below the heart in pointed barbs toward the pubic mound. The curving framework around the heart suggests a uterus silhouette."
     },
     {
       "id": "025",
@@ -302,7 +446,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\025.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "twin ovary loops, dripping cervix tail, no central heart",
+        "style": "fine tribal scrollwork, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "Two oval ovary loops sit side by side at the upper center, joined by a notched spade-shaped pendant where a cervix would hang. Spindly tendrils sweep outward from each loop into pointed tips, and a single teardrop droplet dangles beneath the central pendant."
     },
     {
       "id": "026",
@@ -314,7 +464,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\026.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "bat-winged womb sigil with rose-tipped tails",
+        "style": "filled gothic tribal silhouette",
+        "placement": "lower abdomen, wide across the pubic mound"
+      },
+      "description": "A wide gothic sigil with a small heart at the center cradled inside curling fallopian arms that read as a uterus, flanked by sweeping bat-like wings tipped with small roses on slender stems. A second pendant heart hangs below the central one, and forked spiked tails drape downward and curl back inward toward the pubic mound."
     },
     {
       "id": "027",
@@ -326,7 +482,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\027.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "baroque damask filigree panel",
+        "style": "dense baroque filigree",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A dense baroque damask panel built from mirrored acanthus-leaf scrolls, paired bird-like silhouettes perched at the upper inner corners, and a small central crest with a quatrefoil motif. A single beaded pendant drops from the base to a teardrop terminal. There is no anatomical heart or uterus iconography; the design is pure ornamental filigree."
     },
     {
       "id": "028",
@@ -338,7 +500,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\028.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "filled womb sigil with feathered flourishes",
+        "style": "filled tribal silhouette with scrollwork",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A solidly filled fertility sigil with a small heart at the center cradled inside curling arms that hint at a uterus, topped by a small ornamental crown. Twin sweeping fallopian arms curl outward into feathered scrollwork plumes, and a clustered drip of layered tendrils descends from the base toward the pubic mound. Inked low and broad across the lower abdomen."
     },
     {
       "id": "029",
@@ -350,7 +518,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\029.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "filled heart medallion with descending dagger-tail",
+        "style": "filled tribal silhouette",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A bold filled heart with a smaller heart cutout at its center sits on a flat plinth, flanked by short curled flourishes that drape outward like rolled ovary tips. From beneath the plinth a long beaded dagger-shaped pendant descends to a sharp point. The outer envelope reads as a wide uterine silhouette cradling the heart."
     },
     {
       "id": "030",
@@ -362,7 +536,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\030.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "small central heart, four radiating spermatozoa, swept tribal arms",
+        "style": "tribal linework with anatomical motif",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A tiny solid heart sits at the dead center, ringed by four spermatozoa — each a small bulb-head with a curled flagellum — that sweep outward and merge into long tribal arms reaching across the abdomen. The flagella curl inward toward the heart while the outer arms taper into pointed wing-tips, giving the design a radial fertility-orbit feel."
     },
     {
       "id": "031",
@@ -374,7 +554,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\031.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "central heart with faceted crystal pendant, ovary horns",
+        "style": "ornate tribal with gem motif, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A solid heart sits at the apex with a small faceted crystal dangling directly beneath it on a beaded chain, framed by two long inward-hooking ovary horns that flare into pointed claws. A descending column of stacked diamond beads and a spear-tipped tail drops through the cervix region, while feathered tribal fronds sweep out to either side."
     },
     {
       "id": "032",
@@ -386,7 +572,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\032.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "central faceted crystal, scrolling vines, small accent hearts",
+        "style": "ornate filigree, symmetric flourish",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A faceted diamond-cut crystal sits at the center inside a horseshoe scroll, with a small heart perched at the top and another small heart dripping beneath it on a beaded stem. Long curling vines and leafy filigree sweep outward to either side, and a chain of tiny droplet beads hangs below the lower heart toward the pubic mound."
     },
     {
       "id": "033",
@@ -398,7 +590,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\033.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "swept-wing womb sigil with central heart",
+        "style": "sleek tribal linework",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A slim swept sigil with a small heart at the center framed by curling arms that hint at a uterus, capped by a thin antenna-like spike rising from the top. Twin long fallopian wings sweep horizontally outward into needle-fine points, and a short vertical tail of beaded droplets descends below the heart toward the pubic mound."
     },
     {
       "id": "034",
@@ -410,7 +608,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\034.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "twin horned heads, central skull-like mask, fanged drop",
+        "style": "tribal beast-mask flourish, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "Two horned tribal heads face inward from either side toward a small central heart, their swept antler-like horns curling outward into spiked tips. Below the heart a long fanged skull-like drop hangs through the center, framed by feathered tendrils that taper into a narrow vaginal tail at the bottom."
     },
     {
       "id": "035",
@@ -422,7 +626,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\035.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "nested hearts, faceted gem above, twin ovary scrolls",
+        "style": "ornate tribal with gem motif, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A bold heart contains a smaller hollow heart nested inside it, with a faceted diamond-shaped gem floating just above the upper notch on a short stem. Two thick inward-curling scrolls form the ovary lobes to either side, and curling tribal fronds drape below the heart into a layered cervix-tail and the overall silhouette suggests a uterus."
     },
     {
       "id": "036",
@@ -434,7 +644,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\036.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "crowned cross over winged womb sigil",
+        "style": "gothic tribal silhouette",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A gothic sigil with a small heart at the center cradled inside curling arms that hint at a uterus, surmounted by an upright cross capped with a small crown. Twin pointed bat-like fallopian wings sweep outward at the shoulders, and forked descending tendrils curl back inward below the heart toward the pubic mound."
     },
     {
       "id": "037",
@@ -446,7 +662,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\037.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged heart with stacked layers and teardrop",
+        "style": "filled ornamental silhouette",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A central heart at the core is wrapped in two concentric heart-shaped layers, with twin angular feathered wings sweeping outward from the upper shoulders. A single teardrop dangles below the base on a thin stem, and the overall silhouette suggests a uterus enclosing the layered heart at its center."
     },
     {
       "id": "038",
@@ -458,7 +680,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\038.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "symmetric tribal flourish with central seed",
+        "style": "filled tribal mirror-symmetric flourishes",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A mirror-symmetric tribal flourish with a vertical pointed seed-shape at the dead center, flanked by paired curling brackets that fan outward. Small round dots and curled flagella-like tails radiate from each side, reading like spermatozoa swirling around a central ovum. No heart appears in this design — the central motif is the seed alone, with the surrounding curls suggesting fertility iconography."
     },
     {
       "id": "039",
@@ -470,7 +698,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\039.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "heavy uterus silhouette, inner heart cavity, horned fundus",
+        "style": "bold tribal glyph, dense fills",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A heavy uterus-shaped silhouette dominates the design, its two arms sweeping up into outward-curling horn tips with a small heart notched into the top of the fundus. The body is filled with bold tribal shapes that read as cervix, fundus and vaginal column, ending in a downward-pointed tail through the cervix region."
     },
     {
       "id": "040",
@@ -482,7 +716,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\040.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "central heart, twin loop ovaries with inner dots, drop-tail",
+        "style": "tribal anatomical flourish, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A small heart sits at the top center above a second nested heart, flanked by two oval ovary loops that each enclose a tiny dot for an ovum. Long curling fallopian arms reach up to small accent hearts at the outer tips, and a coiled serpentine cervix-tail descends through the midline with a teardrop bead at the very bottom."
     },
     {
       "id": "041",
@@ -494,7 +734,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\041.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "central heart, twin ovary scrolls, twin descending darts",
+        "style": "sharp tribal linework, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A small filled heart caps the center, held between two inward-curling scroll arms that loop into ovary lobes with hooked claw tips. A pair of curling tribal hooks frame a long forked stem that drops from the cervix region into two parallel arrow-tipped darts, and the overall silhouette suggests a uterus enclosing the central heart."
     },
     {
       "id": "042",
@@ -506,7 +752,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\042.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "art-nouveau fertility sigil with crystal apex and twin sperm motifs",
+        "style": "art-nouveau swan-curve linework",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A slim faceted teardrop crystal crowns the apex above a small heart-in-heart at the center. Two large mirrored swan-curve arms sweep outward and downward, and inside the central pocket a pair of spermatozoa face the heart as bulb-headed shapes with long curled flagella tucked beneath. The outer silhouette reads as a uterine envelope framing the crystal, heart, and paired sperm."
     },
     {
       "id": "043",
@@ -518,7 +770,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\043.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged heart with horned crown",
+        "style": "outlined tribal linework with bold curves",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A central heart is enclosed within a rounded oval frame topped by two short upright horns, the whole crowning element reading like a horned uterus shielding the heart. Two large wing-like petals sweep down and outward from the base, ending in inward-rolled spirals. Slender tendrils curl above and beside the horned crown."
     },
     {
       "id": "044",
@@ -530,7 +788,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\044.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged heart with feathered tribal flares",
+        "style": "filled tribal silhouette",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A large heart sits at the center framed by sweeping feathered tribal wings that curl outward and downward into pointed flares. Twin small scroll-curls coil at the lower shoulders of the heart, and the broad silhouette suggests a uterus cradling the heart at its center. Inked low and wide across the lower abdomen above the pubic mound."
     },
     {
       "id": "045",
@@ -542,7 +806,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\045.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "central heart with spike wings",
+        "style": "filled tribal silhouette with sharp points",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A small heart sits at the center with a tiny droplet-keyhole inside it, framed by curling arms that suggest a uterus. Two large jagged spike-wings sweep upward and outward to sharp barbed tips, and short tails drop below the heart. The overall silhouette is V-shaped and aggressive."
     },
     {
       "id": "046",
@@ -554,7 +824,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\046.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "central heart with scrollwork wings",
+        "style": "ornamental filigree with filled center",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A bold filled heart anchors the center, with a small diamond-shaped crown rising just above it. Symmetric ornamental scrollwork sweeps outward to either side in tight curls and leafy flourishes. A short flame-tongue tail descends below the heart toward the pubic mound."
     },
     {
       "id": "047",
@@ -566,7 +842,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\047.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "tribal heart with hooked arms",
+        "style": "filled tribal silhouette",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A central heart with a small inner scroll is flanked by two long curving arms that hook upward and outward to fine barbed points. A pointed tail drops sharply downward from the heart's base. The arching arms suggest a uterus framing the heart at the center."
     },
     {
       "id": "048",
@@ -578,7 +860,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\048.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "single bold heart shield",
+        "style": "thick filled tribal silhouette",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A single thick-bordered heart dominates the design, with two short pointed flame-cuts at the upper lobes and a layered leaf-fan flourish filling its lower hollow. There is no fallopian or ovary anatomy; the entire mark is one stylized heart shield. It sits squarely above the pubic mound."
     },
     {
       "id": "049",
@@ -590,7 +878,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\049.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "central heart with keyhole, long sweeping wings, single drop",
+        "style": "wide tribal flourish, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A bold central heart carries a keyhole shape cut into its lower face, framed by an inner curling scroll on either side and a small accent flourish above. Long thin tribal wings sweep horizontally outward to pointed tips far to either side, and a single teardrop hangs straight down from the bottom of the heart."
     },
     {
       "id": "050",
@@ -602,7 +896,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\050.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "small inner heart inside larger heart shell, scroll wings",
+        "style": "tribal nested-heart flourish, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A small notched heart sits centered within a larger pointed heart shell, capped by a tall trident-like spike rising from the upper notch. Curling fallopian arms sweep outward into thin pointed scroll wings, and layered fronds taper downward into a forked cervix-tail through the lower midline."
     },
     {
       "id": "051",
@@ -614,7 +914,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\051.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "bat-winged womb sigil with spade pendant",
+        "style": "gothic tribal silhouette",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A gothic sigil with a small heart at the center framed by curling arms that hint at a uterus, flanked by twin bat-like fallopian wings rising from the upper shoulders and tipped with small pointed heads. A spade-shaped pendant hangs from the bottom on a thin descending stem, with forked spiked tendrils draping outward from the base toward the pubic mound."
     },
     {
       "id": "052",
@@ -626,7 +932,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\052.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "ornate sigil with central heart and curled tails",
+        "style": "filled tribal silhouette with fine ornament",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A central heart with a tiny spike-crown above is framed by two short curling arms that bulge outward into rounded ovary lobes. A double set of curled tails drops below the heart, with a small spiral terminus at the bottom. The wrapping arms suggest a uterus around the central heart."
     },
     {
       "id": "053",
@@ -638,7 +950,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\053.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "ornate uterine framing around small heart",
+        "style": "dense filled tribal silhouette",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A small heart at the very center sits inside a dense ornate framework of curling tendrils and pointed flourishes. Two arched arms sweep outward and terminate in coiled ovary-like tips, while leafy fronds descend below toward the pubic mound. The full silhouette reads strongly as a uterus enclosing the heart."
     },
     {
       "id": "054",
@@ -650,7 +968,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\054.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "central ovum-heart, spermatozoa swimming inward, eye-loop ovaries",
+        "style": "dense tribal flourish with anatomical motif",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A small heart sits at the dead center as a stand-in ovum, ringed by several spermatozoa whose bulb-heads and curled flagella swim inward from the surrounding filigree — pairs hang above the heart and at the lower flanks, with more tucked into the outer eye-shaped ovary loops. Long curling tribal arms sweep out to either side and the overall silhouette suggests a uterus crowded with seeking sperm."
     },
     {
       "id": "055",
@@ -662,7 +986,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\055.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "crowned winged womb sigil with dripping tail",
+        "style": "ornamental tribal linework",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "An ornate sigil with a small heart at the center cradled inside curling arms that hint at a uterus, surmounted by a small pointed crown spire. Twin long swept fallopian wings extend horizontally outward at the shoulders, and a clustered ribbon-tendril dripping from the base curls into a teardrop above the pubic mound."
     },
     {
       "id": "056",
@@ -674,7 +1004,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\056.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "crystal-crested fertility sigil with paired sperm curls",
+        "style": "filled tribal with ornamental flourishes",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A small upright faceted crystal rises from the apex above a central heart that contains two facing spermatozoa as paisley-shaped curls with curled tails. Sweeping fallopian arms extend outward to rolled ovary tips, with long pointed cervix-tails draping down from the base. The composition's outer silhouette suggests a uterine envelope crowned by the crystal."
     },
     {
       "id": "057",
@@ -686,7 +1022,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\057.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged heart-in-heart fertility sigil",
+        "style": "filled tribal silhouette with flame wings",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A heart-in-heart sits at the center, flanked by long sweeping flame-wing fallopian arms that flare to pointed tips on either side. A small cross-shaped beaded cervix accent drops below the heart, with delicate radiating tendrils filling the outer edges. The overall outline reads as a wide winged uterine envelope around the heart."
     },
     {
       "id": "058",
@@ -698,7 +1040,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\058.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged heart with bat wings",
+        "style": "filled tribal silhouette with flame tails",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A bold central heart is flanked by two large bat-wings that sweep up and outward to pointed tips. A second smaller heart nests inside the main one, and layered flame-like tails drop below toward the pubic mound. The wings curl in on themselves at the heart's shoulders."
     },
     {
       "id": "059",
@@ -710,7 +1058,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\059.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "faceted crystal apex, central heart, spermatozoa flanks, curling vines",
+        "style": "ornate tribal with gem and anatomy motifs",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A faceted crystal sits at the very top apex above a bold central heart, with two spermatozoa — bulb-heads with long curled flagella — arcing inward from the upper flanks to point their tails at the heart. Sprawling curling vines and feathered tendrils sweep outward into wing-tips on either side, and a coiled cervix-tail drops below the heart with a small bead at its terminus."
     },
     {
       "id": "060",
@@ -722,7 +1076,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\060.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "crowned heart with crystal spikes",
+        "style": "sharp filled tribal silhouette",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A small heart at the center is crowned by a tall pointed spike that reads like a crystal or diamond rising above it, with secondary blades flaring out to either side. Mirrored crystal-spike clusters point downward below the heart, and the entire silhouette is jagged and sharply geometric. The radiating points around the central heart give a crystalline rather than purely organic feel."
     },
     {
       "id": "061",
@@ -734,7 +1094,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\061.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "rose and thorn banner",
+        "style": "filled floral with thorned vines",
+        "placement": "lower abdomen, spread wide above the pubic mound"
+      },
+      "description": "A horizontal banner of full-bloom roses runs across the lower abdomen, the central rose flanked by two outward-facing rose heads and bordered by thorned vines and pointed leaves. A small teardrop pendant drops from the lower center. There is no anatomical heart or uterus iconography in this design."
     },
     {
       "id": "062",
@@ -746,7 +1112,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\062.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "detailed anatomical uterus",
+        "style": "detailed black-ink anatomical illustration",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A highly literal anatomical uterus rendered in dense black ink, with the uterine body, twin fallopian tubes, and rounded ovaries clearly drawn at the top. A small vertical detail marks the cervix inside the body, and the vaginal canal descends below into a bulbous terminus. The whole silhouette is unmistakably a uterus — no heart appears at the center."
     },
     {
       "id": "063",
@@ -758,7 +1130,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\063.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "clear uterus silhouette, inner heart cavity, ovary bulbs, vaginal column",
+        "style": "anatomical tribal glyph, clean outline",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A clean anatomical uterus is rendered as bold outline, its two fallopian arms curling up and outward into rounded ovary bulbs. A small heart is set into the upper fundus as the womb's inner marker, with a narrow cervix and a long tapered vaginal column extending downward to a pointed tip."
     },
     {
       "id": "064",
@@ -770,7 +1148,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\064.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "heart-shaped uterus with crystal and sperm motifs",
+        "style": "smooth tribal silhouette",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "The whole outer silhouette is a heart-shaped uterus, with a small downward-pointing faceted diamond marking the cervix at its lowest tip. At the upper shoulders, paired paisley curls read as spermatozoa with bulb-heads and tucked flagella facing inward. Two leaf-shaped ovary pods perch at the very top corners."
     },
     {
       "id": "065",
@@ -782,7 +1166,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\065.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "uterine vessel sigil with wave-filled core",
+        "style": "open tribal linework",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A wide uterine silhouette holds three stacked wavy lines at its core suggesting fluid or amnion, with curling fallopian arms scrolling outward and back to rolled ovary terminals. A small bow-and-tassel ornament hangs from the base where the cervix would be. There is no explicit central heart in this design."
     },
     {
       "id": "066",
@@ -794,7 +1184,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\066.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "humanoid muscled figure, raised arms, uterus-shaped silhouette",
+        "style": "anatomical tribal figure, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A stylized muscular humanoid stands at the center with arms raised and curled outward in twin sweeping loops that double as the fallopian arms of a uterus. A small heart marker sits on the chest of the figure, and the torso tapers into a column of legs that reads as the cervix and vaginal channel — the overall silhouette suggests a uterus built from a human form."
     },
     {
       "id": "067",
@@ -806,7 +1202,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\067.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "horned winged heart sigil",
+        "style": "filled tribal silhouette",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A central heart is topped by two upward-pointing horn-like spikes and framed by sweeping tribal wings that curl outward from the lower shoulders. A small pointed heart-pendant descends below the main heart and the overall silhouette suggests a uterus cradling the heart at its center. Sits low and wide across the lower abdomen."
     },
     {
       "id": "068",
@@ -818,7 +1220,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\068.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "large central heart, horned demon brows, flaming fronds",
+        "style": "tribal demonic flourish, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A large pointed heart dominates the center, topped by a faceted diamond-shaped gem and crowned by two outward-curling horn tips that rise above the fundus like demon brows. Flame-shaped fronds and curling tendrils splay outward from the heart on both sides, and a small inner flourish nests where a cervix-mark would sit."
     },
     {
       "id": "069",
@@ -830,7 +1238,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\069.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "horned bull-like womb sigil with central heart",
+        "style": "filled tribal silhouette",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A wide tribal sigil with a small heart at the center cradled inside curling arms that hint at a uterus, with two upturned horn-spikes rising from the top and twin pointed ovary curls forming eye-like slits at the shoulders. A short pointed cervix-tail descends from the base and the overall silhouette evokes a horned skull or bull mask above the pubic mound."
     },
     {
       "id": "070",
@@ -842,7 +1256,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\070.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "uterus silhouette, nested hearts inside, twin ovary lobes with eyes",
+        "style": "dense tribal anatomical flourish, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "Two heart shapes nest stacked inside the upper fundus of a clear tribal uterus silhouette, with a tall pronged crown rising above the top notch. Each fallopian arm sweeps outward into an ovary lobe containing a small accent heart, and a feathered tail descends from the cervix between two flanking spike-tendrils."
     },
     {
       "id": "071",
@@ -854,7 +1274,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\071.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "rayed heart sigil with diamond accents",
+        "style": "spiked tribal linework",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A central heart is surrounded by radiating spiked rays and flanked by small upright faceted diamond accents at the upper corners and apex, with a larger diamond hanging directly below the heart at the cervix point. Tapered flame-blade curls drop from the lower edges. The radiant geometry frames the heart like a crowned medallion."
     },
     {
       "id": "072",
@@ -866,7 +1292,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\072.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged circular crest, leafy crown, central heart-scroll",
+        "style": "heraldic emblem, video-game-style insignia",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A circular medallion sits at the center crowned by a small leafy tuft on top, with a stylized heart-and-scroll motif filling its inner disc. Two long horizontal blade-wings sweep outward from the medallion's flanks into sharp pointed tips, giving the design the look of a winged faction crest or guild insignia rather than the anatomical motifs of the surrounding set."
     },
     {
       "id": "073",
@@ -878,7 +1310,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\073.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "alchemical sigil with concentric-circle crown and dotted open-circle terminals",
+        "style": "occult alchemical linework",
+        "placement": "lower abdomen, centered above the pubic mound"
+      },
+      "description": "An occult alchemical sigil — a dot-in-circle-in-circle motif at the top crowned by a small upward curl, joined to a horizontal cross-bar whose ends are open (non-closed) circles each containing a central dot. Below the cross-bar, twin sinuous lines coil into a tight braid down the vertical axis, ending in small curled terminals over the pubic mound."
     },
     {
       "id": "074",
@@ -890,7 +1328,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\074.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "crowned scrollwork sigil with heart pendant",
+        "style": "ornamental tribal linework",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "An ornamental crown of swept tribal scrollwork arcs horizontally across the top, with two upturned spike-curls at each outer tip. A small heart hangs at the center below the crown on a slender stem, descending into a tapered diamond-tipped pendant tail that drops toward the pubic mound."
     },
     {
       "id": "075",
@@ -902,7 +1346,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\075.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "anatomical uterus with central heart",
+        "style": "detailed black-ink anatomical illustration",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A detailed anatomical uterus framed in ornate tribal ink, with a small heart nested inside the uterine cavity at the very center. Twin fallopian tubes curve outward to leaf-shaped ovaries on either side, and a descending vagina with vertical inner detail drops below. The overall silhouette is unmistakably uterus-shaped, cradling the central heart."
     },
     {
       "id": "076",
@@ -914,7 +1364,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\076.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "heart over ovum with sperm flourishes",
+        "style": "outlined tribal linework with pointed curls",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A small heart sits at the top crown of the design, directly above a vertical pointed ovum-shape at the center. Two large curling tendrils sweep outward from beside the ovum like sperm flagella spiraling away, and additional pointed barbs flare to either side. The arrangement reads as a spermatozoon-ringed ovum capped by the heart."
     },
     {
       "id": "077",
@@ -926,7 +1382,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\077.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged heart with descending blade-pendant",
+        "style": "slim filled tribal silhouette",
+        "placement": "lower abdomen, narrowing toward the pubic mound"
+      },
+      "description": "A small heart with twin upturned horns at its top sits between two short pointed bat-wing fallopian arms. From beneath the heart a long slim leaf-blade pendant descends to a sharp point, flanked by curled inner brackets. The narrow vertical composition fans down toward the pubic mound."
     },
     {
       "id": "078",
@@ -938,7 +1400,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\078.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "crystal-crowned heart-shaped uterus sigil",
+        "style": "filled tribal silhouette",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A small upright faceted crystal rises from the apex above a bold central heart, with the whole outer silhouette forming a clear heart-shaped uterus around it. Curling arms flank the heart and sweep down into flame-blade tails that taper toward the pubic mound. The design closes without a separate cervix-tail."
     },
     {
       "id": "079",
@@ -950,7 +1418,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\079.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "wind-element emblem within a heart frame",
+        "style": "stylized elemental sigil with curling air motifs",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A heart-shaped frame encloses a stylized wind emblem — flowing curled tendrils sweep outward like gathered breeze, with a small heart at the apex. The whole device sits wide and low across the abdomen above the pubic mound."
     },
     {
       "id": "080",
@@ -962,7 +1436,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\080.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "lightning-element emblem within a heart frame",
+        "style": "stylized elemental sigil with spiraling current curls",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A heart-shaped frame encloses a stylized lightning emblem — three spiraling current-curls arranged around a central pivot, with pointed horn-tips at the upper corners. A narrow forked tail descends from the bottom toward the pubic mound."
     },
     {
       "id": "081",
@@ -974,7 +1454,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\081.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "fire-element emblem within a heart frame",
+        "style": "stylized elemental sigil with central flame",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A heart-shaped frame encloses a stylized fire emblem — an upright flame at the center flanked by curled ram-horn flourishes scrolling outward. Pointed beak-tips extend at the outer edges, sitting wide and low across the abdomen above the pubic mound."
     },
     {
       "id": "082",
@@ -986,7 +1472,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\082.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "ice-element emblem within a heart frame",
+        "style": "stylized elemental sigil with snowflake and crystalline shards",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A heart-shaped frame encloses a stylized ice emblem — a six-pointed snowflake at the center framed by sharp angular shards radiating outward to crystalline points. The whole device sits wide and low across the abdomen above the pubic mound."
     },
     {
       "id": "083",
@@ -998,7 +1490,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\083.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "earth-element emblem within a heart frame",
+        "style": "stylized elemental sigil with geometric labyrinth",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A heart-shaped frame encloses a stylized earth emblem — a square geometric labyrinth of interlocking right-angle paths at the center, with twin pointed beak-tips at the outer edges. The whole device sits wide and low across the abdomen above the pubic mound."
     },
     {
       "id": "084",
@@ -1010,7 +1508,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\084.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "nature-element emblem within a heart frame",
+        "style": "stylized elemental sigil with leaf flourishes",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A heart-shaped frame encloses a stylized nature emblem — a smaller nested heart at the center surrounded by curling leaves and floral scrollwork sprouting outward to either side. The whole device sits wide and low across the abdomen above the pubic mound."
     },
     {
       "id": "085",
@@ -1022,7 +1526,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\085.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "water-element emblem within a heart frame",
+        "style": "stylized elemental sigil with swirling water motifs",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A heart-shaped frame encloses a stylized water emblem — a swirling teardrop motif at the center with curling currents radiating outward. Leafy butterfly-wing flourishes sweep outward at either side, sitting wide and low across the abdomen above the pubic mound."
     },
     {
       "id": "086",
@@ -1034,7 +1544,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\086.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "wide banner with central heart and bat wings",
+        "style": "ornamental filigree with filled center",
+        "placement": "wide across the lower abdomen above the pubic mound"
+      },
+      "description": "A wide banner-style design with a central heart containing a smaller inner heart, crowned by a short diamond spike. Two webbed bat-wings sweep outward from beneath the heart, flanked by leafy tendrils and small bulb accents. The full silhouette spans broadly across the lower belly."
     },
     {
       "id": "087",
@@ -1046,7 +1562,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\087.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "wide horned heart with scrollwork",
+        "style": "ornamental filigree with bold outlines",
+        "placement": "wide across the lower abdomen above the pubic mound"
+      },
+      "description": "A wide banner-style heart at the center is topped by two short upright horns with curling inner spirals, suggesting a horned uterus crowning the heart. Symmetric scrollwork fans out to either side in tight curls and pointed flourishes, with a slender beaded tail descending below the heart. The whole motif spreads broadly across the lower belly."
     },
     {
       "id": "088",
@@ -1058,7 +1580,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\088.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "vertical serpent-staff caduceus",
+        "style": "occult linework",
+        "placement": "vertical strip down the lower abdomen"
+      },
+      "description": "A long vertical serpent-staff sigil — a teardrop sits at the very top above a spiral-eye that loops into the head of a single serpent. The serpent winds tightly down a straight vertical staff in a series of stacked coils, ending in a small curled tail just above the pubic mound."
     },
     {
       "id": "089",
@@ -1070,7 +1598,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\089.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "central heart, twin bat wings, descending tribal tail",
+        "style": "tribal winged-heart flourish, symmetric",
+        "placement": "lower abdomen above the pubic mound"
+      },
+      "description": "A bold heart sits at the center inside a curled scrollwork frame, flanked by two outward-flaring bat-style wings whose membranes are notched into pointed claw-tips. A narrow tribal tail with a small accent heart and feathered tendrils drops below the central heart through the cervix region."
     },
     {
       "id": "090",
@@ -1082,7 +1616,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\090.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "open fertility sigil with hollow heart and teardrop",
+        "style": "fine ornamental linework",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A hollow line-drawn heart sits at the center, framed by two outward-curling fallopian arms that scroll into leaf-shaped ovary pods at their tips. A small flame and a single teardrop pendant hang directly below the heart at the cervix point. The overall outline forms a wide uterine envelope around the open heart."
     },
     {
       "id": "091",
@@ -1094,7 +1634,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\091.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "stylized cat head with paw prints",
+        "style": "filled silhouette with cutout features",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A solid cat head with pointed ears, slit-cutout eyes, a small triangular nose and whisker-mouth fills the center, flanked by a four-toed paw print on each side. The design contains no anatomical or fertility iconography; it is simply a feline crest with paws. It sits low and centered above the pubic mound."
     },
     {
       "id": "092",
@@ -1106,7 +1652,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\092.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "bat-winged womb sigil with diamond crest",
+        "style": "filled gothic tribal silhouette",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A gothic sigil with a small heart at the center cradled inside curling arms that hint at a uterus, crowned at the top by a small upright diamond crystal flanked by two pointed spikes. Twin scalloped bat-like fallopian wings sweep outward at the shoulders, and a short beaded vertical tail descends from the base toward the pubic mound."
     },
     {
       "id": "093",
@@ -1118,7 +1670,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\093.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "devil-winged heart with infinity tail",
+        "style": "outline tribal linework",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A central heart is topped by two upturned devil horns and flanked by sweeping bat-like wings that arc broadly outward from the shoulders. A thin infinity loop dangles below the heart and tapers into an arrow-tipped tail that points downward toward the pubic mound."
     },
     {
       "id": "094",
@@ -1130,7 +1688,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\094.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "winged heart sigil with descending cross",
+        "style": "filled tribal silhouette",
+        "placement": "lower abdomen, just above the pubic mound"
+      },
+      "description": "A small heart with twin upturned horns sits between two long pointed bat-wing fallopian arms that sweep outward and downward. Below the heart a slender ornamental cross descends as the cervix pendant, with curled inner brackets framing it. The outer envelope spreads wide across the lower belly."
     },
     {
       "id": "095",
@@ -1142,7 +1706,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\095.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "uterine sigil with central eye and dagger",
+        "style": "stylized tribal glyph",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "A stylized uterine glyph — twin angular fallopian arms sweep outward from a domed body, with a single lidded eye staring forward from the center of the uterus. A downward-pointing dagger-shape descends from the cervix toward the pubic mound, and small hook-curls accent the ovary tips at each shoulder."
     },
     {
       "id": "096",
@@ -1154,7 +1724,13 @@
         {
           "texture": "actors\\character\\slavetats\\LewdMarks-glow\\096.dds"
         }
-      ]
+      ],
+      "tags": {
+        "subject": "crowned winged sigil with crystal and central heart",
+        "style": "ornamental tribal silhouette",
+        "placement": "lower abdomen, wide above the pubic mound"
+      },
+      "description": "An ornamental sigil with a small heart at the center cradled inside curling arms that hint at a uterus, crowned at the top by an upright diamond crystal flanked by two slim outward-leaning spear-spikes. Twin sweeping fallopian wings curl outward from the shoulders, and a tapered tail of layered curls descends from the base toward the pubic mound."
     }
   ]
 }

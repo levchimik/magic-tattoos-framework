@@ -30,9 +30,10 @@ budget shared across all scripts, and an `_applyPulseRoster` of 8 actors
 Papyrus bookkeeping. C++ runs the same math in microseconds per frame
 with no VM contention.
 
-This plugin can be tested in isolation against the v0.0.32 Papyrus
-codebase (player only) first; the v0.0.33 NPC support branch then
-forwards its roster updates to this plugin when both are loaded.
+Beyond the pulse loop, the plugin now also owns the per-frame hook that
+drives flash-on-hit shader intensity, the SKEE emissive write path that
+the Papyrus side dispatches to, hit/death sinks the Papyrus side
+subscribes to, and INI config readback (`GetConfigInt`).
 
 ## Build prerequisites
 
@@ -90,26 +91,6 @@ Expect `MTFPulse vX.Y.Z loaded` on the first line. If the log is missing
 the plugin didn't load — check the SKSE log
 (`Documents/My Games/Skyrim Special Edition/SKSE/skse64.log`).
 
-## Status — what's wired vs not
-
-| Component                             | Status         |
-|---------------------------------------|----------------|
-| SKSE plugin entry + logging           | ✅              |
-| Papyrus natives registration          | ✅              |
-| Roster Set / Clear / ClearAll         | ✅              |
-| Per-frame tick (SKSE task scheduler)  | ⚠️ stub        |
-| Wave math (matches Papyrus)           | ✅              |
-| NiOverride emissive write             | ❌ TODO         |
-| Real per-frame hook (vs task loop)    | ❌ TODO         |
-
-Once the NiOverride write is in, the plugin is testable end-to-end. To
-hook NiOverride from C++ we go through the SKSE messaging API: a
-`kPostLoad` listener queries the SKEE plugin (publisher
-`"po3_NiOverride"` / version > 5) and grabs the
-`NiOverrideInterface` vtable. The intensity write is one of its
-methods (the same one Papyrus' `NiOverride.AddNodeOverrideFloat`
-ultimately dispatches to under the hood).
-
 ## File layout
 
 ```
@@ -119,8 +100,14 @@ cpp-plugin/
 ├── build.bat               vcvars64 + cmake wrapper
 ├── README.md               this file
 └── src/
-    ├── main.cpp            SKSEPluginLoad, messaging, frame-task loop
-    ├── papyrus.{h,cpp}     SetActorPulse / ClearActor / ClearAll / SetEnabled / Size
-    ├── pulse_roster.{h,cpp} Roster singleton + Tick (wave math)
+    ├── main.cpp            SKSEPluginLoad, messaging dispatch, frame-hook install
+    ├── papyrus.{h,cpp}     Papyrus native bindings (Set/Clear/SetEnabled/SetActorFlash, etc.)
+    ├── pulse_roster.{h,cpp} Pulse + flash roster, Tick wave math
+    ├── frame_hook.{h,cpp}  Real per-frame hook driving the roster Tick
+    ├── skee_bridge.{cpp,h}, skee_interface.h
+    │                       SKEE/NiOverride interface lookup + emissive write
+    ├── hit_sink.{h,cpp}    EventSink<TESHitEvent> — drives flash.onhit
+    ├── death_sink.{h,cpp}  EventSink<TESDeathEvent> — death roster cleanup
+    ├── config.{h,cpp}      INI parse (`Data/SKSE/Plugins/MagicTattoosFramework.ini`)
     └── log.h               spdlog file sink under Documents/.../SKSE/
 ```

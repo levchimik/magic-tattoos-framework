@@ -5841,3 +5841,259 @@ Function _emitEffectDeactivated(Actor target, string key, int slot)
     ModEvent.PushForm(h, target as Form)
     ModEvent.Send(h)
 EndFunction
+
+; ══════════════════════════════════════════════════════════════════════════
+; PRESET EVENT API (v0.1.22)
+; ══════════════════════════════════════════════════════════════════════════
+; Inbound mod-event surface that lets ANY external mod apply or remove
+; saved presets without a hard Papyrus dependency on MTF. Companion to the
+; outbound MTF_TierChanged / MTF_EffectActivated etc. events above.
+;
+; The receiver lives on MTF_AliasPresetApi (a ReferenceAlias attached to
+; this Quest, filled with PlayerRef). Quest scripts can't RegisterForModEvent
+; so the alias dispatches inbound events into Api* functions here.
+;
+; ── INBOUND EVENTS ──
+;
+;   MTF_ApplyPreset
+;     str  = "<presetName>"            internal name (not the displayname)
+;     num  = (ignored / reserved)
+;     sender = target Actor (or None → defaults to PlayerRef)
+;
+;   MTF_RemovePreset
+;     str  = "<presetName>"
+;     sender = target Actor (or None → PlayerRef)
+;     Removes ONLY if the preset is in this actor's mtf.api.applied list
+;     (i.e. the API previously applied it). User-applied presets won't be
+;     touched.
+;
+;   MTF_RemoveAllPresets
+;     str  = (ignored)
+;     sender = target Actor (or None → PlayerRef)
+;     Removes every preset the API ever applied to this actor.
+;
+; ── OUTBOUND CONFIRMATIONS ──
+;
+;   MTF_ApplyPresetResult
+;     str  = "<presetName>|<rc>"       rc passed through from AddAppliedPreset
+;     num  = rc as float
+;     sender = target Actor
+;     rc codes: 1=applied, 0=already-applied (NOT tracked by API), -2=None
+;     target, -3=tracked-cap (NPC), -4=empty name, -5=invalid preset,
+;     -6=no overlay slots, -7=would render truncated.
+;
+;   MTF_RemovePresetResult
+;     str  = "<presetName>|<status>"
+;     num  = 1.0 if removed, 0.0 otherwise
+;     sender = target Actor
+;     Status strings: "removed", "not-tracked-by-api", "no-target", "no-name".
+;
+;   MTF_RemoveAllPresetsResult
+;     str  = "<count>"
+;     num  = count as float
+;     sender = target Actor
+;
+; ── EXAMPLE CALLER ──
+;
+;   int h = ModEvent.Create("MTF_ApplyPreset")
+;   ModEvent.PushString(h, "MyPreset")
+;   ModEvent.PushForm(h, Game.GetPlayer() as Form)
+;   ModEvent.Send(h)
+;
+; ── TRACKING ──
+;
+; Per-actor StringList mtf.api.applied stores the names of presets the API
+; applied. The list is the sole source of truth for whether the API can
+; remove a preset; the host's mtf.presets list (user + API combined) is
+; never used as the API's "is this mine" check.
+
+Function ApiApplyPreset(Actor target, string presetName)
+{Inbound MTF_ApplyPreset dispatch. Calls AddAppliedPreset, emits result
+ event with the rc, tracks the preset under mtf.api.applied on success.}
+    if target == None
+        target = PlayerRef
+    endif
+    if target == None
+        _apiEmitApplyResult(None, presetName, -2)
+        return
+    endif
+    int rc = AddAppliedPreset(target, presetName)
+    if rc == 1
+        ; Only track presets the API actually applied. rc=0 means the user
+        ; (or another caller) already had it on; we must NOT track it
+        ; because we don't own that lifecycle.
+        _apiTrackingAdd(target, presetName)
+    endif
+    _apiEmitApplyResult(target, presetName, rc)
+EndFunction
+
+Function ApiRemovePreset(Actor target, string presetName)
+{Inbound MTF_RemovePreset dispatch. Refuses to remove if the API didn't
+ apply this preset to this actor; otherwise calls RemoveAppliedPreset and
+ cleans up tracking.}
+    if target == None
+        target = PlayerRef
+    endif
+    if target == None
+        _apiEmitRemoveResult(None, presetName, "no-target", false)
+        return
+    endif
+    if presetName == ""
+        _apiEmitRemoveResult(target, presetName, "no-name", false)
+        return
+    endif
+    if !_apiTrackingHas(target, presetName)
+        _apiEmitRemoveResult(target, presetName, "not-tracked-by-api", false)
+        return
+    endif
+    ; Tracking says it's ours. Clean tracking first so a concurrent
+    ; ApiRemovePreset can't double-remove if RemoveAppliedPreset suspends.
+    _apiTrackingRemove(target, presetName)
+    RemoveAppliedPreset(target, presetName)
+    _apiEmitRemoveResult(target, presetName, "removed", true)
+EndFunction
+
+Function ApiRemoveAllPresets(Actor target)
+{Inbound MTF_RemoveAllPresets dispatch. Iterates mtf.api.applied for this
+ actor and removes each preset. Emits a single result with the count.}
+    if target == None
+        target = PlayerRef
+    endif
+    if target == None
+        _apiEmitRemoveAllResult(None, 0)
+        return
+    endif
+    int removed = 0
+    ; Snapshot the list first — RemoveAppliedPreset suspends, and the
+    ; tracking removal during the loop would shift indices.
+    int n = _apiTrackingCount(target)
+    string[] snapshot = Utility.CreateStringArray(n, "")
+    int i = 0
+    while i < n
+        snapshot[i] = _apiTrackingAt(target, i)
+        i += 1
+    endwhile
+    i = 0
+    while i < n
+        string nm = snapshot[i]
+        if nm != ""
+            ; Remove tracking FIRST so a re-entry can't double-pop.
+            _apiTrackingRemove(target, nm)
+            RemoveAppliedPreset(target, nm)
+            removed += 1
+        endif
+        i += 1
+    endwhile
+    _apiEmitRemoveAllResult(target, removed)
+EndFunction
+
+; ── Public API tracking accessors ──────────────────────────────────────────
+; Read-only introspection of which presets the event API has applied to an
+; actor. Useful for callers that want to UI-render "currently active via
+; this integration" lists, or for test harnesses verifying API state.
+
+int Function ApiTrackingCount(Actor target)
+{Number of presets the event API currently has applied to `target`.}
+    return _apiTrackingCount(target)
+EndFunction
+
+string Function ApiTrackingAt(Actor target, int idx)
+{Internal preset name at index `idx` of the API tracking list for `target`.}
+    return _apiTrackingAt(target, idx)
+EndFunction
+
+bool Function ApiHasTracked(Actor target, string name)
+{Whether the event API applied preset `name` to `target` (and hasn't
+ since removed it). Returns false for user-applied presets even when
+ they're currently on the actor.}
+    return _apiTrackingHas(target, name)
+EndFunction
+
+; ── API tracking storage (per-actor StringList mtf.api.applied) ─────────────
+
+bool Function _apiTrackingHas(Actor target, string name)
+    if target == None || name == ""
+        return false
+    endif
+    return StorageUtil.StringListHas(target, "mtf.api.applied", name)
+EndFunction
+
+Function _apiTrackingAdd(Actor target, string name)
+    if target == None || name == ""
+        return
+    endif
+    ; StringListAdd with allowDuplicate=false dedupes for us.
+    StorageUtil.StringListAdd(target, "mtf.api.applied", name, false)
+EndFunction
+
+Function _apiTrackingRemove(Actor target, string name)
+    if target == None || name == ""
+        return
+    endif
+    StorageUtil.StringListRemove(target, "mtf.api.applied", name, true)
+EndFunction
+
+int Function _apiTrackingCount(Actor target)
+    if target == None
+        return 0
+    endif
+    return StorageUtil.StringListCount(target, "mtf.api.applied")
+EndFunction
+
+string Function _apiTrackingAt(Actor target, int idx)
+    if target == None
+        return ""
+    endif
+    return StorageUtil.StringListGet(target, "mtf.api.applied", idx)
+EndFunction
+
+; ── Outbound result emitters ────────────────────────────────────────────────
+
+Function _apiEmitApplyResult(Actor target, string presetName, int rc)
+    int h = ModEvent.Create("MTF_ApplyPresetResult")
+    if h == 0
+        return
+    endif
+    ModEvent.PushString(h, presetName + "|" + rc)
+    ModEvent.PushFloat(h, rc as float)
+    if target != None
+        ModEvent.PushForm(h, target as Form)
+    else
+        ModEvent.PushForm(h, None)
+    endif
+    ModEvent.Send(h)
+EndFunction
+
+Function _apiEmitRemoveResult(Actor target, string presetName, string status, bool removed)
+    int h = ModEvent.Create("MTF_RemovePresetResult")
+    if h == 0
+        return
+    endif
+    ModEvent.PushString(h, presetName + "|" + status)
+    float num = 0.0
+    if removed
+        num = 1.0
+    endif
+    ModEvent.PushFloat(h, num)
+    if target != None
+        ModEvent.PushForm(h, target as Form)
+    else
+        ModEvent.PushForm(h, None)
+    endif
+    ModEvent.Send(h)
+EndFunction
+
+Function _apiEmitRemoveAllResult(Actor target, int count)
+    int h = ModEvent.Create("MTF_RemoveAllPresetsResult")
+    if h == 0
+        return
+    endif
+    ModEvent.PushString(h, "" + count)
+    ModEvent.PushFloat(h, count as float)
+    if target != None
+        ModEvent.PushForm(h, target as Form)
+    else
+        ModEvent.PushForm(h, None)
+    endif
+    ModEvent.Send(h)
+EndFunction

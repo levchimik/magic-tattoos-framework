@@ -1,0 +1,614 @@
+{
+  "grid": 5,
+  "cell_px": 819,
+  "size_px": 4096,
+  "subdivided": [
+    "A3",
+    "D1",
+    "D3",
+    "D5",
+    "E3"
+  ],
+  "cells": [
+    {
+      "cell": "A1",
+      "parent": null,
+      "color_rgb": [
+        230,
+        25,
+        75
+      ],
+      "canvas_bbox": [
+        0,
+        0,
+        819,
+        819
+      ]
+    },
+    {
+      "cell": "A2",
+      "parent": null,
+      "color_rgb": [
+        255,
+        140,
+        0
+      ],
+      "canvas_bbox": [
+        819,
+        0,
+        1638,
+        819
+      ]
+    },
+    {
+      "cell": "A3a",
+      "parent": "A3",
+      "color_rgb": [
+        255,
+        0,
+        0
+      ],
+      "canvas_bbox": [
+        1638,
+        0,
+        2047,
+        409
+      ]
+    },
+    {
+      "cell": "A3b",
+      "parent": "A3",
+      "color_rgb": [
+        0,
+        255,
+        0
+      ],
+      "canvas_bbox": [
+        2047,
+        0,
+        2456,
+        409
+      ]
+    },
+    {
+      "cell": "A3c",
+      "parent": "A3",
+      "color_rgb": [
+        0,
+        0,
+        255
+      ],
+      "canvas_bbox": [
+        1638,
+        409,
+        2047,
+        818
+      ]
+    },
+    {
+      "cell": "A3d",
+      "parent": "A3",
+      "color_rgb": [
+        255,
+        255,
+        0
+      ],
+      "canvas_bbox": [
+        2047,
+        409,
+        2456,
+        818
+      ]
+    },
+    {
+      "cell": "A4",
+      "parent": null,
+      "color_rgb": [
+        160,
+        220,
+        20
+      ],
+      "canvas_bbox": [
+        2457,
+        0,
+        3276,
+        819
+      ]
+    },
+    {
+      "cell": "A5",
+      "parent": null,
+      "color_rgb": [
+        60,
+        180,
+        75
+      ],
+      "canvas_bbox": [
+        3276,
+        0,
+        4095,
+        819
+      ]
+    },
+    {
+      "cell": "B1",
+      "parent": null,
+      "color_rgb": [
+        0,
+        200,
+        180
+      ],
+      "canvas_bbox": [
+        0,
+        819,
+        819,
+        1638
+      ]
+    },
+    {
+      "cell": "B2",
+      "parent": null,
+      "color_rgb": [
+        0,
+        130,
+        200
+      ],
+      "canvas_bbox": [
+        819,
+        819,
+        1638,
+        1638
+      ]
+    },
+    {
+      "cell": "B3",
+      "parent": null,
+      "color_rgb": [
+        70,
+        90,
+        220
+      ],
+      "canvas_bbox": [
+        1638,
+        819,
+        2457,
+        1638
+      ]
+    },
+    {
+      "cell": "B4",
+      "parent": null,
+      "color_rgb": [
+        145,
+        30,
+        180
+      ],
+      "canvas_bbox": [
+        2457,
+        819,
+        3276,
+        1638
+      ]
+    },
+    {
+      "cell": "B5",
+      "parent": null,
+      "color_rgb": [
+        240,
+        50,
+        230
+      ],
+      "canvas_bbox": [
+        3276,
+        819,
+        4095,
+        1638
+      ]
+    },
+    {
+      "cell": "C1",
+      "parent": null,
+      "color_rgb": [
+        220,
+        130,
+        200
+      ],
+      "canvas_bbox": [
+        0,
+        1638,
+        819,
+        2457
+      ]
+    },
+    {
+      "cell": "C2",
+      "parent": null,
+      "color_rgb": [
+        180,
+        90,
+        60
+      ],
+      "canvas_bbox": [
+        819,
+        1638,
+        1638,
+        2457
+      ]
+    },
+    {
+      "cell": "C3",
+      "parent": null,
+      "color_rgb": [
+        255,
+        200,
+        140
+      ],
+      "canvas_bbox": [
+        1638,
+        1638,
+        2457,
+        2457
+      ]
+    },
+    {
+      "cell": "C4",
+      "parent": null,
+      "color_rgb": [
+        245,
+        240,
+        200
+      ],
+      "canvas_bbox": [
+        2457,
+        1638,
+        3276,
+        2457
+      ]
+    },
+    {
+      "cell": "C5",
+      "parent": null,
+      "color_rgb": [
+        200,
+        200,
+        200
+      ],
+      "canvas_bbox": [
+        3276,
+        1638,
+        4095,
+        2457
+      ]
+    },
+    {
+      "cell": "D1a",
+      "parent": "D1",
+      "color_rgb": [
+        200,
+        0,
+        100
+      ],
+      "canvas_bbox": [
+        0,
+        2457,
+        409,
+        2866
+      ]
+    },
+    {
+      "cell": "D1b",
+      "parent": "D1",
+      "color_rgb": [
+        0,
+        100,
+        200
+      ],
+      "canvas_bbox": [
+        409,
+        2457,
+        818,
+        2866
+      ]
+    },
+    {
+      "cell": "D1c",
+      "parent": "D1",
+      "color_rgb": [
+        255,
+        180,
+        0
+      ],
+      "canvas_bbox": [
+        0,
+        2866,
+        409,
+        3275
+      ]
+    },
+    {
+      "cell": "D1d",
+      "parent": "D1",
+      "color_rgb": [
+        100,
+        0,
+        100
+      ],
+      "canvas_bbox": [
+        409,
+        2866,
+        818,
+        3275
+      ]
+    },
+    {
+      "cell": "D2",
+      "parent": null,
+      "color_rgb": [
+        0,
+        0,
+        0
+      ],
+      "canvas_bbox": [
+        819,
+        2457,
+        1638,
+        3276
+      ]
+    },
+    {
+      "cell": "D3a",
+      "parent": "D3",
+      "color_rgb": [
+        255,
+        0,
+        255
+      ],
+      "canvas_bbox": [
+        1638,
+        2457,
+        2047,
+        2866
+      ]
+    },
+    {
+      "cell": "D3b",
+      "parent": "D3",
+      "color_rgb": [
+        0,
+        255,
+        255
+      ],
+      "canvas_bbox": [
+        2047,
+        2457,
+        2456,
+        2866
+      ]
+    },
+    {
+      "cell": "D3c",
+      "parent": "D3",
+      "color_rgb": [
+        255,
+        128,
+        0
+      ],
+      "canvas_bbox": [
+        1638,
+        2866,
+        2047,
+        3275
+      ]
+    },
+    {
+      "cell": "D3d",
+      "parent": "D3",
+      "color_rgb": [
+        128,
+        0,
+        255
+      ],
+      "canvas_bbox": [
+        2047,
+        2866,
+        2456,
+        3275
+      ]
+    },
+    {
+      "cell": "D4",
+      "parent": null,
+      "color_rgb": [
+        80,
+        100,
+        130
+      ],
+      "canvas_bbox": [
+        2457,
+        2457,
+        3276,
+        3276
+      ]
+    },
+    {
+      "cell": "D5a",
+      "parent": "D5",
+      "color_rgb": [
+        160,
+        255,
+        0
+      ],
+      "canvas_bbox": [
+        3276,
+        2457,
+        3685,
+        2866
+      ]
+    },
+    {
+      "cell": "D5b",
+      "parent": "D5",
+      "color_rgb": [
+        0,
+        200,
+        100
+      ],
+      "canvas_bbox": [
+        3685,
+        2457,
+        4094,
+        2866
+      ]
+    },
+    {
+      "cell": "D5c",
+      "parent": "D5",
+      "color_rgb": [
+        255,
+        60,
+        60
+      ],
+      "canvas_bbox": [
+        3276,
+        2866,
+        3685,
+        3275
+      ]
+    },
+    {
+      "cell": "D5d",
+      "parent": "D5",
+      "color_rgb": [
+        60,
+        200,
+        200
+      ],
+      "canvas_bbox": [
+        3685,
+        2866,
+        4094,
+        3275
+      ]
+    },
+    {
+      "cell": "E1",
+      "parent": null,
+      "color_rgb": [
+        20,
+        110,
+        130
+      ],
+      "canvas_bbox": [
+        0,
+        3276,
+        819,
+        4095
+      ]
+    },
+    {
+      "cell": "E2",
+      "parent": null,
+      "color_rgb": [
+        130,
+        90,
+        20
+      ],
+      "canvas_bbox": [
+        819,
+        3276,
+        1638,
+        4095
+      ]
+    },
+    {
+      "cell": "E3a",
+      "parent": "E3",
+      "color_rgb": [
+        200,
+        255,
+        100
+      ],
+      "canvas_bbox": [
+        1638,
+        3276,
+        2047,
+        3685
+      ]
+    },
+    {
+      "cell": "E3b",
+      "parent": "E3",
+      "color_rgb": [
+        100,
+        200,
+        255
+      ],
+      "canvas_bbox": [
+        2047,
+        3276,
+        2456,
+        3685
+      ]
+    },
+    {
+      "cell": "E3c",
+      "parent": "E3",
+      "color_rgb": [
+        255,
+        100,
+        200
+      ],
+      "canvas_bbox": [
+        1638,
+        3685,
+        2047,
+        4094
+      ]
+    },
+    {
+      "cell": "E3d",
+      "parent": "E3",
+      "color_rgb": [
+        100,
+        255,
+        200
+      ],
+      "canvas_bbox": [
+        2047,
+        3685,
+        2456,
+        4094
+      ]
+    },
+    {
+      "cell": "E4",
+      "parent": null,
+      "color_rgb": [
+        60,
+        160,
+        120
+      ],
+      "canvas_bbox": [
+        2457,
+        3276,
+        3276,
+        4095
+      ]
+    },
+    {
+      "cell": "E5",
+      "parent": null,
+      "color_rgb": [
+        210,
+        100,
+        20
+      ],
+      "canvas_bbox": [
+        3276,
+        3276,
+        4095,
+        4095
+      ]
+    }
+  ]
+}

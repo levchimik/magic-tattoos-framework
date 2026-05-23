@@ -14,10 +14,10 @@ Output: `_build/MagicTattoosFramework-FOMOD-<version>.7z` (+ a `_build/fomod-sta
 folder you can drag into MO2's "Install from folder" if you want to test
 without re-zipping).
 
-Version comes from the latest commit subject (`v0.1.17` etc.), or `MTF_VERSION` env override:
+Version comes from the latest commit subject (e.g. `v0.1.x`), or `MTF_VERSION` env override:
 
 ```bash
-MTF_VERSION=v0.1.18 bash tools/fomod/build_fomod.sh
+MTF_VERSION=v0.1.x bash tools/fomod/build_fomod.sh
 ```
 
 ## Layout

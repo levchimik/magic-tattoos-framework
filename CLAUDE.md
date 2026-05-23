@@ -30,11 +30,11 @@ MagicTattoosFramework/
 ├── MTF_Plugin_OStim.esp             plugin ESP — OStim Standalone
 ├── MTF_Plugin_BFNG.esp              plugin ESP — Beeing Female NG
 ├── source/scripts/                  Papyrus source (.psc) — edit here
-├── _deps/                           minimal stubs for foreign types (slaFrameWorkScr, FWController, etc.)
+├── _deps/                           vendored upstream .psc + minimal stubs (foreign types: slaFrameWorkScr, FWController, etc.) — see "Soft-master pattern"
 ├── cpp-plugin/                      SKSE C++ plugin source (MTFPulse.dll, CMake)
 ├── data/SKSE/Plugins/               visual catalogs, waveform LUTs (shipped JSON)
 ├── presets/                         dev sample presets (not auto-deployed)
-├── plans/                           design docs (integrations.md, etc.)
+├── plans/                           design docs
 ├── tools/build_scripts.sh           compile + deploy Papyrus
 └── README.md                        public-facing description
 ```
@@ -77,7 +77,7 @@ spriggit deserialize --InputPath /tmp/yaml --OutputPath MyMod.esp
 
 | Script | Type | Owns |
 |---|---|---|
-| **MTF_MainQuest** | Quest | Host. Roster, slow-tick eval loop, slot/tier state, scratch preset buffer, preset I/O, NPC dispatch wrappers, plugin registry, MCM-facing accessors. The 5374-line god-quest — most edits live here. |
+| **MTF_MainQuest** | Quest | Host. Roster, slow-tick eval loop, slot/tier state, scratch preset buffer, preset I/O, NPC dispatch wrappers, plugin registry, MCM-facing accessors. The god-quest — most edits live here. |
 | **MTF_MCMQuest** | SKI_ConfigBase | MCM pages (General, Preset editor, Subjects, Plugins). State-pool toggle bindings, dropdowns sourced via plugin registry. No game-state logic — delegates everything to MainQuest. |
 | **MTF_Plugin** | Quest (abstract) | Base class. Plugin identity (id/label), condition/effect declaration interface, optional settings page, lifecycle (`OnInit` → `_tryRegister` → host `RegisterPlugin`). Override in derived plugin scripts. |
 | **MTF_Plugin_Base** | Quest (extends MTF_Plugin) | Built-in plugin (`mtf.base`). Built-in conditions (magicka/stamina/combat/hits/region/time/weather). Built-in effects (drains, cloaks, slow-time, water-breathing, detect-life, shader.play, sound.play). Cloak Cast() queue. Hit-class tracking. |
@@ -252,8 +252,8 @@ Adding ANY post-release Auto property requires a `_migrationLevel` bump in
 MainQuest and a migration block. Auto properties added after first save
 **don't always attach** on existing saves — they read None forever. Use
 `StorageUtil.SetXxxValue(self, "mtf.<key>", v)` for new state instead, or
-attach a fresh child script. Bumped to `ml=37` on 2026-05 (Menu Options page
-removal); next bump owns the next change.
+attach a fresh child script. Current level lives in `MTF_MCMQuest.OnVersionUpdate`
+as a stair of `if ml < N` blocks; next bump owns the next change.
 
 ## Standing Constraints (Read Before Editing)
 
@@ -277,6 +277,7 @@ removal); next bump owns the next change.
   inventory, INI hierarchy, audit trail.
 - `F:/stuff/Skyrim modding/KNOWLEDGEBASE.md` — engine quirks, SE vs VR
   differences, Papyrus gotchas in depth.
-- `plans/integrations.md` — design doc for the SLA / SexLab / OStim / BFNG
-  plugins (surface tables, soft-master notes).
-- `SMOKE_TESTS.md` (TODO) — per-preset test recipes for the MTF Test Pack.
+- `SMOKE_TESTS.md` — per-preset test recipes for the MTF Test Pack.
+- `docs/BODY_ATLAS_PIPELINE.md`, `docs/VISUAL_REFS_PIPELINE.md`,
+  `docs/DESCRIPTIONS_REVIEW.md` — vision-pipeline tooling and the
+  generated tattoo description catalog.

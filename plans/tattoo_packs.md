@@ -1,29 +1,18 @@
 # Tattoo / Overlay Content Pack Roadmap
 
-Plan for expanding MTF's content-pack lineup beyond the current three
-(`MTF Content - LewdMarks`, `MTF Content - RX Overlays`, `MTF Content - Obi's Tattoos`).
-Drafted 2026-05-21 after surveying `D:\Skyrim mods`.
+Originally drafted as a plan for expanding MTF's content-pack lineup
+beyond the original LewdMarks-only set. Kept as a survey / candidate
+backlog — the canonical list of shipped adapters lives in
+`content-packs/README.md` and the FOMOD config.
 
-## Tooling gap
+## Tooling note
 
-The existing generator at `tools/gen_visual_catalogs.js` is hardcoded to
-the LewdMarks numeric naming scheme (`001.dds`–`096.dds`, both base + glow
-layer per index). It can't be reused for packs with arbitrary filenames
-(e.g. `RX Abs Butterfly.dds`).
-
-**Pre-req task:** generalize the generator so it accepts:
-- `--source <texture-dir>` — root to scan recursively for `.dds`
-- `--packid <id>` — `mtf.<author>.<name>`
-- `--label <display>` — user-facing pack label
-- `--prefix <texture-root>` — `actors\character\overlays\<sub>\` portion to
-  strip from each path before emitting (texture paths stored in JSON are
-  relative to `Data/textures/`)
-- `--area Body|Face` (default Body)
-- (optional) `--glow-suffix <s>` to pair `<name>.dds` + `<name><s>.dds`
-  for 2-layer LewdMarks-style packs
-
-Walk the texture dir, generate one entry per `.dds` with `id`/`label`
-derived from the filename (sans `.dds`, sans pack prefix).
+A generalized `gen_visual_catalogs.js` was never built — each shipped
+adapter is wrapped ad-hoc with a per-pack helper script under
+`F:/stuff/Skyrim modding/tools/` (e.g. `_mtf_fix_rx_round1.py`,
+`_mtf_fix_obi_placements.py`). If we end up wrapping many more, factor
+those into a generic generator with `--source`, `--packid`, `--label`,
+`--prefix`, `--area`, `--glow-suffix` flags.
 
 ## Wrapping recipe (per pack)
 
@@ -156,14 +145,26 @@ Total: ~5 wrapped packs, ~1000+ textures, ~750 MB on disk.
 
 ## Status
 
-- [ ] Generalize catalog generator
-- [ ] Install + wrap Community Overlays 1
-- [ ] Install + wrap Community Overlays 2
-- [ ] Install + wrap Community Overlays 3
-- [ ] Install + wrap Barbarian Bodypaints
-- [ ] Install + wrap Yyvengar Bodypaints
-- [ ] In-game verify all 5
-- [ ] README.md Components table update
-- [ ] (Stretch) Tier 2 batch
-- [ ] (Stretch) Face overlay slot support → unlocks Tier 3
-- [ ] (Stretch) SlaveTats wrapper helper → unlocks Tier 4 batch
+Wrapped and shipping in the FOMOD (see `content-packs/README.md` for
+the source-of-truth list):
+
+- [x] LewdMarks (RaceMenu + SlaveTats variants)
+- [x] Obi's Tattoos
+- [x] RX Overlays
+- [x] Bardle Nail Polish (Hands)
+- [x] Community Overlays 1 — Face (Face)
+
+Other foundational pieces landed along the way:
+
+- [x] Multi-area overlay slot dispatch (v0.1.17) — unlocks Face / Hands / Feet packs
+- [x] SlaveTats Bridge plugin (v0.1.19) — wrappers can target SlaveTats roots
+
+Open candidates from the survey:
+
+- [ ] Community Overlays 1 (Body 2K/4K)
+- [ ] Community Overlays 2 (CBBE + Male)
+- [ ] Community Overlays 3 (CBBE + Male)
+- [ ] Barbarian Bodypaints (CBBE + Male)
+- [ ] Yyvengar Bodypaints (Female + Male)
+- [ ] Tier 2 themed packs
+- [ ] Tier 4 SlaveTats packs (now feasible via the bridge)
