@@ -1230,7 +1230,7 @@ EndFunction
 
 string Function _effectDescriptionLow(int idx)
     if idx == 0
-        return "Shifts the actor's magicka regeneration rate by {param1}."
+        return "Shifts the actor's magicka regeneration rate by {param1}%."
     elseif idx == 1
         return "Shifts the actor's carry-weight cap by {param1}."
     elseif idx == 2
@@ -1240,9 +1240,9 @@ string Function _effectDescriptionLow(int idx)
     elseif idx == 4
         return "Burst — damages or restores {param1}% of the actor's base stamina when the tier activates."
     elseif idx == 5
-        return "Shifts the actor's movement-speed multiplier by {param1}."
+        return "Shifts the actor's movement-speed multiplier by {param1}%."
     elseif idx == 6
-        return "Shifts the actor's stamina regeneration rate by {param1}."
+        return "Shifts the actor's stamina regeneration rate by {param1}%."
     elseif idx == 7
         return "Shifts the actor's outgoing attack damage by {param1}%."
     elseif idx == 8
@@ -1250,9 +1250,9 @@ string Function _effectDescriptionLow(int idx)
     elseif idx == 9
         return "Burst — alerts every hostile NPC within {param1}ft to the actor's presence (blows stealth)."
     elseif idx == 10
-        return "Spells cost {param1} of their original across all schools."
+        return "Spells cost {param1}% of their original across all schools."
     elseif idx == 11
-        return "Shifts the actor's health regeneration rate by {param1}."
+        return "Shifts the actor's health regeneration rate by {param1}%."
     elseif idx == 12
         return "Shifts the actor's maximum magicka by {param1}."
     endif
@@ -1267,17 +1267,17 @@ string Function _effectDescriptionHigh(int idx)
     elseif idx == 15
         return "Shifts the actor's unarmed melee damage by {param1}."
     elseif idx == 16
-        return "Shifts the actor's critical-strike chance by {param1}."
+        return "Shifts the actor's critical-strike chance by {param1}%."
     elseif idx == 17
         return "Shifts the actor's bow draw and release speed by {param1}."
     elseif idx == 18
-        return "Shifts the actor's fire resistance by {param1}."
+        return "Shifts the actor's fire resistance by {param1}%."
     elseif idx == 19
-        return "Shifts the actor's frost resistance by {param1}."
+        return "Shifts the actor's frost resistance by {param1}%."
     elseif idx == 20
-        return "Shifts the actor's shock resistance by {param1}."
+        return "Shifts the actor's shock resistance by {param1}%."
     elseif idx == 21
-        return "Shifts the actor's magic resistance by {param1}."
+        return "Shifts the actor's magic resistance by {param1}%."
     elseif idx == 22
         return "Toggles silenced footsteps on the actor while active."
     elseif idx == 23
@@ -1303,13 +1303,13 @@ string Function _effectDescriptionHigh(int idx)
     elseif idx == 33
         return "Flashes the tattoo's emissive layer to {param2}% brightness on every {param1} hit."
     elseif idx == 34
-        return "Shifts the actor's disease resistance by {param1}."
+        return "Shifts the actor's disease resistance by {param1}%."
     elseif idx == 35
-        return "Shifts the actor's poison resistance by {param1}."
+        return "Shifts the actor's poison resistance by {param1}%."
     elseif idx == 36
-        return "Shifts the actor's chance to absorb incoming spells by {param1}."
+        return "Shifts the actor's chance to absorb incoming spells by {param1}%."
     elseif idx == 37
-        return "Shifts the actor's chance to reflect incoming melee damage by {param1}."
+        return "Shifts the actor's chance to reflect incoming melee damage by {param1}%."
     elseif idx == 38
         return "Shifts the actor's One-Handed weapon skill by {param1}."
     elseif idx == 39
@@ -1574,9 +1574,10 @@ int Function GetEffectParamStep(int idx)
 EndFunction
 
 string Function GetEffectParamFormat(int idx)
-    if idx == 10
-        return "{0}%"  ; "spells cost N% of their original cost"
-    endif
+    ; All percentage units now live in the description text
+    ; (e.g. "Spells cost {param1}% of their original ..."). Keeping
+    ; both description-side and Format-side `%` produced "100%%" in the
+    ; bio — see KNOWLEDGEBASE: "Bridge must funnel ALL state mutations".
     return "{0}"
 EndFunction
 
@@ -1637,9 +1638,9 @@ int Function GetEffectParam2Step(int idx)
     return 1
 EndFunction
 string Function GetEffectParam2Format(int idx)
-    if idx == 33
-        return "{0}%"
-    endif
+    ; All percentage units now live in the description text — idx 33's
+    ; "to {param2}% brightness" was double-formatting to "300%%" with
+    ; this override AND the description-side `%` both active.
     return "{0}"
 EndFunction
 

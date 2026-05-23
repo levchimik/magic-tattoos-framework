@@ -119,13 +119,13 @@ EndFunction
 
 string Function GetConditionDescription(int idx)
     if idx == 0
-        return "Triggers when the actor's arousal is at or above {param1}."
+        return "Triggers when the actor's arousal is at or above {param1}%."
     elseif idx == 1
         return "Triggers when the actor has gone without orgasm for at least {param1} day(s)."
     elseif idx == 2
         return "Triggers when the actor's arousal is climbing at least {param1} per check."
     elseif idx == 3
-        return "Triggers when the actor's arousal is {param1}."
+        return "Triggers when the actor's arousal is {param1}%."
     endif
     return ""
 EndFunction
@@ -256,11 +256,11 @@ EndFunction
 
 string Function GetEffectDescription(int idx)
     if idx == 0
-        return "Steadily raises the actor's arousal by {param1} every in-game hour while active."
+        return "Steadily raises the actor's arousal by {param1}% every in-game hour while active."
     elseif idx == 1
-        return "Pheromone aura — steadily raises the arousal of nearby NPCs by {param1} every in-game hour while active."
+        return "Pheromone aura — steadily raises the arousal of nearby NPCs by {param1}% every in-game hour while active."
     elseif idx == 2
-        return "Burst — adds {param1} to the actor's arousal when the tier activates."
+        return "Burst — adds {param1}% to the actor's arousal when the tier activates."
     elseif idx == 3
         return "Sets the actor's arousal-climb speed to {param1} while active, then restores the previous value on deactivate."
     elseif idx == 4

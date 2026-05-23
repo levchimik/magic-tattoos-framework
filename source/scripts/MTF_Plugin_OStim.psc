@@ -11,10 +11,17 @@ Scriptname MTF_Plugin_OStim extends MTF_Plugin
  Conditions:
    0  in.scene           — currently in an OStim scene (IsInOStim)
    1  excitement         — OActor excitement >= param
-   2  excitement.mult    — OActor excitement multiplier >= param × 0.01
-   3  times.climaxed     — per-scene climax count >= param
-   4  climax.stalled     — IsClimaxStalled flag matches (param 0/1)
-   5  has.schlong        — actor has a schlong equipped (HasSchlong)
+   2  times.climaxed     — per-scene climax count >= param
+   3  climax.stalled     — IsClimaxStalled flag matches (param 0/1)
+   4  has.schlong        — actor has a schlong equipped (HasSchlong)
+
+ REMOVED in v0.1.24: "excitement.mult" condition. The underlying gauge
+ (param × 0.01) maxed out at 100 → multiplier ≥ 1.0, which couldn't
+ actually express "faster than normal" — only "at least N% of normal
+ climb speed." Confusing semantics for end users. Old presets storing
+ key "excitement.mult" will silently skip the condition slot (key
+ lookup returns -1, no error); they'll behave as if dormant. Safe to
+ re-author affected presets without touching MTF.
 
  Effects:
    0  trigger.climax        — one-shot: Climax(target, ignoreStall)
@@ -69,7 +76,7 @@ EndFunction
 ; ── Conditions ────────────────────────────────────────────────────────────────
 
 int Function GetConditionCount()
-    return 6
+    return 5
 EndFunction
 
 string Function GetConditionId(int idx)
@@ -78,12 +85,10 @@ string Function GetConditionId(int idx)
     elseif idx == 1
         return "excitement"
     elseif idx == 2
-        return "excitement.mult"
-    elseif idx == 3
         return "times.climaxed"
-    elseif idx == 4
+    elseif idx == 3
         return "climax.stalled"
-    elseif idx == 5
+    elseif idx == 4
         return "has.schlong"
     endif
     return ""
@@ -95,12 +100,10 @@ string Function GetConditionLabel(int idx)
     elseif idx == 1
         return "Excitement"
     elseif idx == 2
-        return "Excitement Multiplier"
-    elseif idx == 3
         return "Times Climaxed"
-    elseif idx == 4
+    elseif idx == 3
         return "Climax Stalled"
-    elseif idx == 5
+    elseif idx == 4
         return "Has Schlong"
     endif
     return ""
@@ -112,12 +115,10 @@ string Function GetConditionParamLabel(int idx)
     elseif idx == 1
         return "Min excitement"
     elseif idx == 2
-        return "Min multiplier (×0.01)"
-    elseif idx == 3
         return "Min climax count"
-    elseif idx == 4
+    elseif idx == 3
         return "Stall state"
-    elseif idx == 5
+    elseif idx == 4
         return ""
     endif
     return ""
@@ -129,12 +130,10 @@ string Function GetConditionDescription(int idx)
     elseif idx == 1
         return "Triggers during an intimate scene when the actor is at least {param1}% aroused."
     elseif idx == 2
-        return "Triggers during an intimate scene when the actor's arousal is climbing at least {param1}% faster than normal."
-    elseif idx == 3
         return "Triggers when the actor has climaxed at least {param1} time(s) in the current scene."
-    elseif idx == 4
+    elseif idx == 3
         return "Triggers when the actor's climax is {param1}."
-    elseif idx == 5
+    elseif idx == 4
         return "Triggers when the actor has male genitals equipped."
     endif
     return ""
@@ -145,11 +144,11 @@ int Function GetConditionParamMin(int idx)
 EndFunction
 
 int Function GetConditionParamMax(int idx)
-    if idx == 1 || idx == 2
+    if idx == 1
         return 100
-    elseif idx == 3
+    elseif idx == 2
         return 10
-    elseif idx == 4
+    elseif idx == 3
         return 1
     endif
     return 0
@@ -159,33 +158,31 @@ int Function GetConditionParamDefault(int idx)
     if idx == 1
         return 50
     elseif idx == 2
-        return 100
-    elseif idx == 3
         return 1
-    elseif idx == 4
+    elseif idx == 3
         return 1
     endif
     return 0
 EndFunction
 
-; ── Climax stalled dropdown (cond idx 4) ────────────────────────────────────
+; ── Climax stalled dropdown (cond idx 3) ────────────────────────────────────
 
 int Function GetConditionParamMenuOptionCount(int idx)
-    if idx == 4
+    if idx == 3
         return 2
     endif
     return 0
 EndFunction
 
 int Function GetConditionParamMenuOptionValue(int idx, int optionIdx)
-    if idx == 4
+    if idx == 3
         return optionIdx  ; 0 = Not stalled, 1 = Stalled
     endif
     return 0
 EndFunction
 
 string Function GetConditionParamMenuOptionLabel(int idx, int optionIdx)
-    if idx == 4
+    if idx == 3
         if optionIdx == 0
             return "Not stalled"
         elseif optionIdx == 1
@@ -202,24 +199,22 @@ bool Function checkCondition(int idx, Actor target, int param)
     ; in.scene + has.schlong are valid regardless of scene state.
     if idx == 0
         return OActor.IsInOStim(target)
-    elseif idx == 5
+    elseif idx == 4
         return OActor.HasSchlong(target)
     endif
-    ; Everything else (excitement, excitement.mult, times.climaxed,
-    ; climax.stalled) is per-scene state in OStim. Outside a scene the
-    ; underlying natives return 0/false, which would falsely satisfy
-    ; threshold-zero presets (e.g. `excitement >= 0`) or "not stalled"
-    ; (`climax.stalled == 0`) every slow-tick. Gate hard on IsInOStim.
+    ; Everything else (excitement, times.climaxed, climax.stalled) is
+    ; per-scene state in OStim. Outside a scene the underlying natives
+    ; return 0/false, which would falsely satisfy threshold-zero presets
+    ; (e.g. `excitement >= 0`) or "not stalled" (`climax.stalled == 0`)
+    ; every slow-tick. Gate hard on IsInOStim.
     if !OActor.IsInOStim(target)
         return false
     endif
     if idx == 1
         return OActor.GetExcitement(target) >= (param as float)
     elseif idx == 2
-        return OActor.GetExcitementMultiplier(target) >= ((param as float) * 0.01)
-    elseif idx == 3
         return OActor.GetTimesClimaxed(target) >= param
-    elseif idx == 4
+    elseif idx == 3
         bool stalled = OActor.IsClimaxStalled(target, true)
         if param == 1
             return stalled
