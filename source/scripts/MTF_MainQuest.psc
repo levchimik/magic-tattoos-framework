@@ -95,6 +95,13 @@ string[] _sCondWaveform
 ; _sEffectKey/Param/Param2 removed in v0.1.5 — scratch effect bindings
 ; now live in StorageUtil under mtf.fx.scratch.<slot>.<idx>.* (parallel to
 ; the player live keyspace mtf.fx.<slot>.<idx>.*).
+; v0.1.24 cooldown rework: same storage, new semantics.
+; _sCooldownMin   → semantically "persistMin"   (how long slot stays active after firing)
+; _sCooldownMode  → semantically "allowOverride" (1 = higher-priority slots can take over during
+;                                                  persist, 0 = locked — was 1=lock, 0=after-deact)
+; New "cool" durations (post-persist re-arm lockout) live under per-preset StorageUtil keys —
+; see _getScratchCoolMin / _setScratchCoolMin. Vars renamed only in comment; Papyrus vars keep
+; their physical names to preserve save attachment.
 int[]    _sCooldownMin
 int[]    _sCooldownMode
 ; Per-preset cross-fade duration (seconds) read from .transition.duration
@@ -275,18 +282,40 @@ EndFunction
 ; cleanup. Anything still reading those would compile-error, which is the
 ; intended trip-wire.
 
-; ── Per-slot cooldown ────────────────────────────────────────────────────────
-; cooldownMin:     duration in minutes (0 = disabled, max 1440 = 24h).
-; cooldownMode:    0 = "after deactivate"  — slot can't reactivate during timer
-;                  1 = "lock on activate"  — slot stays active during timer
-;                                            and lower-priority slots are
-;                                            blocked. Higher-priority slots
-;                                            can still override.
-; cooldownUntilGT: GameTime (days) when the timer ends. Armed at deactivate
-;                  (mode 0) or activate (mode 1).
-int[] Property cooldownMin Auto
-int[] Property cooldownMode Auto
-float[] Property cooldownUntilGT Auto Hidden
+; ── Per-slot cooldown (v0.1.24 rework) ──────────────────────────────────────
+; Old (v0.1.23-): two-mode system — mode 0 "after deactivate" + mode 1 "lock
+; on activate", single duration `cooldownMin`. The new model splits the timer
+; into TWO independent durations (persist + cool) and a single override toggle:
+;
+;   1. PERSIST phase — when condition fires, slot stays active for persistMin
+;      minutes regardless of whether the condition keeps firing. During this
+;      phase, higher-priority slots can take over IF allowOverride==1; if
+;      allowOverride==0, the slot is locked solid until persist expires.
+;   2. COOL phase    — after persist ends (or after a normal-eval deactivation
+;      when persistMin==0), the slot can't re-arm for coolMin minutes.
+;   3. NORMAL eval   — after cool expires, the slot evaluates its condition
+;      normally on the next tick.
+;
+; Property reuse (NOT a rename — Papyrus VM attaches by name, renaming risks
+; save corruption per project_papyrus_property_attach memory entry):
+;   cooldownMin      → semantically "persistMin"   (minutes, 0 = no persist)
+;   cooldownMode     → semantically "allowOverride" (1 = allow, 0 = block;
+;                                                    default flipped to 1 — see
+;                                                    EnsureArrays + v124 migration)
+;   cooldownUntilGT  → semantically "persistUntilGT" (GameTime end of persist)
+;
+; New fields (live in StorageUtil to sidestep post-release Auto-property
+; attach issues per project_papyrus_property_attach):
+;   coolMin per slot       → StorageUtil(self, "mtf.cool.min.<slot>", int)
+;   coolUntilGT per slot   → StorageUtil(self, "mtf.cool.until.<slot>", float)
+;
+; Migration: old saves had cooldownMode=0 default ("after deactivate"). Under
+; the new semantics that means "block override" which is the wrong default.
+; EnsureArrays sets a one-shot flag (mtf.v124.cooldownReset) and force-flips
+; allowOverride to 1 + clears persistUntilGT on first run of the new code.
+int[] Property cooldownMin Auto       ; semantic: persistMin
+int[] Property cooldownMode Auto      ; semantic: allowOverride (1=allow, 0=block)
+float[] Property cooldownUntilGT Auto Hidden  ; semantic: persistUntilGT
 
 ; ── Plugin registry (single unified registry — both conditions and effects) ──
 Form[] Property registeredPlugins Auto
@@ -365,11 +394,13 @@ EndFunction
 
 int Function MAX_EFFECTS_PER_SLOT_MCM() global
     ; UI cap — how many `_drawEffectRow` calls fire in the conditions
-    ; page. Each visible row needs 6 SkyUI state blocks
-    ; (SLOT_EFFECT_<i>_TYPE, _PARAM, _P2, _EX1/2/3); Papyrus state names
-    ; are compile-time so this can't be looped at runtime. Raising
-    ; requires adding state-block boilerplate in MTF_MCMQuest.psc.
-    return 4
+    ; page. Rows 1-4 use 6 SkyUI state blocks each
+    ; (SLOT_EFFECT_<i>_TYPE, _PARAM, _P2, _EX1/2/3); rows 5-8 use only 3
+    ; (TYPE+PARAM+P2 — no extras, because each additional state ate into
+    ; the 127-named-state ceiling). Papyrus state names are compile-time
+    ; so this can't be looped at runtime — raising past 8 requires
+    ; either freeing state-name budget elsewhere or paging the editor.
+    return 8
 EndFunction
 
 float Function PULSE_INTERVAL() global
@@ -513,13 +544,13 @@ int Property _migrationLevel = 0 Auto Hidden
 ; Post-load grace window. While Utility.GetCurrentRealTime() is below
 ; this value, the slow tick's eval/draw body is skipped. Reason: at
 ; save time the player can be in a state where the underlying condition
-; is no longer met but a lock-on-activate (cooldownMode=1) timer is
-; keeping the tier active. On reload, GameTime advances slightly during
-; the load process, the cooldown can expire, and the eval at ~0.5s
-; post-load sees condition=false → tier 0 → clears the overlay. Symptom:
-; tattoo flashes on for ~500ms then disappears. The grace period gives
-; cooldowns + condition sources room to settle before we start firing
-; transitions. Not Auto Hidden — it's stamped via ArmPostLoadFreeze at
+; is no longer met but a persist timer (v0.1.24+, formerly a
+; lock-on-activate cooldown) is keeping the tier active. On reload,
+; GameTime advances slightly during the load process, the persist timer
+; can expire, and the eval at ~0.5s post-load sees condition=false →
+; tier 0 → clears the overlay. Symptom: tattoo flashes on for ~500ms
+; then disappears. The grace period gives persist + cool timers and
+; condition sources room to settle before we start firing transitions. Not Auto Hidden — it's stamped via ArmPostLoadFreeze at
 ; load time and doesn't need to persist across saves itself.
 float _postLoadFreezeUntilRT = 0.0
 
@@ -532,8 +563,15 @@ Function EnsureArrays()
  param, param2) live in StorageUtil under mtf.fx.<slot>.<idx>.* (v0.1.5+);
  pulse rate/depth/waveform already lived there. This only allocates the
  8-element per-slot condition/layer/cooldown arrays. Calling repeatedly
- is cheap (early-return on the _arraysReady flag).}
+ is cheap (early-return on the _arraysReady flag).
+
+ v0.1.24: also runs the cooldown-semantics migration even when arrays are
+ already allocated — see _migrateV124CooldownIfNeeded. Old saves had
+ cooldownMode=0 default which under the new semantics means "block higher-
+ priority override"; the migration force-flips to allowOverride=1 and
+ clears any stale persistUntilGT once.}
     if _arraysReady && condPluginId != None && condPluginId.Length == 8
+        _migrateV124CooldownIfNeeded()
         return
     endif
 
@@ -546,12 +584,80 @@ Function EnsureArrays()
     condLayerEmissive     = new int[32]
     condLayerEmissiveMult = new float[32]
     condLayerAlpha        = new int[32]
-    cooldownMin           = new int[8]
-    cooldownMode          = new int[8]
-    cooldownUntilGT       = new float[8]
+    cooldownMin           = new int[8]    ; semantic: persistMin
+    cooldownMode          = new int[8]    ; semantic: allowOverride (default 1 — set below)
+    cooldownUntilGT       = new float[8]  ; semantic: persistUntilGT
     registeredPlugins     = new Form[32]
     pluginCount           = 0
     _arraysReady          = true
+
+    ; New allowOverride[] defaults to 1 (allow higher-priority override)
+    ; rather than 0 (the old "after-deactivate" default). Whole-array
+    ; reassign per the Papyrus quirk that indexed writes to Auto array
+    ; properties silently no-op.
+    int[] aOverride = cooldownMode
+    int i = 0
+    while i < 8
+        aOverride[i] = 1
+        i += 1
+    endwhile
+    cooldownMode = aOverride
+
+    ; Fresh allocation is already "post-migration" by construction.
+    StorageUtil.SetIntValue(self, "mtf.v124.cooldownReset", 1)
+EndFunction
+
+Function _migrateV124CooldownIfNeeded()
+{One-shot v0.1.24 cooldown-semantics migration for existing saves. Old
+ saves had cooldownMode=0 default ("after-deactivate"); under new semantics
+ that means "block higher-priority override" which is the wrong default.
+ Force-flips allowOverride to 1 across all slots and clears any stale
+ persistUntilGT (which would otherwise force slots into "in persist" state
+ on the first eval after upgrade).}
+    if StorageUtil.GetIntValue(self, "mtf.v124.cooldownReset", 0) == 1
+        return
+    endif
+    int[]   aOverride = cooldownMode
+    float[] aPersist  = cooldownUntilGT
+    int i = 0
+    while i < 8
+        aOverride[i] = 1
+        aPersist[i]  = 0.0
+        i += 1
+    endwhile
+    cooldownMode    = aOverride
+    cooldownUntilGT = aPersist
+    ; Also wipe the new cool-phase StorageUtil keys to be sure.
+    i = 0
+    while i < 8
+        StorageUtil.UnsetIntValue(self,   "mtf.cool.min."   + i)
+        StorageUtil.UnsetFloatValue(self, "mtf.cool.until." + i)
+        i += 1
+    endwhile
+    StorageUtil.SetIntValue(self, "mtf.v124.cooldownReset", 1)
+    Trace("[MTF_Main] v0.1.24 cooldown migration: flipped allowOverride to 1, cleared persistUntilGT and cool keys")
+EndFunction
+
+; ── Cooldown-phase StorageUtil-backed accessors (v0.1.24) ────────────────────
+; The "cool" phase (post-persist re-arm lockout) lives entirely in StorageUtil
+; rather than as new Auto array properties — adding Auto properties to a
+; script that's already in a save doesn't reliably attach backing storage
+; (project_papyrus_property_attach). Per-slot keyed on self for the player
+; path; per-(actor, preset, slot) for stacked / NPC presets (see
+; _setActorPresetCoolUntil).
+
+int Function _getCoolMin(int slot)
+    return StorageUtil.GetIntValue(self, "mtf.cool.min." + slot, 0)
+EndFunction
+Function _setCoolMin(int slot, int v)
+    StorageUtil.SetIntValue(self, "mtf.cool.min." + slot, v)
+EndFunction
+
+float Function _getCoolUntilGT(int slot)
+    return StorageUtil.GetFloatValue(self, "mtf.cool.until." + slot, 0.0)
+EndFunction
+Function _setCoolUntilGT(int slot, float t)
+    StorageUtil.SetFloatValue(self, "mtf.cool.until." + slot, t)
 EndFunction
 
 ; Inheritance helpers — slots 1-7 with empty condPackId fall back to slot 0.
@@ -1643,7 +1749,11 @@ bool Function SavePreset(string rawName)
     JsonUtil.ClearAll(f)
     JsonUtil.SetPathIntValue(f,    ".valid",         1)
     JsonUtil.SetPathStringValue(f, ".displayname",   rawName)
-    JsonUtil.SetPathIntValue(f,    ".schemaversion", 7)
+    ; v0.1.24: schema 8 — cooldown rework. cooldown.min/cooldown.mode replaced
+    ; by persist.min, persist.allowOverride, cool.min. Old keys are NOT read
+    ; on load; existing presets reset to defaults (persist=0, cool=0,
+    ; allowOverride=1).
+    JsonUtil.SetPathIntValue(f,    ".schemaversion", 8)
 
     ; Preset-wide cross-fade duration (live value, edited via MCM slider).
     ; Always emit so the saved JSON reflects exactly what's in the scratch
@@ -1674,8 +1784,13 @@ bool Function SavePreset(string rawName)
         endif
         JsonUtil.SetPathStringValue(f, sp + ".cond.packid",   condPackId[s])
         JsonUtil.SetPathStringValue(f, sp + ".cond.entryid",  condEntryId[s])
-        JsonUtil.SetPathIntValue(f,    sp + ".cooldown.min",  cooldownMin[s])
-        JsonUtil.SetPathIntValue(f,    sp + ".cooldown.mode", cooldownMode[s])
+        ; v0.1.24 cooldown rework — persistMin reuses cooldownMin storage;
+        ; allowOverride reuses cooldownMode storage; coolMin is a new
+        ; StorageUtil-backed per-slot int. See cooldown property block at
+        ; top of file for the full semantic mapping.
+        JsonUtil.SetPathIntValue(f,    sp + ".persist.min",            cooldownMin[s])
+        JsonUtil.SetPathIntValue(f,    sp + ".persist.allowOverride",  cooldownMode[s])
+        JsonUtil.SetPathIntValue(f,    sp + ".cool.min",               _getCoolMin(s))
         ; Skip pulse rows when disabled — keeps the file readable.
         float rateS  = GetCondPulseRate(s)
         int   depthS = GetCondPulseDepth(s)
@@ -1820,8 +1935,8 @@ bool Function LoadPreset(string name)
     ; same workaround applied explicitly here.
     string[] aPackId   = condPackId
     string[] aEntryId  = condEntryId
-    int[]    aCdMin    = cooldownMin
-    int[]    aCdMode   = cooldownMode
+    int[]    aPersistMin     = cooldownMin    ; semantic: persistMin
+    int[]    aAllowOverride  = cooldownMode   ; semantic: allowOverride (default 1)
     int[]    aLTint    = condLayerTint
     int[]    aLEmiss   = condLayerEmissive
     float[]  aLEmult   = condLayerEmissiveMult
@@ -1835,8 +1950,15 @@ bool Function LoadPreset(string name)
         SetCondParam2(s,   JsonUtil.GetPathIntValue(f,    sp + ".cond.param2",   0))
         aPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",  "")
         aEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid", "")
-        aCdMin[s]    = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.min",  0)
-        aCdMode[s]   = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
+        ; v0.1.24 cooldown rework — read new schema 8 keys only. Old
+        ; cooldown.min/cooldown.mode are ignored (reset-to-defaults
+        ; migration: persist=0, cool=0, allowOverride=1).
+        aPersistMin[s]    = JsonUtil.GetPathIntValue(f, sp + ".persist.min", 0)
+        aAllowOverride[s] = JsonUtil.GetPathIntValue(f, sp + ".persist.allowOverride", 1)
+        _setCoolMin(s, JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
+        ; Clear any active persist/cool timers when loading a preset — the
+        ; new preset's slots start fresh, regardless of inherited timer state.
+        _setCoolUntilGT(s, 0.0)
         SetCondPulseRate(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.rate",  0.0))
         SetCondPulseDepth(s, JsonUtil.GetPathIntValue(f,   sp + ".pulse.depth", 0))
         SetCondPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
@@ -1897,12 +2019,20 @@ bool Function LoadPreset(string name)
     ; assign needed for fx.)
     condPackId            = aPackId
     condEntryId           = aEntryId
-    cooldownMin           = aCdMin
-    cooldownMode          = aCdMode
+    cooldownMin           = aPersistMin     ; semantic: persistMin
+    cooldownMode          = aAllowOverride  ; semantic: allowOverride
     condLayerTint         = aLTint
     condLayerEmissive     = aLEmiss
     condLayerEmissiveMult = aLEmult
     condLayerAlpha        = aLAlpha
+    ; Persist timer cleared via cooldownUntilGT reassign — slots start cool.
+    float[] aPersistUntil = cooldownUntilGT
+    int pi = 0
+    while pi < 8
+        aPersistUntil[pi] = 0.0
+        pi += 1
+    endwhile
+    cooldownUntilGT = aPersistUntil
 
     int p = 0
     while p < pluginCount
@@ -1952,8 +2082,8 @@ Function ResetEditor()
     ; no-op (see LoadPreset for the same workaround).
     string[] aPackId   = condPackId
     string[] aEntryId  = condEntryId
-    int[]    aCdMin    = cooldownMin
-    int[]    aCdMode   = cooldownMode
+    int[]    aPersistMin    = cooldownMin    ; semantic: persistMin
+    int[]    aAllowOverride = cooldownMode   ; semantic: allowOverride
     int[]    aLTint    = condLayerTint
     int[]    aLEmiss   = condLayerEmissive
     float[]  aLEmult   = condLayerEmissiveMult
@@ -1966,8 +2096,10 @@ Function ResetEditor()
         SetCondParam2(s, 0)
         aPackId[s]   = ""
         aEntryId[s]  = ""
-        aCdMin[s]    = 0
-        aCdMode[s]   = 0
+        aPersistMin[s]    = 0
+        aAllowOverride[s] = 1   ; default: allow higher-priority override during persist
+        _setCoolMin(s, 0)
+        _setCoolUntilGT(s, 0.0)
         SetCondPulseRate(s, 0.0)
         SetCondPulseDepth(s, 0)
         SetCondPulsePause(s, 0.0)
@@ -1996,12 +2128,20 @@ Function ResetEditor()
 
     condPackId            = aPackId
     condEntryId           = aEntryId
-    cooldownMin           = aCdMin
-    cooldownMode          = aCdMode
+    cooldownMin           = aPersistMin      ; semantic: persistMin
+    cooldownMode          = aAllowOverride   ; semantic: allowOverride
     condLayerTint         = aLTint
     condLayerEmissive     = aLEmiss
     condLayerEmissiveMult = aLEmult
     condLayerAlpha        = aLAlpha
+    ; Clear all persist timers — fresh preset starts cool.
+    float[] aPersistUntil = cooldownUntilGT
+    int ri = 0
+    while ri < 8
+        aPersistUntil[ri] = 0.0
+        ri += 1
+    endwhile
+    cooldownUntilGT = aPersistUntil
 
     forceRedraw = true
 EndFunction
@@ -2852,26 +2992,49 @@ Function SetSlotEffectParam2(int slot, int effectIdx, int param2)
     _writeFxParam2(slot, effectIdx, false, param2)
 EndFunction
 
-; ── Priority evaluation ───────────────────────────────────────────────────────
+; ── Priority evaluation (v0.1.24 rework) ────────────────────────────────────
+; State machine per slot:
+;   - In COOL phase (now < coolUntilGT[i])  → skip (can't re-arm)
+;   - In PERSIST phase (now < persistUntilGT[i]):
+;       - If !allowOverride: SLOT LOCKED — short-circuits the whole eval and
+;         returns i regardless of higher-priority slot conditions.
+;       - If allowOverride:  slot still wins via persistence at i, but
+;         higher-priority slots (lower i) can take over if their condition fires.
+;   - Else: NORMAL eval — check condition; if met, return i.
+;
+; Lowest-index slot wins (priority 1 highest, 7 lowest). The two-pass shape
+; (pre-scan for !allowOverride lock, then normal eval) is what enforces
+; "block higher" semantics: once we find a locked slot at index i, we return
+; immediately without giving slots 1..i-1 a chance to fire.
 int Function evaluateTier()
     if !_arraysReady
         return 0
     endif
     float now = Utility.GetCurrentGameTime()
+
+    ; Pre-scan: lowest-index slot in PERSIST with !allowOverride wins outright.
     int i = 1
+    while i < 8
+        if condPluginId[i] != "" && cooldownMode[i] == 0 && now < cooldownUntilGT[i]
+            return i
+        endif
+        i += 1
+    endwhile
+
+    ; Normal eval, with persist passthrough for allowOverride==1 slots.
+    i = 1
     while i < 8
         string key = condPluginId[i]
         if key != ""
-            bool timerActive = (now < cooldownUntilGT[i])
-            int mode = cooldownMode[i]
-            if mode == 1 && timerActive
-                ; Lock-on-activate: slot is locked active. We've already
-                ; checked higher-priority slots (lower i) above; they
-                ; didn't win, so this slot stays in front.
-                return i
-            endif
-            bool inCooldown = (mode == 0 && timerActive)
-            if !inCooldown
+            float coolEnd = _getCoolUntilGT(i)
+            bool inCool = (now < coolEnd)
+            if !inCool
+                bool inPersist = (now < cooldownUntilGT[i])
+                if inPersist
+                    ; allowOverride==1 here (else pre-scan would've caught it).
+                    ; Persistence keeps slot winning.
+                    return i
+                endif
                 MTF_Plugin p = ResolvePluginByKey(key)
                 if p != None
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
@@ -2889,17 +3052,35 @@ int Function evaluateTier()
     return 0
 EndFunction
 
-Function _armCooldownTimer(int slot)
-{Sets cooldownUntilGT[slot] = now + cooldownMin[slot] minutes. Caller decides
- whether to arm based on mode (deactivate vs activate edge).}
+Function _armPersistTimer(int slot)
+{Sets persistUntilGT[slot] = now + persistMin[slot] minutes. Called on the
+ activation edge (prev→new transition) only when persistMin > 0. Indexed
+ writes to Auto array properties silently no-op
+ (project_papyrus_property_array_writes), so we do whole-array reassign.}
     if slot <= 0 || slot >= 8 || !_arraysReady
         return
     endif
-    int mins = cooldownMin[slot]
+    int mins = cooldownMin[slot]   ; semantic: persistMin
     if mins <= 0
         return
     endif
-    cooldownUntilGT[slot] = Utility.GetCurrentGameTime() + (mins as float) / 1440.0
+    float[] aP = cooldownUntilGT
+    aP[slot] = Utility.GetCurrentGameTime() + (mins as float) / 1440.0
+    cooldownUntilGT = aP
+EndFunction
+
+Function _armCoolTimer(int slot)
+{Sets coolUntilGT[slot] = now + coolMin[slot] minutes. Called on the
+ deactivation edge (prev→new transition where prev is this slot) only when
+ coolMin > 0. cool[] storage is StorageUtil-backed (see _setCoolUntilGT).}
+    if slot <= 0 || slot >= 8 || !_arraysReady
+        return
+    endif
+    int mins = _getCoolMin(slot)
+    if mins <= 0
+        return
+    endif
+    _setCoolUntilGT(slot, Utility.GetCurrentGameTime() + (mins as float) / 1440.0)
 EndFunction
 
 ; ── Effect lifecycle dispatch ────────────────────────────────────────────────
@@ -3183,9 +3364,21 @@ State checkingAroused
                 forceRedraw = false
                 if tierChanged && currentTier >= 0
                     _deactivateSlotEffects(currentTier)
-                    ; Mode 0: arm cooldown so the slot can't reactivate.
-                    if _arraysReady && cooldownMode[currentTier] == 0
-                        _armCooldownTimer(currentTier)
+                    ; v0.1.24: on the deactivation edge, clear the slot's
+                    ; persist timer (any leftover time is discarded — slot
+                    ; was either overridden, lost its condition past persist,
+                    ; or was just released). Then arm cool if coolMin > 0
+                    ; so re-arm is blocked. Without the persist clear, a
+                    ; stale persistUntilGT could fool the pre-scan into
+                    ; treating the slot as locked-in-persist on the next tick.
+                    if currentTier > 0 && _arraysReady
+                        ; Whole-array reassign — indexed writes to Auto
+                        ; array properties silently no-op
+                        ; (project_papyrus_property_array_writes).
+                        float[] aP = cooldownUntilGT
+                        aP[currentTier] = 0.0
+                        cooldownUntilGT = aP
+                        _armCoolTimer(currentTier)
                     endif
                 endif
                 currentTier = newTier
@@ -3202,9 +3395,11 @@ State checkingAroused
                     ; activation would miss without this priming call.
                     _applyPulse()
                     _activateSlotEffects(currentTier)
-                    ; Mode 1: arm lock so the slot stays active for the duration.
-                    if currentTier > 0 && _arraysReady && cooldownMode[currentTier] == 1
-                        _armCooldownTimer(currentTier)
+                    ; v0.1.24: arm persist timer on activation edge (any new > 0
+                    ; with persistMin > 0). Slot will keep winning the eval for
+                    ; the persist window regardless of condition.
+                    if currentTier > 0 && _arraysReady
+                        _armPersistTimer(currentTier)
                     endif
                     _notifyTierChange(currentTier)
                     ; v0.1.20: external-integration broadcast. After the
@@ -4384,15 +4579,32 @@ Function _setActorPresetTier(Actor target, string name, int tier)
     endif
 EndFunction
 
-float Function _getActorPresetCooldown(Actor target, string name, int slot)
+; v0.1.24: split cooldown into persist (slot stays active) + cool (re-arm
+; lockout). Old `.cd.<slot>` key is no longer read or written — existing
+; saves' stale .cd values become orphaned StorageUtil entries (harmless).
+; Per user direction: preset migration "resets to defaults", so any active
+; cooldown timer from before the upgrade is simply dropped.
+float Function _getActorPresetPersistUntil(Actor target, string name, int slot)
     if target == None || name == ""
         return 0.0
     endif
-    return StorageUtil.GetFloatValue(target, "mtf.preset." + name + ".cd." + slot, 0.0)
+    return StorageUtil.GetFloatValue(target, "mtf.preset." + name + ".persist." + slot, 0.0)
 EndFunction
-Function _setActorPresetCooldown(Actor target, string name, int slot, float gameTime)
+Function _setActorPresetPersistUntil(Actor target, string name, int slot, float gameTime)
     if target != None && name != ""
-        StorageUtil.SetFloatValue(target, "mtf.preset." + name + ".cd." + slot, gameTime)
+        StorageUtil.SetFloatValue(target, "mtf.preset." + name + ".persist." + slot, gameTime)
+    endif
+EndFunction
+
+float Function _getActorPresetCoolUntil(Actor target, string name, int slot)
+    if target == None || name == ""
+        return 0.0
+    endif
+    return StorageUtil.GetFloatValue(target, "mtf.preset." + name + ".cool." + slot, 0.0)
+EndFunction
+Function _setActorPresetCoolUntil(Actor target, string name, int slot, float gameTime)
+    if target != None && name != ""
+        StorageUtil.SetFloatValue(target, "mtf.preset." + name + ".cool." + slot, gameTime)
     endif
 EndFunction
 
@@ -4440,7 +4652,11 @@ Function _clearActorPresetState(Actor target, string name)
     StorageUtil.UnsetFloatValue(target, "mtf.preset." + name + ".pulse.start")
     int s = 0
     while s < 8
+        ; v0.1.24: persist + cool replaced the old single .cd timer. Drop
+        ; the legacy key too in case it was set by a pre-upgrade save.
         StorageUtil.UnsetFloatValue(target, "mtf.preset." + name + ".cd." + s)
+        StorageUtil.UnsetFloatValue(target, "mtf.preset." + name + ".persist." + s)
+        StorageUtil.UnsetFloatValue(target, "mtf.preset." + name + ".cool." + s)
         s += 1
     endwhile
     string[] parts = _OVERLAY_PARTS()
@@ -4556,8 +4772,26 @@ int Function CACHED_SCRATCH_VERSION() global
  decayms/retrigms only) to plugin-driven walk over GetEffectExtraField*.
  Caches written under v1 are missing shader.play's `sound` extra in the
  FX scratch namespace; bumping invalidates them so cold load re-runs
- with the plugin-driven path.}
-    return 2
+ with the plugin-driven path.
+
+ v3: cooldown rework. _sCooldownMin/_sCooldownMode are semantically
+ persistMin/allowOverride (default flip — allowOverride defaults to 1,
+ was 0 under old "after-deactivate" mode). New `cool.min` key written
+ per-preset under the namespaced scratch key. v2 caches won't have the
+ new cool.min keys; bumping invalidates them so cold load reads the
+ new schema 8 JSON keys.}
+    return 3
+EndFunction
+
+; v0.1.24 scratch-namespaced cool.min accessors. Per-preset (preset name
+; embedded in the key), mirroring _set/_getScratchPulsePause. _scratchLoadedFor
+; is the active scratch preset name; cold loads + cache hits set it before
+; calling these.
+int Function _getScratchCoolMin(int slot)
+    return StorageUtil.GetIntValue(self, "mtf.scratch.cool.min." + _scratchLoadedFor + "." + slot, 0)
+EndFunction
+Function _setScratchCoolMin(int slot, int v)
+    StorageUtil.SetIntValue(self, "mtf.scratch.cool.min." + _scratchLoadedFor + "." + slot, v)
 EndFunction
 
 bool Function _isScratchCached(string name)
@@ -4581,8 +4815,14 @@ bool Function _loadScratchFromCache(string name)
     _sCondParam             = StorageUtil.IntListToArray(None,    ck + ".cond.param")
     _sCondPackId            = StorageUtil.StringListToArray(None, ck + ".cond.packid")
     _sCondEntryId           = StorageUtil.StringListToArray(None, ck + ".cond.entryid")
-    _sCooldownMin           = StorageUtil.IntListToArray(None,    ck + ".cooldown.min")
-    _sCooldownMode          = StorageUtil.IntListToArray(None,    ck + ".cooldown.mode")
+    ; v0.1.24: storage key names kept for cache compat — values now hold
+    ; persistMin / allowOverride per the cooldown rework.
+    _sCooldownMin           = StorageUtil.IntListToArray(None,    ck + ".cooldown.min")   ; persistMin
+    _sCooldownMode          = StorageUtil.IntListToArray(None,    ck + ".cooldown.mode")  ; allowOverride
+    ; cool.min lives in a separate per-preset StorageUtil key written by
+    ; _setScratchCoolMin, not in the cached list — it persists across cache
+    ; hits because the key is namespaced by preset name, mirroring the
+    ; _setScratchPulsePause pattern. Nothing to read here.
     _sCondPulseRate         = StorageUtil.FloatListToArray(None,  ck + ".pulse.rate")
     _sCondPulseDepth        = StorageUtil.IntListToArray(None,    ck + ".pulse.depth")
     _sCondWaveform          = StorageUtil.StringListToArray(None, ck + ".pulse.waveform")
@@ -4710,8 +4950,8 @@ bool Function _loadPresetToScratch(string name)
     int[]    localCondParam       = new int[8]
     string[] localCondPackId      = new string[8]
     string[] localCondEntryId     = new string[8]
-    int[]    localCooldownMin     = new int[8]
-    int[]    localCooldownMode    = new int[8]
+    int[]    localPersistMin      = new int[8]    ; semantic: persistMin (storage = _sCooldownMin)
+    int[]    localAllowOverride   = new int[8]    ; semantic: allowOverride (storage = _sCooldownMode)
     float[]  localPulseRate       = new float[8]
     int[]    localPulseDepth      = new int[8]
     string[] localWaveform        = new string[8]
@@ -4726,8 +4966,11 @@ bool Function _loadPresetToScratch(string name)
         localCondParam[s]    = JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0)
         localCondPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",   "")
         localCondEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid",  "")
-        localCooldownMin[s]  = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.min",  0)
-        localCooldownMode[s] = JsonUtil.GetPathIntValue(f,    sp + ".cooldown.mode", 0)
+        ; v0.1.24 cooldown rework — read new schema 8 keys only. Defaults
+        ; per the migration policy: persist=0, allowOverride=1, cool=0.
+        localPersistMin[s]    = JsonUtil.GetPathIntValue(f, sp + ".persist.min", 0)
+        localAllowOverride[s] = JsonUtil.GetPathIntValue(f, sp + ".persist.allowOverride", 1)
+        _setScratchCoolMin(s, JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
         localPulseRate[s]    = JsonUtil.GetPathFloatValue(f,  sp + ".pulse.rate",   0.0)
         localPulseDepth[s]   = JsonUtil.GetPathIntValue(f,    sp + ".pulse.depth",  0)
         localWaveform[s]     = JsonUtil.GetPathStringValue(f, sp + ".pulse.waveform", "")
@@ -4792,8 +5035,8 @@ bool Function _loadPresetToScratch(string name)
     _sCondParam             = localCondParam
     _sCondPackId            = localCondPackId
     _sCondEntryId           = localCondEntryId
-    _sCooldownMin           = localCooldownMin
-    _sCooldownMode          = localCooldownMode
+    _sCooldownMin           = localPersistMin     ; semantic: _sPersistMin
+    _sCooldownMode          = localAllowOverride  ; semantic: _sAllowOverride
     _sCondPulseRate         = localPulseRate
     _sCondPulseDepth        = localPulseDepth
     _sCondWaveform          = localWaveform
@@ -4842,20 +5085,25 @@ int Function _g_condParam(int slot, bool useScratch)
     return condParam[slot]
 EndFunction
 
-int Function _g_cooldownMode(int slot, bool useScratch)
+; v0.1.24: legacy _g_cooldownMode / _g_cooldownMin replaced by semantic
+; accessors _g_allowOverride / _g_persistMin. Physical storage unchanged
+; (still backed by cooldownMode / cooldownMin or _sCooldownMode / _sCooldownMin).
+; New _g_coolMin reads StorageUtil per the cool-phase rework.
+
+int Function _g_allowOverride(int slot, bool useScratch)
     if useScratch
         if _sCooldownMode == None
-            return 0
+            return 1   ; safe default: allow override when scratch not loaded
         endif
         return _sCooldownMode[slot]
     endif
     if !_arraysReady
-        return 0
+        return 1
     endif
     return cooldownMode[slot]
 EndFunction
 
-int Function _g_cooldownMin(int slot, bool useScratch)
+int Function _g_persistMin(int slot, bool useScratch)
     if useScratch
         if _sCooldownMin == None
             return 0
@@ -4866,6 +5114,13 @@ int Function _g_cooldownMin(int slot, bool useScratch)
         return 0
     endif
     return cooldownMin[slot]
+EndFunction
+
+int Function _g_coolMin(int slot, bool useScratch)
+    if useScratch
+        return _getScratchCoolMin(slot)
+    endif
+    return _getCoolMin(slot)
 EndFunction
 
 float Function _g_pulseRate(int slot, bool useScratch)
@@ -5084,8 +5339,8 @@ EndFunction
 ; ── Generalized eval + effect dispatch ──────────────────────────────────────
 int Function _quickEvalCondsFromJson(Actor target, string presetName)
 {Fast scratch-free tier evaluator. Reads cond.pluginid / cond.param /
- cooldown.mode directly from the preset JSON, dispatches checkCondition,
- and returns the winning slot — same semantics as
+ persist.* / cool.* directly from the preset JSON, dispatches
+ checkCondition, and returns the winning slot — same semantics as
  evaluateTierForActor(target, presetName, true) but without the
  ~480ms _loadPresetToScratch round-trip. Used by the slow-tick pre-eval
  pass to capture every loaded preset's target tier atomically before any
@@ -5093,9 +5348,13 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
  slot 2's eval saw an AV that already shifted during slot 1's apply.
 
  Always uses the scratch-path evalParam2 = 0 convention (stacked presets
- don't carry param2). Cooldowns are read via _getActorPresetCooldown,
- which is actor-keyed and doesn't touch scratch. Returns 0 on any
- failure path (no preset file, killed actor, no matching slot).}
+ don't carry param2). Persist + cool timers are read via the per-(actor,
+ preset, slot) StorageUtil helpers (_getActorPresetPersistUntil /
+ _getActorPresetCoolUntil). Returns 0 on any failure path (no preset
+ file, killed actor, no matching slot).
+
+ v0.1.24 state machine: pre-scan for !allowOverride locked slot, then
+ normal eval per slot — see evaluateTier for the canonical comment.}
     if target == None || presetName == ""
         return 0
     endif
@@ -5107,25 +5366,39 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
         return 0
     endif
     float now = Utility.GetCurrentGameTime()
+
+    ; Pre-scan: lowest-i slot in persist with !allowOverride wins outright.
     int i = 1
+    while i < 8
+        string sp1 = ".slot[" + i + "]"
+        string k1 = JsonUtil.GetPathStringValue(f, sp1 + ".cond.pluginid", "")
+        if k1 != ""
+            int allowOver = JsonUtil.GetPathIntValue(f, sp1 + ".persist.allowOverride", 1)
+            float persistEnd = _getActorPresetPersistUntil(target, presetName, i)
+            if allowOver == 0 && now < persistEnd
+                return i
+            endif
+        endif
+        i += 1
+    endwhile
+
+    ; Normal eval with persist passthrough.
+    i = 1
     while i < 8
         string sp = ".slot[" + i + "]"
         string key = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
         if key != ""
-            float cdEnd = _getActorPresetCooldown(target, presetName, i)
-            bool timerActive = (now < cdEnd)
-            int mode = JsonUtil.GetPathIntValue(f, sp + ".cooldown.mode", 0)
-            if mode == 1 && timerActive
-                return i
-            endif
-            bool inCooldown = (mode == 0 && timerActive)
-            if !inCooldown
+            float coolEnd = _getActorPresetCoolUntil(target, presetName, i)
+            if now >= coolEnd
+                float persistEnd2 = _getActorPresetPersistUntil(target, presetName, i)
+                if now < persistEnd2
+                    return i  ; persistence wins (allowOverride==1 since pre-scan didn't catch)
+                endif
                 MTF_Plugin p = ResolvePluginByKey(key)
                 if p != None
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
                     if itemIdx >= 0
                         int param = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
-                        ; Stacked presets always use scratch path → evalParam2 = 0.
                         _setEvalParam2(0)
                         if p.checkCondition(itemIdx, target, param)
                             return i
@@ -5141,9 +5414,12 @@ EndFunction
 
 int Function evaluateTierForActor(Actor target, string presetName, bool useScratch)
 {Evaluate the winning condition slot for `target`. When useScratch is true,
- the per-(actor, preset, slot) cooldown is consulted via presetName; when
- false, the player's own cooldownUntilGT array is consulted (presetName is
- ignored).}
+ the per-(actor, preset, slot) persist + cool timers are consulted via
+ presetName; when false, the player's own cooldownUntilGT array (= persist)
+ and StorageUtil cool keys are consulted (presetName is ignored).
+
+ v0.1.24 state machine: pre-scan for !allowOverride locked slot, then
+ normal eval per slot — see evaluateTier for the canonical comment.}
     if target == None
         return 0
     endif
@@ -5151,26 +5427,48 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
         return 0
     endif
     float now = Utility.GetCurrentGameTime()
+
+    ; Pre-scan: lowest-i slot in persist with !allowOverride wins outright.
     int i = 1
+    while i < 8
+        if _g_condPluginId(i, useScratch) != "" && _g_allowOverride(i, useScratch) == 0
+            float persistEndA
+            if useScratch
+                persistEndA = _getActorPresetPersistUntil(target, presetName, i)
+            else
+                persistEndA = 0.0
+                if cooldownUntilGT != None
+                    persistEndA = cooldownUntilGT[i]
+                endif
+            endif
+            if now < persistEndA
+                return i
+            endif
+        endif
+        i += 1
+    endwhile
+
+    ; Normal eval with persist passthrough.
+    i = 1
     while i < 8
         string key = _g_condPluginId(i, useScratch)
         if key != ""
-            float cdEnd
+            float coolEnd
+            float persistEnd
             if useScratch
-                cdEnd = _getActorPresetCooldown(target, presetName, i)
+                coolEnd = _getActorPresetCoolUntil(target, presetName, i)
+                persistEnd = _getActorPresetPersistUntil(target, presetName, i)
             else
-                cdEnd = 0.0
+                coolEnd = _getCoolUntilGT(i)
+                persistEnd = 0.0
                 if cooldownUntilGT != None
-                    cdEnd = cooldownUntilGT[i]
+                    persistEnd = cooldownUntilGT[i]
                 endif
             endif
-            bool timerActive = (now < cdEnd)
-            int mode = _g_cooldownMode(i, useScratch)
-            if mode == 1 && timerActive
-                return i
-            endif
-            bool inCooldown = (mode == 0 && timerActive)
-            if !inCooldown
+            if now >= coolEnd
+                if now < persistEnd
+                    return i  ; persistence wins (allowOverride==1)
+                endif
                 MTF_Plugin p = ResolvePluginByKey(key)
                 if p != None
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
@@ -5413,10 +5711,16 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
     if now != prev
         if prev >= 0
             _deactivateSlotEffectsForActor(target, prev, true, name)
-            if _g_cooldownMode(prev, true) == 0
-                int mins = _g_cooldownMin(prev, true)
-                if mins > 0
-                    _setActorPresetCooldown(target, name, prev, Utility.GetCurrentGameTime() + (mins as float) / 1440.0)
+            ; v0.1.24: on the deactivation edge, clear the slot's persist
+            ; timer (any leftover time is discarded) and arm cool if
+            ; coolMin > 0. Mirrors the player path in OnUpdate; the persist
+            ; clear is necessary to keep the pre-scan from treating a
+            ; just-overridden slot as still-locked.
+            if prev > 0
+                _setActorPresetPersistUntil(target, name, prev, 0.0)
+                int coolMins = _g_coolMin(prev, true)
+                if coolMins > 0
+                    _setActorPresetCoolUntil(target, name, prev, Utility.GetCurrentGameTime() + (coolMins as float) / 1440.0)
                 endif
             endif
         endif
@@ -5451,10 +5755,13 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
         drew = true
         if now >= 0
             _activateSlotEffectsForActor(target, now, true, name)
-            if _g_cooldownMode(now, true) == 1
-                int mins2 = _g_cooldownMin(now, true)
-                if mins2 > 0
-                    _setActorPresetCooldown(target, name, now, Utility.GetCurrentGameTime() + (mins2 as float) / 1440.0)
+            ; v0.1.24: arm persist timer on the activation edge (now > 0
+            ; with persistMin > 0). Slot will keep winning the per-actor
+            ; eval for the persist window regardless of condition.
+            if now > 0
+                int persistMins = _g_persistMin(now, true)
+                if persistMins > 0
+                    _setActorPresetPersistUntil(target, name, now, Utility.GetCurrentGameTime() + (persistMins as float) / 1440.0)
                 endif
             endif
         endif

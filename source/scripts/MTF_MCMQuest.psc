@@ -477,18 +477,6 @@ function drawPresetEditorPage()
     AddHeaderOption("Transition")
     AddSliderOptionST("PRESET_TRANSITION_DUR", "Duration", MainQuest.GetTransitionDuration(), "{1} s")
 
-    ; Per-preset fade on death (v0.1.4). One menu picks "Off" or one of the
-    ; three modes; Duration is greyed out when Off. We use a single 4-entry
-    ; menu instead of a separate toggle + mode menu to stay under the SkyUI
-    ; engine's 127-named-state limit (the script is already at the ceiling).
-    AddHeaderOption("Fade on death")
-    AddMenuOptionST("PRESET_FADE_MODE",     "Mode",     _fadeModeMenuLabel(MainQuest.GetFadeOnDeathEnabled(), MainQuest.GetFadeOnDeathMode()))
-    int fadeFlag = OPTION_FLAG_NONE
-    if !MainQuest.GetFadeOnDeathEnabled()
-        fadeFlag = OPTION_FLAG_DISABLED
-    endif
-    AddSliderOptionST("PRESET_FADE_DURATION", "Duration", MainQuest.GetFadeOnDeathDurationMs() / 1000.0, "{1} s", fadeFlag)
-
     AddHeaderOption("Visuals")
     AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(idx))
     AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(idx))
@@ -532,6 +520,21 @@ function drawPresetEditorPage()
     AddSliderOptionST("SLOT_PULSE_DEPTH", "Depth", MainQuest.GetCondPulseDepth(idx), "{0}%")
     AddSliderOptionST("SLOT_PULSE_PAUSE", "Pause", MainQuest.GetCondPulsePause(idx), "{1} s")
     AddMenuOptionST("SLOT_PULSE_WAVEFORM", "Waveform", _waveformLabel(MainQuest.GetCondWaveform(idx)))
+
+    ; Per-preset fade on death (v0.1.4). One menu picks "Off" or one of the
+    ; three modes; Duration is greyed out when Off. We use a single 4-entry
+    ; menu instead of a separate toggle + mode menu to stay under the SkyUI
+    ; engine's 127-named-state limit (the script is already at the ceiling).
+    ; v0.1.24: moved to the bottom of the left column (was between Transition
+    ; and Visuals) so the page reads Preset → Transition → Visuals → Layers
+    ; → Pulse → Fade on death.
+    AddHeaderOption("Fade on death")
+    AddMenuOptionST("PRESET_FADE_MODE",     "Mode",     _fadeModeMenuLabel(MainQuest.GetFadeOnDeathEnabled(), MainQuest.GetFadeOnDeathMode()))
+    int fadeFlag = OPTION_FLAG_NONE
+    if !MainQuest.GetFadeOnDeathEnabled()
+        fadeFlag = OPTION_FLAG_DISABLED
+    endif
+    AddSliderOptionST("PRESET_FADE_DURATION", "Duration", MainQuest.GetFadeOnDeathDurationMs() / 1000.0, "{1} s", fadeFlag)
 
     ; ── RIGHT COLUMN: slot picker + condition definition + cooldown + effects ──
     SetCursorPosition(1)
@@ -577,11 +580,31 @@ function drawPresetEditorPage()
             endif
         endif
 
-        int cdMin = MainQuest.cooldownMin[idx]
+        ; v0.1.24 cooldown rework. Five controls, replacing the old
+        ; mode-dropdown + hours/minutes pair:
+        ;   Persist h/m — once activated, slot stays on for hours:minutes
+        ;                 regardless of condition (0:0 = off).
+        ;   Override    — toggle: when ON, higher-priority slots can take over
+        ;                 during the persist window; when OFF, slot is locked
+        ;                 solid until persist + cool both expire.
+        ;   Cool h/m    — after persist ends (or after a normal deactivation
+        ;                 when persist=0), slot can't re-arm for hours:minutes.
+        ; Storage: persistMin reuses cooldownMin (rename was avoided to
+        ; preserve Auto-property save attachment); single int holds the
+        ; combined total. allowOverride reuses cooldownMode. coolMin lives
+        ; in StorageUtil via _getCoolMin. Hours capped at 168 (1 week);
+        ; max total = 168*60+59 = 10139 minutes.
+        ; State budget: this 5-state cooldown block lands the MCM script
+        ; AT the 127-named-state ceiling. Adding more here means freeing
+        ; something elsewhere first.
+        int persistTotal = MainQuest.cooldownMin[idx]
+        int coolTotal    = MainQuest._getCoolMin(idx)
         AddHeaderOption("Cooldown")
-        AddMenuOptionST("SLOT_CD_MODE",     "Mode",    _cooldownModeLabel(MainQuest.cooldownMode[idx]))
-        AddSliderOptionST("SLOT_CD_HOURS",   "Hours",   cdMin / 60)
-        AddSliderOptionST("SLOT_CD_MINUTES", "Minutes", cdMin % 60)
+        AddSliderOptionST("SLOT_PERSIST_HOURS", "Persist hours",   persistTotal / 60, "{0} h")
+        AddSliderOptionST("SLOT_PERSIST_MIN",   "Persist minutes", persistTotal % 60, "{0} m")
+        AddTextOptionST("SLOT_OVERRIDE",        "Allow override",  _allowOverrideLabel(MainQuest.cooldownMode[idx]))
+        AddSliderOptionST("SLOT_COOL_HOURS",    "Cool hours",      coolTotal / 60,    "{0} h")
+        AddSliderOptionST("SLOT_COOL_MIN",      "Cool minutes",    coolTotal % 60,    "{0} m")
     endif
 
     AddHeaderOption("Effects")
@@ -608,6 +631,27 @@ function drawPresetEditorPage()
             if MainQuest.GetSlotEffectKey(idx, 2) != ""
                 _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_PARAM", "SLOT_EFFECT_4_P2", \
                                "SLOT_EFFECT_4_EX1", "SLOT_EFFECT_4_EX2", "SLOT_EFFECT_4_EX3")
+                if MainQuest.GetSlotEffectKey(idx, 3) != ""
+                    ; v0.1.24: rows 5-8 added to raise MCM-editable cap from
+                    ; 4 to 8. These rows pass empty extra-state IDs ("") to
+                    ; _drawEffectRow — the SkyUI 127-named-state ceiling left
+                    ; us no room for per-row EX1/EX2/EX3 widgets here. Effects
+                    ; with extras (flash.onhit, sound.play) can still be bound
+                    ; to rows 5-8; their extras default to plugin-declared
+                    ; defaults. To edit extras, place the effect in rows 1-4
+                    ; (progressive-disclosure compaction shifts hidden rows
+                    ; up when a visible row is cleared).
+                    _drawEffectRow(idx, 4, "SLOT_EFFECT_5_TYPE", "SLOT_EFFECT_5_PARAM", "SLOT_EFFECT_5_P2", "", "", "")
+                    if MainQuest.GetSlotEffectKey(idx, 4) != ""
+                        _drawEffectRow(idx, 5, "SLOT_EFFECT_6_TYPE", "SLOT_EFFECT_6_PARAM", "SLOT_EFFECT_6_P2", "", "", "")
+                        if MainQuest.GetSlotEffectKey(idx, 5) != ""
+                            _drawEffectRow(idx, 6, "SLOT_EFFECT_7_TYPE", "SLOT_EFFECT_7_PARAM", "SLOT_EFFECT_7_P2", "", "", "")
+                            if MainQuest.GetSlotEffectKey(idx, 6) != ""
+                                _drawEffectRow(idx, 7, "SLOT_EFFECT_8_TYPE", "SLOT_EFFECT_8_PARAM", "SLOT_EFFECT_8_P2", "", "", "")
+                            endif
+                        endif
+                    endif
+                endif
             endif
         endif
     endif
@@ -1305,43 +1349,36 @@ state SLOT_VISUAL_ENTRY
     endEvent
 endState
 
-string Function _cooldownModeLabel(int mode)
-    if mode == 1
-        return "Lock on activate"
+; v0.1.24 cooldown rework — replaces SLOT_CD_MODE/HOURS/MINUTES with three
+; single-slider/toggle states. allowOverride uses Set/SetTextOptionValueST
+; with a toggle action on the AddTextOption widget (true plain-toggle MCM
+; widgets cost OPTION_FLAG and a state name we already spent). Each duration
+; is a single 0-1440 minute slider; format string keeps the display tidy.
+string Function _allowOverrideLabel(int v)
+    if v == 0
+        return "No (locked)"
     endif
-    return "After deactivate"
+    return "Yes"
 EndFunction
 
-state SLOT_CD_MODE
-    event OnMenuOpenST()
-        string[] opts = new string[2]
-        opts[0] = "After deactivate"
-        opts[1] = "Lock on activate"
-        SetMenuDialogStartIndex(MainQuest.cooldownMode[selectedCondition])
-        SetMenuDialogDefaultIndex(0)
-        SetMenuDialogOptions(opts)
-    endEvent
-    event OnMenuAcceptST(int index)
-        if index < 0
-            return
-        endif
-        MainQuest.cooldownMode[selectedCondition] = index
-        SetMenuOptionValueST(_cooldownModeLabel(index))
-    endEvent
-    event OnDefaultST()
-        MainQuest.cooldownMode[selectedCondition] = 0
-        SetMenuOptionValueST(_cooldownModeLabel(0))
-    endEvent
-    event OnHighlightST()
-        SetInfoText("After deactivate: slot can't reactivate for the cooldown duration. Lock on activate: slot stays active and blocks lower-priority slots for the duration (higher-priority slots can still override).")
-    endEvent
-endState
+; ── Persist + Cool component helpers ────────────────────────────────────────
+; Hours 0-168 (1 week = 7*24), minutes 0-59. Storage is a single total-minutes
+; int per duration (persistMin in cooldownMin[]; coolMin via _set/_getCoolMin),
+; so each component setter reads the existing total, replaces its component,
+; clamps the combined value, and writes back. Whole-array reassign on
+; cooldownMin per the Auto-array-indexed-write quirk.
+int Function PERSIST_COOL_MAX_HOURS() global
+    return 168
+EndFunction
+int Function PERSIST_COOL_MAX_TOTAL_MIN() global
+    return PERSIST_COOL_MAX_HOURS() * 60 + 59
+EndFunction
 
-Function _setCooldownComponents(int hours, int minutes)
+Function _setPersistComponents(int hours, int minutes)
     if hours < 0
         hours = 0
-    elseif hours > 24
-        hours = 24
+    elseif hours > PERSIST_COOL_MAX_HOURS()
+        hours = PERSIST_COOL_MAX_HOURS()
     endif
     if minutes < 0
         minutes = 0
@@ -1349,37 +1386,56 @@ Function _setCooldownComponents(int hours, int minutes)
         minutes = 59
     endif
     int total = hours * 60 + minutes
-    if total > 1440
-        total = 1440
+    if total > PERSIST_COOL_MAX_TOTAL_MIN()
+        total = PERSIST_COOL_MAX_TOTAL_MIN()
     endif
-    MainQuest.cooldownMin[selectedCondition] = total
+    int[] arr = MainQuest.cooldownMin
+    arr[selectedCondition] = total
+    MainQuest.cooldownMin = arr
 EndFunction
 
-state SLOT_CD_HOURS
+Function _setCoolComponents(int hours, int minutes)
+    if hours < 0
+        hours = 0
+    elseif hours > PERSIST_COOL_MAX_HOURS()
+        hours = PERSIST_COOL_MAX_HOURS()
+    endif
+    if minutes < 0
+        minutes = 0
+    elseif minutes > 59
+        minutes = 59
+    endif
+    int total = hours * 60 + minutes
+    if total > PERSIST_COOL_MAX_TOTAL_MIN()
+        total = PERSIST_COOL_MAX_TOTAL_MIN()
+    endif
+    MainQuest._setCoolMin(selectedCondition, total)
+EndFunction
+
+state SLOT_PERSIST_HOURS
     event OnSliderOpenST()
         SetSliderDialogStartValue(MainQuest.cooldownMin[selectedCondition] / 60)
         SetSliderDialogDefaultValue(0)
-        SetSliderDialogRange(0, 24)
+        SetSliderDialogRange(0, PERSIST_COOL_MAX_HOURS())
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
-        int hours = value as int
         int minutes = MainQuest.cooldownMin[selectedCondition] % 60
-        _setCooldownComponents(hours, minutes)
-        SetSliderOptionValueST(MainQuest.cooldownMin[selectedCondition] / 60)
+        _setPersistComponents(value as int, minutes)
+        SetSliderOptionValueST(MainQuest.cooldownMin[selectedCondition] / 60, "{0} h")
         ForcePageReset()
     endEvent
     event OnDefaultST()
-        _setCooldownComponents(0, MainQuest.cooldownMin[selectedCondition] % 60)
-        SetSliderOptionValueST(0)
+        _setPersistComponents(0, MainQuest.cooldownMin[selectedCondition] % 60)
+        SetSliderOptionValueST(0, "{0} h")
         ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Hours of cooldown after this slot deactivates. Higher-priority slots can still activate during cooldown.")
+        SetInfoText("Persistence duration (hours component). Once activated, the slot stays active for hours:minutes regardless of whether the condition keeps firing. 0 disables persistence.")
     endEvent
 endState
 
-state SLOT_CD_MINUTES
+state SLOT_PERSIST_MIN
     event OnSliderOpenST()
         SetSliderDialogStartValue(MainQuest.cooldownMin[selectedCondition] % 60)
         SetSliderDialogDefaultValue(0)
@@ -1387,19 +1443,88 @@ state SLOT_CD_MINUTES
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
-        int minutes = value as int
         int hours = MainQuest.cooldownMin[selectedCondition] / 60
-        _setCooldownComponents(hours, minutes)
-        SetSliderOptionValueST(MainQuest.cooldownMin[selectedCondition] % 60)
+        _setPersistComponents(hours, value as int)
+        SetSliderOptionValueST(MainQuest.cooldownMin[selectedCondition] % 60, "{0} m")
         ForcePageReset()
     endEvent
     event OnDefaultST()
-        _setCooldownComponents(MainQuest.cooldownMin[selectedCondition] / 60, 0)
-        SetSliderOptionValueST(0)
+        _setPersistComponents(MainQuest.cooldownMin[selectedCondition] / 60, 0)
+        SetSliderOptionValueST(0, "{0} m")
         ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Minutes of cooldown after this slot deactivates (added to hours).")
+        SetInfoText("Persistence duration (minutes component, added to hours).")
+    endEvent
+endState
+
+state SLOT_OVERRIDE
+    event OnSelectST()
+        ; Storage: cooldownMode[] reused as allowOverride (1=allow, 0=block).
+        int cur = MainQuest.cooldownMode[selectedCondition]
+        int newV = 1
+        if cur != 0
+            newV = 0
+        endif
+        int[] arr = MainQuest.cooldownMode
+        arr[selectedCondition] = newV
+        MainQuest.cooldownMode = arr
+        SetTextOptionValueST(_allowOverrideLabel(newV))
+    endEvent
+    event OnDefaultST()
+        int[] arr = MainQuest.cooldownMode
+        arr[selectedCondition] = 1
+        MainQuest.cooldownMode = arr
+        SetTextOptionValueST(_allowOverrideLabel(1))
+    endEvent
+    event OnHighlightST()
+        SetInfoText("While the persist window is active, can a higher-priority slot take over? Yes (default): the slot still wins via persistence, but a higher-priority condition firing will steal the tier. No (locked): the slot wins outright — higher-priority conditions are blocked until persist + cool both expire.")
+    endEvent
+endState
+
+state SLOT_COOL_HOURS
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest._getCoolMin(selectedCondition) / 60)
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, PERSIST_COOL_MAX_HOURS())
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        int minutes = MainQuest._getCoolMin(selectedCondition) % 60
+        _setCoolComponents(value as int, minutes)
+        SetSliderOptionValueST(MainQuest._getCoolMin(selectedCondition) / 60, "{0} h")
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        _setCoolComponents(0, MainQuest._getCoolMin(selectedCondition) % 60)
+        SetSliderOptionValueST(0, "{0} h")
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Cooldown duration (hours component). After persistence ends (or after a normal deactivation when persist=0), the slot can't re-arm for hours:minutes. 0 disables cooldown.")
+    endEvent
+endState
+
+state SLOT_COOL_MIN
+    event OnSliderOpenST()
+        SetSliderDialogStartValue(MainQuest._getCoolMin(selectedCondition) % 60)
+        SetSliderDialogDefaultValue(0)
+        SetSliderDialogRange(0, 59)
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        int hours = MainQuest._getCoolMin(selectedCondition) / 60
+        _setCoolComponents(hours, value as int)
+        SetSliderOptionValueST(MainQuest._getCoolMin(selectedCondition) % 60, "{0} m")
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        _setCoolComponents(MainQuest._getCoolMin(selectedCondition) / 60, 0)
+        SetSliderOptionValueST(0, "{0} m")
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Cooldown duration (minutes component, added to hours).")
     endEvent
 endState
 
@@ -1686,6 +1811,11 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string para
     ; State IDs are pre-allocated (12 total = 4 rows × 3); the state block
     ; resolves its field name + spec at runtime by querying the plugin's
     ; count + typed getters with the field index it owns.
+    ;
+    ; v0.1.24: rows 5-8 pass "" for the extra-state IDs (no SkyUI state
+    ; budget for per-row EX widgets after raising the row cap to 8). Skip
+    ; the AddMenuOptionST / AddSliderOptionST call when the ID is empty —
+    ; SkyUI would otherwise create unnamed widgets that no event can bind to.
     string[] extraIds = new string[3]
     extraIds[0] = extra1StateId
     extraIds[1] = extra2StateId
@@ -1698,7 +1828,7 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string para
     while xi < xN
         string xname  = p.GetEffectExtraFieldName(itemIdx, xi)
         string xlabel = p.GetEffectExtraFieldLabel(itemIdx, xi)
-        if xname != "" && xlabel != ""
+        if xname != "" && xlabel != "" && extraIds[xi] != ""
             int xval = MainQuest.GetSlotEffectExtra(slot, effectIdx, xname) as int
             if p.GetEffectExtraFieldMenuOptionCount(itemIdx, xi) > 0
                 AddMenuOptionST(extraIds[xi], "  " + xlabel, \
@@ -2454,6 +2584,249 @@ state SLOT_EFFECT_4_P2
     endEvent
     event OnHighlightST()
         _highlightEffectParam2(3)
+    endEvent
+endState
+
+; ── Rows 5-8 (v0.1.24) ──────────────────────────────────────────────────────
+; Added to raise MAX_EFFECTS_PER_SLOT_MCM from 4 to 8. Mirror rows 1-4
+; but WITHOUT per-row EX1/EX2/EX3 extras states — the SkyUI 127-named-state
+; ceiling forces us to drop them here. Effects with plugin extras (flash.onhit,
+; sound.play) can still be bound to these rows; their extras use plugin-
+; declared defaults until the row is shifted into 1-4 via compaction.
+
+state SLOT_EFFECT_5_TYPE
+    event OnMenuOpenST()
+        _openEffectTypeMenu(4)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectType(4, index)
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetSlotEffect(selectedCondition, 4, "", 0)
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Pick an effect from the registered effect plugins.")
+    endEvent
+endState
+
+state SLOT_EFFECT_5_PARAM
+    event OnSliderOpenST()
+        _openEffectParam(4)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(4, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(4)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(4, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(4)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(4)
+    endEvent
+endState
+
+state SLOT_EFFECT_5_P2
+    event OnSliderOpenST()
+        _openEffectParam2(4)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam2(4, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParam2Menu(4)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParam2Menu(4, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam2(4)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam2(4)
+    endEvent
+endState
+
+state SLOT_EFFECT_6_TYPE
+    event OnMenuOpenST()
+        _openEffectTypeMenu(5)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectType(5, index)
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetSlotEffect(selectedCondition, 5, "", 0)
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Pick an effect from the registered effect plugins.")
+    endEvent
+endState
+
+state SLOT_EFFECT_6_PARAM
+    event OnSliderOpenST()
+        _openEffectParam(5)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(5, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(5)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(5, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(5)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(5)
+    endEvent
+endState
+
+state SLOT_EFFECT_6_P2
+    event OnSliderOpenST()
+        _openEffectParam2(5)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam2(5, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParam2Menu(5)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParam2Menu(5, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam2(5)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam2(5)
+    endEvent
+endState
+
+state SLOT_EFFECT_7_TYPE
+    event OnMenuOpenST()
+        _openEffectTypeMenu(6)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectType(6, index)
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetSlotEffect(selectedCondition, 6, "", 0)
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Pick an effect from the registered effect plugins.")
+    endEvent
+endState
+
+state SLOT_EFFECT_7_PARAM
+    event OnSliderOpenST()
+        _openEffectParam(6)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(6, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(6)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(6, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(6)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(6)
+    endEvent
+endState
+
+state SLOT_EFFECT_7_P2
+    event OnSliderOpenST()
+        _openEffectParam2(6)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam2(6, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParam2Menu(6)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParam2Menu(6, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam2(6)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam2(6)
+    endEvent
+endState
+
+state SLOT_EFFECT_8_TYPE
+    event OnMenuOpenST()
+        _openEffectTypeMenu(7)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectType(7, index)
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetSlotEffect(selectedCondition, 7, "", 0)
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Pick an effect from the registered effect plugins.")
+    endEvent
+endState
+
+state SLOT_EFFECT_8_PARAM
+    event OnSliderOpenST()
+        _openEffectParam(7)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(7, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(7)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(7, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(7)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(7)
+    endEvent
+endState
+
+state SLOT_EFFECT_8_P2
+    event OnSliderOpenST()
+        _openEffectParam2(7)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam2(7, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParam2Menu(7)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParam2Menu(7, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam2(7)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam2(7)
     endEvent
 endState
 
