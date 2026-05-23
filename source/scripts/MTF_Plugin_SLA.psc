@@ -112,20 +112,20 @@ string Function GetConditionParamLabel(int idx)
     elseif idx == 2
         return "Min exposure rate"
     elseif idx == 3
-        return "Lock state (0 = unlocked, 1 = locked)"
+        return "Lock state"
     endif
     return ""
 EndFunction
 
 string Function GetConditionDescription(int idx)
     if idx == 0
-        return "Triggers when the actor's SexLab Aroused exposure reaches the threshold."
+        return "Triggers when the actor's arousal is at or above {param1}."
     elseif idx == 1
-        return "Triggers when the actor has not orgasmed for at least the configured number of days."
+        return "Triggers when the actor has gone without orgasm for at least {param1} day(s)."
     elseif idx == 2
-        return "Triggers when the actor's exposure accrual rate is at or above the threshold."
+        return "Triggers when the actor's arousal is climbing at least {param1} per check."
     elseif idx == 3
-        return "Triggers when the actor's arousal-locked flag matches the configured state (locked or unlocked)."
+        return "Triggers when the actor's arousal is {param1}."
     endif
     return ""
 EndFunction
@@ -154,6 +154,33 @@ int Function GetConditionParamDefault(int idx)
         return 1
     endif
     return 0
+EndFunction
+
+; ── Arousal locked dropdown (cond idx 3) ────────────────────────────────────
+
+int Function GetConditionParamMenuOptionCount(int idx)
+    if idx == 3
+        return 2
+    endif
+    return 0
+EndFunction
+
+int Function GetConditionParamMenuOptionValue(int idx, int optionIdx)
+    if idx == 3
+        return optionIdx  ; 0 = Unlocked, 1 = Locked
+    endif
+    return 0
+EndFunction
+
+string Function GetConditionParamMenuOptionLabel(int idx, int optionIdx)
+    if idx == 3
+        if optionIdx == 0
+            return "Unlocked"
+        elseif optionIdx == 1
+            return "Locked"
+        endif
+    endif
+    return ""
 EndFunction
 
 bool Function checkCondition(int idx, Actor target, int param)
@@ -229,13 +256,13 @@ EndFunction
 
 string Function GetEffectDescription(int idx)
     if idx == 0
-        return "Steadily raises the actor's own exposure by the configured amount every in-game hour while active."
+        return "Steadily raises the actor's arousal by {param1} every in-game hour while active."
     elseif idx == 1
-        return "Steadily raises the exposure of nearby NPCs within the aura radius every in-game hour (pheromone-style aura)."
+        return "Pheromone aura — steadily raises the arousal of nearby NPCs by {param1} every in-game hour while active."
     elseif idx == 2
-        return "Burst — adds the configured exposure delta to the actor's arousal pool when the tier activates."
+        return "Burst — adds {param1} to the actor's arousal when the tier activates."
     elseif idx == 3
-        return "Sets the actor's exposure accrual rate to the configured value while active, then restores the previous value on deactivate."
+        return "Sets the actor's arousal-climb speed to {param1} while active, then restores the previous value on deactivate."
     elseif idx == 4
         return "Burst — resets the actor's 'days since orgasm' counter to zero when the tier activates."
     endif

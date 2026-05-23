@@ -121,6 +121,44 @@ string Function GetConditionParam2Format(int idx)
     return "{0}"
 EndFunction
 
+; Mirror of GetEffectParamFormat for conditions. Default "{0}" = raw int.
+; Override per-idx for units, e.g. "{0}%" so {param1} in a condition's
+; description renders the value with its unit (50 -> "50%").
+string Function GetConditionParamFormat(int idx)
+    return "{0}"
+EndFunction
+
+; Dropdown-style condition params (e.g. BFNG cycle phase). Mirrors the
+; effect-side GetEffectParamMenuOption* contract so the SkyrimNet bridge
+; can resolve {param1}/{param2} to the option's label rather than the
+; raw stored int. Default count=0 = numeric param, no dropdown.
+
+int Function GetConditionParamMenuOptionCount(int idx)
+    return 0
+EndFunction
+
+int Function GetConditionParamMenuOptionValue(int idx, int optionIdx)
+{The int value stored on the slot when option `optionIdx` is picked.}
+    return 0
+EndFunction
+
+string Function GetConditionParamMenuOptionLabel(int idx, int optionIdx)
+{The display label for option `optionIdx`.}
+    return ""
+EndFunction
+
+int Function GetConditionParam2MenuOptionCount(int idx)
+    return 0
+EndFunction
+
+int Function GetConditionParam2MenuOptionValue(int idx, int optionIdx)
+    return 0
+EndFunction
+
+string Function GetConditionParam2MenuOptionLabel(int idx, int optionIdx)
+    return ""
+EndFunction
+
 bool Function checkCondition(int idx, Actor target, int param)
 {Return true when condition `idx` is currently satisfied for `target`.
  Use `_host().GetEvalParam2()` to read the second per-slot parameter when
@@ -170,6 +208,12 @@ EndFunction
 int Function GetEffectParamStep(int idx)
 {SkyUI slider interval. Defaults to 1. Override for coarser steps.}
     return 1
+EndFunction
+
+; SkyUI slider format string. Default "{0}" (raw integer). Override per-idx
+; for units like "{0}%" or "{1} s".
+string Function GetEffectParamFormat(int idx)
+    return "{0}"
 EndFunction
 
 ; Optional 2nd per-slot parameter. Effects that need a second knob

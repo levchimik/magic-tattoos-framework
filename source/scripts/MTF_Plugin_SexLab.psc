@@ -151,23 +151,23 @@ EndFunction
 
 string Function GetConditionDescription(int idx)
     if idx == 0
-        return "Triggers while the actor is currently in a SexLab scene."
+        return "Triggers while the actor is engaged in an intimate scene."
     elseif idx == 1
-        return "Triggers when the actor has at least the configured total cum-layer count applied."
+        return "Triggers when the actor has at least {param1} cum stain(s) on her body."
     elseif idx == 2
-        return "Triggers when the actor has at least the configured vaginal cum-layer count applied."
+        return "Triggers when the actor has at least {param1} vaginal cum stain(s)."
     elseif idx == 3
-        return "Triggers when the actor has at least the configured oral cum-layer count applied."
+        return "Triggers when the actor has at least {param1} oral cum stain(s)."
     elseif idx == 4
-        return "Triggers when the actor has at least the configured anal cum-layer count applied."
+        return "Triggers when the actor has at least {param1} anal cum stain(s)."
     elseif idx == 5
-        return "Triggers when the actor's SexLab vaginal lifetime XP is at or above the threshold."
+        return "Triggers when the actor's lifetime vaginal experience is at or above {param1}."
     elseif idx == 6
-        return "Triggers when the actor's SexLab anal lifetime XP is at or above the threshold."
+        return "Triggers when the actor's lifetime anal experience is at or above {param1}."
     elseif idx == 7
-        return "Triggers when the actor's SexLab oral lifetime XP is at or above the threshold."
+        return "Triggers when the actor's lifetime oral experience is at or above {param1}."
     elseif idx == 8
-        return "Triggers when the actor's signed purity score (positive = pure, negative = lewd) is at or above the threshold."
+        return "Triggers when the actor's purity score is at or above {param1} (positive = pure, negative = lewd)."
     elseif idx == 9
         return "Triggers when the actor has a strapon equipped."
     endif
@@ -298,11 +298,11 @@ EndFunction
 
 string Function GetEffectDescription(int idx)
     if idx == 0
-        return "Burst — applies cum visual layers of the chosen type (vaginal/oral/anal) and count on the actor."
+        return "Burst — splatters {param2} {param1} cum stain(s) on the actor."
     elseif idx == 1
-        return "Burst — removes cum layers of the chosen type from the actor (or all types)."
+        return "Burst — wipes off {param1} cum stains from the actor."
     elseif idx == 2
-        return "Burst — adds the configured amount of XP to one of the actor's SexLab skills (vaginal/anal/oral/foreplay)."
+        return "Burst — gives the actor {param1} experience in her {param2} skill."
     endif
     return ""
 EndFunction

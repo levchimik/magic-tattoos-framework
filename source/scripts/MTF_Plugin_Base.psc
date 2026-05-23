@@ -481,38 +481,43 @@ string Function GetConditionLabel(int idx)
 EndFunction
 
 string Function GetConditionDescription(int idx)
+    ; Authors: {param1} / {param2} placeholders are substituted at SkyrimNet
+    ; render time via _resolveConditionParamValueLabel. Dropdown menu options
+    ; resolve to their label; numeric params apply GetConditionParamFormat
+    ; (default "{0}"). Embed units like "%" inline OR override the Format
+    ; accessor — both work; inline is easier when the unit varies by idx.
     if idx == 0
-        return "Triggers when the actor's magicka is at or above the chosen percentage."
+        return "Triggers when the actor's magicka is at or above {param1}%."
     elseif idx == 1
-        return "Triggers when the actor's magicka drops below the chosen percentage."
+        return "Triggers when the actor's magicka drops below {param1}%."
     elseif idx == 2
-        return "Triggers when the actor's stamina is at or above the chosen percentage."
+        return "Triggers when the actor's stamina is at or above {param1}%."
     elseif idx == 3
-        return "Triggers when the actor's stamina drops below the chosen percentage."
+        return "Triggers when the actor's stamina drops below {param1}%."
     elseif idx == 4
         return "Triggers while the actor is in combat (engaged in active fight)."
     elseif idx == 5
-        return "Triggers when hostile NPCs within the scan radius are alerted to the actor."
+        return "Triggers when hostile NPCs within {param1}m are alerted to the actor."
     elseif idx == 6
-        return "Triggers when at least one hostile NPC is within the scan radius."
+        return "Triggers when at least one hostile NPC is within {param1}m."
     elseif idx == 7
-        return "Triggers stochastically when the actor takes any incoming hit."
+        return "Triggers with a {param1}% chance per incoming hit (any type)."
     elseif idx == 8
-        return "Triggers stochastically when the actor is struck by a blunt weapon (mace, warhammer, unarmed)."
+        return "Triggers with a {param1}% chance per blunt-weapon hit (mace, warhammer, unarmed)."
     elseif idx == 9
-        return "Triggers stochastically when the actor is struck by a bladed weapon."
+        return "Triggers with a {param1}% chance per bladed-weapon hit."
     elseif idx == 10
-        return "Triggers stochastically when the actor is hit by an arrow or bolt."
+        return "Triggers with a {param1}% chance per ranged hit (arrow or bolt)."
     elseif idx == 11
-        return "Triggers stochastically when the actor takes fire-school magic damage."
+        return "Triggers with a {param1}% chance per fire-school damage hit."
     elseif idx == 12
-        return "Triggers stochastically when the actor takes frost-school magic damage."
+        return "Triggers with a {param1}% chance per frost-school damage hit."
     elseif idx == 13
-        return "Triggers stochastically when the actor takes shock-school magic damage."
+        return "Triggers with a {param1}% chance per shock-school damage hit."
     elseif idx == 14
-        return "Triggers when the actor's health is at or above the chosen percentage."
+        return "Triggers when the actor's health is at or above {param1}%."
     elseif idx == 15
-        return "Triggers when the actor's health drops below the chosen percentage."
+        return "Triggers when the actor's health drops below {param1}%."
     elseif idx == 16
         return "Triggers whenever the actor is inside any interior cell."
     elseif idx == 17
@@ -554,7 +559,7 @@ string Function GetConditionDescription(int idx)
     elseif idx == 35
         return "Triggers while the actor is downed and bleeding out."
     elseif idx == 36
-        return "Triggers between the configured start and end in-game hours (wraps midnight if end is earlier than start)."
+        return "Triggers between in-game hours {param1} and {param2} (wraps midnight if end is earlier than start)."
     elseif idx == 37
         return "Triggers when the actor is one of the player's current followers."
     elseif idx == 38
@@ -566,9 +571,9 @@ string Function GetConditionDescription(int idx)
     elseif idx == 41
         return "Triggers while the actor is invisible."
     elseif idx == 42
-        return "Triggers when at least one follower NPC is within the scan radius."
+        return "Triggers when at least one follower NPC is within {param1}m."
     elseif idx == 43
-        return "Triggers when the actor's gold is at or above the threshold (measured in thousands)."
+        return "Triggers when the actor's gold is at or above {param1},000."
     elseif idx == 44
         return "Triggers when the actor is wearing a heavy-armor cuirass."
     elseif idx == 45
@@ -1225,54 +1230,54 @@ EndFunction
 
 string Function _effectDescriptionLow(int idx)
     if idx == 0
-        return "Shifts the actor's magicka regeneration rate by the configured amount."
+        return "Shifts the actor's magicka regeneration rate by {param1}."
     elseif idx == 1
-        return "Shifts the actor's carry-weight cap by the configured amount."
+        return "Shifts the actor's carry-weight cap by {param1}."
     elseif idx == 2
-        return "Shifts the actor's Sneak skill by the configured amount."
+        return "Shifts the actor's Sneak skill by {param1}."
     elseif idx == 3
-        return "Burst — damages or restores the actor's magicka pool by a percentage of its base value when the tier activates."
+        return "Burst — damages or restores {param1}% of the actor's base magicka when the tier activates."
     elseif idx == 4
-        return "Burst — damages or restores the actor's stamina pool by a percentage of its base value when the tier activates."
+        return "Burst — damages or restores {param1}% of the actor's base stamina when the tier activates."
     elseif idx == 5
-        return "Shifts the actor's movement-speed multiplier (faster or slower)."
+        return "Shifts the actor's movement-speed multiplier by {param1}."
     elseif idx == 6
-        return "Shifts the actor's stamina regeneration rate."
+        return "Shifts the actor's stamina regeneration rate by {param1}."
     elseif idx == 7
-        return "Shifts the actor's outgoing attack damage by a percentage."
+        return "Shifts the actor's outgoing attack damage by {param1}%."
     elseif idx == 8
         return "Burst — staggers the actor when the tier activates."
     elseif idx == 9
-        return "Burst — alerts every hostile NPC within the alert radius to the actor's presence (blows stealth)."
+        return "Burst — alerts every hostile NPC within {param1}ft to the actor's presence (blows stealth)."
     elseif idx == 10
-        return "Shifts the spell-cost multiplier across all magic schools (discount or penalty)."
+        return "Spells cost {param1} of their original across all schools."
     elseif idx == 11
-        return "Shifts the actor's health regeneration rate."
+        return "Shifts the actor's health regeneration rate by {param1}."
     elseif idx == 12
-        return "Shifts the actor's maximum magicka by the configured amount."
+        return "Shifts the actor's maximum magicka by {param1}."
     endif
     return ""
 EndFunction
 
 string Function _effectDescriptionHigh(int idx)
     if idx == 13
-        return "Shifts the actor's maximum stamina by the configured amount."
+        return "Shifts the actor's maximum stamina by {param1}."
     elseif idx == 14
-        return "Shifts the actor's weapon-swing speed (faster or slower)."
+        return "Shifts the actor's weapon-swing speed by {param1}%."
     elseif idx == 15
-        return "Shifts the actor's unarmed melee damage."
+        return "Shifts the actor's unarmed melee damage by {param1}."
     elseif idx == 16
-        return "Shifts the actor's critical-strike chance."
+        return "Shifts the actor's critical-strike chance by {param1}."
     elseif idx == 17
-        return "Shifts the actor's bow draw and release speed."
+        return "Shifts the actor's bow draw and release speed by {param1}."
     elseif idx == 18
-        return "Shifts the actor's fire resistance."
+        return "Shifts the actor's fire resistance by {param1}."
     elseif idx == 19
-        return "Shifts the actor's frost resistance."
+        return "Shifts the actor's frost resistance by {param1}."
     elseif idx == 20
-        return "Shifts the actor's shock resistance."
+        return "Shifts the actor's shock resistance by {param1}."
     elseif idx == 21
-        return "Shifts the actor's magic resistance."
+        return "Shifts the actor's magic resistance by {param1}."
     elseif idx == 22
         return "Toggles silenced footsteps on the actor while active."
     elseif idx == 23
@@ -1280,69 +1285,69 @@ string Function _effectDescriptionHigh(int idx)
     elseif idx == 24
         return "Toggles water-walking on the actor while active."
     elseif idx == 25
-        return "Burst — damages or restores the actor's health pool by a percentage of its base value when the tier activates."
+        return "Burst — damages or restores {param1}% of the actor's base health when the tier activates."
     elseif idx == 26
-        return "Burst — adjusts the actor's bounty in their current hold (positive adds bounty, negative pays it off)."
+        return "Burst — adjusts the actor's bounty in their current hold by {param1} gold (positive adds, negative pays off)."
     elseif idx == 27
-        return "Toggles a flat armor-rating bonus on the actor while active."
+        return "Toggles a flat armor-rating bonus of {param1} while active."
     elseif idx == 28
-        return "Toggles a Detect Life aura that highlights living NPCs within the configured radius while active."
+        return "Toggles a Detect Life aura that highlights living NPCs within {param1}ft while active."
     elseif idx == 29
-        return "Toggles a slow-time effect that drags everything around the actor to the configured percentage of normal speed while active."
+        return "Toggles a slow-time effect that drags everything around the actor to {param1}% of normal speed while active."
     elseif idx == 30
-        return "Toggles a flame cloak that burns enemies within the radius while active."
+        return "Toggles a flame cloak that burns enemies within {param2}ft for {param1} damage/s while active."
     elseif idx == 31
-        return "Toggles a frost cloak that chills enemies within the radius while active."
+        return "Toggles a frost cloak that chills enemies within {param2}ft for {param1} damage/s while active."
     elseif idx == 32
-        return "Toggles a lightning cloak that shocks enemies within the radius while active."
+        return "Toggles a lightning cloak that shocks enemies within {param2}ft for {param1} damage/s while active."
     elseif idx == 33
-        return "Causes the tattoo's emissive layer to briefly flash bright on every incoming hit of the configured class (any / melee / magic / etc.)."
+        return "Flashes the tattoo's emissive layer to {param2}% brightness on every {param1} hit."
     elseif idx == 34
-        return "Shifts the actor's disease resistance."
+        return "Shifts the actor's disease resistance by {param1}."
     elseif idx == 35
-        return "Shifts the actor's poison resistance."
+        return "Shifts the actor's poison resistance by {param1}."
     elseif idx == 36
-        return "Shifts the actor's chance to absorb incoming spells."
+        return "Shifts the actor's chance to absorb incoming spells by {param1}."
     elseif idx == 37
-        return "Shifts the actor's chance to reflect incoming melee damage."
+        return "Shifts the actor's chance to reflect incoming melee damage by {param1}."
     elseif idx == 38
-        return "Shifts the actor's One-Handed weapon skill."
+        return "Shifts the actor's One-Handed weapon skill by {param1}."
     elseif idx == 39
-        return "Shifts the actor's Two-Handed weapon skill."
+        return "Shifts the actor's Two-Handed weapon skill by {param1}."
     elseif idx == 40
-        return "Shifts the actor's Archery (Marksman) skill."
+        return "Shifts the actor's Archery (Marksman) skill by {param1}."
     elseif idx == 41
-        return "Shifts the actor's Block skill."
+        return "Shifts the actor's Block skill by {param1}."
     elseif idx == 42
-        return "Shifts the actor's Heavy Armor skill."
+        return "Shifts the actor's Heavy Armor skill by {param1}."
     elseif idx == 43
-        return "Shifts the actor's Light Armor skill."
+        return "Shifts the actor's Light Armor skill by {param1}."
     elseif idx == 44
-        return "Shifts the actor's Smithing skill."
+        return "Shifts the actor's Smithing skill by {param1}."
     elseif idx == 45
-        return "Shifts the actor's Enchanting skill."
+        return "Shifts the actor's Enchanting skill by {param1}."
     elseif idx == 46
-        return "Shifts the actor's Alchemy skill."
+        return "Shifts the actor's Alchemy skill by {param1}."
     elseif idx == 47
-        return "Shifts the actor's Destruction magic skill."
+        return "Shifts the actor's Destruction magic skill by {param1}."
     elseif idx == 48
-        return "Shifts the actor's Restoration magic skill."
+        return "Shifts the actor's Restoration magic skill by {param1}."
     elseif idx == 49
-        return "Shifts the actor's Alteration magic skill."
+        return "Shifts the actor's Alteration magic skill by {param1}."
     elseif idx == 50
-        return "Shifts the actor's Illusion magic skill."
+        return "Shifts the actor's Illusion magic skill by {param1}."
     elseif idx == 51
-        return "Shifts the actor's Conjuration magic skill."
+        return "Shifts the actor's Conjuration magic skill by {param1}."
     elseif idx == 52
-        return "Shifts the actor's Speech (persuasion / barter) skill."
+        return "Shifts the actor's Speech (persuasion / barter) skill by {param1}."
     elseif idx == 53
-        return "Shifts the actor's Lockpicking skill."
+        return "Shifts the actor's Lockpicking skill by {param1}."
     elseif idx == 54
-        return "Shifts the actor's Pickpocket skill."
+        return "Shifts the actor's Pickpocket skill by {param1}."
     elseif idx == 55
-        return "Plays a vanilla effect shader on the actor (visual-only — dragon-soul absorb, ash pile, frost cloak, etc.) while active."
+        return "Plays the {param1} effect shader on the actor while active (duration {param2}s; 0 = until removed)."
     elseif idx == 56
-        return "Plays a vanilla looping sound on the actor while active."
+        return "Plays the {param1} looping sound on the actor while active (duration {param2}s; 0 = until removed)."
     endif
     return ""
 EndFunction
@@ -1376,7 +1381,7 @@ string Function _effectParamLabelLow(int idx)
     elseif idx == 9
         return "Alert radius (feet)"
     elseif idx == 10
-        return "Spell cost shift % across all schools (+ discount, - penalty)"
+        return "Spell cost (% of original)"
     elseif idx == 11
         return "Health regen rate shift (mult points; + faster, - slower)"
     elseif idx == 12
@@ -1476,7 +1481,7 @@ int Function GetEffectParamMin(int idx)
     elseif idx == 9 || idx == 28
         return 5
     elseif idx == 10
-        return -400
+        return 0   ; 0% of original cost = free spells (max discount)
     elseif idx == 26
         return -10000
     elseif idx == 27
@@ -1500,7 +1505,7 @@ int Function GetEffectParamMax(int idx)
     elseif idx == 9
         return 300
     elseif idx == 10
-        return 400
+        return 400   ; 400% of original cost = 4× penalty (slider top)
     elseif idx == 26
         return 10000
     elseif idx == 27
@@ -1523,6 +1528,8 @@ EndFunction
 int Function GetEffectParamDefault(int idx)
     if idx == 9
         return 80
+    elseif idx == 10
+        return 100  ; default to "no change" — user dials down for discount
     elseif idx == 27
         return 100
     elseif idx == 28
@@ -1564,6 +1571,13 @@ int Function GetEffectParamStep(int idx)
         return 1
     endif
     return 1
+EndFunction
+
+string Function GetEffectParamFormat(int idx)
+    if idx == 10
+        return "{0}%"  ; "spells cost N% of their original cost"
+    endif
+    return "{0}"
 EndFunction
 
 string Function GetEffectParam2Label(int idx)
@@ -2385,8 +2399,19 @@ Function _applyCostPenalty(Actor target, int param)
     if s == None
         return
     endif
-    ; Signed convention: positive `param` = discount (negative magnitude on the
-    ; cost-penalty spell), negative `param` = penalty.
+    ; `param` is the slider value: "spells cost N% of their original cost".
+    ; Clamp 0..400 — below 0 would mean spells *refund* magicka (no);
+    ; 100 is no change; up to 400 means a 4× penalty.
+    if param < 0
+        param = 0
+    elseif param > 400
+        param = 400
+    endif
+    ; Convert to engine magnitude: positive value on each school's `*Modifier`
+    ; AV makes spells cheaper, negative makes them more expensive.
+    ; So mag = (100 - param). param=100 → mag=0 (no change), param=0 → mag=+100
+    ; (free), param=400 → mag=-300 (4× cost).
+    float mag = (100 - param) as float
     ;
     ; SetNthEffectMagnitude does not affect already-added abilities;
     ; must remove → mutate → re-add. Also does not persist across save/load
@@ -2399,7 +2424,6 @@ Function _applyCostPenalty(Actor target, int param)
     ; keeps onTick stable per actor, but cross-actor magnitude conflicts are
     ; a known limitation (would need per-actor cloned spell forms to fix).
     target.RemoveSpell(s)
-    float mag = -(param as float) ; spell magnitude convention is inverted
     int i = 0
     while i < 5
         s.SetNthEffectMagnitude(i, mag)
@@ -3548,9 +3572,19 @@ Function onTick(int idx, Actor target, int param, int param2)
     elseif idx == 10
         ; Re-apply if param changed (slider) or after save/load (magnitude
         ; reverts to ESP default which is 0). Skip when already in sync.
+        ; Storage tracks the engine magnitude (= 100 - param), so compare in
+        ; that space — and apply the same clamp _applyCostPenalty uses so
+        ; an out-of-range param doesn't loop here.
         float applied = StorageUtil.GetFloatValue(target, "mtf.shift.spellcost", 0.0)
-        if applied != -(param as float)
-            _applyCostPenalty(target, param)
+        int  clamped = param
+        if clamped < 0
+            clamped = 0
+        elseif clamped > 400
+            clamped = 400
+        endif
+        float wantMag = (100 - clamped) as float
+        if applied != wantMag
+            _applyCostPenalty(target, clamped)
         endif
     elseif idx == 27
         ; Constant-effect ability — no time-based refresh needed. Just

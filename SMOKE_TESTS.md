@@ -38,7 +38,7 @@ in the preset dropdown.
 | **Test_Resists_Toggles** | Resist family (Fire/Frost/Shock/Magic/Disease/Poison) + toggle.muffle / waterbreathing / waterWalking | Load preset, walk into water | Resist AVs shift; walk on water visibly; muffle quiets footsteps. |
 | **Test_Spells_Cloaks** | spell.modifyArmor (100), spell.detectLife (100ft), spell.slowTime (60%), flameCloak/frostCloak/lightningCloak (8ft, 5dmg/s) | Load preset | DetectLife paints actors red through walls; slow-time visible; cloak applies damage to nearby enemies. |
 | **Test_Bursts** | One-shot bursts: damage.magicka/stamina/health, burst.stagger, burst.blowCover, burst.bounty | Load preset | Health/Magicka/Stamina drop instantly; player staggers; cover blown if sneaking; bounty +100 in current hold. |
-| **Test_Flash_Cost** | scale.magickaCost (50% = double cost) + flash.onhit (1, 300ms) | Load preset, cast a spell, get hit | Spell costs double; on hit, screen flashes for 300ms. |
+| **Test_Flash_Cost** | scale.magickaCost (50 = spells cost 50% of their original) + flash.onhit (1, 300ms) | Load preset, cast a spell, get hit | Spell costs cut in half; on hit, screen flashes for 300ms. |
 | **Test_Shaders** | shader.play with 4 vanilla EffectShader FormIDs (params 0, 9, 14, 17) | Load preset | Player covered in 4 stacked shaders. |
 | **Test_Shaders_Timed** | Same as Test_Shaders but with `param2 > 0` (5s timed) | Load preset | Shaders apply, fade out at 5s mark. |
 | **Test_Sounds** | sound.play, 4 distinct SOUN records (params 2/5/7/10) | Load preset | 4 sound stings play simultaneously on slot enter. |

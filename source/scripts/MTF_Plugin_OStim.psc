@@ -116,7 +116,7 @@ string Function GetConditionParamLabel(int idx)
     elseif idx == 3
         return "Min climax count"
     elseif idx == 4
-        return "Stall state (0 = not stalled, 1 = stalled)"
+        return "Stall state"
     elseif idx == 5
         return ""
     endif
@@ -125,17 +125,17 @@ EndFunction
 
 string Function GetConditionDescription(int idx)
     if idx == 0
-        return "Triggers while the actor is currently in an OStim scene."
+        return "Triggers while the actor is engaged in an intimate scene."
     elseif idx == 1
-        return "Triggers when the actor's OStim excitement is at or above the threshold (scene-only)."
+        return "Triggers during an intimate scene when the actor is at least {param1}% aroused."
     elseif idx == 2
-        return "Triggers when the actor's OStim excitement multiplier is at or above the threshold (scene-only)."
+        return "Triggers during an intimate scene when the actor's arousal is climbing at least {param1}% faster than normal."
     elseif idx == 3
-        return "Triggers when the actor has climaxed at least the configured number of times in the current scene."
+        return "Triggers when the actor has climaxed at least {param1} time(s) in the current scene."
     elseif idx == 4
-        return "Triggers when the actor's climax-stalled flag matches the configured state."
+        return "Triggers when the actor's climax is {param1}."
     elseif idx == 5
-        return "Triggers when the actor has a schlong-classified body equipped."
+        return "Triggers when the actor has male genitals equipped."
     endif
     return ""
 EndFunction
@@ -166,6 +166,33 @@ int Function GetConditionParamDefault(int idx)
         return 1
     endif
     return 0
+EndFunction
+
+; ── Climax stalled dropdown (cond idx 4) ────────────────────────────────────
+
+int Function GetConditionParamMenuOptionCount(int idx)
+    if idx == 4
+        return 2
+    endif
+    return 0
+EndFunction
+
+int Function GetConditionParamMenuOptionValue(int idx, int optionIdx)
+    if idx == 4
+        return optionIdx  ; 0 = Not stalled, 1 = Stalled
+    endif
+    return 0
+EndFunction
+
+string Function GetConditionParamMenuOptionLabel(int idx, int optionIdx)
+    if idx == 4
+        if optionIdx == 0
+            return "Not stalled"
+        elseif optionIdx == 1
+            return "Stalled"
+        endif
+    endif
+    return ""
 EndFunction
 
 bool Function checkCondition(int idx, Actor target, int param)
@@ -255,15 +282,15 @@ EndFunction
 
 string Function GetEffectDescription(int idx)
     if idx == 0
-        return "Burst — forces an OStim climax on the actor (optionally bypassing any active stall)."
+        return "Burst — forces the actor to climax immediately (can override any active hold)."
     elseif idx == 1
-        return "Burst — adds or subtracts the configured amount from the actor's OStim excitement."
+        return "Burst — adds {param1} to the actor's arousal (negative subtracts)."
     elseif idx == 2
-        return "Burst — sets the actor's OStim excitement to an absolute value."
+        return "Burst — sets the actor's arousal to {param1}."
     elseif idx == 3
-        return "Stalls the actor's OStim climax while active; releases the stall on deactivate."
+        return "Holds the actor back from climaxing while active; releases on deactivate."
     elseif idx == 4
-        return "Burst — sets the actor's OStim excitement-rise multiplier (e.g. 3 = excitement accumulates 3x faster)."
+        return "Sets the actor's arousal-climb speed to {param1}x normal while active (arousal builds {param1}x faster)."
     endif
     return ""
 EndFunction

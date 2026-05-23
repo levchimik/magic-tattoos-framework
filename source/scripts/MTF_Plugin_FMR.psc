@@ -92,9 +92,9 @@ EndFunction
 
 string Function GetConditionDescription(int idx)
     if idx == 0
-        return "Triggers when the actor is pregnant and her belly stage is at or above the threshold."
+        return "Triggers when the actor is pregnant and at least {param1}% through her pregnancy."
     elseif idx == 1
-        return "Triggers while the actor is in her ovulation window (recent ovulation, egg still alive)."
+        return "Triggers while the actor is in her fertile window (recently ovulated, egg still viable)."
     endif
     return ""
 EndFunction
@@ -191,7 +191,7 @@ EndFunction
 
 string Function GetEffectDescription(int idx)
     if idx == 0
-        return "Burst — forces the actor to begin ovulating (no effect if already pregnant)."
+        return "Burst — forces the actor to start ovulating (does nothing if she is already pregnant)."
     endif
     return ""
 EndFunction

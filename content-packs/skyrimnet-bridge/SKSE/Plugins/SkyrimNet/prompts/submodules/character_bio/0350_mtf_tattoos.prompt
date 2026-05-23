@@ -1,15 +1,48 @@
-{# Magic Tattoos Framework (MTF) — visible tattoos & their effects.
-
-   The mtf_active_tattoos decorator is registered at runtime by the
-   MTF SkyrimNet Bridge plugin (MTF_Plugin_SkyrimNet.esp). When the
-   bridge isn't installed the decorator returns "" and the whole
-   block elides cleanly. Slot range 0300-0499 is the reserved
-   character_bio range for mod integrations.
-#}
-{% if render_mode == "full" or render_mode == "thoughts" or render_mode == "dialogue_target" or render_mode == "bio_appearance" %}
-    {% set mtf_line = mtf_active_tattoos(actorUUID) %}
-    {% if mtf_line %}
+{% if render_mode == "full" or render_mode == "thoughts" or render_mode == "transform" or render_mode == "dialogue_target" or render_mode == "bio_appearance" %}
+    {% set mtf = mtf_active_tattoos(actorUUID) %}
+    {% if mtf.present %}
+        {% set actor = decnpc(actorUUID) %}
         ## Magic Tattoos
-        {{ mtf_line }}
+        {% for p in mtf.presets %}
+            {# Inja treats empty strings as truthy, so guard with explicit `!= ""`.
+               When all per-preset fields are empty (e.g. tier 0 dormant with no
+               visual configured), the body renders empty and SkyrimNet's
+               ContextEngine filters the `## Magic Tattoos` header automatically. #}
+            {% if p.display_name != "" %}
+                **{{ p.display_name }}**{% if p.tier_kind == "triggered" %} — currently triggered{% else %} — dormant{% endif %}.
+            {% endif %}
+            {% if p.visual_description != "" %}
+                {{ actor.name }} bears {{ p.visual_description }}.
+            {% else if p.pack_label != "" and p.entry_label != "" %}
+                {{ actor.name }} bears a {{ p.entry_label }} tattoo from the {{ p.pack_label }} set.
+            {% else if p.entry_label != "" %}
+                {{ actor.name }} bears a {{ p.entry_label }} tattoo.
+            {% endif %}
+            {# Layer colors. Hex codes for precise rendering; the LLM can
+               interpret them when narrating. #}
+            {% for l in p.layers %}
+                {% if loop.is_first %}Color:{% endif %}
+                - Layer {{ loop.index1 }}: tint {{ l.tint }}, emissive {{ l.emissive }} (intensity {{ l.emissive_mult }}), alpha {{ l.alpha }}%
+            {% endfor %}
+            {# Pulse uses word labels for natural prose. Raw rate/depth are
+               also exposed (p.pulse.rate, p.pulse.depth) for advanced templates. #}
+            {% if p.pulse %}
+                It pulses with light {{ p.pulse.rate_word }} and {{ p.pulse.depth_word }}.
+            {% endif %}
+            {# Condition predicate that triggered this slot. null for tier 0
+               (dormant — no predicate). Plugins author the description as
+               natural prose; we render label + description + any params. #}
+            {% if p.condition %}
+                Triggered by: **{{ p.condition.label }}**{% if p.condition.description != "" %} — {{ p.condition.description }}{% endif %}.
+            {% endif %}
+            {# Effects — use loop.is_first for the header so the section
+               elides cleanly when no effects are active. Description prose
+               substitutes the value placeholders inline; no separate
+               label-value parenthetical needed. #}
+            {% for e in p.effects %}
+                {% if loop.is_first %}Active effects in this state:{% endif %}
+                - **{{ e.label }}**{% if e.description != "" %}: {{ e.description }}{% endif %}
+            {% endfor %}
+        {% endfor %}
     {% endif %}
 {% endif %}
