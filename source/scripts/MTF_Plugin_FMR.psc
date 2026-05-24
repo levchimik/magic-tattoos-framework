@@ -8,7 +8,11 @@ Scriptname MTF_Plugin_FMR extends MTF_Plugin
  Conditions:
    0  pregnancy  — belly stage (1..100), computed from
                     (GameTime - LastConception) / PregnancyDuration
-   1  ovulation  — LastOvulation in (0, EggLife]
+   1  ovulation  — LastOvulation in (0, EggLife] AND not pregnant.
+                    FMR doesn't clear LastOvulation on conception, so the raw
+                    flag stays true through early pregnancy; gate on
+                    LastConception == 0 to match FMR's own "isOvulating &&
+                    !isPregnant" MCM semantics.
 
  Effects:
    0  trigger.ovulation  — one-shot: set LastOvulation[index] = 0.001
@@ -128,24 +132,33 @@ int Function _trackedIndex(Actor target)
 EndFunction
 
 bool Function checkCondition(int idx, Actor target, int param)
+    string who = "(none)"
+    if target != None
+        who = target.GetDisplayName()
+    endif
     int i = _trackedIndex(target)
     if i < 0
+        Debug.Trace("[mtf.fmr] cond idx=" + idx + " who=" + who + " NOT_TRACKED i=" + i)
         return false
     endif
     if idx == 0
         if FMR_Storage.LastConception == None || FMR_PregnancyDuration == None
+            Debug.Trace("[mtf.fmr] pregnancy who=" + who + " i=" + i + " deps_missing LastConception=" + (FMR_Storage.LastConception != None) + " PregDur=" + (FMR_PregnancyDuration != None))
             return false
         endif
         float conceived = FMR_Storage.LastConception[i]
         if conceived <= 0.0
+            Debug.Trace("[mtf.fmr] pregnancy who=" + who + " i=" + i + " NOT_PREGNANT LastConception=" + conceived)
             return false
         endif
         float duration = FMR_PregnancyDuration.GetValue()
         if duration <= 0.0
+            Debug.Trace("[mtf.fmr] pregnancy who=" + who + " i=" + i + " PregDur<=0 (" + duration + ")")
             return false
         endif
         float elapsed = Utility.GetCurrentGameTime() - conceived
         if elapsed < 0.0
+            Debug.Trace("[mtf.fmr] pregnancy who=" + who + " i=" + i + " NEG_ELAPSED (" + elapsed + ")")
             return false
         endif
         int stage = ((elapsed / duration) * 100.0) as int
@@ -154,13 +167,27 @@ bool Function checkCondition(int idx, Actor target, int param)
         elseif stage > 100
             stage = 100
         endif
-        return stage >= param
+        bool result = stage >= param
+        Debug.Trace("[mtf.fmr] pregnancy who=" + who + " i=" + i + " LastConception=" + conceived + " elapsed=" + elapsed + " dur=" + duration + " stage=" + stage + " param=" + param + " -> " + result)
+        return result
     elseif idx == 1
         if FMR_Storage.LastOvulation == None || FMR_EggLife == None
+            Debug.Trace("[mtf.fmr] ovulation who=" + who + " i=" + i + " deps_missing LastOvulation=" + (FMR_Storage.LastOvulation != None) + " EggLife=" + (FMR_EggLife != None))
             return false
         endif
+        ; Pregnancy gate: FMR's natural-conception path doesn't clear LastOvulation
+        ; (HandlerQuestAliasScript.psc:1129) — the egg only ages out later. Without
+        ; this gate, freshly-pregnant actors show as "ovulating" until then. Mirrors
+        ; FMR's own MCM filter logic (isOvulating && !isPregnant).
+        float conceived = 0.0
+        if FMR_Storage.LastConception != None
+            conceived = FMR_Storage.LastConception[i]
+        endif
         float ov = FMR_Storage.LastOvulation[i]
-        return ov > 0.0 && ov <= FMR_EggLife.GetValue()
+        float eggLife = FMR_EggLife.GetValue()
+        bool result = conceived <= 0.0 && ov > 0.0 && ov <= eggLife
+        Debug.Trace("[mtf.fmr] ovulation who=" + who + " i=" + i + " LastOvulation=" + ov + " EggLife=" + eggLife + " LastConception=" + conceived + " -> " + result)
+        return result
     endif
     return false
 EndFunction
@@ -197,23 +224,59 @@ string Function GetEffectDescription(int idx)
 EndFunction
 
 Function onActivate(int idx, Actor target, int param, int param2)
-    if idx != 0 || target == None || FMR_Storage == None
+    string who = "(none)"
+    if target != None
+        who = target.GetDisplayName()
+    endif
+    Debug.Trace("[mtf.fmr] effect.activate idx=" + idx + " who=" + who + " param=" + param + " param2=" + param2)
+    if idx != 0
+        Debug.Trace("[mtf.fmr] effect.activate bail: idx!=0")
+        return
+    endif
+    if target == None
+        Debug.Trace("[mtf.fmr] effect.activate bail: target==None")
+        return
+    endif
+    if FMR_Storage == None
+        Debug.Trace("[mtf.fmr] effect.activate bail: FMR_Storage==None")
         return
     endif
     int i = _trackedIndex(target)
     if i < 0
+        Debug.Trace("[mtf.fmr] effect.activate bail: NOT_TRACKED i=" + i + " trackedActorsLen=" + FMR_Storage.TrackedActors.Length)
         return
     endif
-    ; Don't interrupt an in-progress pregnancy.
-    if FMR_Storage.LastConception != None && FMR_Storage.LastConception[i] > 0.0
+    ; NOTE: `if FMR_Storage.LastOvulation == None` was bailing here even though
+    ; checkCondition reads LastOvulation[i] successfully at the same moment
+    ; (project_papyrus_array_none_cast_noise memory note — `== None` on Auto
+    ; array properties is unreliable). Drop the guard and dump .Length instead
+    ; so we can distinguish a true-None from the comparison quirk.
+    int ovLen = -1
+    int lcLen = -1
+    if FMR_Storage.LastOvulation
+        ovLen = FMR_Storage.LastOvulation.Length
+    endif
+    if FMR_Storage.LastConception
+        lcLen = FMR_Storage.LastConception.Length
+    endif
+    Debug.Trace("[mtf.fmr] effect.activate i=" + i + " ovLen=" + ovLen + " lcLen=" + lcLen)
+    ; Don't interrupt an in-progress pregnancy. Indexed read is safe; if the
+    ; array were truly None the indexed access would Papyrus-error and abort.
+    float conceived = FMR_Storage.LastConception[i]
+    if conceived > 0.0
+        Debug.Trace("[mtf.fmr] effect.activate bail: ALREADY_PREGNANT LastConception=" + conceived)
         return
     endif
-    if FMR_Storage.LastOvulation == None
+    float ovBefore = FMR_Storage.LastOvulation[i]
+    if ovBefore > 0.0
+        Debug.Trace("[mtf.fmr] effect.activate bail: ALREADY_OVULATING LastOvulation=" + ovBefore)
         return
     endif
-    if FMR_Storage.LastOvulation[i] > 0.0
-        ; Already ovulating.
-        return
-    endif
+    Debug.Trace("[mtf.fmr] effect.activate writing LastOvulation[" + i + "] = 0.001 (was " + ovBefore + ")")
     FMR_Storage.LastOvulation[i] = 0.001
+    ; Read-back to confirm the indexed write actually stuck. Papyrus array
+    ; indexed-writes through a remote script's property can silently hit a
+    ; transient copy (project_papyrus_property_array_writes memory note).
+    float ovAfter = FMR_Storage.LastOvulation[i]
+    Debug.Trace("[mtf.fmr] effect.activate readback LastOvulation[" + i + "] = " + ovAfter + " (write " + (ovAfter > 0.0) + ")")
 EndFunction
