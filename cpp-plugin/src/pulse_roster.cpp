@@ -228,6 +228,17 @@ namespace MTFPulse {
                     seeded.from_tint[L]     = prev.target_tint[L];
                     seeded.from_emissive[L] = prev.target_emissive[L];
                 }
+                // v0.1.29 invisible-layer snap: if the layer was effectively
+                // invisible at install time (alpha≈0), there's nothing visible
+                // to interpolate FROM for tint/em_color — snap those targets
+                // so as alpha rises, the user sees the NEW color immediately
+                // rather than a half-lerped OLD/NEW mix. Auto-handles the
+                // different-texture cross-blend Phase B start (alpha just
+                // finished lerping to 0 in Phase A) without a dedicated API.
+                if (seeded.from_alpha[L] < 0.01f) {
+                    seeded.from_tint[L]     = seeded.target_tint[L];
+                    seeded.from_emissive[L] = seeded.target_emissive[L];
+                }
             }
             seeded.transition_start = anchor_ts;
             seeded.has_last_interp  = false;  // Tick will repopulate this frame
@@ -639,18 +650,24 @@ namespace MTFPulse {
                 // value, not a static ceiling.
                 e.last_interp_em_mult[L] = em_no_flash;
 
-                // v0.1.28 V4: glossiness / specular derived from current
-                // em_no_flash (binary: emissive lit → gloss=5,spec=1; matte
-                // → 0/0). Writing every frame here means they stay in sync
-                // with em through the whole lerp window; the flip happens
-                // only when em actually crosses 0 (end of an em>0 → em=0
-                // fade). Replaces Papyrus _applyOverlayDeferred's
-                // store-toggle which fired at tier-change moment regardless
-                // of where em was in its lerp, causing a "high emissive +
-                // zero glossiness" combo that rendered black for the entire
-                // transition window on em>0 → em=0 transitions.
-                const float gloss = (em_no_flash > 0.001f) ? 5.0f : 0.0f;
-                const float spec  = (em_no_flash > 0.001f) ? 1.0f : 0.0f;
+                // v0.1.29: glossiness / specular scale LINEARLY with em
+                // (clamped at em=1.0 to preserve the steady-state look for
+                // em>=1 tiers). The earlier binary threshold (em>0.001 →
+                // 5/1 else 0/0) created a visible discontinuity during a
+                // smooth em lerp: at the moment em crossed the threshold
+                // while alpha was still non-zero, gloss/spec snapped from
+                // 5/1 to 0/0, exposing the dark diffuse texture with no
+                // specular highlight — rendered as a black flash. Showed
+                // up as "two black blinks" during the different-texture
+                // cross-blend: one at Phase A end (em → 0) and one at
+                // Phase B start (em → NEW>0). Linear ramp eliminates the
+                // discontinuity; at em=0 still gloss=0/spec=0 (matte), at
+                // em>=1 still gloss=5/spec=1 (full shine), and intermediate
+                // em values get proportional shine that matches the
+                // visible emissive intensity.
+                const float em_norm = std::clamp(em_no_flash, 0.0f, 1.0f);
+                const float gloss   = 5.0f * em_norm;
+                const float spec    = 1.0f * em_norm;
                 skee_bridge::WriteGlossiness(actor, e.is_female, node, gloss);
                 skee_bridge::WriteSpecular(actor, e.is_female, node, spec);
 

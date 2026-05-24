@@ -114,6 +114,24 @@ float    _sTransitionDuration = 0.0
 ; on every 10 Hz refresh so the lerp lands at the original target time even
 ; though each install resets C++ transition_start. 0 = no transition in flight.
 float    _transitionEndRT = 0.0
+; v0.1.29 different-texture cross-blend: two-phase fade for tier changes
+; where the resolved (pack, entry) differs. Phase A fades alpha → 0 over
+; tDur/2 keeping OLD texture; Phase B swaps texture to NEW and fades
+; alpha 0 → target over tDur/2. Same slot range used throughout — at the
+; midpoint texture binding swaps while alpha = 0 so no snap is visible.
+; Condition re-evaluation is locked for the full tDur window via
+; _transitionEndRT (set when the cross-blend starts).
+bool     _crossBlendActive    = false
+float    _crossBlendStartRT   = 0.0
+float    _crossBlendDuration  = 0.0
+bool     _crossBlendInPhaseA  = false
+int      _crossBlendNewTier   = -1
+; Snapshot of the prev tier's resolved pack/entry — read at tier-change
+; time to detect "different texture" without re-resolving OLD's pack
+; (which is gone after currentTier flips). Empty string = no prev (e.g.
+; fresh load before first tier eval).
+string   _prevPackId          = ""
+string   _prevEntryId         = ""
 string   _scratchLoadedFor = ""
 
 ; ── NPC pulse roster (v0.0.33) ───────────────────────────────────────────────
@@ -1576,6 +1594,32 @@ Function _applyPulse(float forcedTDur = -1.0)
         i += 1
     endwhile
 
+    ; v0.1.29 different-texture cross-blend Phase A: keep OLD texture
+    ; (currentTier still points at OLD, so emMults/tints/emissives above
+    ; are read from OLD's per-layer arrays). Override target_alpha to 0
+    ; so C++ Tick lerps alpha down to fully transparent over the half-
+    ; window. At Phase A end, alpha = 0; Phase B swaps the texture
+    ; binding then and fades alpha back up — no snap visible because
+    ; alpha is 0 at swap time.
+    if _crossBlendActive && _crossBlendInPhaseA
+        ; Drive BOTH alpha AND em_mult to 0 so the emissive lane doesn't
+        ; keep glowing through the (now invisible) texture. Tint/em_color
+        ; targets stay at OLD's values (no visible change since
+        ; currentTier didn't move); C++ Tick will naturally lerp em_mult
+        ; OLD→0 and alpha OLD→0 in parallel over the half-window. Gloss/
+        ; spec are derived from em_no_flash in C++ Tick so they drop to 0
+        ; alongside em automatically.
+        int j = 0
+        while j < _pulseLayerN
+            alphas[j]   = 0
+            emMults[j]  = 0.0
+            j += 1
+        endwhile
+        if DebugMode
+            Debug.Trace("[MTF xb] _applyPulse PhaseA override alpha+em=0 layerN=" + _pulseLayerN + " tier=" + _pulseTier + " forcedTDur=" + forcedTDur)
+        endif
+    endif
+
     ; Remaining-time pattern. The redraw block primes forcedTDur on the
     ; tier-change edge; every other path leaves it -1 so we compute
     ; remaining = max(0, _transitionEndRT - now). After the window closes
@@ -1602,6 +1646,9 @@ Function _applyPulse(float forcedTDur = -1.0)
                                          _pulseLayerN, _pulseStartRT, emMults, \
                                          OverlaySlot, _pulseIsFemale, lut, \
                                          tints, alphas, emissives, tDur, 0)
+    if DebugMode && _crossBlendActive
+        Debug.Trace("[MTF xb] _applyPulse sent tier=" + _pulseTier + " layerN=" + _pulseLayerN + " alpha0=" + alphas[0] + " tDur=" + tDur + " phaseA=" + _crossBlendInPhaseA + " endRT=" + _transitionEndRT)
+    endif
 
     ; v0.1.4 per-preset fade: re-arm or clear after the roster entry is
     ; up. Idempotent on the C++ side — re-issuing the same params each
@@ -3435,7 +3482,52 @@ State checkingAroused
             ; v0.1.20: one-shot framework-ready broadcast for external
             ; integrations. Self-gated on pluginCount > 0 + _readyEmitted.
             _emitFrameworkReady()
-            int newTier = evaluateTier()
+            ; v0.1.29 different-texture cross-blend phase advancement.
+            ; If we're mid-cross-blend, check whether we've crossed the
+            ; midpoint (transition Phase A → Phase B) or the end (clear
+            ; cross-blend state). Phase B is treated as a synthetic tier
+            ; change to _crossBlendNewTier below; the eval lock holds
+            ; newTier at currentTier for the whole window otherwise.
+            bool phaseBStarting = false
+            if _crossBlendActive
+                ; v0.1.29 dead-zone hold (0.1s) between Phase A end and
+                ; Phase B start. During the hold, alpha+em stay at 0 (Phase A
+                ; override keeps firing). Reasons:
+                ;   - Guarantees C++ Tick has settled last_interp_alpha to 0
+                ;     before Phase B install captures it. Without this, the
+                ;     InstallLocked snap heuristic (from_alpha < 0.01) misses
+                ;     and tint visibly lerps OLD→NEW as alpha rises.
+                ;   - Visually imperceptible (player already sees nothing).
+                ; Total visible cross-blend = _crossBlendDuration + 0.1s.
+                if _crossBlendInPhaseA && now >= _crossBlendStartRT + _crossBlendDuration / 2.0 + 0.1
+                    _crossBlendInPhaseA = false
+                    phaseBStarting = true
+                    if DebugMode
+                        Debug.Trace("[MTF xb] PhaseA→B at now=" + now + " startRT=" + _crossBlendStartRT + " dur=" + _crossBlendDuration + " newTier=" + _crossBlendNewTier)
+                    endif
+                elseif !_crossBlendInPhaseA && now >= _crossBlendStartRT + _crossBlendDuration + 0.1
+                    _crossBlendActive = false
+                    if DebugMode
+                        Debug.Trace("[MTF xb] PhaseB end at now=" + now)
+                    endif
+                endif
+            endif
+
+            int newTier
+            if _crossBlendActive
+                ; Eval lock: condition re-eval suspended for the full
+                ; tDur window so a flapping condition can't restart the
+                ; fade mid-flight. Phase B starting case is handled by
+                ; the phaseBStarting override below.
+                newTier = currentTier
+            else
+                newTier = evaluateTier()
+            endif
+            if phaseBStarting
+                ; Synthetic tier-change for Phase B: jump straight to the
+                ; NEW tier we captured when Phase A started.
+                newTier = _crossBlendNewTier
+            endif
             bool tierChanged = (newTier != currentTier)
             ; Snapshot before currentTier overwrite — _emitTierChanged
             ; needs the prevTier value after the activation pass runs.
@@ -3472,41 +3564,114 @@ State checkingAroused
                         _armCoolTimer(currentTier)
                     endif
                 endif
-                currentTier = newTier
-                drawOverlay(PlayerRef, currentTier, true)
-                needPlayerApply = true
-                ; Reset pulse phase so the new tier starts cleanly at sin(0)=0.
-                _pulseStartRT = now
-                if tierChanged
-                    ; v0.1.28 V4 cross-fade: arm the transition window
-                    ; BEFORE the priming _applyPulse so the install captures
-                    ; from-state and runs the lerp over the full duration.
-                    ; Without the window, _applyPulse would compute
-                    ; tDur=0 (no transition in flight) and snap.
-                    if _sTransitionDuration > 0.0
-                        _transitionEndRT = now + _sTransitionDuration
-                    else
-                        _transitionEndRT = 0.0
+                ; v0.1.29 different-texture cross-blend detection. We
+                ; route to Phase A (fade OLD alpha → 0, keep texture) when
+                ; ALL of:
+                ;   - This is a real tier change (not a forceRedraw refresh)
+                ;   - We're NOT already starting Phase B (which is itself a
+                ;     synthetic tier change for the cross-blend)
+                ;   - We have a prev tier's (pack, entry) to compare against
+                ;   - The resolved (pack, entry) of NEW differs from OLD
+                ;   - tDur > 0
+                ; Phase B and same-texture changes go through the existing
+                ; in-place V4 cross-fade path.
+                string newPackId  = ResolveSlotPackId(newTier)
+                string newEntryId = ResolveSlotEntryId(newTier)
+                bool diffTexture = (newPackId != _prevPackId) || (newEntryId != _prevEntryId)
+                bool useCrossBlend = tierChanged && !phaseBStarting \
+                    && _prevPackId != "" && diffTexture \
+                    && _sTransitionDuration > 0.0
+
+                if DebugMode
+                    Debug.Trace("[MTF xb] decide tch=" + tierChanged + " phB=" + phaseBStarting + " prevPk='" + _prevPackId + "' newPk='" + newPackId + "' prevEn='" + _prevEntryId + "' newEn='" + newEntryId + "' diff=" + diffTexture + " tDur=" + _sTransitionDuration + " useXB=" + useCrossBlend + " curT=" + currentTier + " newT=" + newTier)
+                endif
+                if useCrossBlend
+                    ; Phase A: hold OLD texture in store (don't drawOverlay),
+                    ; keep currentTier=OLD (don't update), push C++ with
+                    ; alphas overridden to 0 so Tick lerps alpha down over
+                    ; tDur/2. Eval lock for the full window so a flapping
+                    ; condition can't restart mid-fade.
+                    _crossBlendActive    = true
+                    _crossBlendInPhaseA  = true
+                    _crossBlendStartRT   = now
+                    _crossBlendDuration  = _sTransitionDuration
+                    _crossBlendNewTier   = newTier
+                    ; v0.1.29 fix: Phase A lerp ends at MIDPOINT, not at
+                    ; full duration. With endRT=full, 10Hz reinstalls
+                    ; compute tDur=remaining-to-full, halving the slope
+                    ; after the first install — alpha would only reach
+                    ; ~50% by midpoint instead of 0. After midpoint
+                    ; reinstalls see tDur=0 (steady-state snap to 0)
+                    ; which is what we want for the 0.1s hold.
+                    _transitionEndRT     = now + _sTransitionDuration / 2.0
+                    if DebugMode
+                        Debug.Trace("[MTF xb] PhaseA START now=" + now + " curTier=" + currentTier + " newTier=" + newTier + " dur=" + _sTransitionDuration + " _pulseTier=" + _pulseTier + " _pulseLayerN=" + _pulseLayerN)
                     endif
-                    ; Push the pulse roster entry BEFORE activating effects.
-                    ; v0.1.3 flash.onhit's onActivate calls MTFPulse.SetActorFlash,
-                    ; which silently no-ops unless a (actor, base_slot) entry
-                    ; already exists. _applyPulse runs anyway at the bottom of
-                    ; OnUpdate at 10Hz, but the first SetActorFlash on tier
-                    ; activation would miss without this priming call.
-                    _applyPulse(_sTransitionDuration)
-                    _activateSlotEffects(currentTier)
-                    ; v0.1.24: arm persist timer on activation edge (any new > 0
-                    ; with persistMin > 0). Slot will keep winning the eval for
-                    ; the persist window regardless of condition.
-                    if currentTier > 0 && _arraysReady
-                        _armPersistTimer(currentTier)
+                    ; _pulseTier was already set by the prior drawOverlay
+                    ; for OLD; _applyPulse reads condLayerEmissiveMult etc.
+                    ; for _pulseTier=OLD and overrides alpha→0 because
+                    ; _crossBlendInPhaseA is now true.
+                    _applyPulse(_sTransitionDuration / 2.0)
+                    ; Don't drawOverlay, don't deactivate/activate effects,
+                    ; don't update _prevPackId/_prevEntryId. All deferred
+                    ; until Phase B starts.
+                else
+                    currentTier = newTier
+                    drawOverlay(PlayerRef, currentTier, true)
+                    needPlayerApply = true
+                    ; Reset pulse phase so the new tier starts cleanly at sin(0)=0.
+                    _pulseStartRT = now
+                    if tierChanged
+                        ; v0.1.28 V4 cross-fade: arm the transition window
+                        ; BEFORE the priming _applyPulse so the install captures
+                        ; from-state and runs the lerp over the full duration.
+                        ; Without the window, _applyPulse would compute
+                        ; tDur=0 (no transition in flight) and snap.
+                        ; For Phase B start, reset _transitionEndRT to the
+                        ; Phase B half-window endpoint so subsequent 10Hz
+                        ; _applyPulse reinstalls compute correct remaining
+                        ; tDur (Phase A set endRT to its OWN midpoint, which
+                        ; has already passed by now).
+                        float pulseDur
+                        if phaseBStarting
+                            pulseDur = _crossBlendDuration / 2.0
+                            _transitionEndRT = now + _crossBlendDuration / 2.0
+                        else
+                            if _sTransitionDuration > 0.0
+                                _transitionEndRT = now + _sTransitionDuration
+                            else
+                                _transitionEndRT = 0.0
+                            endif
+                            pulseDur = _sTransitionDuration
+                        endif
+                        ; Push the pulse roster entry BEFORE activating effects.
+                        ; v0.1.3 flash.onhit's onActivate calls MTFPulse.SetActorFlash,
+                        ; which silently no-ops unless a (actor, base_slot) entry
+                        ; already exists. _applyPulse runs anyway at the bottom of
+                        ; OnUpdate at 10Hz, but the first SetActorFlash on tier
+                        ; activation would miss without this priming call.
+                        _applyPulse(pulseDur)
+                        _activateSlotEffects(currentTier)
+                        ; v0.1.24: arm persist timer on activation edge (any new > 0
+                        ; with persistMin > 0). Slot will keep winning the eval for
+                        ; the persist window regardless of condition.
+                        if currentTier > 0 && _arraysReady
+                            _armPersistTimer(currentTier)
+                        endif
+                        _notifyTierChange(currentTier)
+                        ; v0.1.20: external-integration broadcast. After the
+                        ; activation pass so SkyrimNet decorators called from
+                        ; the listener see the new state's effects already on.
+                        _emitTierChanged(PlayerRef, "player", "", prevTierForEmit, currentTier)
                     endif
-                    _notifyTierChange(currentTier)
-                    ; v0.1.20: external-integration broadcast. After the
-                    ; activation pass so SkyrimNet decorators called from
-                    ; the listener see the new state's effects already on.
-                    _emitTierChanged(PlayerRef, "player", "", prevTierForEmit, currentTier)
+                    ; v0.1.29: always refresh _prevPackId/_prevEntryId after
+                    ; a non-cross-blend draw — even on forceRedraw refreshes
+                    ; that don't change the tier. This lets the FIRST tier
+                    ; change after a save load (where _prevPackId starts
+                    ; empty) detect different-texture correctly. Otherwise
+                    ; we'd snap on the very first transition.
+                    _prevPackId  = newPackId
+                    _prevEntryId = newEntryId
                 endif
             endif
 
