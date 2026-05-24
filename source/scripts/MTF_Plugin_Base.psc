@@ -283,7 +283,7 @@ EndFunction
 ; ── Conditions ────────────────────────────────────────────────────────────────
 
 int Function GetConditionCount()
-    return 46
+    return 47
 EndFunction
 
 string Function GetConditionId(int idx)
@@ -379,6 +379,8 @@ string Function GetConditionId(int idx)
         return "worn.heavyArmor"
     elseif idx == 45
         return "worn.lightArmor"
+    elseif idx == 46
+        return "combat.casting"
     endif
     return ""
 EndFunction
@@ -476,6 +478,8 @@ string Function GetConditionLabel(int idx)
         return "Wearing Heavy Armor"
     elseif idx == 45
         return "Wearing Light Armor"
+    elseif idx == 46
+        return "While Casting Spell"
     endif
     return ""
 EndFunction
@@ -578,6 +582,8 @@ string Function GetConditionDescription(int idx)
         return "Triggers when the actor is wearing a heavy-armor cuirass."
     elseif idx == 45
         return "Triggers when the actor is wearing a light-armor cuirass."
+    elseif idx == 46
+        return "Triggers while the actor is charging or holding a spell mid-cast."
     endif
     return ""
 EndFunction
@@ -895,6 +901,13 @@ bool Function checkCondition(int idx, Actor target, int param)
             _kwArmorLight = Game.GetForm(0x0006BBD3) as Keyword
         endif
         return _kwArmorLight != None && _wornHasArmorKw(target, _kwArmorLight)
+    elseif idx == 46
+        ; combat.casting: continuous "is the actor mid-cast" check. State is
+        ; maintained by MTF_CastListener (animvar polling — see KB entry).
+        ; Currently player-only because the listener is on the player alias;
+        ; NPCs always read false here (StorageUtil default).
+        MTF_MainQuest h = _host()
+        return h != None && h.IsCasting(target)
     endif
     return false
 EndFunction
@@ -950,7 +963,7 @@ EndFunction
 ; ── Effects ───────────────────────────────────────────────────────────────────
 
 int Function GetEffectCount()
-    return 57
+    return 58
 EndFunction
 
 string Function GetEffectId(int idx)
@@ -1086,6 +1099,8 @@ string Function _effectIdHigh(int idx)
         return "shader.play"
     elseif idx == 56
         return "sound.play"
+    elseif idx == 57
+        return "flash.oncast"
     endif
     return ""
 EndFunction
@@ -1217,6 +1232,8 @@ string Function _effectLabelHigh(int idx)
         return "[+] Vanilla Shader"
     elseif idx == 56
         return "[+] Vanilla Sound"
+    elseif idx == 57
+        return "[+] Flash on Cast"
     endif
     return ""
 EndFunction
@@ -1348,6 +1365,8 @@ string Function _effectDescriptionHigh(int idx)
         return "Plays the {param1} effect shader on the actor while active (duration {param2}s; 0 = until removed)."
     elseif idx == 56
         return "Plays the {param1} looping sound on the actor while active (duration {param2}s; 0 = until removed)."
+    elseif idx == 57
+        return "Flashes the tattoo's emissive layer to {param1}% brightness while the actor is casting a spell."
     endif
     return ""
 EndFunction
@@ -1471,6 +1490,8 @@ string Function _effectParamLabelHigh(int idx)
         return "Shader"
     elseif idx == 56
         return "Sound"
+    elseif idx == 57
+        return "Peak emissive (additive, % of 1.0)"
     endif
     return ""
 EndFunction
@@ -1496,6 +1517,8 @@ int Function GetEffectParamMin(int idx)
         return 0  ; shader index; rendered as dropdown via Menu APIs
     elseif idx == 56
         return 0  ; sound index; rendered as dropdown via Menu APIs
+    elseif idx == 57
+        return 0  ; flash.oncast: 0 = disabled (no peak → no flash)
     endif
     return -100
 EndFunction
@@ -1522,6 +1545,8 @@ int Function GetEffectParamMax(int idx)
         return _shaderCount() - 1
     elseif idx == 56
         return _soundCount() - 1
+    elseif idx == 57
+        return 1000  ; same scale as flash.onhit param2: 1000 = +10.0 additive
     endif
     return 100
 EndFunction
@@ -1544,6 +1569,8 @@ int Function GetEffectParamDefault(int idx)
         return 0  ; first shader in catalog
     elseif idx == 56
         return 0  ; first sound in catalog
+    elseif idx == 57
+        return 300  ; +3.0 additive emissive while casting — visible glow
     endif
     return 0
 EndFunction
@@ -1569,6 +1596,8 @@ int Function GetEffectParamStep(int idx)
         return 1
     elseif idx == 56
         return 1
+    elseif idx == 57
+        return 10
     endif
     return 1
 EndFunction
@@ -1776,6 +1805,9 @@ int Function GetEffectExtraFieldCount(int idx)
     if idx == 56
         return 1
     endif
+    if idx == 57
+        return 3
+    endif
     return 0
 EndFunction
 
@@ -1794,6 +1826,17 @@ string Function GetEffectExtraFieldName(int idx, int fieldIdx)
     if idx == 56
         if fieldIdx == 0
             return "volume"
+        endif
+    endif
+    if idx == 57
+        if fieldIdx == 0
+            return "rampms"
+        endif
+        if fieldIdx == 1
+            return "decayms"
+        endif
+        if fieldIdx == 2
+            return "retrigms"
         endif
     endif
     return ""
@@ -1816,6 +1859,17 @@ string Function GetEffectExtraFieldLabel(int idx, int fieldIdx)
             return "Volume (%)"
         endif
     endif
+    if idx == 57
+        if fieldIdx == 0
+            return "Ramp up (ms)"
+        endif
+        if fieldIdx == 1
+            return "Decay (ms)"
+        endif
+        if fieldIdx == 2
+            return "Sustain window (ms)"
+        endif
+    endif
     return ""
 EndFunction
 
@@ -1833,6 +1887,17 @@ int Function GetEffectExtraFieldMin(int idx, int fieldIdx)
     endif
     if idx == 56
         return 0
+    endif
+    if idx == 57
+        if fieldIdx == 0
+            return 1
+        endif
+        if fieldIdx == 1
+            return 1
+        endif
+        if fieldIdx == 2
+            return 0
+        endif
     endif
     return 0
 EndFunction
@@ -1852,6 +1917,17 @@ int Function GetEffectExtraFieldMax(int idx, int fieldIdx)
     if idx == 56
         return 100
     endif
+    if idx == 57
+        if fieldIdx == 0
+            return 2000
+        endif
+        if fieldIdx == 1
+            return 5000
+        endif
+        if fieldIdx == 2
+            return 2000
+        endif
+    endif
     return 100
 EndFunction
 
@@ -1861,6 +1937,9 @@ int Function GetEffectExtraFieldStep(int idx, int fieldIdx)
     endif
     if idx == 56
         return 5
+    endif
+    if idx == 57
+        return 10
     endif
     return 1
 EndFunction
@@ -1879,6 +1958,19 @@ int Function GetEffectExtraFieldDefault(int idx, int fieldIdx)
     endif
     if idx == 56
         return 100
+    endif
+    if idx == 57
+        ; CastListener re-dispatches at 0.1s; retrig 250ms gives ~2.5x safety
+        ; margin so a slow Papyrus tick doesn't let the lane decay mid-cast.
+        if fieldIdx == 0
+            return 200  ; rampms — quicker glow-on than hits
+        endif
+        if fieldIdx == 1
+            return 600  ; decayms — smooth fade once cast ends
+        endif
+        if fieldIdx == 2
+            return 250  ; retrigms — must exceed 100ms re-dispatch interval
+        endif
     endif
     return 0
 EndFunction
@@ -2806,6 +2898,56 @@ Function _removeFlashOnHit(Actor target)
     MTFPulse.ClearActorFlash(target, h._getDispatchBaseSlot(), h._getDispatchArea())
 EndFunction
 
+; ── Flash on Cast (v0.1.25) ─────────────────────────────────────────────────
+; Mirror of _applyFlashOnHit but with a fixed "cast" tag. No class mask —
+; MCM param is the peak% directly (same 0..1000 scale as flash.onhit's
+; param2: 1000 = +10.0 additive at peak). Triggered by MTF_CastListener
+; via MainQuest.DispatchFlashCast("cast") which calls TriggerActorFlash
+; with the "cast" tag; the C++ pulse roster matches against the registered
+; tag CSV. Listener re-dispatches at 0.1s while the cast is held, so the
+; retrigms sustain window (default 250ms) keeps the lane lit during
+; concentration/charge-and-hold casts.
+Function _applyFlashOnCast(Actor target, int peakPct)
+    if target == None || peakPct <= 0
+        return
+    endif
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot      = h._getDispatchSlot()
+    int effectIdx = h._getDispatchEffectIdx()
+    if slot < 0 || effectIdx < 0
+        return
+    endif
+    int rampMs   = h.GetSlotEffectExtra(slot, effectIdx, "rampms")   as int
+    int decayMs  = h.GetSlotEffectExtra(slot, effectIdx, "decayms")  as int
+    int retrigMs = h.GetSlotEffectExtra(slot, effectIdx, "retrigms") as int
+    if rampMs   <= 0
+        rampMs = 200
+    endif
+    if decayMs  <= 0
+        decayMs = 600
+    endif
+    if retrigMs <= 0
+        retrigMs = 250
+    endif
+    int dispatchBase = h._getDispatchBaseSlot()
+    int dispatchArea = h._getDispatchArea()
+    MTFPulse.SetActorFlash(target, dispatchBase, peakPct, rampMs, decayMs, retrigMs, "cast", dispatchArea)
+EndFunction
+
+Function _removeFlashOnCast(Actor target)
+    if target == None
+        return
+    endif
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    MTFPulse.ClearActorFlash(target, h._getDispatchBaseSlot(), h._getDispatchArea())
+EndFunction
+
 Function _alertNearby(Actor target, int paramFeet)
     if target == None || paramFeet <= 0
         return
@@ -3534,6 +3676,8 @@ Function onActivate(int idx, Actor target, int param, int param2)
         _activateShaderRow(target, param, param2)
     elseif idx == 56
         _activateSoundRow(target, param, param2)
+    elseif idx == 57
+        _applyFlashOnCast(target, param)
     endif
 EndFunction
 
@@ -3562,6 +3706,8 @@ Function onDeactivate(int idx, Actor target, int param, int param2)
         _deactivateShaderRow(target, param)
     elseif idx == 56
         _deactivateSoundRow(target, param, param2)
+    elseif idx == 57
+        _removeFlashOnCast(target)
     endif
 EndFunction
 
@@ -3638,6 +3784,10 @@ Function onTick(int idx, Actor target, int param, int param2)
         ; Loop-mode SNDRs need a re-Play after session resume (same engine
         ; quirk as shaders: Sound.Play handles don't persist across save/load).
         _tickSoundRow(target, param, param2)
+    elseif idx == 57
+        ; Same re-push pattern as flash.onhit: cheap roster write keeps the
+        ; lane's params in sync with MCM slider edits within one slow tick.
+        _applyFlashOnCast(target, param)
     endif
 EndFunction
 

@@ -1635,6 +1635,57 @@ Function SetHitArmedRT(int classIdx, float val)
     StorageUtil.SetFloatValue(self, "mtf.hit.armed." + classIdx, val)
 EndFunction
 
+; ── Cast tracking (v0.1.25) ─────────────────────────────────────────────────
+; Mirror of the hit-counter helpers but for spell casting. Continuous state
+; (not event-counter): MTF_CastListener polls animation variables every 0.1s
+; while a cast is held and writes the bool here; combat.casting condition
+; reads it back. StorageUtil-backed for the same reason as hit counters
+; (post-release Auto property attach gotcha) and so NPC slots default to
+; false cleanly.
+;
+; Detection mechanism is animvar-based (bWantCastLeft / bWantCastRight /
+; IsCastingDual / bRitualSpellActive) — the same pattern ZAO Active Overlays
+; uses, more reliable than chasing BeginCast*/SpellRelease event pairs
+; (which miss interrupts and concentration edge cases). See KNOWLEDGEBASE
+; entry "Cast-state detection".
+;
+; Currently player-only — MTF_CastListener is alias-bound to the player.
+; NPCs always read false. Per-actor StorageUtil keying leaves the door open
+; for NPC support later without schema migration.
+
+bool Function IsCasting(Actor target)
+    if target == None
+        return false
+    endif
+    return StorageUtil.GetIntValue(target, "mtf.casting.active", 0) == 1
+EndFunction
+
+Function _setCasting(Actor target, bool active)
+    if target == None
+        return
+    endif
+    if active
+        StorageUtil.SetIntValue(target, "mtf.casting.active", 1)
+    else
+        StorageUtil.SetIntValue(target, "mtf.casting.active", 0)
+    endif
+EndFunction
+
+; Mirror of DispatchFlashHit but for the "cast" tag namespace. Called by
+; MTF_CastListener on cast start and on every poll tick while the cast is
+; held — the C++ pulse roster's retrigger window keeps the additive
+; emissive lane lit between calls.
+Function DispatchFlashCast(string tag)
+{Public extension hook. External mods can call this with their own tag
+ ("cast.fire", "cast.healing", etc.) and any flash.oncast effect whose
+ registered tag CSV matches will flash. Built-in CastListener fires the
+ plain "cast" tag; flash.oncast registrations bind exactly that.}
+    if PlayerRef == None || tag == ""
+        return
+    endif
+    MTFPulse.TriggerActorFlash(PlayerRef, OverlaySlot, tag, 0)
+EndFunction
+
 ; ── Presets (PapyrusUtil JsonUtil, cross-save) ──────────────────────────────
 ; One JSON file per preset under
 ;   Data/SKSE/Plugins/StorageUtil/MagicTattoosFramework/presets/<name>.json
