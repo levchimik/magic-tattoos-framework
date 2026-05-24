@@ -9,10 +9,10 @@ backlog — the canonical list of shipped adapters lives in
 
 A generalized `gen_visual_catalogs.js` was never built — each shipped
 adapter is wrapped ad-hoc with a per-pack helper script under
-`F:/stuff/Skyrim modding/tools/` (e.g. `_mtf_fix_rx_round1.py`,
-`_mtf_fix_obi_placements.py`). If we end up wrapping many more, factor
-those into a generic generator with `--source`, `--packid`, `--label`,
-`--prefix`, `--area`, `--glow-suffix` flags.
+`F:/stuff/Skyrim modding/tools/` (e.g. `_mtf_fix_rx_round1.py`). If we
+end up wrapping many more, factor those into a generic generator with
+`--source`, `--packid`, `--label`, `--prefix`, `--area`, `--glow-suffix`
+flags.
 
 ## Wrapping recipe (per pack)
 
@@ -149,7 +149,6 @@ Wrapped and shipping in the FOMOD (see `content-packs/README.md` for
 the source-of-truth list):
 
 - [x] LewdMarks (RaceMenu + SlaveTats variants)
-- [x] Obi's Tattoos
 - [x] RX Overlays
 - [x] Bardle Nail Polish (Hands)
 - [x] Community Overlays 1 — Face (Face)

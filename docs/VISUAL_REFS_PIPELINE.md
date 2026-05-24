@@ -89,7 +89,6 @@ After rendering, the `<packId>/combined/` subtree is copied into
 | Pack | Source |
 |------|--------|
 | `mtf.lewdmarks-slavetats`, `mtf.lewdmarks-racemenu` | BSA-extracted into `tools/mtf-vision-cache/lewdmarks-extracted/textures` (one-time `AutoMod archive extract`) |
-| `mtf.obi-tattoos` | `F:/Modlists/Modding Essentials/mods/Obi's Tattoos 3BA 4K/textures` (loose .dds) |
 | `mtf.rx-overlays` | `F:/Modlists/Modding Essentials/mods/RX'Overlays - Racemenu Tattoo and Overlays for 3BA/textures` (loose .dds) |
 | `mtf.bardle-nail-polish` | `F:/Modlists/Modding Essentials/mods/Bard's Nail Overlays/textures` (loose .dds) |
 
@@ -97,7 +96,7 @@ After rendering, the `<packId>/combined/` subtree is copied into
 
 | Pack | Reference |
 |------|-----------|
-| LewdMarks, Obi, RX | `tools/mtf-vision-cache/png/body/femalebody_1.png` — vanilla CBBE diffuse |
+| LewdMarks, RX | `tools/mtf-vision-cache/png/body/femalebody_1.png` — vanilla CBBE diffuse |
 | Bardle nails | `tools/mtf-vision-cache/png/body/femalehands_1.png` — vanilla CBBE hands diffuse |
 
 **Known limitation:** the body diffuse used in the left pane only shows the
@@ -128,7 +127,7 @@ python tools/mtf_vision_render_by_id.py
 python tools/mtf_vision_render_by_id.py mtf.lewdmarks-slavetats mtf.lewdmarks-racemenu
 
 # 4. Copy the freshly rendered combined PNGs into docs/visual-refs/.
-for pack in mtf.lewdmarks-slavetats mtf.lewdmarks-racemenu mtf.obi-tattoos mtf.rx-overlays mtf.bardle-nail-polish; do
+for pack in mtf.lewdmarks-slavetats mtf.lewdmarks-racemenu mtf.rx-overlays mtf.bardle-nail-polish; do
   mkdir -p "F:/stuff/MagicTattoosFramework/docs/visual-refs/$pack"
   cp "F:/stuff/Skyrim modding/tools/mtf-vision-cache/render-by-id/$pack/combined/"*.png \
      "F:/stuff/MagicTattoosFramework/docs/visual-refs/$pack/"
@@ -145,10 +144,9 @@ fresh .dds, then re-execute the driver.
 |------|--------:|--------------:|
 | `mtf.lewdmarks-slavetats` | 96 | 96 |
 | `mtf.lewdmarks-racemenu`  | 96 | 96 (mirror of slavetats — same source textures) |
-| `mtf.obi-tattoos`         | 18 | 18 |
 | `mtf.rx-overlays`         | 42 | 42 |
 | `mtf.bardle-nail-polish`  | 16 | 16 |
-| **Total** | **268** | **268** |
+| **Total** | **250** | **250** |
 
 ## Why this matters
 

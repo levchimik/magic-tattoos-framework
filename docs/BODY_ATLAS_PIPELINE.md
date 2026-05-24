@@ -4,7 +4,7 @@ A one-time calibration that maps every UV region of the CBBE/3BA body texture to
 its anatomical location. Once built, the lookup resolves any future tattoo's
 alpha-centroid into "left buttock", "right collarbone", "lower abdomen below
 navel", etc. — automatically and across all body-overlay content packs (RX,
-Obi, LewdMarks, and any future pack on the same body UV).
+LewdMarks, and any future pack on the same body UV).
 
 This document captures the data and tools so any future session (or anyone
 inheriting this project) can use the atlas without redoing the calibration.
@@ -192,7 +192,6 @@ cp tools/mtf-vision-cache/atlas/anatomy_atlas_5x5_sub.dds \
 
 ```bash
 python tools/mtf_atlas_diff_report.py mtf.rx-overlays   # 41 entries
-python tools/mtf_atlas_diff_report.py mtf.obi-tattoos   # 18 entries
 python tools/mtf_atlas_diff_report.py mtf.lewdmarks-slavetats  # 96 entries
 ```
 

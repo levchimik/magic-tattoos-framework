@@ -140,7 +140,6 @@ consumed.
 | Adapter | Source mod (user must install) | Area |
 |---|---|---|
 | **MTF Content — LewdMarks** | [LewdMarks][lewdmarks] (RaceMenu + SlaveTats variants) by SavageDomain | Body |
-| **MTF Content — Obi Tattoos** | [Obi's Tattoos 3BA 4K][obitats] by Obi | Body |
 | **MTF Content — RX Overlays** | [RX'Overlays][rxoverlays] (texture pack) | Body |
 | **MTF Content — Bardle Nail Polish** | [Bard's Nail Overlays][bardnails] by BinkBoink | Hands |
 | **MTF Content — Community Overlays 1 Face** | [Community Overlays 1][commover1] — Female Face Overlays | Face |
@@ -320,7 +319,6 @@ bidirectional bridge in v0.1.19. SkyrimNet LLM integration in v0.1.20.
 [skyrimnet]: https://github.com/MinLL/SkyrimNet-GamePlugin
 
 [lewdmarks]: https://www.nexusmods.com/skyrimspecialedition/mods/83786
-[obitats]: https://www.nexusmods.com/skyrimspecialedition/mods/105109
 [rxoverlays]: https://www.nexusmods.com/skyrimspecialedition/mods/166670
 [bardnails]: https://www.nexusmods.com/skyrimspecialedition/mods/126211
 [commover1]: https://www.nexusmods.com/skyrimspecialedition/mods/22487

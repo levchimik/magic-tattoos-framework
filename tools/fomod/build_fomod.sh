@@ -182,7 +182,6 @@ stage_content() {
 }
 
 stage_content "20_content_lewdmarks" "lewdmarks"
-stage_content "21_content_obi"       "obi-tattoos"
 stage_content "22_content_rx"        "rx-overlays"
 stage_content "23_content_bardle"    "bardle-nail-polish"
 stage_content "24_content_co1_face"  "community-overlays-1-face"

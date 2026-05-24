@@ -55,9 +55,9 @@ via FOMOD `dependencyType` patterns.
 
 Texture pack adapter auto-detection: adapters whose source mod ships an
 ESP get pre-recommended too — LewdMarks (`LewdMarks.esp` OR
-`LewdMarksSlaveTats.esp`), Obi (`ObiTattoos.esp`), RX (`RXOverlays.esp`).
-Bardle Nail Polish and Community Overlays 1 Face stay manual (their source
-mods are texture-only with no plugin file to detect).
+`LewdMarksSlaveTats.esp`), RX (`RXOverlays.esp`). Bardle Nail Polish and
+Community Overlays 1 Face stay manual (their source mods are texture-only
+with no plugin file to detect).
 
 ### Loose-file path detection probe
 

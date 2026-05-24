@@ -10,7 +10,7 @@ Skyrim SE/AE framework for dynamic, condition-driven tattoo overlays with gamepl
 This installer bundles:
   - Magic Tattoos Framework (core engine, MCM, MTFPulse SKSE DLL)
   - 5 integration plugins (Fertility Mode Reloaded, SexLab Aroused, SexLab, OStim, Beeing Female NG)
-  - 5 JSON catalogs for popular overlay packs (LewdMarks, Obi's Tattoos, RX Overlays, Bard's Nail Overlays, Community Overlays 1 Face)
+  - 4 JSON catalogs for popular overlay packs (LewdMarks, RX Overlays, Bard's Nail Overlays, Community Overlays 1 Face)
   - Optional: NPC overlays helper (skee64.ini bPlayerOnly=0), Test Pack (smoke-test presets)
 
 Integration plugins auto-detect their target master plugin — only those whose dependencies are installed will be selectable.

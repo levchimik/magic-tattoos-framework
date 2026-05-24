@@ -356,31 +356,6 @@ Area: Body.]]></description>
               </typeDescriptor>
             </plugin>
 
-            <plugin name="Obi's Tattoos catalog (Body)">
-              <description><![CDATA[JSON catalog for Obi's Tattoos for RaceMenu.
-
-REQUIRES: Obi's Tattoos for RaceMenu (ObiTattoos.esp) — install separately.
-Auto-recommended if ObiTattoos.esp is active.
-
-Area: Body.]]></description>
-              <files>
-                <folder source="21_content_obi" destination="" priority="0"/>
-              </files>
-              <typeDescriptor>
-                <dependencyType>
-                  <defaultType name="Optional"/>
-                  <patterns>
-                    <pattern>
-                      <dependencies>
-                        <fileDependency file="ObiTattoos.esp" state="Active"/>
-                      </dependencies>
-                      <type name="Recommended"/>
-                    </pattern>
-                  </patterns>
-                </dependencyType>
-              </typeDescriptor>
-            </plugin>
-
             <plugin name="RX Overlays catalog (Body)">
               <description><![CDATA[JSON catalog for RX Overlays (RXOverlays.esp).
 
