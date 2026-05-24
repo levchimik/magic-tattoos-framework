@@ -214,7 +214,7 @@ fi
 # -----------------------------------------------------------------------------
 # fomod/ — copy templates, substitute @MTF_VERSION@
 # -----------------------------------------------------------------------------
-sed "s/@MTF_VERSION@/$VERSION/g; s/@NEXUS_ID@/TBD/g" "$TEMPLATES/info.xml" > "$STAGE/fomod/info.xml"
+sed "s/@MTF_VERSION@/$VERSION/g" "$TEMPLATES/info.xml" > "$STAGE/fomod/info.xml"
 cp "$TEMPLATES/ModuleConfig.xml" "$STAGE/fomod/ModuleConfig.xml"
 
 # Optional images
