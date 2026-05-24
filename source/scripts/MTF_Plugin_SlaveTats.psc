@@ -71,9 +71,6 @@ bool Property _depsResolved = false Auto Hidden
 string Function GetPluginId()
     return "mtf.slavetats"
 EndFunction
-string Function GetPluginLabel()
-    return "SlaveTats Bridge"
-EndFunction
 
 ; ── Soft-dep resolution ─────────────────────────────────────────────────────
 MTF_MainQuest Function _host()
@@ -115,41 +112,6 @@ Function _tryRegister()
     endif
     host.RegisterPlugin(self)
     _registered = true
-EndFunction
-
-; ── Conditions: none ────────────────────────────────────────────────────────
-int Function GetConditionCount()
-    return 0
-EndFunction
-
-; ── Effects: one — slavetats.mirror ────────────────────────────────────────
-int Function GetEffectCount()
-    return 1
-EndFunction
-
-string Function GetEffectId(int idx)
-    if idx == 0
-        return "slavetats.mirror"
-    endif
-    return ""
-EndFunction
-
-string Function GetEffectLabel(int idx)
-    if idx == 0
-        return "Mirror to SlaveTats (slavetats packs only)"
-    endif
-    return ""
-EndFunction
-
-string Function GetEffectParamLabel(int idx)
-    return ""
-EndFunction
-
-string Function GetEffectDescription(int idx)
-    if idx == 0
-        return "Mirrors the slot's tattoo into SlaveTats's JFormDB so SlaveTats-aware mods (SLSF, etc.) can see and query the tattoo as if SlaveTats had painted it."
-    endif
-    return ""
 EndFunction
 
 ; ── Helpers ─────────────────────────────────────────────────────────────────

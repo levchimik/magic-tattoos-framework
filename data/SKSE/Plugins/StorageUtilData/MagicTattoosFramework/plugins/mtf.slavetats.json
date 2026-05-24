@@ -1,0 +1,13 @@
+{
+  "schemaversion": 1,
+  "pluginid": "mtf.slavetats",
+  "pluginlabel": "SlaveTats Bridge",
+  "conditions": [],
+  "effects": [
+    {
+      "id": "slavetats.mirror",
+      "label": "Mirror to SlaveTats (slavetats packs only)",
+      "description": "Mirrors the slot's tattoo into SlaveTats's JFormDB so SlaveTats-aware mods (SLSF, etc.) can see and query the tattoo as if SlaveTats had painted it."
+    }
+  ]
+}

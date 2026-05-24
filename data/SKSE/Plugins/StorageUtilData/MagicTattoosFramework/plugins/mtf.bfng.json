@@ -1,0 +1,69 @@
+{
+  "schemaversion": 1,
+  "pluginid": "mtf.bfng",
+  "pluginlabel": "Beeing Female NG",
+  "conditions": [
+    {
+      "id": "pregnancy",
+      "label": "Pregnancy",
+      "description": "Triggers when the actor is pregnant and at least {param1}% through her pregnancy.",
+      "param": {
+        "label": "Min belly stage (1-100)",
+        "min": 1,
+        "max": 100,
+        "default": 1
+      }
+    },
+    {
+      "id": "ovulation",
+      "label": "Ovulation",
+      "description": "Triggers while the actor is ovulating."
+    },
+    {
+      "id": "cycle.phase",
+      "label": "Cycle Phase",
+      "description": "Triggers when the actor is in the {param1} part of her cycle.",
+      "param": {
+        "label": "Phase",
+        "min": 0,
+        "max": 3,
+        "default": 1,
+        "menu": [
+          { "value": 0, "label": "Follicular" },
+          { "value": 1, "label": "Ovulating" },
+          { "value": 2, "label": "Luteal" },
+          { "value": 3, "label": "Menstruating" }
+        ]
+      }
+    },
+    {
+      "id": "baby.health",
+      "label": "Baby Health",
+      "description": "Triggers while the actor is pregnant and the baby is at least {param1}% healthy.",
+      "param": {
+        "label": "Min baby health (0-100)",
+        "min": 0,
+        "max": 100,
+        "default": 50
+      }
+    },
+    {
+      "id": "num.births",
+      "label": "Birth Count",
+      "description": "Triggers when the actor has given birth at least {param1} time(s) before.",
+      "param": {
+        "label": "Min births",
+        "min": 0,
+        "max": 20,
+        "default": 1
+      }
+    }
+  ],
+  "effects": [
+    {
+      "id": "trigger.ovulation",
+      "label": "[!] Trigger Ovulation",
+      "description": "Burst — forces the actor to start ovulating (does nothing if she is already pregnant)."
+    }
+  ]
+}

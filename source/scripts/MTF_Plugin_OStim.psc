@@ -2,6 +2,8 @@ Scriptname MTF_Plugin_OStim extends MTF_Plugin
 {Conditions and effects backed by OStim Standalone. Soft-master: lookup at
  runtime; if OStim isn't loaded the plugin skips registration entirely.
 
+ Metadata loaded from mtf.ostim.json by the base class.
+
  OStim exposes its actor API through the `OActor` global script — every
  method is `Global Native` so no instance acquisition is needed. We probe
  the OStim.esp file's `OStimFinishedFadeToBlack` GlobalVariable (FormID
@@ -13,39 +15,19 @@ Scriptname MTF_Plugin_OStim extends MTF_Plugin
    1  excitement         — OActor excitement >= param
    2  times.climaxed     — per-scene climax count >= param
    3  climax.stalled     — IsClimaxStalled flag matches (param 0/1)
-   4  has.schlong        — actor has a schlong equipped (HasSchlong)
-
- REMOVED in v0.1.24: "excitement.mult" condition. The underlying gauge
- (param × 0.01) maxed out at 100 → multiplier ≥ 1.0, which couldn't
- actually express "faster than normal" — only "at least N% of normal
- climb speed." Confusing semantics for end users. Old presets storing
- key "excitement.mult" will silently skip the condition slot (key
- lookup returns -1, no error); they'll behave as if dormant. Safe to
- re-author affected presets without touching MTF.
+   4  has.schlong        — HasSchlong
 
  Effects:
-   0  trigger.climax        — one-shot: Climax(target, ignoreStall)
-                               param2 = 0 honors stall, 1 bypasses stall
-   1  excitement.modify     — one-shot: ModifyExcitement(target, param)
-                               param2 = 0 ignores mult, 1 respects mult
-   2  excitement.set        — one-shot: SetExcitement(target, param)
-   3  climax.stall          — toggle: while active StallClimax, restore on deactivate
-   4  excitement.mult.set   — one-shot: SetExcitementMultiplier(target, param)
-                               Lets a slot tier accelerate excitement rise.
-                               Param is the multiplier × 1 (slider 1-10 maps
-                               directly; e.g. param=3 → 3.0× rise rate).}
+   0  trigger.climax        — Climax(target, ignoreStall). param2 = 1 bypass
+   1  excitement.modify     — ModifyExcitement(target, param). param2 = mult
+   2  excitement.set        — SetExcitement(target, param)
+   3  climax.stall          — toggle: StallClimax while active, PermitClimax on deactivate
+   4  excitement.mult.set   — SetExcitementMultiplier(target, param)}
 
 GlobalVariable Property OStimProbe Auto Hidden
 
-MTF_MainQuest Function _host()
-    return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
-EndFunction
-
 string Function GetPluginId()
     return "mtf.ostim"
-EndFunction
-string Function GetPluginLabel()
-    return "OStim Standalone"
 EndFunction
 
 bool Function _resolveDeps()
@@ -73,125 +55,7 @@ Function _tryRegister()
     _registered = true
 EndFunction
 
-; ── Conditions ────────────────────────────────────────────────────────────────
-
-int Function GetConditionCount()
-    return 5
-EndFunction
-
-string Function GetConditionId(int idx)
-    if idx == 0
-        return "in.scene"
-    elseif idx == 1
-        return "excitement"
-    elseif idx == 2
-        return "times.climaxed"
-    elseif idx == 3
-        return "climax.stalled"
-    elseif idx == 4
-        return "has.schlong"
-    endif
-    return ""
-EndFunction
-
-string Function GetConditionLabel(int idx)
-    if idx == 0
-        return "In Scene"
-    elseif idx == 1
-        return "Excitement"
-    elseif idx == 2
-        return "Times Climaxed"
-    elseif idx == 3
-        return "Climax Stalled"
-    elseif idx == 4
-        return "Has Schlong"
-    endif
-    return ""
-EndFunction
-
-string Function GetConditionParamLabel(int idx)
-    if idx == 0
-        return ""
-    elseif idx == 1
-        return "Min excitement"
-    elseif idx == 2
-        return "Min climax count"
-    elseif idx == 3
-        return "Stall state"
-    elseif idx == 4
-        return ""
-    endif
-    return ""
-EndFunction
-
-string Function GetConditionDescription(int idx)
-    if idx == 0
-        return "Triggers while the actor is engaged in an intimate scene."
-    elseif idx == 1
-        return "Triggers during an intimate scene when the actor is at least {param1}% aroused."
-    elseif idx == 2
-        return "Triggers when the actor has climaxed at least {param1} time(s) in the current scene."
-    elseif idx == 3
-        return "Triggers when the actor's climax is {param1}."
-    elseif idx == 4
-        return "Triggers when the actor has male genitals equipped."
-    endif
-    return ""
-EndFunction
-
-int Function GetConditionParamMin(int idx)
-    return 0
-EndFunction
-
-int Function GetConditionParamMax(int idx)
-    if idx == 1
-        return 100
-    elseif idx == 2
-        return 10
-    elseif idx == 3
-        return 1
-    endif
-    return 0
-EndFunction
-
-int Function GetConditionParamDefault(int idx)
-    if idx == 1
-        return 50
-    elseif idx == 2
-        return 1
-    elseif idx == 3
-        return 1
-    endif
-    return 0
-EndFunction
-
-; ── Climax stalled dropdown (cond idx 3) ────────────────────────────────────
-
-int Function GetConditionParamMenuOptionCount(int idx)
-    if idx == 3
-        return 2
-    endif
-    return 0
-EndFunction
-
-int Function GetConditionParamMenuOptionValue(int idx, int optionIdx)
-    if idx == 3
-        return optionIdx  ; 0 = Not stalled, 1 = Stalled
-    endif
-    return 0
-EndFunction
-
-string Function GetConditionParamMenuOptionLabel(int idx, int optionIdx)
-    if idx == 3
-        if optionIdx == 0
-            return "Not stalled"
-        elseif optionIdx == 1
-            return "Stalled"
-        endif
-    endif
-    return ""
-EndFunction
-
+; ── Behaviour ───────────────────────────────────────────────────────────────
 bool Function checkCondition(int idx, Actor target, int param)
     if target == None
         return false
@@ -222,130 +86,6 @@ bool Function checkCondition(int idx, Actor target, int param)
         return !stalled
     endif
     return false
-EndFunction
-
-; ── Effects ───────────────────────────────────────────────────────────────────
-
-int Function GetEffectCount()
-    return 5
-EndFunction
-
-string Function GetEffectId(int idx)
-    if idx == 0
-        return "trigger.climax"
-    elseif idx == 1
-        return "excitement.modify"
-    elseif idx == 2
-        return "excitement.set"
-    elseif idx == 3
-        return "climax.stall"
-    elseif idx == 4
-        return "excitement.mult.set"
-    endif
-    return ""
-EndFunction
-
-string Function GetEffectLabel(int idx)
-    if idx == 0
-        return "[!] Trigger Climax"
-    elseif idx == 1
-        return "[!] Modify Excitement"
-    elseif idx == 2
-        return "[!] Set Excitement"
-    elseif idx == 3
-        return "Stall Climax"
-    elseif idx == 4
-        return "[!] Set Excitement Multiplier"
-    endif
-    return ""
-EndFunction
-
-string Function GetEffectParamLabel(int idx)
-    if idx == 0
-        return ""
-    elseif idx == 1
-        return "Excitement delta"
-    elseif idx == 2
-        return "Target excitement"
-    elseif idx == 3
-        return ""
-    elseif idx == 4
-        return "Multiplier (×1.0)"
-    endif
-    return ""
-EndFunction
-
-string Function GetEffectDescription(int idx)
-    if idx == 0
-        return "Burst — forces the actor to climax immediately (can override any active hold)."
-    elseif idx == 1
-        return "Burst — adds {param1} to the actor's arousal (negative subtracts)."
-    elseif idx == 2
-        return "Burst — sets the actor's arousal to {param1}."
-    elseif idx == 3
-        return "Holds the actor back from climaxing while active; releases on deactivate."
-    elseif idx == 4
-        return "Sets the actor's arousal-climb speed to {param1}x normal while active (arousal builds {param1}x faster)."
-    endif
-    return ""
-EndFunction
-
-int Function GetEffectParamMin(int idx)
-    if idx == 1
-        return -100
-    endif
-    return 0
-EndFunction
-
-int Function GetEffectParamMax(int idx)
-    if idx == 1 || idx == 2
-        return 100
-    elseif idx == 4
-        return 10
-    endif
-    return 0
-EndFunction
-
-int Function GetEffectParamDefault(int idx)
-    if idx == 1
-        return 20
-    elseif idx == 2
-        return 80
-    elseif idx == 4
-        return 3
-    endif
-    return 0
-EndFunction
-
-; ── Param2 ──────────────────────────────────────────────────────────────────
-
-string Function GetEffectParam2Label(int idx)
-    if idx == 0
-        return "Bypass stall (0/1)"
-    elseif idx == 1
-        return "Respect multiplier (0/1)"
-    endif
-    return ""
-EndFunction
-
-int Function GetEffectParam2Min(int idx)
-    return 0
-EndFunction
-
-int Function GetEffectParam2Max(int idx)
-    if idx == 0 || idx == 1
-        return 1
-    endif
-    return 0
-EndFunction
-
-int Function GetEffectParam2Default(int idx)
-    if idx == 0
-        return 0
-    elseif idx == 1
-        return 1
-    endif
-    return 0
 EndFunction
 
 ; ── Dispatch ────────────────────────────────────────────────────────────────
