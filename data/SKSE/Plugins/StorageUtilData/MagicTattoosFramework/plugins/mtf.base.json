@@ -1,0 +1,1275 @@
+{
+  "schemaversion": 1,
+  "pluginid": "mtf.base",
+  "pluginlabel": "Base",
+  "conditions": [
+    {
+      "id": "magicka",
+      "label": "Above Magicka %",
+      "description": "Triggers when the actor's magicka is at or above {param1}%.",
+      "param": {
+        "label": "Health/Magicka/Stamina % threshold",
+        "default": 50
+      }
+    },
+    {
+      "id": "magicka.below",
+      "label": "Below Magicka %",
+      "description": "Triggers when the actor's magicka drops below {param1}%.",
+      "param": {
+        "label": "Health/Magicka/Stamina % threshold",
+        "default": 30
+      }
+    },
+    {
+      "id": "stamina",
+      "label": "Above Stamina %",
+      "description": "Triggers when the actor's stamina is at or above {param1}%.",
+      "param": {
+        "label": "Health/Magicka/Stamina % threshold",
+        "default": 50
+      }
+    },
+    {
+      "id": "stamina.below",
+      "label": "Below Stamina %",
+      "description": "Triggers when the actor's stamina drops below {param1}%.",
+      "param": {
+        "label": "Health/Magicka/Stamina % threshold",
+        "default": 30
+      }
+    },
+    {
+      "id": "combat.in",
+      "label": "In Combat",
+      "description": "Triggers while the actor is in combat (engaged in active fight)."
+    },
+    {
+      "id": "combat.alerted",
+      "label": "Enemies Alerted",
+      "description": "Triggers when hostile NPCs within {param1}m are alerted to the actor.",
+      "param": {
+        "label": "Scan radius (meters)",
+        "min": 1,
+        "default": 40
+      }
+    },
+    {
+      "id": "combat.hostile",
+      "label": "Hostile Nearby",
+      "description": "Triggers when at least one hostile NPC is within {param1}m.",
+      "param": {
+        "label": "Scan radius (meters)",
+        "min": 1,
+        "default": 25
+      }
+    },
+    {
+      "id": "combat.hit",
+      "label": "On Hit (Any)",
+      "description": "Triggers with a {param1}% chance per incoming hit (any type).",
+      "param": {
+        "label": "Chance % per hit",
+        "min": 1,
+        "default": 25
+      }
+    },
+    {
+      "id": "combat.hit.blunt",
+      "label": "On Hit (Blunt: mace/warhammer/fist)",
+      "description": "Triggers with a {param1}% chance per blunt-weapon hit (mace, warhammer, unarmed).",
+      "param": {
+        "label": "Chance % per hit",
+        "min": 1,
+        "default": 25
+      }
+    },
+    {
+      "id": "combat.hit.bladed",
+      "label": "On Hit (Bladed)",
+      "description": "Triggers with a {param1}% chance per bladed-weapon hit.",
+      "param": {
+        "label": "Chance % per hit",
+        "min": 1,
+        "default": 25
+      }
+    },
+    {
+      "id": "combat.hit.ranged",
+      "label": "On Hit (Ranged)",
+      "description": "Triggers with a {param1}% chance per ranged hit (arrow or bolt).",
+      "param": {
+        "label": "Chance % per hit",
+        "min": 1,
+        "default": 25
+      }
+    },
+    {
+      "id": "combat.hit.magic.fire",
+      "label": "On Hit (Fire)",
+      "description": "Triggers with a {param1}% chance per fire-school damage hit.",
+      "param": {
+        "label": "Chance % per hit",
+        "min": 1,
+        "default": 25
+      }
+    },
+    {
+      "id": "combat.hit.magic.frost",
+      "label": "On Hit (Frost)",
+      "description": "Triggers with a {param1}% chance per frost-school damage hit.",
+      "param": {
+        "label": "Chance % per hit",
+        "min": 1,
+        "default": 25
+      }
+    },
+    {
+      "id": "combat.hit.magic.shock",
+      "label": "On Hit (Shock)",
+      "description": "Triggers with a {param1}% chance per shock-school damage hit.",
+      "param": {
+        "label": "Chance % per hit",
+        "min": 1,
+        "default": 25
+      }
+    },
+    {
+      "id": "health",
+      "label": "Above Health %",
+      "description": "Triggers when the actor's health is at or above {param1}%.",
+      "param": {
+        "label": "Health/Magicka/Stamina % threshold",
+        "default": 50
+      }
+    },
+    {
+      "id": "health.below",
+      "label": "Below Health %",
+      "description": "Triggers when the actor's health drops below {param1}%.",
+      "param": {
+        "label": "Health/Magicka/Stamina % threshold",
+        "default": 30
+      }
+    },
+    {
+      "id": "location.indoors",
+      "label": "Indoors",
+      "description": "Triggers whenever the actor is inside any interior cell."
+    },
+    {
+      "id": "location.outdoors",
+      "label": "Outdoors",
+      "description": "Triggers whenever the actor is in an exterior worldspace."
+    },
+    {
+      "id": "location.playerHome",
+      "label": "In Player Home",
+      "description": "Triggers when the actor is inside a location flagged as the player's home."
+    },
+    {
+      "id": "location.dungeon",
+      "label": "In Dungeon",
+      "description": "Triggers when the actor is inside a dungeon-type location."
+    },
+    {
+      "id": "location.city",
+      "label": "In City",
+      "description": "Triggers when the actor is inside a city worldspace (Whiterun, Solitude, etc.)."
+    },
+    {
+      "id": "location.town",
+      "label": "In Town",
+      "description": "Triggers when the actor is inside a town-type location."
+    },
+    {
+      "id": "location.inn",
+      "label": "In Inn",
+      "description": "Triggers when the actor is inside an inn or tavern."
+    },
+    {
+      "id": "location.jail",
+      "label": "In Jail",
+      "description": "Triggers when the actor is held in a jail cell."
+    },
+    {
+      "id": "weather.pleasant",
+      "label": "Weather: Clear / Sunny",
+      "description": "Triggers when the current weather is clear or sunny."
+    },
+    {
+      "id": "weather.cloudy",
+      "label": "Weather: Cloudy",
+      "description": "Triggers when the current weather is cloudy."
+    },
+    {
+      "id": "weather.rainy",
+      "label": "Weather: Rainy",
+      "description": "Triggers when the current weather is rainy."
+    },
+    {
+      "id": "weather.snowy",
+      "label": "Weather: Snowy",
+      "description": "Triggers when the current weather is snowy."
+    },
+    {
+      "id": "state.sprinting",
+      "label": "Sprinting",
+      "description": "Triggers while the actor is sprinting."
+    },
+    {
+      "id": "state.running",
+      "label": "Running",
+      "description": "Triggers while the actor is running (not walking, not sprinting)."
+    },
+    {
+      "id": "state.weaponDrawn",
+      "label": "Weapon Drawn",
+      "description": "Triggers while the actor has a weapon or spell drawn."
+    },
+    {
+      "id": "state.loversEmbrace",
+      "label": "Lover's Embrace",
+      "description": "Triggers while the actor has the Lover's Embrace rested bonus active."
+    },
+    {
+      "id": "state.sneaking",
+      "label": "Sneaking",
+      "description": "Triggers while the actor is sneaking."
+    },
+    {
+      "id": "state.swimming",
+      "label": "Swimming",
+      "description": "Triggers while the actor is swimming."
+    },
+    {
+      "id": "state.mounted",
+      "label": "Mounted",
+      "description": "Triggers while the actor is mounted on a horse or other steed."
+    },
+    {
+      "id": "state.bleedingOut",
+      "label": "Bleeding Out",
+      "description": "Triggers while the actor is downed and bleeding out."
+    },
+    {
+      "id": "time.range",
+      "label": "Time of Day Range",
+      "description": "Triggers between in-game hours {param1} and {param2} (wraps midnight if end is earlier than start).",
+      "param": {
+        "label": "From (hour)",
+        "max": 24,
+        "default": 6
+      },
+      "param2": {
+        "label": "Till (hour, wrap if < From)",
+        "max": 24,
+        "default": 20
+      }
+    },
+    {
+      "id": "faction.playerFollower",
+      "label": "Is Player's Follower",
+      "description": "Triggers when the actor is one of the player's current followers."
+    },
+    {
+      "id": "magiceffect.kw.fire",
+      "label": "Burning (fire MGEF)",
+      "description": "Triggers while a fire-keyword magic effect is active on the actor (burning)."
+    },
+    {
+      "id": "magiceffect.kw.frost",
+      "label": "Frozen (frost MGEF)",
+      "description": "Triggers while a frost-keyword magic effect is active on the actor (frozen)."
+    },
+    {
+      "id": "magiceffect.kw.shock",
+      "label": "Shocked (shock MGEF)",
+      "description": "Triggers while a shock-keyword magic effect is active on the actor (shocked)."
+    },
+    {
+      "id": "magiceffect.kw.invisibility",
+      "label": "Invisible",
+      "description": "Triggers while the actor is invisible."
+    },
+    {
+      "id": "followers.any",
+      "label": "Has Active Follower",
+      "description": "Triggers when at least one follower NPC is within {param1}m.",
+      "param": {
+        "label": "Scan radius (meters)",
+        "min": 1,
+        "default": 80
+      }
+    },
+    {
+      "id": "gold.aboveThousand",
+      "label": "Gold >= N x 1000",
+      "description": "Triggers when the actor's gold is at or above {param1},000.",
+      "param": {
+        "label": "Gold threshold (x 1000)",
+        "max": 1000,
+        "default": 5
+      }
+    },
+    {
+      "id": "worn.heavyArmor",
+      "label": "Wearing Heavy Armor",
+      "description": "Triggers when the actor is wearing a heavy-armor cuirass."
+    },
+    {
+      "id": "worn.lightArmor",
+      "label": "Wearing Light Armor",
+      "description": "Triggers when the actor is wearing a light-armor cuirass."
+    },
+    {
+      "id": "combat.casting",
+      "label": "While Casting Spell",
+      "description": "Triggers while the actor is charging or holding a spell mid-cast."
+    }
+  ],
+  "effects": [
+    {
+      "id": "modify.magickaRegen",
+      "label": "Modify Magicka Regen",
+      "description": "Shifts the actor's magicka regeneration rate by {param1}%.",
+      "param": {
+        "label": "Magicka regen rate shift (mult points; + faster, - slower)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.carryWeight",
+      "label": "Modify Carry Weight",
+      "description": "Shifts the actor's carry-weight cap by {param1}.",
+      "param": {
+        "label": "Carry weight shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.sneak",
+      "label": "Modify Sneak",
+      "description": "Shifts the actor's Sneak skill by {param1}.",
+      "param": {
+        "label": "Sneak skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "damage.magicka",
+      "label": "[!] Damage Magicka",
+      "description": "Burst — damages or restores {param1}% of the actor's base magicka when the tier activates.",
+      "param": {
+        "label": "Burst % of base Magicka (+ restore, - damage)",
+        "min": -100,
+        "max": 100,
+        "default": 0
+      }
+    },
+    {
+      "id": "damage.stamina",
+      "label": "[!] Damage Stamina",
+      "description": "Burst — damages or restores {param1}% of the actor's base stamina when the tier activates.",
+      "param": {
+        "label": "Burst % of base Stamina (+ restore, - damage)",
+        "min": -100,
+        "max": 100,
+        "default": 0
+      }
+    },
+    {
+      "id": "modify.movementSpeed",
+      "label": "Modify Movement Speed",
+      "description": "Shifts the actor's movement-speed multiplier by {param1}%.",
+      "param": {
+        "label": "Movement speed shift (mult points; + faster, - slower)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.staminaRegen",
+      "label": "Modify Stamina Regen",
+      "description": "Shifts the actor's stamina regeneration rate by {param1}%.",
+      "param": {
+        "label": "Stamina regen rate shift (mult points; + faster, - slower)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.attackDamage",
+      "label": "Modify Attack Damage",
+      "description": "Shifts the actor's outgoing attack damage by {param1}%.",
+      "param": {
+        "label": "Attack damage shift (% points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "burst.stagger",
+      "label": "[!] Stagger",
+      "description": "Burst — staggers the actor when the tier activates.",
+      "param": {
+        "min": 0,
+        "max": 0,
+        "default": 0
+      }
+    },
+    {
+      "id": "burst.blowCover",
+      "label": "[!] Blow Cover",
+      "description": "Burst — alerts every hostile NPC within {param1}ft to the actor's presence (blows stealth).",
+      "param": {
+        "label": "Alert radius (feet)",
+        "min": 5,
+        "max": 300,
+        "default": 80,
+        "step": 5
+      }
+    },
+    {
+      "id": "scale.magickaCost",
+      "label": "Scale Magicka Cost",
+      "description": "Spells cost {param1}% of their original across all schools.",
+      "param": {
+        "label": "Spell cost (% of original)",
+        "min": 0,
+        "max": 400,
+        "default": 100,
+        "step": 5
+      }
+    },
+    {
+      "id": "modify.healthRegen",
+      "label": "Modify Health Regen",
+      "description": "Shifts the actor's health regeneration rate by {param1}%.",
+      "param": {
+        "label": "Health regen rate shift (mult points; + faster, - slower)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.maxMagicka",
+      "label": "Modify Max Magicka",
+      "description": "Shifts the actor's maximum magicka by {param1}.",
+      "param": {
+        "label": "Max magicka shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.maxStamina",
+      "label": "Modify Max Stamina",
+      "description": "Shifts the actor's maximum stamina by {param1}.",
+      "param": {
+        "label": "Max stamina shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.weaponSpeed",
+      "label": "Modify Weapon Speed",
+      "description": "Shifts the actor's weapon-swing speed by {param1}%.",
+      "param": {
+        "label": "Weapon speed shift (% points; + faster, - slower)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.unarmedDamage",
+      "label": "Modify Unarmed Damage",
+      "description": "Shifts the actor's unarmed melee damage by {param1}.",
+      "param": {
+        "label": "Unarmed damage shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.criticalChance",
+      "label": "Modify Critical Chance",
+      "description": "Shifts the actor's critical-strike chance by {param1}%.",
+      "param": {
+        "label": "Critical chance shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.bowSpeed",
+      "label": "Modify Bow Speed",
+      "description": "Shifts the actor's bow draw and release speed by {param1}.",
+      "param": {
+        "label": "Bow speed bonus shift (units; + faster draw, - slower)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.resistFire",
+      "label": "Modify Fire Resist",
+      "description": "Shifts the actor's fire resistance by {param1}%.",
+      "param": {
+        "label": "Fire resist shift (points; + resist, - weakness)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.resistFrost",
+      "label": "Modify Frost Resist",
+      "description": "Shifts the actor's frost resistance by {param1}%.",
+      "param": {
+        "label": "Frost resist shift (points; + resist, - weakness)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.resistShock",
+      "label": "Modify Shock Resist",
+      "description": "Shifts the actor's shock resistance by {param1}%.",
+      "param": {
+        "label": "Shock resist shift (points; + resist, - weakness)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.resistMagic",
+      "label": "Modify Magic Resist",
+      "description": "Shifts the actor's magic resistance by {param1}%.",
+      "param": {
+        "label": "Magic resist shift (points; + resist, - weakness)",
+        "min": -100
+      }
+    },
+    {
+      "id": "toggle.muffle",
+      "label": "[+] Muffle",
+      "description": "Toggles silenced footsteps on the actor while active.",
+      "param": {
+        "min": 0,
+        "max": 0,
+        "default": 0
+      }
+    },
+    {
+      "id": "toggle.waterbreathing",
+      "label": "[+] Waterbreathing",
+      "description": "Toggles waterbreathing on the actor while active.",
+      "param": {
+        "min": 0,
+        "max": 0,
+        "default": 0
+      }
+    },
+    {
+      "id": "toggle.waterWalking",
+      "label": "[+] Water Walking",
+      "description": "Toggles water-walking on the actor while active.",
+      "param": {
+        "min": 0,
+        "max": 0,
+        "default": 0
+      }
+    },
+    {
+      "id": "damage.health",
+      "label": "[!] Damage Health",
+      "description": "Burst — damages or restores {param1}% of the actor's base health when the tier activates.",
+      "param": {
+        "label": "Burst % of base Health (+ restore, - damage)",
+        "min": -100,
+        "max": 100,
+        "default": 0
+      }
+    },
+    {
+      "id": "burst.bounty",
+      "label": "[!] Add Bounty",
+      "description": "Burst — adjusts the actor's bounty in their current hold by {param1} gold (positive adds, negative pays off).",
+      "param": {
+        "label": "Bounty change (gold; + add, - remove)",
+        "min": -10000,
+        "max": 10000,
+        "default": 0,
+        "step": 50
+      }
+    },
+    {
+      "id": "spell.modifyArmor",
+      "label": "[+] Modify Armor",
+      "description": "Toggles a flat armor-rating bonus of {param1} while active.",
+      "param": {
+        "label": "Armor rating points",
+        "min": 0,
+        "max": 500,
+        "default": 100,
+        "step": 10
+      }
+    },
+    {
+      "id": "spell.detectLife",
+      "label": "[+] Detect Life",
+      "description": "Toggles a Detect Life aura that highlights living NPCs within {param1}ft while active.",
+      "param": {
+        "label": "Detect radius (feet)",
+        "min": 5,
+        "max": 500,
+        "default": 100,
+        "step": 10
+      }
+    },
+    {
+      "id": "spell.slowTime",
+      "label": "[+] Slow Time",
+      "description": "Toggles a slow-time effect that drags everything around the actor to {param1}% of normal speed while active.",
+      "param": {
+        "label": "Time speed % (lower = slower; 100 = normal)",
+        "min": 5,
+        "max": 100,
+        "default": 50,
+        "step": 5
+      }
+    },
+    {
+      "id": "spell.flameCloak",
+      "label": "[+] Flame Cloak",
+      "description": "Toggles a flame cloak that burns enemies within {param2}ft for {param1} damage/s while active.",
+      "param": {
+        "label": "Damage per second",
+        "min": 1,
+        "max": 200,
+        "default": 8
+      },
+      "param2": {
+        "label": "Radius (feet)",
+        "min": 3,
+        "max": 500,
+        "default": 5
+      }
+    },
+    {
+      "id": "spell.frostCloak",
+      "label": "[+] Frost Cloak",
+      "description": "Toggles a frost cloak that chills enemies within {param2}ft for {param1} damage/s while active.",
+      "param": {
+        "label": "Damage per second",
+        "min": 1,
+        "max": 200,
+        "default": 8
+      },
+      "param2": {
+        "label": "Radius (feet)",
+        "min": 3,
+        "max": 500,
+        "default": 5
+      }
+    },
+    {
+      "id": "spell.lightningCloak",
+      "label": "[+] Lightning Cloak",
+      "description": "Toggles a lightning cloak that shocks enemies within {param2}ft for {param1} damage/s while active.",
+      "param": {
+        "label": "Damage per second",
+        "min": 1,
+        "max": 200,
+        "default": 8
+      },
+      "param2": {
+        "label": "Radius (feet)",
+        "min": 3,
+        "max": 500,
+        "default": 5
+      }
+    },
+    {
+      "id": "flash.onhit",
+      "label": "[+] Flash",
+      "description": "Flashes the tattoo's emissive layer to {param2}% brightness on the chosen trigger event ({param1}).",
+      "param": {
+        "label": "Trigger event",
+        "min": 0,
+        "max": 127,
+        "default": 1,
+        "menu": [
+          {
+            "value": 0,
+            "label": "Disabled"
+          },
+          {
+            "value": 2,
+            "label": "Blunt only"
+          },
+          {
+            "value": 4,
+            "label": "Bladed only"
+          },
+          {
+            "value": 8,
+            "label": "Ranged only"
+          },
+          {
+            "value": 16,
+            "label": "Fire only"
+          },
+          {
+            "value": 32,
+            "label": "Frost only"
+          },
+          {
+            "value": 64,
+            "label": "Shock only"
+          },
+          {
+            "value": 6,
+            "label": "Melee (Blunt + Bladed)"
+          },
+          {
+            "value": 14,
+            "label": "Physical (Blunt + Bladed + Ranged)"
+          },
+          {
+            "value": 112,
+            "label": "Magic (Fire + Frost + Shock)"
+          },
+          {
+            "value": 126,
+            "label": "All combat classes"
+          },
+          {
+            "value": 128,
+            "label": "On spell cast"
+          }
+        ]
+      },
+      "param2": {
+        "label": "Peak emissive (additive, % of 1.0)",
+        "min": 0,
+        "max": 1000,
+        "default": 300,
+        "step": 10
+      },
+      "extras": [
+        {
+          "name": "rampms",
+          "label": "Ramp up (ms)",
+          "min": 1,
+          "max": 2000,
+          "default": 150,
+          "step": 10
+        },
+        {
+          "name": "decayms",
+          "label": "Decay (ms)",
+          "min": 1,
+          "max": 5000,
+          "default": 500,
+          "step": 10
+        },
+        {
+          "name": "retrigms",
+          "label": "Sustain window (ms)",
+          "min": 0,
+          "max": 2000,
+          "default": 800,
+          "step": 10
+        }
+      ]
+    },
+    {
+      "id": "modify.resistDisease",
+      "label": "Modify Disease Resist",
+      "description": "Shifts the actor's disease resistance by {param1}%.",
+      "param": {
+        "label": "Disease resist shift (points; + resist, - weakness)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.resistPoison",
+      "label": "Modify Poison Resist",
+      "description": "Shifts the actor's poison resistance by {param1}%.",
+      "param": {
+        "label": "Poison resist shift (points; + resist, - weakness)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.absorbChance",
+      "label": "Modify Spell Absorb",
+      "description": "Shifts the actor's chance to absorb incoming spells by {param1}%.",
+      "param": {
+        "label": "Spell absorb chance shift (points; + absorb, - vulnerable)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.reflectDamage",
+      "label": "Modify Reflect Damage",
+      "description": "Shifts the actor's chance to reflect incoming melee damage by {param1}%.",
+      "param": {
+        "label": "Reflect damage chance shift (points; + reflect, - vulnerable)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.oneHanded",
+      "label": "Modify One-Handed",
+      "description": "Shifts the actor's One-Handed weapon skill by {param1}.",
+      "param": {
+        "label": "One-Handed skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.twoHanded",
+      "label": "Modify Two-Handed",
+      "description": "Shifts the actor's Two-Handed weapon skill by {param1}.",
+      "param": {
+        "label": "Two-Handed skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.archery",
+      "label": "Modify Archery",
+      "description": "Shifts the actor's Archery (Marksman) skill by {param1}.",
+      "param": {
+        "label": "Archery skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.block",
+      "label": "Modify Block",
+      "description": "Shifts the actor's Block skill by {param1}.",
+      "param": {
+        "label": "Block skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.heavyArmor",
+      "label": "Modify Heavy Armor",
+      "description": "Shifts the actor's Heavy Armor skill by {param1}.",
+      "param": {
+        "label": "Heavy Armor skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.lightArmor",
+      "label": "Modify Light Armor",
+      "description": "Shifts the actor's Light Armor skill by {param1}.",
+      "param": {
+        "label": "Light Armor skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.smithing",
+      "label": "Modify Smithing",
+      "description": "Shifts the actor's Smithing skill by {param1}.",
+      "param": {
+        "label": "Smithing skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.enchanting",
+      "label": "Modify Enchanting",
+      "description": "Shifts the actor's Enchanting skill by {param1}.",
+      "param": {
+        "label": "Enchanting skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.alchemy",
+      "label": "Modify Alchemy",
+      "description": "Shifts the actor's Alchemy skill by {param1}.",
+      "param": {
+        "label": "Alchemy skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.destruction",
+      "label": "Modify Destruction",
+      "description": "Shifts the actor's Destruction magic skill by {param1}.",
+      "param": {
+        "label": "Destruction skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.restoration",
+      "label": "Modify Restoration",
+      "description": "Shifts the actor's Restoration magic skill by {param1}.",
+      "param": {
+        "label": "Restoration skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.alteration",
+      "label": "Modify Alteration",
+      "description": "Shifts the actor's Alteration magic skill by {param1}.",
+      "param": {
+        "label": "Alteration skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.illusion",
+      "label": "Modify Illusion",
+      "description": "Shifts the actor's Illusion magic skill by {param1}.",
+      "param": {
+        "label": "Illusion skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.conjuration",
+      "label": "Modify Conjuration",
+      "description": "Shifts the actor's Conjuration magic skill by {param1}.",
+      "param": {
+        "label": "Conjuration skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.speech",
+      "label": "Modify Speech",
+      "description": "Shifts the actor's Speech (persuasion / barter) skill by {param1}.",
+      "param": {
+        "label": "Speech skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.lockpicking",
+      "label": "Modify Lockpicking",
+      "description": "Shifts the actor's Lockpicking skill by {param1}.",
+      "param": {
+        "label": "Lockpicking skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "modify.pickpocket",
+      "label": "Modify Pickpocket",
+      "description": "Shifts the actor's Pickpocket skill by {param1}.",
+      "param": {
+        "label": "Pickpocket skill shift (points; + buff, - drain)",
+        "min": -100
+      }
+    },
+    {
+      "id": "shader.play",
+      "label": "[+] Vanilla Shader",
+      "description": "Plays the {param1} effect shader on the actor while active (duration {param2}s; 0 = until removed).",
+      "param": {
+        "label": "Shader",
+        "min": 0,
+        "max": 21,
+        "default": 0,
+        "menu": [
+          {
+            "value": 0,
+            "label": "Fire Cloak"
+          },
+          {
+            "value": 1,
+            "label": "Fire Burst"
+          },
+          {
+            "value": 2,
+            "label": "Frost"
+          },
+          {
+            "value": 3,
+            "label": "Frost Chillrend"
+          },
+          {
+            "value": 4,
+            "label": "Shock"
+          },
+          {
+            "value": 5,
+            "label": "Shock Storm"
+          },
+          {
+            "value": 6,
+            "label": "Stoneflesh"
+          },
+          {
+            "value": 7,
+            "label": "Ebonyflesh"
+          },
+          {
+            "value": 8,
+            "label": "Dragonhide"
+          },
+          {
+            "value": 9,
+            "label": "Soul Trap"
+          },
+          {
+            "value": 10,
+            "label": "Ghost (Ethereal)"
+          },
+          {
+            "value": 11,
+            "label": "Ghost Red"
+          },
+          {
+            "value": 12,
+            "label": "Invisibility"
+          },
+          {
+            "value": 13,
+            "label": "Muffle"
+          },
+          {
+            "value": 14,
+            "label": "Ward Shield"
+          },
+          {
+            "value": 15,
+            "label": "Reanimate"
+          },
+          {
+            "value": 16,
+            "label": "Turn Undead Flames"
+          },
+          {
+            "value": 17,
+            "label": "Heal"
+          },
+          {
+            "value": 18,
+            "label": "Absorb Health"
+          },
+          {
+            "value": 19,
+            "label": "Vampire Change"
+          },
+          {
+            "value": 20,
+            "label": "Werewolf Transform"
+          },
+          {
+            "value": 21,
+            "label": "Detect Life"
+          }
+        ]
+      },
+      "param2": {
+        "label": "Duration (s, 0 = until removed)",
+        "min": 0,
+        "max": 60,
+        "default": 0
+      }
+    },
+    {
+      "id": "sound.play",
+      "label": "[+] Vanilla Sound",
+      "description": "Plays the {param1} looping sound on the actor while active (duration {param2}s; 0 = until removed).",
+      "param": {
+        "label": "Sound",
+        "min": 0,
+        "max": 33,
+        "default": 0,
+        "menu": [
+          {
+            "value": 0,
+            "label": "Fire — ready loop"
+          },
+          {
+            "value": 1,
+            "label": "Fire — secondary ready"
+          },
+          {
+            "value": 2,
+            "label": "Fire — body on fire"
+          },
+          {
+            "value": 3,
+            "label": "Fire — medium crackle"
+          },
+          {
+            "value": 4,
+            "label": "Frost — ready loop"
+          },
+          {
+            "value": 5,
+            "label": "Frost — concentration"
+          },
+          {
+            "value": 6,
+            "label": "Frost — wall hum"
+          },
+          {
+            "value": 7,
+            "label": "Shock — concentration"
+          },
+          {
+            "value": 8,
+            "label": "Shock — projectile arc"
+          },
+          {
+            "value": 9,
+            "label": "Shock — wall hum"
+          },
+          {
+            "value": 10,
+            "label": "Soul Trap — active hum"
+          },
+          {
+            "value": 11,
+            "label": "Ward — shimmer (stereo)"
+          },
+          {
+            "value": 12,
+            "label": "Ward — shimmer (mono)"
+          },
+          {
+            "value": 13,
+            "label": "Restoration — heal beam"
+          },
+          {
+            "value": 14,
+            "label": "Restoration — circle hum"
+          },
+          {
+            "value": 15,
+            "label": "Detect Life — pulse"
+          },
+          {
+            "value": 16,
+            "label": "Alteration — ready hum"
+          },
+          {
+            "value": 17,
+            "label": "Illusion — ready hum"
+          },
+          {
+            "value": 18,
+            "label": "UI — Level up"
+          },
+          {
+            "value": 19,
+            "label": "UI — Skill up"
+          },
+          {
+            "value": 20,
+            "label": "UI — New quest"
+          },
+          {
+            "value": 21,
+            "label": "UI — Quest update"
+          },
+          {
+            "value": 22,
+            "label": "UI — Quest complete"
+          },
+          {
+            "value": 23,
+            "label": "UI — Shout learned"
+          },
+          {
+            "value": 24,
+            "label": "UI — Shout pop (big)"
+          },
+          {
+            "value": 25,
+            "label": "UI — Perk select"
+          },
+          {
+            "value": 26,
+            "label": "UI — Journal open"
+          },
+          {
+            "value": 27,
+            "label": "Dragon — flight roar"
+          },
+          {
+            "value": 28,
+            "label": "Dragon — kill roar"
+          },
+          {
+            "value": 29,
+            "label": "Hagraven shriek"
+          },
+          {
+            "value": 30,
+            "label": "Conjure — portal open"
+          },
+          {
+            "value": 31,
+            "label": "Conjure — portal close"
+          },
+          {
+            "value": 32,
+            "label": "Conjure — bound weapon"
+          },
+          {
+            "value": 33,
+            "label": "Conjure — impact"
+          }
+        ]
+      },
+      "param2": {
+        "label": "Duration (s, 0 = until removed)",
+        "min": 0,
+        "max": 60,
+        "default": 0
+      },
+      "extras": [
+        {
+          "name": "volume",
+          "label": "Volume (%)",
+          "min": 0,
+          "max": 100,
+          "default": 100,
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "flash.oncast",
+      "label": "[deprecated] Flash on Cast — use Flash",
+      "description": "Flashes the tattoo's emissive layer to {param1}% brightness while the actor is casting a spell.",
+      "param": {
+        "label": "Peak emissive (additive, % of 1.0)",
+        "min": 0,
+        "max": 1000,
+        "default": 300,
+        "step": 10
+      },
+      "extras": [
+        {
+          "name": "rampms",
+          "label": "Ramp up (ms)",
+          "min": 1,
+          "max": 2000,
+          "default": 200,
+          "step": 10
+        },
+        {
+          "name": "decayms",
+          "label": "Decay (ms)",
+          "min": 1,
+          "max": 5000,
+          "default": 600,
+          "step": 10
+        },
+        {
+          "name": "retrigms",
+          "label": "Sustain window (ms)",
+          "min": 0,
+          "max": 2000,
+          "default": 250,
+          "step": 10
+        }
+      ]
+    }
+  ]
+}
