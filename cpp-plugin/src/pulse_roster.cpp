@@ -639,24 +639,46 @@ namespace MTFPulse {
                 // value, not a static ceiling.
                 e.last_interp_em_mult[L] = em_no_flash;
 
-                if (transitioning) {
-                    const float        alpha    = e.from_alpha[L] + (e.target_alpha[L] - e.from_alpha[L]) * eased;
-                    const std::int32_t tint     = LerpRgb(e.from_tint[L],     e.target_tint[L],     eased);
-                    const std::int32_t emissive = LerpRgb(e.from_emissive[L], e.target_emissive[L], eased);
-                    skee_bridge::WriteAlpha(actor, e.is_female, node, alpha);
-                    skee_bridge::WriteTint(actor, e.is_female, node, tint);
-                    skee_bridge::WriteEmissiveColor(actor, e.is_female, node, emissive);
-                    e.last_interp_alpha[L]    = alpha;
-                    e.last_interp_tint[L]     = tint;
-                    e.last_interp_emissive[L] = emissive;
-                } else {
-                    // Steady state — last_interp tracks target so a future
-                    // transition snapshots the right "from" without
-                    // needing a frame of catch-up.
-                    e.last_interp_alpha[L]    = e.target_alpha[L];
-                    e.last_interp_tint[L]     = e.target_tint[L];
-                    e.last_interp_emissive[L] = e.target_emissive[L];
-                }
+                // v0.1.28 V4: glossiness / specular derived from current
+                // em_no_flash (binary: emissive lit → gloss=5,spec=1; matte
+                // → 0/0). Writing every frame here means they stay in sync
+                // with em through the whole lerp window; the flip happens
+                // only when em actually crosses 0 (end of an em>0 → em=0
+                // fade). Replaces Papyrus _applyOverlayDeferred's
+                // store-toggle which fired at tier-change moment regardless
+                // of where em was in its lerp, causing a "high emissive +
+                // zero glossiness" combo that rendered black for the entire
+                // transition window on em>0 → em=0 transitions.
+                const float gloss = (em_no_flash > 0.001f) ? 5.0f : 0.0f;
+                const float spec  = (em_no_flash > 0.001f) ? 1.0f : 0.0f;
+                skee_bridge::WriteGlossiness(actor, e.is_female, node, gloss);
+                skee_bridge::WriteSpecular(actor, e.is_female, node, spec);
+
+                // v0.1.28 V4: write alpha/tint/em-color every frame in BOTH
+                // branches. Previously steady-state only updated last_interp
+                // internally, on the assumption that _applyOverlayDeferred
+                // would keep the live shader's alpha/tint/em-color in sync
+                // via the override store. V4 stopped writing those four
+                // properties to the store (to eliminate the 1-frame target
+                // flash on tier change), so Tick is now the sole authority.
+                // ApplyNodeOverrides may still push stale store entries
+                // from older code or sibling slots; Tick's write here
+                // overrides them every frame.
+                const float        alpha    = transitioning
+                    ? (e.from_alpha[L] + (e.target_alpha[L] - e.from_alpha[L]) * eased)
+                    : e.target_alpha[L];
+                const std::int32_t tint     = transitioning
+                    ? LerpRgb(e.from_tint[L],     e.target_tint[L],     eased)
+                    : e.target_tint[L];
+                const std::int32_t emissive = transitioning
+                    ? LerpRgb(e.from_emissive[L], e.target_emissive[L], eased)
+                    : e.target_emissive[L];
+                skee_bridge::WriteAlpha(actor, e.is_female, node, alpha);
+                skee_bridge::WriteTint(actor, e.is_female, node, tint);
+                skee_bridge::WriteEmissiveColor(actor, e.is_female, node, emissive);
+                e.last_interp_alpha[L]    = alpha;
+                e.last_interp_tint[L]     = tint;
+                e.last_interp_emissive[L] = emissive;
             }
             e.has_last_interp = true;
         }

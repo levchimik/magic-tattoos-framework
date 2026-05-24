@@ -45,4 +45,16 @@ namespace MTFPulse::skee_bridge {
     // first frames of the lerp).
     bool WriteEmissiveColor(RE::Actor* actor, bool isFemale, const char* nodeName, std::int32_t rgb);
 
+    // Glossiness (kParam_ShaderGlossiness) and specular strength
+    // (kParam_ShaderSpecularStrength). MTF previously toggled these from
+    // Papyrus via _applyOverlayDeferred: gloss=5/spec=1 for emissive tiers,
+    // gloss=0/spec=0 for matte tiers. With V4 cross-fade, that store-based
+    // toggle fired INSTANTLY on tier change while C++ Tick was still
+    // lerping em_mult from high → 0, leaving the shader in a "high
+    // emissive + zero glossiness" combo that rendered black for the whole
+    // transition window. Tick now derives both from the current frame's
+    // em_no_flash, so they stay synced with em throughout the lerp.
+    bool WriteGlossiness(RE::Actor* actor, bool isFemale, const char* nodeName, float gloss);
+    bool WriteSpecular(RE::Actor* actor, bool isFemale, const char* nodeName, float spec);
+
 }  // namespace MTFPulse::skee_bridge

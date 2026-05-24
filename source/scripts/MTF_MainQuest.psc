@@ -109,6 +109,11 @@ int[]    _sCooldownMode
 ; disables cross-fade (instant snap). Per-tier override is a v0.1.2+
 ; candidate; v0.1.1 ships per-preset only.
 float    _sTransitionDuration = 0.0
+; v0.1.28 V4 cross-fade: absolute real-time at which the current cross-fade
+; ends. `_applyPulse` passes (end - now) as tDur to SetActorPulseWithTransition
+; on every 10 Hz refresh so the lerp lands at the original target time even
+; though each install resets C++ transition_start. 0 = no transition in flight.
+float    _transitionEndRT = 0.0
 string   _scratchLoadedFor = ""
 
 ; ── NPC pulse roster (v0.0.33) ───────────────────────────────────────────────
@@ -1461,15 +1466,18 @@ bool Function _slotHasFlashEffect(int slot)
 EndFunction
 
 Function _resyncPulseCache(int tier)
-{Snapshot per-tier overlay context for the fast pulse tick. Triggers a
- roster entry when the tier has pulse, a flash.onhit effect, OR the
- preset-wide fade-on-death toggle is on. Fade params themselves live in
- _sFadeOnDeath... and are read directly at the arming sites.}
+{Snapshot per-tier overlay context for the fast pulse tick.
+
+ v0.1.28 V4 cross-fade: a roster entry is now installed for ANY tier with
+ valid layers, not just tiers with pulse/flash/fade. This lets C++ Tick own
+ em/alpha/tint/em-color writes uniformly and drive cross-fades for "purely
+ visual" tier changes (different color/alpha/em between tiers, no animation
+ lane). Tick handles rate=0 correctly — pulsed=1, em_no_flash=layer_base_em.
+ The (tiny) cost of always running Tick for an MCM-base actor is one entry
+ worth of skee_bridge writes per frame; trivial compared to the eval/draw
+ cost it replaces.}
     _pulseTier = -1
     if tier < 0 || tier >= 8 || PlayerRef == None
-        return
-    endif
-    if !_slotHasPulse(tier) && !_slotHasFlashEffect(tier) && !_sFadeOnDeathEnabled
         return
     endif
     string packId  = ResolveSlotPackId(tier)
@@ -1497,7 +1505,7 @@ Function _resyncPulseCache(int tier)
     endif
 EndFunction
 
-Function _applyPulse()
+Function _applyPulse(float forcedTDur = -1.0)
 {Hot path. Forwards the player's pulse parameters into the MTFPulse C++
  roster. C++ does the per-frame wave math + NiOverride writes at full
  frame rate via the PlayerCharacter::Update vtable hook in MTFPulse.dll.
@@ -1506,11 +1514,20 @@ Function _applyPulse()
  slider edits to rate / depth / pause / per-layer emissive multiplier
  propagate to the roster within 100 ms.
 
- Flash-only tiers (no pulse, just a bound flash.onhit effect) also pass
- through here: _resyncPulseCache registers them with rate=0 / depth=0 so
- a roster entry exists for the flash.onhit effect's onActivate to write
- SetActorFlash into. C++ Tick treats wave=0 → pulsed=1 → ceiling passes
- through; flash_add adds on top.
+ v0.1.28 V4 cross-fade: now always uses SetActorPulseWithTransition (the
+ plain SetActorPulse entry point is no longer called from here). On
+ tier-change the caller passes forcedTDur=_sTransitionDuration; subsequent
+ 10 Hz refreshes pass forcedTDur=-1 and we compute remaining time as
+ max(0, _transitionEndRT - now). Each install captures from-state from
+ prev.last_interp, so the slope stays constant across refreshes and the
+ lerp lands at the original target time. Once _transitionEndRT has passed
+ we pass tDur=0 → C++ runs as a steady ceiling write.
+
+ We also pack per-layer tints/alphas/emissives now (previously only
+ emMults) so Tick can cross-fade ALL four interpolatable shader
+ properties — em mult, alpha, tint, emissive color — for the MCM-base
+ path. Texture binding and falloff are not interpolated; texture inherits
+ from Default on shared-pack tier changes, falloff snap is imperceptible.
 
  v0.1.4 dead-actor gate: once the player actually dies, the C++ fade
  lane plays out and self-evicts via Tick's deferred-removal. Without
@@ -1543,25 +1560,48 @@ Function _applyPulse()
     float rate   = GetCondPulseRate(_pulseTier)
     float pause  = GetCondPulsePause(_pulseTier)
 
-    ; Snapshot live per-layer emissive ceilings (length == _pulseLayerN).
-    ; MCM slider changes to condLayerEmissiveMult[] become visible on the
-    ; next call to SetActorPulse — i.e. within this 10 Hz window.
-    Float[] emMults = Utility.CreateFloatArray(_pulseLayerN)
+    ; Per-layer target arrays. MCM slider edits to any of these become
+    ; visible on the next 10 Hz refresh.
+    Float[] emMults   = Utility.CreateFloatArray(_pulseLayerN)
+    Int[]   tints     = Utility.CreateIntArray(_pulseLayerN)
+    Int[]   alphas    = Utility.CreateIntArray(_pulseLayerN)
+    Int[]   emissives = Utility.CreateIntArray(_pulseLayerN)
     int i = 0
     while i < _pulseLayerN
         int lidx = _pulseTier * 4 + i
-        emMults[i] = condLayerEmissiveMult[lidx]
+        emMults[i]   = condLayerEmissiveMult[lidx]
+        tints[i]     = condLayerTint[lidx]
+        alphas[i]    = condLayerAlpha[lidx]
+        emissives[i] = condLayerEmissive[lidx]
         i += 1
     endwhile
+
+    ; Remaining-time pattern. The redraw block primes forcedTDur on the
+    ; tier-change edge; every other path leaves it -1 so we compute
+    ; remaining = max(0, _transitionEndRT - now). After the window closes
+    ; tDur=0 turns subsequent installs into snap-equivalents (still go
+    ; through SetActorPulseWithTransition but with no lerp).
+    float tDur
+    if forcedTDur >= 0.0
+        tDur = forcedTDur
+    else
+        float nowRT = Utility.GetCurrentRealTime()
+        if nowRT < _transitionEndRT
+            tDur = _transitionEndRT - nowRT
+        else
+            tDur = 0.0
+        endif
+    endif
 
     Float[] lut = _waveformLUTForTier(_pulseTier, false)
     ; v0.1.17 Phase 3 (multi-area): player MCM-base pulse is body-only —
     ; pass area=0 (kAreaBody). Face/Hand/Feet MCM-base packs apply
     ; statically (no pulse on the MCM-driven base path; stacked-preset
     ; pulse goes through _rosterAddOrUpdate which is multi-area aware).
-    MTFPulse.SetActorPulse(PlayerRef, rate, depthPct, pause, \
-                           _pulseLayerN, _pulseStartRT, emMults, \
-                           OverlaySlot, _pulseIsFemale, lut, 0)
+    MTFPulse.SetActorPulseWithTransition(PlayerRef, rate, depthPct, pause, \
+                                         _pulseLayerN, _pulseStartRT, emMults, \
+                                         OverlaySlot, _pulseIsFemale, lut, \
+                                         tints, alphas, emissives, tDur, 0)
 
     ; v0.1.4 per-preset fade: re-arm or clear after the roster entry is
     ; up. Idempotent on the C++ side — re-issuing the same params each
@@ -3438,13 +3478,23 @@ State checkingAroused
                 ; Reset pulse phase so the new tier starts cleanly at sin(0)=0.
                 _pulseStartRT = now
                 if tierChanged
+                    ; v0.1.28 V4 cross-fade: arm the transition window
+                    ; BEFORE the priming _applyPulse so the install captures
+                    ; from-state and runs the lerp over the full duration.
+                    ; Without the window, _applyPulse would compute
+                    ; tDur=0 (no transition in flight) and snap.
+                    if _sTransitionDuration > 0.0
+                        _transitionEndRT = now + _sTransitionDuration
+                    else
+                        _transitionEndRT = 0.0
+                    endif
                     ; Push the pulse roster entry BEFORE activating effects.
                     ; v0.1.3 flash.onhit's onActivate calls MTFPulse.SetActorFlash,
                     ; which silently no-ops unless a (actor, base_slot) entry
                     ; already exists. _applyPulse runs anyway at the bottom of
                     ; OnUpdate at 10Hz, but the first SetActorFlash on tier
                     ; activation would miss without this priming call.
-                    _applyPulse()
+                    _applyPulse(_sTransitionDuration)
                     _activateSlotEffects(currentTier)
                     ; v0.1.24: arm persist timer on activation edge (any new > 0
                     ; with persistMin > 0). Slot will keep winning the eval for
@@ -3941,19 +3991,32 @@ Function _applyOverlayDeferred(actor Target, bool isFemale, string Area, int Slo
 {Store-only variant of applyOverlay — populates the NiOverride override
  store but does NOT call ApplyNodeOverrides. Caller batches a single
  Apply after the full draw. HasOverlays/AddOverlays setup must already
- have been done by the caller (we don't repeat the check per layer).}
+ have been done by the caller (we don't repeat the check per layer).
+
+ v0.1.28 V4 cross-fade: em mult (1), alpha (8), tint (7), and emissive
+ color (0) are NO LONGER written here. C++ Tick owns those four properties
+ exclusively via skee_bridge::SetNodeProperty (immediate writes, bypass
+ the override store). V4 _resyncPulseCache guarantees a roster entry
+ exists for every tier with layers, so Tick always runs to drive them.
+ Stacked-preset paths get their roster entry via _rosterAddOrUpdate.
+
+ Writing these to the store before would push target values to live on
+ ApplyNodeOverrides, causing a visible 1-frame target flash before Tick's
+ first lerped frame wrote the from-state. Removing the writes lets Tick
+ own the live shader uninterrupted; the lerp starts cleanly from prev's
+ last_interp values.
+
+ Texture binding (9) is the only property still written here. Glossiness
+ (2) and specular strength (3) used to flip here based on Intensity > 0,
+ but that fired INSTANTLY at tier-change moment while Tick was still
+ lerping em_mult, producing a "high em + zero gloss" combo that rendered
+ black for the whole transition window. Tick now derives gloss/spec from
+ the current frame's em_no_flash so they stay synced with em through the
+ entire lerp; the flip happens only when em actually crosses 0.
+ Tint/Intensity/Alpha/Emissive parameters are kept on the signature for
+ backward compatibility but no longer consulted.}
     string Node = Area + " [ovl" + Slot + "]"
     NiOverride.AddNodeOverrideString(Target, isFemale, Node, 9, 0, Texture, true)
-    NiOverride.AddNodeOverrideInt(Target, isFemale, Node, 7, -1, Tint, true)
-    NiOverride.AddNodeOverrideInt(Target, isFemale, Node, 0, -1, Emissive, true)
-    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 1, -1, Intensity, true)
-    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 8, -1, Alpha, true)
-    if Intensity > 0.0
-        NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 5.0, true)
-    else
-        NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 0.0, true)
-        NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 3, -1, 0.0, true)
-    endif
 EndFunction
 
 Function _clearOverlayDeferred(actor Target, bool isFemale, string Area, int Slot)

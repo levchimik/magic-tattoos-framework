@@ -163,4 +163,16 @@ namespace MTFPulse::skee_bridge {
         return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderEmissiveColor, variant);
     }
 
+    bool WriteGlossiness(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, float gloss)
+    {
+        skee::FloatVariant variant{ gloss };
+        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderGlossiness, variant);
+    }
+
+    bool WriteSpecular(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, float spec)
+    {
+        skee::FloatVariant variant{ spec };
+        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderSpecularStrength, variant);
+    }
+
 }  // namespace MTFPulse::skee_bridge
