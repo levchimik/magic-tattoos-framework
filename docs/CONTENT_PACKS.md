@@ -223,47 +223,9 @@ In game:
 
 ## Testing in-game
 
-Two complementary paths:
-
-### Apply Tattoo spell (preset-driven, bypasses tier conditions)
-
-`MTF_Spell_ApplyTattoo` lets the player apply or remove any
-**saved preset** on the live body via a UI menu — useful for
-confirming a pack's entries actually render without waiting for tier
-conditions to evaluate and fire.
-
-The spell does **not** browse individual pack entries directly; it
-operates on saved presets, so you need at least one preset that uses
-your new pack's entry before the spell is useful.
-
-**Obtaining the spell.** Use the in-game console:
-
-```
-help "Apply Tattoo" 0 SPEL    ; find the form ID in your load order
-player.AddSpell <formid>       ; from the help output
-```
-
-(MTF's ESP is ESL-flagged, so the form ID has the form `FE<slot>81A`
-where `<slot>` depends on the order MTF loads in your modlist —
-that's why we look it up via `help` rather than hardcoding it.)
-
-**Using it:**
-
-1. In MCM → preset editor, save a preset that uses your pack's
-   entry as its base.
-2. Cast Apply Tattoo on yourself (or aim at an NPC and cast).
-3. The UI menu lists every saved preset. Pick yours → overlay
-   renders within a frame.
-4. Cast again, pick `[REMOVE] <preset name>` → overlay clears.
-
-Much faster than binding the preset to a tier with a condition and
-having to wait for / trigger the condition every iteration.
-
-### MCM preset editor (full pipeline check)
-
-Verifies the whole stack: pack discovery → MCM rendering → preset
-authoring → tier evaluation → effect activation. This is what
-covers the integration end-to-end, not just rendering.
+Verify via the MCM preset editor — covers the whole stack: pack
+discovery → MCM rendering → preset authoring → tier evaluation →
+effect activation.
 
 1. Open MCM → Magic Tattoos Framework → General → **"Reload visual
    packs"**. The post-reload pack count should bump by 1.
@@ -291,7 +253,7 @@ alongside yours.
 | Pack discovered? | MCM → General → "Reload visual packs" — count should increment after install. If not, JSON filename ≠ `packId`, the path is wrong, or the JSON is malformed (validate with `jq . file.json`). |
 | Entry list populated? | Pick the pack in MCM. If dropdown is empty, `entries[]` is empty or the JSON is malformed past the header. |
 | Texture path exists on disk? | Manually browse to `Data/textures/<path-from-json>`. Typos and missing sub-folders are the #1 cause of silent non-rendering — NiOverride accepts the path but writes nothing. |
-| SKSE / NiOverride errors? | Tail `Documents/My Games/Skyrim Special Edition/SKSE/skse64.log` while casting Apply Tattoo. Look for `NiOverride` or `MTF` lines. |
+| SKSE / NiOverride errors? | Tail `Documents/My Games/Skyrim Special Edition/SKSE/skse64.log` while triggering the tier condition. Look for `NiOverride` or `MTF` lines. |
 | Stale overlay after JSON edit? | Force a fresh eval + redraw from the console: `cqf MTF_MainQuest EvalAndDrawActor <ref>` (use `player` for self; click an NPC to get their reference). Iterates every applied preset on the target and re-renders. |
 
 ---
