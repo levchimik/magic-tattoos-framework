@@ -55,6 +55,18 @@ else
     echo "WARNING: deploy dir not found, skipping: $DEPLOY"
 fi
 
+# Deploy data/SKSE/Plugins/StorageUtilData/* (plugin catalogs, waveforms,
+# any other built-in JSONs). MO2 mirrors the same layout under the mod's
+# root so the StorageUtilData path resolves identically at runtime.
+DATA_SRC="$PROJ/data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework"
+DATA_DST="F:/Modlists/Modding Essentials/mods/Magic Tattoos Framework/SKSE/Plugins/StorageUtilData/MagicTattoosFramework"
+if [[ -d "$DATA_SRC" && -d "$(dirname "$DATA_DST")" ]]; then
+    mkdir -p "$DATA_DST"
+    # -r recurses subdirs (plugins/, waveforms/, …); -u skips unchanged.
+    cp -ru "$DATA_SRC"/. "$DATA_DST/"
+    echo "Deployed data tree to $DATA_DST"
+fi
+
 # Also deploy plugin-specific .pex files to their dedicated MO2 mod dirs.
 # Per-plugin ESPs (MTF_Plugin_*) live as standalone mods in MO2; their
 # scripts/ folder needs to hold the matching .pex or MO2's left-pane priority

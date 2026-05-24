@@ -1,0 +1,30 @@
+{
+  "schemaversion": 1,
+  "pluginid": "mtf.fmr",
+  "pluginlabel": "Fertility Mode (v3 / Reloaded)",
+  "conditions": [
+    {
+      "id": "pregnancy",
+      "label": "Pregnancy",
+      "description": "Triggers when the actor is pregnant and at least {param1}% through her pregnancy.",
+      "param": {
+        "label": "Min belly stage (1-100)",
+        "min": 1,
+        "max": 100,
+        "default": 1
+      }
+    },
+    {
+      "id": "ovulation",
+      "label": "Ovulation",
+      "description": "Triggers while the actor is in her fertile window (recently ovulated, egg still viable)."
+    }
+  ],
+  "effects": [
+    {
+      "id": "trigger.ovulation",
+      "label": "[!] Trigger Ovulation",
+      "description": "Burst — forces the actor to start ovulating (does nothing if she is already pregnant)."
+    }
+  ]
+}
