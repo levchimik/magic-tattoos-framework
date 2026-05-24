@@ -294,8 +294,8 @@ GPL-3.0-or-later. See [`LICENSE`](LICENSE).
 
 ## Heritage
 
-Originated as **LewdMarks Effects**, based on [LewdMarks][lewdmarks]
-Aroused by SavageDomain. Generalized in v0.0.23 into a content-agnostic
+Originated as **LewdMarks Effects**, based on [LewdMarks Aroused][lewdmarksaroused]
+by SavageDomain. Generalized in v0.0.23 into a content-agnostic
 framework; FMR / SLA plugins split into separate ESL addons in v0.0.24.
 Multi-area overlays (Face / Hands / Feet) landed in v0.1.17. SlaveTats
 bidirectional bridge in v0.1.19. SkyrimNet LLM integration in v0.1.20.
@@ -319,6 +319,7 @@ bidirectional bridge in v0.1.19. SkyrimNet LLM integration in v0.1.20.
 [skyrimnet]: https://github.com/MinLL/SkyrimNet-GamePlugin
 
 [lewdmarks]: https://www.nexusmods.com/skyrimspecialedition/mods/83786
+[lewdmarksaroused]: https://www.nexusmods.com/skyrimspecialedition/mods/83794
 [rxoverlays]: https://www.nexusmods.com/skyrimspecialedition/mods/166670
 [bardnails]: https://www.nexusmods.com/skyrimspecialedition/mods/126211
 [commover1]: https://www.nexusmods.com/skyrimspecialedition/mods/22487
