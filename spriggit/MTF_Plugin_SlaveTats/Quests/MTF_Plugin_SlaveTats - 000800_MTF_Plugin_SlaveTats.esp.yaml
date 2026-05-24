@@ -1,0 +1,25 @@
+FormKey: 000800:MTF_Plugin_SlaveTats.esp
+EditorID: MTF_Plugin_SlaveTats
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MTF_Plugin_SlaveTats
+  FileName: ''
+  Aliases:
+  - Property:
+      Name: ''
+      Object: 000800:MTF_Plugin_SlaveTats.esp
+      Alias: 0
+    Scripts:
+    - Name: MTF_PluginAliasKick
+Name:
+  TargetLanguage: English
+  Value: MTF Plugin SlaveTats Bridge
+Flags:
+- StartGameEnabled
+QuestFormVersion: 0
+NextAliasID: 1
+Aliases:
+- Name: PluginKickAlias
+  Flags: []
+  ForcedReference: 000014:Skyrim.esm
+  VoiceTypes: Null

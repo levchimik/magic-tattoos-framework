@@ -1,0 +1,14 @@
+FormKey: 000812:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_Cost_Destruction
+Name:
+  TargetLanguage: English
+  Value: Spell Cost Penalty (Destruction)
+Flags:
+- Recover
+- NoHitEvent
+- HideInUI
+- NoDeathDispel
+MagicSkill: Destruction
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: DestructionModifier

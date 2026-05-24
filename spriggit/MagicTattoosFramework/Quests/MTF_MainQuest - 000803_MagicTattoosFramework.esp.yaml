@@ -1,0 +1,68 @@
+FormKey: 000803:MagicTattoosFramework.esp
+EditorID: MTF_MainQuest
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MTF_MainQuest
+    Properties:
+    - MutagenObjectType: ScriptIntProperty
+      Name: CurrentOverlaySlot
+    - MutagenObjectType: ScriptBoolProperty
+      Name: ModActive
+    - MutagenObjectType: ScriptIntProperty
+      Name: OverlaySlot
+    - MutagenObjectType: ScriptObjectProperty
+      Name: PlayerRef
+      Object: 000014:Skyrim.esm
+    - MutagenObjectType: ScriptStringProperty
+      Name: texturePathGlow
+      Data: actors\character\overlays\lewdmarks-glow\
+    - MutagenObjectType: ScriptStringProperty
+      Name: texturePathNormal
+      Data: actors\character\overlays\lewdmarks\
+    - MutagenObjectType: ScriptFloatProperty
+      Name: updateInterval
+    - MutagenObjectType: ScriptBoolProperty
+      Name: useSlaveTats
+  FileName: ''
+  Aliases:
+  - Property:
+      Name: ''
+      Object: 000803:MagicTattoosFramework.esp
+      Alias: 1
+    Scripts:
+    - Name: MTF_HitListener
+  - Property:
+      Name: ''
+      Object: 000803:MagicTattoosFramework.esp
+      Alias: 2
+    Scripts:
+    - Name: MTF_AliasPresetApi
+  - Property:
+      Name: ''
+      Object: 000803:MagicTattoosFramework.esp
+      Alias: 3
+    Scripts:
+    - Name: MTF_CastListener
+Name:
+  TargetLanguage: English
+  Value: Magic Tattoos Framework
+Flags:
+- StartGameEnabled
+QuestFormVersion: 0
+NextAliasID: 4
+Aliases:
+- ID: 1
+  Name: PlayerAlias
+  Flags: []
+  ForcedReference: 000014:Skyrim.esm
+  VoiceTypes: Null
+- ID: 2
+  Name: PresetApiAlias
+  Flags: []
+  ForcedReference: 000014:Skyrim.esm
+  VoiceTypes: Null
+- ID: 3
+  Name: CastListenerAlias
+  Flags: []
+  ForcedReference: 000014:Skyrim.esm
+  VoiceTypes: Null

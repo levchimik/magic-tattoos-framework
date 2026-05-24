@@ -1,0 +1,23 @@
+FormKey: 00084E:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_LightningCloak
+Name:
+  TargetLanguage: English
+  Value: Lightning Cloak (MTF)
+Flags:
+- DispelWithKeywords
+- NoArea
+- FXPersist
+- HideInUI
+- NoDeathDispel
+MagicSkill: Destruction
+ResistValue: ResistShock
+CastingLight: 057C68:Skyrim.esm
+TaperWeight: 0.2
+TaperCurve: 2
+TaperDuration: 5
+Archetype:
+  MutagenObjectType: MagicEffectCloakArchetype
+  Association: 00084D:MagicTattoosFramework.esp
+CastType: FireAndForget
+CastingArt: 05B1BD:Skyrim.esm
+HitEffectArt: 05B1BC:Skyrim.esm

@@ -228,6 +228,27 @@ existing plugin as a working reference.
 
 ## Building from source
 
+### ESPs
+
+```bash
+bash tools/build_esps.sh
+```
+
+Binary `.esp` files are **not committed to git** — only Spriggit YAML
+mirrors under [`spriggit/`](spriggit/). This script deserializes every
+plugin folder under `spriggit/<PluginName>/` back into a real `.esp`
+binary under `_build/esps/`. The FOMOD build runs it automatically;
+run it manually before testing in-game if you're working from a fresh
+clone (you'll also need to copy the `.esp` files out of `_build/esps/`
+into your MO2 / Vortex mod folder, or symlink them).
+
+Requires [Spriggit][spriggit] CLI (`dotnet tool install -g Spriggit.CLI`).
+
+To edit an ESP record, do **not** open the binary in CK. Instead, edit
+the YAML directly (e.g. `spriggit/MagicTattoosFramework/Quests/MTF_MainQuest - 000803_MagicTattoosFramework.esp.yaml`),
+then re-run `bash tools/build_esps.sh` to regenerate the binary. Diffs
+stay human-readable and review-friendly.
+
 ### Papyrus scripts
 
 ```bash
@@ -265,8 +286,9 @@ layout and how to add new integrations.
 
 ```
 .
-├── MagicTattoosFramework.esp      ← base mod
-├── MTF_Plugin_*.esp               ← integration plugins (7 ESLs)
+├── spriggit/                      ← Spriggit YAML mirrors of every ESP
+│   ├── MagicTattoosFramework/     ← base mod records (MGEFs, Spells, Quests, …)
+│   └── MTF_Plugin_*/              ← integration-plugin Quest shells (7 ESLs)
 ├── source/scripts/                ← Papyrus source (.psc)
 ├── data/SKSE/Plugins/             ← shipped MCM config, waveform JSONs
 ├── content-packs/                 ← texture pack adapters (JSON-only)
@@ -274,9 +296,9 @@ layout and how to add new integrations.
 ├── test-pack/                     ← smoke-test presets
 ├── docs/                          ← user-facing docs
 │   └── internal/                  ← dev-facing notes (CLAUDE.md, IDEAS.md, NEXUS draft)
-├── tools/                         ← build scripts, FOMOD assembler
+├── tools/                         ← build scripts (build_esps.sh, build_scripts.sh), FOMOD assembler
 ├── _deps/                         ← vanilla Skyrim script headers (compile refs)
-└── _build/                        ← build outputs (gitignored)
+└── _build/                        ← build outputs incl. _build/esps/*.esp (gitignored)
 ```
 
 ---

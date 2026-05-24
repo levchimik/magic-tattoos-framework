@@ -1,0 +1,14 @@
+FormKey: 000831:MagicTattoosFramework.esp
+EditorID: MTF_Spell_Flesh
+Name:
+  TargetLanguage: English
+  Value: MTF Flesh
+EquipmentType: 013F45:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+Type: Ability
+Effects:
+- BaseEffect: 000830:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 50

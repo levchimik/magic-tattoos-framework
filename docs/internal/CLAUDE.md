@@ -23,21 +23,29 @@ hooks plus a C++ native (`MTFPulse.dll`) that drives NiOverride at 20Hz.
 
 ```
 MagicTattoosFramework/
-├── MagicTattoosFramework.esp        host ESP (ESL-flagged)
-├── MTF_Plugin_FMR.esp               plugin ESP — Fertility Mode
-├── MTF_Plugin_SLA.esp               plugin ESP — SexLab Aroused
-├── MTF_Plugin_SexLab.esp            plugin ESP — SexLab Framework
-├── MTF_Plugin_OStim.esp             plugin ESP — OStim Standalone
-├── MTF_Plugin_BFNG.esp              plugin ESP — Beeing Female NG
+├── spriggit/                        Spriggit YAML mirrors of every ESP
+│   ├── MagicTattoosFramework/       host (MGEFs, Spells, SoundMarkers, Quests)
+│   ├── MTF_Plugin_FMR/              plugin shell — Fertility Mode
+│   ├── MTF_Plugin_SLA/              plugin shell — SexLab Aroused (OSL)
+│   ├── MTF_Plugin_SexLab/           plugin shell — SexLab Framework
+│   ├── MTF_Plugin_OStim/            plugin shell — OStim Standalone
+│   ├── MTF_Plugin_BFNG/             plugin shell — Beeing Female NG
+│   ├── MTF_Plugin_SlaveTats/        plugin shell — SlaveTats bridge
+│   └── MTF_Plugin_SkyrimNet/        plugin shell — SkyrimNet bridge
 ├── source/scripts/                  Papyrus source (.psc) — edit here
 ├── _deps/                           vendored upstream .psc + minimal stubs (foreign types: slaFrameWorkScr, FWController, etc.) — see "Soft-master pattern"
 ├── cpp-plugin/                      SKSE C++ plugin source (MTFPulse.dll, CMake)
 ├── data/SKSE/Plugins/               visual catalogs, waveform LUTs (shipped JSON)
 ├── presets/                         dev sample presets (not auto-deployed)
 ├── plans/                           design docs
+├── tools/build_esps.sh              deserialize spriggit/ → _build/esps/*.esp
 ├── tools/build_scripts.sh           compile + deploy Papyrus
 └── README.md                        public-facing description
 ```
+
+ESPs are NOT committed — only the YAML under `spriggit/`. Run
+`bash tools/build_esps.sh` to rebuild binaries into `_build/esps/`.
+(Working-tree `.esp` files in repo root are local, gitignored.)
 
 Compiled `.pex` lives alongside the `.psc` after a build. The build script
 auto-deploys them into the user's MO2 mods folder — see Build & Deploy.

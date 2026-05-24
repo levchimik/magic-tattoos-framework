@@ -1,0 +1,22 @@
+FormKey: 00084A:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_FrostCloak
+Name:
+  TargetLanguage: English
+  Value: Frost Cloak (MTF)
+Flags:
+- DispelWithKeywords
+- NoArea
+- FXPersist
+- HideInUI
+- NoDeathDispel
+MagicSkill: Destruction
+ResistValue: ResistFrost
+CastingLight: 032DAA:Skyrim.esm
+TaperWeight: 0.2
+TaperCurve: 2
+Archetype:
+  MutagenObjectType: MagicEffectCloakArchetype
+  Association: 000849:MagicTattoosFramework.esp
+CastType: FireAndForget
+CastingArt: 042854:Skyrim.esm
+HitEffectArt: 04253F:Skyrim.esm

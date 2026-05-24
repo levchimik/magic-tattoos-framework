@@ -1,0 +1,15 @@
+SpriggitSource:
+  PackageName: Spriggit.Yaml.Skyrim
+  Version: 0.40
+ModKey: MTF_Plugin_SkyrimNet.esp
+GameRelease: SkyrimSE
+ModHeader:
+  Flags:
+  - Small
+  Author: MTF
+  MasterReferences:
+  - Master: Skyrim.esm
+    FileSize: 0
+  - Master: MagicTattoosFramework.esp
+    FileSize: 0
+  INTV: 1

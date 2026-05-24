@@ -1,0 +1,13 @@
+FormKey: 00083D:MagicTattoosFramework.esp
+EditorID: MTF_Spell_ResistMagic
+Name:
+  TargetLanguage: English
+  Value: MTF Magic Resist Shift
+EquipmentType: 013F45:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+Type: Ability
+Effects:
+- BaseEffect: 00083C:MagicTattoosFramework.esp
+  Data: {}

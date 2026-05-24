@@ -1,0 +1,13 @@
+FormKey: 000830:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_Flesh
+Name:
+  TargetLanguage: English
+  Value: Flesh (MTF)
+Flags:
+- Recover
+- HideInUI
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: DamageResist

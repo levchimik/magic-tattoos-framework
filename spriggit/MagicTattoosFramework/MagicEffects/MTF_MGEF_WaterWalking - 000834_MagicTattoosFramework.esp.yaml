@@ -1,0 +1,15 @@
+FormKey: 000834:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_WaterWalking
+Name:
+  TargetLanguage: English
+  Value: Water Walking (MTF)
+Flags:
+- Recover
+- NoMagnitude
+- NoArea
+- HideInUI
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectPeakValueModArchetype
+  ActorValue: WaterWalking

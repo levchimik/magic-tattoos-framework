@@ -1,0 +1,16 @@
+FormKey: 000819:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_DebugApply
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MTF_ApplyTattoo
+Name:
+  TargetLanguage: English
+  Value: Apply Tattoo
+Flags:
+- NoHitEvent
+- HideInUI
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectPeakValueModArchetype
+  ActorValue: AlterationModifier

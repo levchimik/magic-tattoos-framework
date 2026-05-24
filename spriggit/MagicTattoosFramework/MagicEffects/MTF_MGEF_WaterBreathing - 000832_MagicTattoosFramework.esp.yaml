@@ -1,0 +1,15 @@
+FormKey: 000832:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_WaterBreathing
+Name:
+  TargetLanguage: English
+  Value: Water Breathing (MTF)
+Flags:
+- Recover
+- NoMagnitude
+- NoArea
+- HideInUI
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectPeakValueModArchetype
+  ActorValue: WaterBreathing

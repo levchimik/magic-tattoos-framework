@@ -1,0 +1,15 @@
+FormKey: 00084D:MagicTattoosFramework.esp
+EditorID: MTF_Spell_LightningCloakDmg
+Name:
+  TargetLanguage: English
+  Value: MTF Lightning Cloak Dmg
+EquipmentType: 013F44:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+CastType: Concentration
+TargetType: Aimed
+Effects:
+- BaseEffect: 00084C:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 8

@@ -1,0 +1,23 @@
+FormKey: 000846:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_FlameCloak
+Name:
+  TargetLanguage: English
+  Value: Flame Cloak (MTF)
+Flags:
+- DispelWithKeywords
+- NoArea
+- FXPersist
+- HideInUI
+- NoDeathDispel
+MagicSkill: Destruction
+ResistValue: ResistFire
+CastingLight: 0140EC:Skyrim.esm
+TaperWeight: 0.3
+TaperCurve: 2
+TaperDuration: 2
+Archetype:
+  MutagenObjectType: MagicEffectCloakArchetype
+  Association: 000845:MagicTattoosFramework.esp
+CastType: FireAndForget
+CastingArt: 036342:Skyrim.esm
+HitEffectArt: 02ACD7:Skyrim.esm

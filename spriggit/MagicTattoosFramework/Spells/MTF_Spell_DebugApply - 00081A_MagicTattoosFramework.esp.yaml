@@ -1,0 +1,13 @@
+FormKey: 00081A:MagicTattoosFramework.esp
+EditorID: MTF_Spell_DebugApply
+Name:
+  TargetLanguage: English
+  Value: Apply Tattoo
+Description:
+  TargetLanguage: English
+  Value: ''
+CastType: FireAndForget
+Effects:
+- BaseEffect: 000819:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 1

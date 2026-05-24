@@ -544,15 +544,28 @@ attached to the Quest. The Quest's only job is to anchor your script
 in the game's runtime so its `OnInit` fires.
 
 Steps to create:
-1. Open the Creation Kit (or use Spriggit YAML — see the project's
-   Spriggit Workflow in `docs/internal/CLAUDE.md`).
-2. Make a new ESL-flagged ESP. Name it `MTF_Plugin_<YourName>.esp`.
-3. Add one Quest record. Mark it Start Game Enabled, Run Once.
-4. In the Quest's Scripts tab, attach `MTF_Plugin_<YourName>` (the
-   script you wrote).
-5. Save. Compile your .psc with Caprica
-   (`bash tools/build_scripts.sh` if working inside the MTF repo).
-6. Ship the ESP + the .pex in a mod folder.
+1. Either open the Creation Kit and make a new ESL-flagged ESP from
+   scratch, OR copy one of the existing plugin YAML mirrors under
+   [`spriggit/`](../spriggit/) (e.g. `spriggit/MTF_Plugin_FMR/`) to
+   `spriggit/MTF_Plugin_<YourName>/`, then edit:
+   - `spriggit-meta.json` → set `ModKey` to `MTF_Plugin_<YourName>.esp`
+   - `RecordData.yaml` → bump the plugin name in `MasterReferences`
+     if needed
+   - rename the file under `Quests/` and edit the `EditorID` to match
+     your script
+2. Make sure the ESP is ESL-flagged (the existing plugin templates
+   already are — they use FormIDs in the `FE<slot>000800-000FFF`
+   range).
+3. The Quest record should be Start Game Enabled + Run Once, with
+   `MTF_Plugin_<YourName>` attached as its primary script (the
+   existing templates show the VMAD layout).
+4. Build the ESP: `bash tools/build_esps.sh MTF_Plugin_<YourName>`
+   (deserialize that one folder into `_build/esps/`).
+5. Compile your `.psc` with Caprica:
+   `bash tools/build_scripts.sh` (deploys the `.pex` to MO2).
+6. Ship the ESP + the `.pex` in a mod folder, OR add a stage step
+   to `tools/fomod/build_fomod.sh` to bundle it into the framework's
+   FOMOD installer.
 
 ---
 

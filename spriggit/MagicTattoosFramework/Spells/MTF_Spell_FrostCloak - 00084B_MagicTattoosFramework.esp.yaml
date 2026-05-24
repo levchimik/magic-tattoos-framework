@@ -1,0 +1,16 @@
+FormKey: 00084B:MagicTattoosFramework.esp
+EditorID: MTF_Spell_FrostCloak
+Name:
+  TargetLanguage: English
+  Value: MTF Frost Cloak
+EquipmentType: 013F45:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+CastType: FireAndForget
+Effects:
+- BaseEffect: 00084A:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 8
+    Area: 107
+    Duration: 60

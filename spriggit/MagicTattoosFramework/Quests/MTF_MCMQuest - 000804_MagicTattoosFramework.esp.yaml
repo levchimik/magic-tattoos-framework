@@ -1,0 +1,17 @@
+FormKey: 000804:MagicTattoosFramework.esp
+EditorID: MTF_MCMQuest
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MTF_MCMQuest
+    Properties:
+    - MutagenObjectType: ScriptObjectProperty
+      Name: MainQuest
+      Object: 000803:MagicTattoosFramework.esp
+  FileName: ''
+Name:
+  TargetLanguage: English
+  Value: Magic Tattoos Framework MCM
+Flags:
+- StartGameEnabled
+QuestFormVersion: 0
+NextAliasID: 0

@@ -1,0 +1,13 @@
+FormKey: 000840:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_DetectAll
+Name:
+  TargetLanguage: English
+  Value: Detect All (MTF)
+Flags:
+- Recover
+- HideInUI
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: DetectLifeRange

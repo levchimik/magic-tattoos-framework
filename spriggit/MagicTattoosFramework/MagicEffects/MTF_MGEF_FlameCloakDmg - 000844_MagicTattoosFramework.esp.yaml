@@ -1,0 +1,20 @@
+FormKey: 000844:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_FlameCloakDmg
+Name:
+  TargetLanguage: English
+  Value: Flame Cloak Damage (MTF)
+Flags:
+- Hostile
+- Recover
+- Detrimental
+- HideInUI
+- NoDeathDispel
+MagicSkill: Destruction
+ResistValue: ResistFire
+CastingLight: 0140EC:Skyrim.esm
+HitShader: 10F56C:Skyrim.esm
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: Health
+Projectile: 012FCF:Skyrim.esm
+CastingArt: 01B211:Skyrim.esm

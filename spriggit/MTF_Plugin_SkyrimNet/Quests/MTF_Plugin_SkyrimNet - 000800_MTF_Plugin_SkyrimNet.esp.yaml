@@ -1,0 +1,36 @@
+FormKey: 000800:MTF_Plugin_SkyrimNet.esp
+EditorID: MTF_Plugin_SkyrimNet
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MTF_Plugin_SkyrimNet
+  FileName: ''
+  Aliases:
+  - Property:
+      Name: ''
+      Object: 000800:MTF_Plugin_SkyrimNet.esp
+      Alias: 0
+    Scripts:
+    - Name: MTF_PluginAliasKick
+  - Property:
+      Name: ''
+      Object: 000800:MTF_Plugin_SkyrimNet.esp
+      Alias: 1
+    Scripts:
+    - Name: MTF_AliasSkyrimNet
+Name:
+  TargetLanguage: English
+  Value: MTF Plugin SkyrimNet Bridge
+Flags:
+- StartGameEnabled
+QuestFormVersion: 0
+NextAliasID: 2
+Aliases:
+- Name: PluginKickAlias
+  Flags: []
+  ForcedReference: 000014:Skyrim.esm
+  VoiceTypes: Null
+- ID: 1
+  Name: SkyrimNetListenerAlias
+  Flags: []
+  ForcedReference: 000014:Skyrim.esm
+  VoiceTypes: Null

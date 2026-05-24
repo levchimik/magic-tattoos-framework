@@ -1,0 +1,13 @@
+FormKey: 00083A:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_ResistShock
+Name:
+  TargetLanguage: English
+  Value: Shock Resist Shift (MTF)
+Flags:
+- Recover
+- HideInUI
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: ResistShock

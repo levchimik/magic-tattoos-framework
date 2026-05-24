@@ -1,0 +1,23 @@
+FormKey: 00084C:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_LightningCloakDmg
+Name:
+  TargetLanguage: English
+  Value: Lightning Cloak Damage (MTF)
+Flags:
+- Hostile
+- Recover
+- Detrimental
+- HideInUI
+- NoDeathDispel
+MagicSkill: Destruction
+ResistValue: ResistShock
+CastingLight: 057C68:Skyrim.esm
+HitShader: 057C67:Skyrim.esm
+SecondActorValueWeight: 1
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: Health
+  Type: DualValueModifier
+Projectile: 034190:Skyrim.esm
+SecondActorValue: Magicka
+CastingArt: 058E9B:Skyrim.esm

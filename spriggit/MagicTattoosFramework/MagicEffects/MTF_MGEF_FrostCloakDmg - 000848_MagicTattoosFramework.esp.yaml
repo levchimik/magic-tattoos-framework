@@ -1,0 +1,23 @@
+FormKey: 000848:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_FrostCloakDmg
+Name:
+  TargetLanguage: English
+  Value: Frost Cloak Damage (MTF)
+Flags:
+- Hostile
+- Recover
+- Detrimental
+- HideInUI
+- NoDeathDispel
+MagicSkill: Destruction
+ResistValue: ResistFrost
+CastingLight: 032DAA:Skyrim.esm
+HitShader: 01F03A:Skyrim.esm
+SecondActorValueWeight: 1
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: Health
+  Type: DualValueModifier
+Projectile: 018123:Skyrim.esm
+SecondActorValue: Stamina
+CastingArt: 020BF5:Skyrim.esm

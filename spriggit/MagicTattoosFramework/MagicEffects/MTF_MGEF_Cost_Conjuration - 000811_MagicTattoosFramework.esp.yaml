@@ -1,0 +1,14 @@
+FormKey: 000811:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_Cost_Conjuration
+Name:
+  TargetLanguage: English
+  Value: Spell Cost Penalty (Conjuration)
+Flags:
+- Recover
+- NoHitEvent
+- HideInUI
+- NoDeathDispel
+MagicSkill: Conjuration
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: ConjurationModifier

@@ -1,0 +1,13 @@
+FormKey: 000851:MagicTattoosFramework.esp
+EditorID: MTF_Spell_ResistDisease
+Name:
+  TargetLanguage: English
+  Value: MTF Disease Resist Shift
+EquipmentType: 013F45:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+Type: Ability
+Effects:
+- BaseEffect: 000850:MagicTattoosFramework.esp
+  Data: {}

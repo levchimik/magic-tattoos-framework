@@ -1,0 +1,25 @@
+FormKey: 000800:MTF_Plugin_SexLab.esp
+EditorID: MTF_Plugin_SexLab
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MTF_Plugin_SexLab
+  FileName: ''
+  Aliases:
+  - Property:
+      Name: ''
+      Object: 000800:MTF_Plugin_SexLab.esp
+      Alias: 0
+    Scripts:
+    - Name: MTF_PluginAliasKick
+Name:
+  TargetLanguage: English
+  Value: MTF Plugin SexLab
+Flags:
+- StartGameEnabled
+QuestFormVersion: 0
+NextAliasID: 1
+Aliases:
+- Name: PluginKickAlias
+  Flags: []
+  ForcedReference: 000014:Skyrim.esm
+  VoiceTypes: Null

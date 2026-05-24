@@ -1,0 +1,15 @@
+FormKey: 000849:MagicTattoosFramework.esp
+EditorID: MTF_Spell_FrostCloakDmg
+Name:
+  TargetLanguage: English
+  Value: MTF Frost Cloak Dmg
+EquipmentType: 013F44:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+CastType: Concentration
+TargetType: Aimed
+Effects:
+- BaseEffect: 000848:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 8

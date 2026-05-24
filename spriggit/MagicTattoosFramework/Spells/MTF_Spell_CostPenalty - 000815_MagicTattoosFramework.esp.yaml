@@ -1,0 +1,25 @@
+FormKey: 000815:MagicTattoosFramework.esp
+EditorID: MTF_Spell_CostPenalty
+Name:
+  TargetLanguage: English
+  Value: Spell Cost Penalty
+Description:
+  TargetLanguage: English
+  Value: ''
+Type: Ability
+Effects:
+- BaseEffect: 000810:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 1
+- BaseEffect: 000811:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 1
+- BaseEffect: 000812:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 1
+- BaseEffect: 000813:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 1
+- BaseEffect: 000814:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 1

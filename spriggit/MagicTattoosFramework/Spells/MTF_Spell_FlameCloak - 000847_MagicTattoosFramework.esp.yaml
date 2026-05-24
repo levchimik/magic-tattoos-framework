@@ -1,0 +1,16 @@
+FormKey: 000847:MagicTattoosFramework.esp
+EditorID: MTF_Spell_FlameCloak
+Name:
+  TargetLanguage: English
+  Value: MTF Flame Cloak
+EquipmentType: 013F45:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+CastType: FireAndForget
+Effects:
+- BaseEffect: 000846:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 8
+    Area: 107
+    Duration: 60

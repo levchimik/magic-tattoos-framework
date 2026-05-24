@@ -1,0 +1,13 @@
+FormKey: 00083E:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_Muffle
+Name:
+  TargetLanguage: English
+  Value: Muffle (MTF)
+Flags:
+- Recover
+- HideInUI
+- NoDeathDispel
+MagicSkill: Illusion
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: MovementNoiseMult

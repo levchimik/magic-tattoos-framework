@@ -1,0 +1,15 @@
+FormKey: 000843:MagicTattoosFramework.esp
+EditorID: MTF_Spell_SlowTime
+Name:
+  TargetLanguage: English
+  Value: MTF Slow Time
+EquipmentType: 013F45:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+CastType: FireAndForget
+Effects:
+- BaseEffect: 000842:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 0.3
+    Duration: 30

@@ -1,0 +1,13 @@
+FormKey: 000853:MagicTattoosFramework.esp
+EditorID: MTF_Spell_ResistPoison
+Name:
+  TargetLanguage: English
+  Value: MTF Poison Resist Shift
+EquipmentType: 013F45:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+Type: Ability
+Effects:
+- BaseEffect: 000852:MagicTattoosFramework.esp
+  Data: {}

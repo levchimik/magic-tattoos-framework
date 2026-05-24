@@ -1,0 +1,13 @@
+FormKey: 00083C:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_ResistMagic
+Name:
+  TargetLanguage: English
+  Value: Magic Resist Shift (MTF)
+Flags:
+- Recover
+- HideInUI
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: ResistMagic

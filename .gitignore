@@ -11,6 +11,14 @@ source/scripts/*.pex
 _build/
 _deps/
 
+# Binary ESPs — version-controlled via Spriggit YAML mirrors under spriggit/
+# instead. Rebuild local copies with: bash tools/build_esps.sh
+# The deserialize step writes into _build/esps/; the FOMOD build consumes
+# them from there. Keeps history clean and diffs human-readable.
+*.esp
+*.esm
+*.esl
+
 # C++ SKSE plugin build artifacts (also covered by cpp-plugin/.gitignore)
 cpp-plugin/build/
 cpp-plugin/vcpkg_installed/

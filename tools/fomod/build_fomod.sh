@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Build the MTF FOMOD installer.
 #
-# Pulls fresh artifacts from the repo (ESPs at repo root, .pex from
-# source/scripts/, DLL/INI/waveforms from data/, content-pack JSONs from
-# content-packs/, NPC overlays skee64.ini from tools/fomod/static/,
-# test pack from test-pack/), arranges them into option-folder subtrees
-# under _build/fomod-stage/, copies the FOMOD templates into fomod/,
-# and produces an archive in _build/.
+# Pulls fresh artifacts from the repo (ESPs rebuilt from spriggit/ YAML into
+# _build/esps/, .pex from source/scripts/, DLL/INI/waveforms from data/,
+# content-pack JSONs from content-packs/, NPC overlays skee64.ini from
+# tools/fomod/static/, test pack from test-pack/), arranges them into
+# option-folder subtrees under _build/fomod-stage/, copies the FOMOD
+# templates into fomod/, and produces an archive in _build/.
 #
 # Usage:
 #   bash tools/fomod/build_fomod.sh                # build with auto-detected version
@@ -26,6 +26,14 @@ STATIC="$FOMOD_DIR/static"
 TEMPLATES="$FOMOD_DIR/templates"
 STAGE="$PROJ/_build/fomod-stage"
 DIST="$PROJ/_build"
+
+# ESPs are not committed to git — they're rebuilt from Spriggit YAML mirrors
+# under spriggit/. Deserialize all of them up front into _build/esps/ so the
+# rest of the script can stage them like any other file.
+echo "=== Rebuilding ESPs from spriggit/ ==="
+bash "$PROJ/tools/build_esps.sh"
+ESP_OUT="$PROJ/_build/esps"
+echo
 
 # -----------------------------------------------------------------------------
 # Version detection
@@ -49,14 +57,14 @@ echo "=== Building FOMOD for MTF $VERSION ==="
 # Prereq check: required artifacts must exist
 # -----------------------------------------------------------------------------
 REQUIRED=(
-    "$PROJ/MagicTattoosFramework.esp"
-    "$PROJ/MTF_Plugin_FMR.esp"
-    "$PROJ/MTF_Plugin_SLA.esp"
-    "$PROJ/MTF_Plugin_SexLab.esp"
-    "$PROJ/MTF_Plugin_OStim.esp"
-    "$PROJ/MTF_Plugin_BFNG.esp"
-    "$PROJ/MTF_Plugin_SlaveTats.esp"
-    "$PROJ/MTF_Plugin_SkyrimNet.esp"
+    "$ESP_OUT/MagicTattoosFramework.esp"
+    "$ESP_OUT/MTF_Plugin_FMR.esp"
+    "$ESP_OUT/MTF_Plugin_SLA.esp"
+    "$ESP_OUT/MTF_Plugin_SexLab.esp"
+    "$ESP_OUT/MTF_Plugin_OStim.esp"
+    "$ESP_OUT/MTF_Plugin_BFNG.esp"
+    "$ESP_OUT/MTF_Plugin_SlaveTats.esp"
+    "$ESP_OUT/MTF_Plugin_SkyrimNet.esp"
     "$SRC_SCRIPTS/MTF_MainQuest.pex"
     "$SRC_SCRIPTS/MTF_Plugin_FMR.pex"
     "$SRC_SCRIPTS/MTF_Plugin_SLA.pex"
@@ -77,6 +85,7 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
     echo "ERROR: missing required files:" >&2
     printf '  %s\n' "${MISSING[@]}" >&2
     echo "Run bash tools/build_scripts.sh first to compile .pex outputs." >&2
+    echo "Run bash tools/build_esps.sh first to rebuild ESPs from spriggit/." >&2
     exit 1
 fi
 
@@ -118,7 +127,7 @@ mkdir -p "$STAGE/fomod"
 BASE="$STAGE/00_base"
 mkdir -p "$BASE/scripts" "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/waveforms"
 
-cp "$PROJ/MagicTattoosFramework.esp" "$BASE/"
+cp "$ESP_OUT/MagicTattoosFramework.esp" "$BASE/"
 
 # Base-mod scripts (everything except the integration plugin .pex files,
 # which ship in their own option folders).
@@ -150,7 +159,7 @@ stage_plugin() {
     local folder="$1" esp="$2" pex="$3"
     local out="$STAGE/$folder"
     mkdir -p "$out/scripts"
-    cp "$PROJ/$esp" "$out/"
+    cp "$ESP_OUT/$esp" "$out/"
     cp "$SRC_SCRIPTS/$pex" "$out/scripts/"
     echo "  staged $folder ($(find "$out" -type f | wc -l) files)"
 }

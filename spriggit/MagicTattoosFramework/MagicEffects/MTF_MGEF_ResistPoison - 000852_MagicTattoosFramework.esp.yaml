@@ -1,0 +1,13 @@
+FormKey: 000852:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_ResistPoison
+Name:
+  TargetLanguage: English
+  Value: Poison Resist Shift (MTF)
+Flags:
+- Recover
+- HideInUI
+- NoDeathDispel
+MagicSkill: Restoration
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: PoisonResist

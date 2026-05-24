@@ -1,0 +1,15 @@
+FormKey: 000845:MagicTattoosFramework.esp
+EditorID: MTF_Spell_FlameCloakDmg
+Name:
+  TargetLanguage: English
+  Value: MTF Flame Cloak Dmg
+EquipmentType: 013F44:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+CastType: Concentration
+TargetType: Aimed
+Effects:
+- BaseEffect: 000844:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 8

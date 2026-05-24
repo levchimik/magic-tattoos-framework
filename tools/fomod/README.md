@@ -14,6 +14,11 @@ Output: `_build/MagicTattoosFramework-FOMOD-<version>.7z` (+ a `_build/fomod-sta
 folder you can drag into MO2's "Install from folder" if you want to test
 without re-zipping).
 
+The script calls `bash tools/build_esps.sh` first to rebuild all 8 ESPs
+from their Spriggit YAML mirrors (`spriggit/<PluginName>/`) into
+`_build/esps/*.esp`. Binary `.esp` files are not committed to git —
+only the YAML.
+
 Version comes from the latest commit subject (e.g. `v0.1.x`), or `MTF_VERSION` env override:
 
 ```bash
@@ -36,9 +41,13 @@ tools/fomod/
 
 ## What the installer ships
 
+All ESPs below come from `_build/esps/*.esp` (deserialized from
+`spriggit/<PluginName>/` by the build script). `.pex` files come from
+`source/scripts/`.
+
 | Folder in stage | Source in repo | Always installed? |
 |---|---|---|
-| `00_base/` | `MagicTattoosFramework.esp` + `source/scripts/*.pex` (base only) + `data/SKSE/Plugins/{MagicTattoosFramework.ini,MTFPulse.dll,StorageUtilData/.../waveforms/*.json}` | Yes (Required) |
+| `00_base/` | `MagicTattoosFramework.esp` + base `*.pex` + `data/SKSE/Plugins/{MagicTattoosFramework.ini,MTFPulse.dll,StorageUtilData/.../waveforms/*.json}` | Yes (Required) |
 | `10_plugin_fmr/` | `MTF_Plugin_FMR.esp` + `MTF_Plugin_FMR.pex` | Auto-recommend if `Fertility Mode.esm` active |
 | `11_plugin_sla/` | `MTF_Plugin_SLA.esp` + `MTF_Plugin_SLA.pex` | Auto-recommend if `SexLabAroused.esm` active |
 | `12_plugin_sexlab/` | `MTF_Plugin_SexLab.esp` + `.pex` | Auto-recommend if `SexLab.esm` active |

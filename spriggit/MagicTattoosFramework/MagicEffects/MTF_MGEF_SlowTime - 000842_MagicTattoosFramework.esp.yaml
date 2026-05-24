@@ -1,0 +1,15 @@
+FormKey: 000842:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_SlowTime
+Name:
+  TargetLanguage: English
+  Value: Slow Time (MTF)
+Flags:
+- Recover
+- NoArea
+- HideInUI
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  Type: SlowTime
+CastType: FireAndForget
