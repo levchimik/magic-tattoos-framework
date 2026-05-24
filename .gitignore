@@ -34,3 +34,7 @@ docs/visual-refs/
 # Content-pack adapters held locally for personal use only (author permission
 # pending — adapter is not redistributed via this repo or the FOMOD).
 content-packs/obi-tattoos/
+
+# Internal-only docs (roadmaps, idea logs, draft Nexus copy, dev playbooks).
+# Kept locally for reference but not part of the public mod surface.
+docs/internal/
