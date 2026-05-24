@@ -969,8 +969,10 @@ EndFunction
 string Function GetEffectId(int idx)
     if idx < 13
         return _effectIdLow(idx)
+    elseif idx < 35
+        return _effectIdHigh(idx)
     endif
-    return _effectIdHigh(idx)
+    return _effectIdVeryHigh(idx)
 EndFunction
 
 ; v0.1.10: idx 8 (was "modify.armor", direct DamageResist) was removed
@@ -1055,7 +1057,18 @@ string Function _effectIdHigh(int idx)
         return "flash.onhit"
     elseif idx == 34
         return "modify.resistDisease"
-    elseif idx == 35
+    endif
+    return ""
+EndFunction
+
+; Split out from _effectIdHigh so neither side exceeds ~22 elseif
+; branches — long elseif chains in Quest-extending scripts silently
+; return "" past ~40 branches on this VM build (same root cause as
+; _classMaskToTags' flat if/return pattern). flash.oncast at idx 57
+; was the casualty: it disappeared from MCM dropdowns because
+; _effectIdHigh's 45-branch chain truncated before reaching it.
+string Function _effectIdVeryHigh(int idx)
+    if idx == 35
         return "modify.resistPoison"
     elseif idx == 36
         return "modify.absorbChance"
@@ -1108,8 +1121,10 @@ EndFunction
 string Function GetEffectLabel(int idx)
     if idx < 13
         return _effectLabelLow(idx)
+    elseif idx < 35
+        return _effectLabelHigh(idx)
     endif
-    return _effectLabelHigh(idx)
+    return _effectLabelVeryHigh(idx)
 EndFunction
 
 string Function _effectLabelLow(int idx)
@@ -1185,10 +1200,15 @@ string Function _effectLabelHigh(int idx)
     elseif idx == 32
         return "[+] Lightning Cloak"
     elseif idx == 33
-        return "[!] Flash on Hit"
+        return "[+] Flash"
     elseif idx == 34
         return "Modify Disease Resist"
-    elseif idx == 35
+    endif
+    return ""
+EndFunction
+
+string Function _effectLabelVeryHigh(int idx)
+    if idx == 35
         return "Modify Poison Resist"
     elseif idx == 36
         return "Modify Spell Absorb"
@@ -1233,7 +1253,12 @@ string Function _effectLabelHigh(int idx)
     elseif idx == 56
         return "[+] Vanilla Sound"
     elseif idx == 57
-        return "[+] Flash on Cast"
+        ; v0.1.29 deprecated: folded into [+] Flash (idx 33) as the
+        ; "On spell cast" trigger option. Still functional so existing
+        ; preset bindings keep flashing; label flagged so users know to
+        ; migrate (delete the row, re-add Flash with trigger="On spell
+        ; cast").
+        return "[deprecated] Flash on Cast — use Flash"
     endif
     return ""
 EndFunction
@@ -1241,8 +1266,10 @@ EndFunction
 string Function GetEffectDescription(int idx)
     if idx < 13
         return _effectDescriptionLow(idx)
+    elseif idx < 35
+        return _effectDescriptionHigh(idx)
     endif
-    return _effectDescriptionHigh(idx)
+    return _effectDescriptionVeryHigh(idx)
 EndFunction
 
 string Function _effectDescriptionLow(int idx)
@@ -1318,10 +1345,15 @@ string Function _effectDescriptionHigh(int idx)
     elseif idx == 32
         return "Toggles a lightning cloak that shocks enemies within {param2}ft for {param1} damage/s while active."
     elseif idx == 33
-        return "Flashes the tattoo's emissive layer to {param2}% brightness on every {param1} hit."
+        return "Flashes the tattoo's emissive layer to {param2}% brightness on the chosen trigger event ({param1})."
     elseif idx == 34
         return "Shifts the actor's disease resistance by {param1}%."
-    elseif idx == 35
+    endif
+    return ""
+EndFunction
+
+string Function _effectDescriptionVeryHigh(int idx)
+    if idx == 35
         return "Shifts the actor's poison resistance by {param1}%."
     elseif idx == 36
         return "Shifts the actor's chance to absorb incoming spells by {param1}%."
@@ -1374,8 +1406,10 @@ EndFunction
 string Function GetEffectParamLabel(int idx)
     if idx < 13
         return _effectParamLabelLow(idx)
+    elseif idx < 35
+        return _effectParamLabelHigh(idx)
     endif
-    return _effectParamLabelHigh(idx)
+    return _effectParamLabelVeryHigh(idx)
 EndFunction
 
 string Function _effectParamLabelLow(int idx)
@@ -1446,7 +1480,12 @@ string Function _effectParamLabelHigh(int idx)
         return "Trigger event"
     elseif idx == 34
         return "Disease resist shift (points; + resist, - weakness)"
-    elseif idx == 35
+    endif
+    return ""
+EndFunction
+
+string Function _effectParamLabelVeryHigh(int idx)
+    if idx == 35
         return "Poison resist shift (points; + resist, - weakness)"
     elseif idx == 36
         return "Spell absorb chance shift (points; + absorb, - vulnerable)"
@@ -1676,7 +1715,8 @@ EndFunction
 ; ── Dropdown options (v0.1.3) — param/param2 as menus ────────────────────────
 int Function GetEffectParamMenuOptionCount(int idx)
     if idx == 33
-        return 11
+        ; 0 Disabled, 1-10 combat-class presets, 11 On spell cast
+        return 12
     elseif idx == 55
         return _shaderCount()
     elseif idx == 56
@@ -1734,6 +1774,15 @@ int Function GetEffectParamMenuOptionValue(int idx, int optionIdx)
     if optionIdx == 10
         return 126
     endif
+    if optionIdx == 11
+        ; v0.1.29: spell-cast trigger. classMask 128 = the next free bit
+        ; above the combat-class mask. _classMaskToTags maps it to the
+        ; "cast" C++ tag, which MTF_CastListener fires via
+        ; DispatchFlashCast on cast-start + every 0.1s poll while the
+        ; cast is held. Sustain via retrigms keeps the lane lit during
+        ; concentration / charge-and-hold casts.
+        return 128
+    endif
     return 0
 EndFunction
 
@@ -1782,6 +1831,9 @@ string Function GetEffectParamMenuOptionLabel(int idx, int optionIdx)
     endif
     if optionIdx == 10
         return "All combat classes"
+    endif
+    if optionIdx == 11
+        return "On spell cast"
     endif
     return ""
 EndFunction
@@ -2878,6 +2930,12 @@ string Function _classMaskToTags(int classMask)
     endif
     if classMask == 126
         return "blunt,bladed,ranged,fire,frost,shock"
+    endif
+    if classMask == 128
+        ; v0.1.29: spell-cast trigger. Bit 7 (next free above the 0-6
+        ; combat-class bitmask). MTF_CastListener dispatches the "cast"
+        ; tag on cast start + every 0.1s while held.
+        return "cast"
     endif
     ; Any unrecognised int → wildcard fallback so hand-edited presets with
     ; out-of-band values still flash on something rather than silently
