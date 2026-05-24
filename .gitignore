@@ -22,3 +22,7 @@ cpp-plugin/_skee_ref/
 
 # Tattoo design vision-reference renders (large, regeneratable from textures)
 docs/visual-refs/
+
+# Content-pack adapters held locally for personal use only (author permission
+# pending — adapter is not redistributed via this repo or the FOMOD).
+content-packs/obi-tattoos/
