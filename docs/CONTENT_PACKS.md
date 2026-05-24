@@ -225,23 +225,39 @@ In game:
 
 Two complementary paths:
 
-### Apply Tattoo spell (fast single-entry check)
+### Apply Tattoo spell (preset-driven, bypasses tier conditions)
 
-MTF auto-grants `MTF_Spell_ApplyTattoo` to the player on first load
-(via `MTF_HitListener._ensureApplyTattooSpell`). Cast it on yourself,
-or with an NPC under your crosshair — a UI menu opens with every
-saved preset. This is the fastest way to verify a new pack's entries
-actually render, because it bypasses the slot / tier / condition
-machinery:
+`MTF_Spell_ApplyTattoo` lets the player apply or remove any
+**saved preset** on the live body via a UI menu — useful for
+confirming a pack's entries actually render without waiting for tier
+conditions to evaluate and fire.
 
-1. Save at least one preset that uses your new pack's entry (via
-   MCM → preset editor) so the spell menu has something to pick.
+The spell does **not** browse individual pack entries directly; it
+operates on saved presets, so you need at least one preset that uses
+your new pack's entry before the spell is useful.
+
+**Obtaining the spell.** Use the in-game console:
+
+```
+help "Apply Tattoo" 0 SPEL    ; find the form ID in your load order
+player.AddSpell <formid>       ; from the help output
+```
+
+(MTF's ESP is ESL-flagged, so the form ID has the form `FE<slot>81A`
+where `<slot>` depends on the order MTF loads in your modlist —
+that's why we look it up via `help` rather than hardcoding it.)
+
+**Using it:**
+
+1. In MCM → preset editor, save a preset that uses your pack's
+   entry as its base.
 2. Cast Apply Tattoo on yourself (or aim at an NPC and cast).
-3. Pick the preset → overlay should appear within a frame.
-4. Cast again, pick `[REMOVE] <preset name>` → overlay should clear.
+3. The UI menu lists every saved preset. Pick yours → overlay
+   renders within a frame.
+4. Cast again, pick `[REMOVE] <preset name>` → overlay clears.
 
-Repeat for each pack entry you want to spot-check. Much faster than
-binding to tiers and waiting for conditions to fire.
+Much faster than binding the preset to a tier with a condition and
+having to wait for / trigger the condition every iteration.
 
 ### MCM preset editor (full pipeline check)
 
