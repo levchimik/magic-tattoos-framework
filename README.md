@@ -26,7 +26,7 @@ character starts wearing a reactive canvas.
 - [Installation](#installation)
 - [Components](#components)
 - [SkyrimNet integration](#skyrimnet-integration)
-- [For authors: building content packs](#for-authors-building-content-packs)
+- [Extending MTF](#extending-mtf)
 - [Building from source](#building-from-source)
 - [Repository layout](#repository-layout)
 - [Credits](#credits)
@@ -180,28 +180,49 @@ via the FOMOD's SkyrimNet step.
 
 ---
 
-## For authors: building content packs
+## Extending MTF
 
-A **texture pack adapter** is a JSON catalog under
-`Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/` that
-points MTF at textures provided by another mod. No ESP, no plugin slot.
+Three ways to extend the framework, in order of how much you have to
+write:
 
-See [`content-packs/README.md`](content-packs/README.md) for the layout
-and [`docs/tattoo_packs.md`](docs/tattoo_packs.md) for the wrapping
-recipe (install source mod → identify texture root → generate catalog →
-package as MO2 mod).
+### 1. Author a gameplay-effect preset (no code, JSON only)
 
-For **gameplay-effect presets** (curated combinations of tattoo +
-conditions + effects), the preset format lives at
+A **preset** is a curated combination of tattoo + conditions + effects
+saved to JSON under
 `Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets/`.
-Example presets live under [`test-pack/`](test-pack/) — including
-multi-area, multi-tier, pulse, and integration-driven presets.
+Users pick presets from the MCM dropdown; pack authors can ship
+multiple looks per tattoo for users to remix.
 
-For **new integration plugins** (binding MTF onto a new soft-master
-mod's API), see the existing `source/scripts/MTF_Plugin_*.psc` files
-as templates. Each integration soft-probes a sentinel form ID from its
-master ESP at runtime; if the master isn't loaded the plugin skips
-registration.
+Build them in-game via the MCM preset editor (recommended), or hand-
+author the JSON directly. Example presets covering multi-area,
+multi-tier, pulse, and integration-driven flows live under
+[`test-pack/`](test-pack/) — read those for the schema.
+
+### 2. Wrap a new texture pack as a content pack (no code, JSON only)
+
+A **texture pack adapter** is a JSON catalog that points MTF at
+overlay textures from another mod (RaceMenu overlays, SlaveTats packs,
+nail / face overlays). No ESP, no plugin slot, no scripting.
+
+**→ Full guide: [`docs/CONTENT_PACKS.md`](docs/CONTENT_PACKS.md)**
+
+Covers the JSON schema, MO2 mod layout, FOMOD bundling, in-game
+testing, and troubleshooting.
+
+### 3. Write an integration plugin (Papyrus + tiny ESP)
+
+An **integration plugin** binds MTF onto another mod's runtime state,
+exposing it as conditions (e.g. "when arousal > 50") and effects (e.g.
+"boost arousal", "grant a buff"). This is how MTF integrates with FMR,
+SLA, SexLab, OStim, BFNG, SlaveTats, and SkyrimNet today.
+
+**→ Full guide: [`docs/INTEGRATION_PLUGINS.md`](docs/INTEGRATION_PLUGINS.md)**
+
+Covers the plugin lifecycle, soft-master pattern, complete vtable
+reference for conditions / effects / extras / settings, ESP setup,
+common pitfalls (the `onDeactivate` footgun, the suspending-call race,
+the post-release Auto-property trap), testing, and links to every
+existing plugin as a working reference.
 
 ---
 

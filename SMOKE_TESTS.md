@@ -98,7 +98,7 @@ identified in the local mod survey. The Feet routing exercises the *same
 code paths* as Hand (`PulseEntry.area`, `AreaName()`, `_areaIndex()`,
 `Feet [ovlN]` node format) — passing Hand tests is strong evidence Feet
 routing also works. When a Feet-area content pack lands, drop it in via
-the same recipe (`docs/tattoo_packs.md`) and copy `Test_MultiArea_HandApply`
+the same recipe (`docs/CONTENT_PACKS.md`) and copy `Test_MultiArea_HandApply`
 to `Test_MultiArea_FeetApply` with the new packid/entryid.
 
 The presets test the player MCM-base path (load preset → it becomes the
