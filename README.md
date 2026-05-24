@@ -71,31 +71,29 @@ character starts wearing a reactive canvas.
   opacity, tier thresholds, preset selection, integration toggles,
   cooldown timers.
 
-[SkyrimNet]: https://www.nexusmods.com/skyrimspecialedition/mods/130000
-
 ---
 
 ## Requirements
 
 ### Hard dependencies (required)
 
-- SKSE64 (matching your Skyrim version)
-- Address Library for SKSE Plugins
-- PapyrusUtil SE
-- RaceMenu (includes SKEE / NiOverride)
-- SkyUI
+- [SKSE64][skse] (matching your Skyrim version)
+- [Address Library for SKSE Plugins][addrlib]
+- [PapyrusUtil SE][papyrusutil]
+- [RaceMenu][racemenu] (includes SKEE / NiOverride)
+- [SkyUI][skyui]
 
 ### Soft dependencies (optional — auto-detected, no setup)
 
 | Mod | Provides |
 |-----|----------|
-| Fertility Mode Reloaded (FMR) | pregnancy / ovulation conditions |
-| SexLab Aroused (SLA) / OSL Aroused | arousal condition + exposure / aura effects |
-| SexLab Framework SE | scene / animation / orgasm conditions |
-| OStim Standalone | scene / excitement conditions |
-| Beeing Female NG | pregnancy / cycle conditions |
-| SlaveTats | bidirectional bridge — MTF tattoos appear in SlaveTats's polling API |
-| SkyrimNet | LLM-readable tattoo descriptions in character-bio prompts |
+| [Fertility Mode Reloaded][fmr] (FMR) | pregnancy / ovulation conditions |
+| [OSL Aroused][osla] | arousal condition + exposure / aura effects |
+| [SexLab Framework SE][sexlab] | scene / animation / orgasm conditions |
+| [OStim Standalone][ostim] | scene / excitement conditions |
+| [Beeing Female NG][bfng] | pregnancy / cycle conditions |
+| [SlaveTats][slavetats] | bidirectional bridge — MTF tattoos appear in SlaveTats's polling API |
+| [SkyrimNet][skyrimnet] | LLM-readable tattoo descriptions in character-bio prompts |
 
 Built for Skyrim Special Edition / Anniversary Edition. VR
 compatibility is best-effort — overlays render fine, but VR-specific
@@ -109,8 +107,8 @@ quirks (skeleton, camera) are not specifically tested.
    to confirm they work.
 2. Install **Magic Tattoos Framework** with your mod manager (Vortex /
    MO2). Place it after RaceMenu in your load order.
-3. Install one or more **MTF content packs** (e.g. *LewdMarks*,
-   *RX Overlays*). Packs are standalone mods that depend on MTF.
+3. Install one or more **MTF content packs** (e.g. *[LewdMarks][lewdmarks]*,
+   *[RX'Overlays][rxoverlays]*). Packs are standalone mods that depend on MTF.
 4. *(Optional)* Install any of the supported integration mods listed
    above — MTF will auto-detect them at runtime; no manual switches.
 5. Launch a **new save** (recommended) or load an existing one. Open
@@ -129,23 +127,23 @@ consumed.
 | Mod | ESP | Required | Provides |
 |-----|-----|----------|----------|
 | **Magic Tattoos Framework** | `MagicTattoosFramework.esp` (ESL) | base | core engine, MCM, built-in conditions (magicka / stamina / combat / hits / location / weather / etc.), built-in effects (drains, stagger, magic cost penalty, shader play, sound play, flash on hit, skill / AV / resist modifiers) |
-| **MTF Plugin — FMR** | `MTF_Plugin_FMR.esp` (ESL) | optional | pregnancy / ovulation conditions from Fertility Mode Reloaded |
-| **MTF Plugin — SLA** | `MTF_Plugin_SLA.esp` (ESL) | optional | arousal condition + exposure / aura effects from SexLab Aroused |
-| **MTF Plugin — SexLab** | `MTF_Plugin_SexLab.esp` (ESL) | optional | scene / animation / orgasm conditions from SexLab Framework |
-| **MTF Plugin — OStim** | `MTF_Plugin_OStim.esp` (ESL) | optional | scene / excitement conditions from OStim Standalone |
-| **MTF Plugin — BFNG** | `MTF_Plugin_BFNG.esp` (ESL) | optional | pregnancy / cycle conditions from Beeing Female NG |
-| **MTF Plugin — SlaveTats Bridge** | `MTF_Plugin_SlaveTats.esp` (ESL) | optional | ghost-writes MTF tattoos into SlaveTats's state store so polling consumers (`has_tattoo` / `query_applied_tattoos`) see them |
-| **MTF Plugin — SkyrimNet** | `MTF_Plugin_SkyrimNet.esp` (ESL) | optional | LLM-readable tattoo descriptions: registers `mtf_active_tattoos` decorator + fires `mtf_tattoo_change` events on tier transitions |
+| **MTF Plugin — FMR** | `MTF_Plugin_FMR.esp` (ESL) | optional | pregnancy / ovulation conditions from [Fertility Mode Reloaded][fmr] |
+| **MTF Plugin — SLA** | `MTF_Plugin_SLA.esp` (ESL) | optional | arousal condition + exposure / aura effects from [OSL Aroused][osla] (ESP keeps the `SLA` name for back-compat) |
+| **MTF Plugin — SexLab** | `MTF_Plugin_SexLab.esp` (ESL) | optional | scene / animation / orgasm conditions from [SexLab Framework SE][sexlab] |
+| **MTF Plugin — OStim** | `MTF_Plugin_OStim.esp` (ESL) | optional | scene / excitement conditions from [OStim Standalone][ostim] |
+| **MTF Plugin — BFNG** | `MTF_Plugin_BFNG.esp` (ESL) | optional | pregnancy / cycle conditions from [Beeing Female NG][bfng] |
+| **MTF Plugin — SlaveTats Bridge** | `MTF_Plugin_SlaveTats.esp` (ESL) | optional | ghost-writes MTF tattoos into [SlaveTats][slavetats]'s state store so polling consumers (`has_tattoo` / `query_applied_tattoos`) see them |
+| **MTF Plugin — SkyrimNet** | `MTF_Plugin_SkyrimNet.esp` (ESL) | optional | LLM-readable tattoo descriptions: registers `mtf_active_tattoos` decorator + fires `mtf_tattoo_change` events on tier transitions ([SkyrimNet][skyrimnet]) |
 
 ### Texture pack adapters (JSON-only — source textures installed separately)
 
 | Adapter | Source mod (user must install) | Area |
 |---|---|---|
-| **MTF Content — LewdMarks** | LewdMarks (RaceMenu + SlaveTats variants) by SavageDomain | Body |
-| **MTF Content — Obi Tattoos** | Obi's Tattoos for RaceMenu by Obi | Body |
-| **MTF Content — RX Overlays** | RX Overlays (texture pack) | Body |
-| **MTF Content — Bardle Nail Polish** | Bard's Nail Overlays by Bardledorf | Hands |
-| **MTF Content — Community Overlays 1 Face** | Community Overlays 1 — Female Face Overlays | Face |
+| **MTF Content — LewdMarks** | [LewdMarks][lewdmarks] (RaceMenu + SlaveTats variants) by SavageDomain | Body |
+| **MTF Content — Obi Tattoos** | [Obi's Tattoos 3BA 4K][obitats] by Obi | Body |
+| **MTF Content — RX Overlays** | [RX'Overlays][rxoverlays] (texture pack) | Body |
+| **MTF Content — Bardle Nail Polish** | [Bard's Nail Overlays][bardnails] by BinkBoink | Hands |
+| **MTF Content — Community Overlays 1 Face** | [Community Overlays 1][commover1] — Female Face Overlays | Face |
 
 The base mod ships with no content; install at least one adapter (or
 run effects-only by picking *"(no texture)"* per slot in the MCM).
@@ -214,7 +212,7 @@ registration.
 bash tools/build_scripts.sh
 ```
 
-Compiles all `source/scripts/*.psc` with Caprica into
+Compiles all `source/scripts/*.psc` with [Caprica][caprica] into
 `source/scripts/*.pex`, deploying compiled `.pex` files into the dev
 MO2 mods folder. Vanilla Skyrim script headers used as compile-time
 references live in `_deps/`.
@@ -263,22 +261,26 @@ layout and how to add new integrations.
 
 ## Credits
 
-- **expired6978** — RaceMenu and SKEE / NiOverride, the overlay
-  backbone everything renders through.
-- **Exiledviper & meh321** — PapyrusUtil, without which none of the
-  per-actor state persistence would be sane.
-- **schlangster & the SkyUI team** — MCM, still the gold standard.
-- **Ousnius & Caliente** — BodySlide / OutfitStudio and the BHUNP /
-  CBBE ecosystems that make body overlays possible.
-- **Mutagen team (Spriggit), MatortheEternal (xEdit / xEditLib),
-  Orvid (Caprica), Orvid / Centurion (Champollion)** — the modding
+- **expired6978** — [RaceMenu][racemenu] and SKEE / NiOverride, the
+  overlay backbone everything renders through.
+- **Exiledviper & meh321** — [PapyrusUtil][papyrusutil], without which
+  none of the per-actor state persistence would be sane.
+- **schlangster & the SkyUI team** — [SkyUI][skyui] / MCM, still the
+  gold standard.
+- **Ousnius & Caliente** — [BodySlide / Outfit Studio][bodyslide] and
+  the BHUNP / CBBE ecosystems that make body overlays possible.
+- **Mutagen team ([Spriggit][spriggit]), MatortheEternal
+  ([xEdit][xedit] / [xEditLib][xeditlib]), Orvid ([Caprica][caprica]),
+  Orvid / Centurion ([Champollion][champollion])** — the modding
   toolchain that made authoring this mod tractable.
-- The authors of **Beeing Female NG, Fertility Mode Reloaded, OStim
-  Standalone, SexLab, SexLab Aroused, SlaveTats, and SkyrimNet** —
-  for stable, scriptable APIs that made integration a matter of
-  soft-probing a form ID rather than reverse-engineering anything.
-- **SavageDomain** — original LewdMarks content; MTF originated as
-  LewdMarks Effects before being generalized.
+- The authors of **[Beeing Female NG][bfng], [Fertility Mode
+  Reloaded][fmr], [OStim Standalone][ostim], [SexLab][sexlab],
+  [OSL Aroused][osla], [SlaveTats][slavetats], and
+  [SkyrimNet][skyrimnet]** — for stable, scriptable APIs that made
+  integration a matter of soft-probing a form ID rather than
+  reverse-engineering anything.
+- **SavageDomain** — original [LewdMarks][lewdmarks] content; MTF
+  originated as LewdMarks Effects before being generalized.
 - Everyone in the LL and Nexus modding threads who answered "why does
   my overlay disappear after armor swap" patiently enough times that
   the answer made it into this framework.
@@ -293,8 +295,39 @@ GPL-3.0-or-later. See [`LICENSE`](LICENSE).
 
 ## Heritage
 
-Originated as **LewdMarks Effects**, based on LewdMarks Aroused by
-SavageDomain. Generalized in v0.0.23 into a content-agnostic framework;
-FMR / SLA plugins split into separate ESL addons in v0.0.24. Multi-area
-overlays (Face / Hands / Feet) landed in v0.1.17. SlaveTats bidirectional
-bridge in v0.1.19. SkyrimNet LLM integration in v0.1.20.
+Originated as **LewdMarks Effects**, based on [LewdMarks][lewdmarks]
+Aroused by SavageDomain. Generalized in v0.0.23 into a content-agnostic
+framework; FMR / SLA plugins split into separate ESL addons in v0.0.24.
+Multi-area overlays (Face / Hands / Feet) landed in v0.1.17. SlaveTats
+bidirectional bridge in v0.1.19. SkyrimNet LLM integration in v0.1.20.
+
+---
+
+<!-- Reference-style link definitions -->
+
+[skse]: https://skse.silverlock.org/
+[addrlib]: https://www.nexusmods.com/skyrimspecialedition/mods/32444
+[papyrusutil]: https://www.nexusmods.com/skyrimspecialedition/mods/13048
+[racemenu]: https://www.nexusmods.com/skyrimspecialedition/mods/19080
+[skyui]: https://www.nexusmods.com/skyrimspecialedition/mods/12604
+
+[fmr]: https://www.nexusmods.com/skyrimspecialedition/mods/165569
+[osla]: https://www.nexusmods.com/skyrimspecialedition/mods/65454
+[sexlab]: https://www.loverslab.com/files/file/5868-sexlab-framework-se-164b/
+[ostim]: https://www.nexusmods.com/skyrimspecialedition/mods/98163
+[bfng]: https://www.nexusmods.com/skyrimspecialedition/mods/168434
+[slavetats]: https://www.loverslab.com/files/file/383-slavetats/
+[skyrimnet]: https://github.com/MinLL/SkyrimNet-GamePlugin
+
+[lewdmarks]: https://www.nexusmods.com/skyrimspecialedition/mods/83786
+[obitats]: https://www.nexusmods.com/skyrimspecialedition/mods/105109
+[rxoverlays]: https://www.nexusmods.com/skyrimspecialedition/mods/166670
+[bardnails]: https://www.nexusmods.com/skyrimspecialedition/mods/126211
+[commover1]: https://www.nexusmods.com/skyrimspecialedition/mods/22487
+
+[bodyslide]: https://www.nexusmods.com/skyrimspecialedition/mods/201
+[xedit]: https://www.nexusmods.com/skyrimspecialedition/mods/164
+[xeditlib]: https://github.com/matortheeternal/xedit-lib
+[spriggit]: https://github.com/Mutagen-Modding/Spriggit
+[caprica]: https://github.com/Orvid/Caprica
+[champollion]: https://github.com/Orvid/Champollion
