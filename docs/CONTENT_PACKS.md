@@ -223,17 +223,60 @@ In game:
 
 ## Testing in-game
 
-MCM is the fastest verification. For programmatic / smoke testing,
-the `test-pack/` directory in the MTF repo contains preset JSONs that
-exercise the framework — model your test presets on those.
+Two complementary paths:
 
-If the overlay doesn't render:
-- Open the in-game console: `~`, type `tattoos` (assuming the
-  MTF_MainQuest is loaded). The debug command lists what's currently
-  applied per slot.
-- Check the SKSE log at `Documents/My Games/Skyrim Special Edition/SKSE/skse64.log` for any NiOverride errors.
-- Confirm the texture file actually exists at the path the JSON says
-  (loose-file checkin or BSA-extract verify).
+### Apply Tattoo spell (fast single-entry check)
+
+MTF auto-grants `MTF_Spell_ApplyTattoo` to the player on first load
+(via `MTF_HitListener._ensureApplyTattooSpell`). Cast it on yourself,
+or with an NPC under your crosshair — a UI menu opens with every
+saved preset. This is the fastest way to verify a new pack's entries
+actually render, because it bypasses the slot / tier / condition
+machinery:
+
+1. Save at least one preset that uses your new pack's entry (via
+   MCM → preset editor) so the spell menu has something to pick.
+2. Cast Apply Tattoo on yourself (or aim at an NPC and cast).
+3. Pick the preset → overlay should appear within a frame.
+4. Cast again, pick `[REMOVE] <preset name>` → overlay should clear.
+
+Repeat for each pack entry you want to spot-check. Much faster than
+binding to tiers and waiting for conditions to fire.
+
+### MCM preset editor (full pipeline check)
+
+Verifies the whole stack: pack discovery → MCM rendering → preset
+authoring → tier evaluation → effect activation. This is what
+covers the integration end-to-end, not just rendering.
+
+1. Open MCM → Magic Tattoos Framework → General → **"Reload visual
+   packs"**. The post-reload pack count should bump by 1.
+2. Open the preset editor for any slot.
+3. Open the texture pack dropdown — your pack's `label` should
+   appear.
+4. Pick it; the entry dropdown should populate from `entries[]`.
+5. Pick an entry, save the preset, bind it to a tier with a
+   condition you can trigger easily (e.g. magicka % threshold).
+6. Trigger the condition in-game — the overlay should render within
+   ~2 s (the eval tick interval).
+
+### Programmatic regression presets
+
+The [`test-pack/`](../test-pack/) folder holds preset JSONs that
+exercise the framework end-to-end (multi-area, multi-tier, pulse,
+cooldown, integration-driven flows). Copy one as a template for
+your pack's smoke-test preset, then enable the test pack in MO2
+alongside yours.
+
+### When the overlay doesn't render
+
+| Check | How |
+|---|---|
+| Pack discovered? | MCM → General → "Reload visual packs" — count should increment after install. If not, JSON filename ≠ `packId`, the path is wrong, or the JSON is malformed (validate with `jq . file.json`). |
+| Entry list populated? | Pick the pack in MCM. If dropdown is empty, `entries[]` is empty or the JSON is malformed past the header. |
+| Texture path exists on disk? | Manually browse to `Data/textures/<path-from-json>`. Typos and missing sub-folders are the #1 cause of silent non-rendering — NiOverride accepts the path but writes nothing. |
+| SKSE / NiOverride errors? | Tail `Documents/My Games/Skyrim Special Edition/SKSE/skse64.log` while casting Apply Tattoo. Look for `NiOverride` or `MTF` lines. |
+| Stale overlay after JSON edit? | Force a fresh eval + redraw from the console: `cqf MTF_MainQuest EvalAndDrawActor <ref>` (use `player` for self; click an NPC to get their reference). Iterates every applied preset on the target and re-renders. |
 
 ---
 
