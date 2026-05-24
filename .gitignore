@@ -1,12 +1,24 @@
+# Editor / backup / scratch
 *.bak
 *.bak-*
 *.bak2
 *.broken-stub.bak
 *.tmp
 *.log
+
+# Build outputs
 source/scripts/*.pex
 _build/
 _deps/
+
+# C++ SKSE plugin build artifacts (also covered by cpp-plugin/.gitignore)
+cpp-plugin/build/
+cpp-plugin/vcpkg_installed/
+cpp-plugin/extern/
+cpp-plugin/_skee_ref/
+
+# Local recovery snapshots (created ad-hoc before destructive git ops)
+.git-backup-*/
 
 # Tattoo design vision-reference renders (large, regeneratable from textures)
 docs/visual-refs/
