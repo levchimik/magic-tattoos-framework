@@ -19,15 +19,18 @@ Scriptname MTF_Plugin_SkyrimNet extends MTF_Plugin
 ;   decorator (cache key includes the actor UUID + storage key, so it
 ;   reads through every time). Zero decorator caching — always current.
 ;
-; TWO INTEGRATION CHANNELS WITH SKYRIMNET (unchanged):
+; TWO INTEGRATION CHANNELS WITH SKYRIMNET:
 ;
 ;   1. SHORT-LIVED EVENT (scene context, TTL-bounded).
-;      On every MTF_TierChanged for the player, fire
-;      SkyrimNetApi.RegisterShortLivedEvent with a per-preset eventId.
+;      On every MTF_TierChanged for ANY actor (v0.1.24: was player-only),
+;      fire SkyrimNetApi.RegisterShortLivedEvent with a per-preset eventId.
 ;      TTL 30s. Per-preset eventId means concurrent stacked presets don't
-;      dedupe each other's transition lines.
+;      dedupe each other's transition lines. Schema is registered with
+;      shortLivedEnabled=true so mtf_tattoo_change shows up in SkyrimNet's
+;      Event Settings UI — that's the SINGLE source of truth for whether
+;      NPCs should react, how often, and whether reactions can interrupt.
 ;
-;   2. RENDERED MARKDOWN VIA STORAGEUTIL (the new bio context channel).
+;   2. RENDERED MARKDOWN VIA STORAGEUTIL (the bio context channel).
 ;      _rebuildRenderedFor(Actor) composes the full "## Magic Tattoos" block
 ;      and writes it to StorageUtil. Called from HandleTierChange (every
 ;      tier transition for any actor) and from the alias's OnPlayerLoadGame
@@ -163,10 +166,15 @@ Function _registerTattooChangeSchema()
         + "\"compact\":\"{{subject}} tattoo {{verb}}\","                                                                                                    \
         + "\"verbose\":\"{{subject}} tattoo transitioned slot {{prev_tier}} -> {{new_tier}} ({{verb}})\""                                                   \
         + "}"
-    ; shortLivedEnabled=false — we manually fire the scene-context entry via
-    ; RegisterShortLivedEvent in HandleTierChange. Setting this true causes
-    ; SkyrimNet to ALSO auto-create a scene-context entry from the schema
-    ; description, producing two redundant events per transition.
+    ; shortLivedEnabled=false (REVERTED in v0.1.24 second pass): empirically
+    ; setting this true makes SkyrimNet auto-create a scene-context entry
+    ; using the schema description as content, on top of our manual
+    ; RegisterShortLivedEvent call — producing two events per transition
+    ; (one with our descLine, one with the schema description). The original
+    ; dev's comment was right. We keep false and rely on the manual call;
+    ; the trade-off is the schema may not appear in SkyrimNet's "Event
+    ; Configuration" UI page (it does appear in "Player Reactions
+    ; Configuration", which is enough to wire NPC reactions).
     SkyrimNetApi.RegisterEventSchema("mtf_tattoo_change", "Magic Tattoo Change", \
         "Fires when a Magic Tattoos Framework preset transitions between conditional slots (dormant <-> triggered, or condition shifts).", \
         fields, templates, true, 30000, false, false)
@@ -179,6 +187,17 @@ EndFunction
 
 ; ── Effects: none ───────────────────────────────────────────────────────────
 int Function GetEffectCount()
+    return 0
+EndFunction
+
+; ── Plugin settings: none ───────────────────────────────────────────────────
+; v0.1.24 narration rework: dropped the MTF-side "Narrate tattoo changes"
+; toggle in favor of SkyrimNet's own per-event-type controls. With
+; shortLivedEnabled=true in the schema, mtf_tattoo_change shows up in
+; SkyrimNet's Event Settings UI with Enabled / Allow NPC Reaction / NPC
+; Reaction Cooldown / Interrupt columns — all the gates and throttles live
+; there now. One source of truth.
+int Function GetSettingCount()
     return 0
 EndFunction
 
@@ -216,16 +235,11 @@ Function HandleTierChange(string strArg, float numArg, Form sender)
         return
     endif
 
-    ; Always refresh the StorageUtil bio string — that's the new bypass-cache
+    ; Always refresh the StorageUtil bio string — that's the bypass-cache
     ; freshness path. ANY actor (player + NPCs).
     _rebuildRenderedFor(target)
 
-    ; Short-lived scene-context event is player-only. NPC tier transitions
-    ; ARE forwarded by MainQuest but the scene-context audience model would
-    ; route them to the wrong scene.
-    if target != Game.GetPlayer()
-        return
-    endif
+    ; Classify the (prev, new) edge.
     string verb = _classifyTransition(prevTier, newTier)
     if verb == ""
         return
@@ -237,6 +251,17 @@ Function HandleTierChange(string strArg, float numArg, Form sender)
         displayName = host.GetPresetDisplayName(presetName)
     endif
     string subject = _subjectFor(displayName)
+
+    ; ── Short-lived scene-context event (any actor, v0.1.24) ──────────────
+    ; v0.1.24 widened scope: was player-only on the rationale that NPC events
+    ; would route to "the wrong scene". With the schema's shortLivedEnabled
+    ; flag now true, SkyrimNet's Event Settings UI exposes Enabled / Allow
+    ; NPC Reaction / NPC Reaction Cooldown / Interrupt per event type, and
+    ; those gates fire against the sourceActor's vicinity — so passing the
+    ; bearer as sourceActor routes correctly whether bearer is player or NPC.
+    ;
+    ; All gating + throttling for whether NPCs comment lives in SkyrimNet's
+    ; UI now. No MTF-side toggle, no MTF-side throttle.
     string descLine = subject + " tattoo " + _verbPhrase(verb) + "."
 
     ; Structured payload matches the registered schema's fields.
