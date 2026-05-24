@@ -15,6 +15,8 @@ It ships with no tattoos of its own — it's the engine. Drop in a content
 pack (or several), pick which slots are active in MCM, and your
 character starts wearing a reactive canvas.
 
+**Download:** [Magic Tattoos Framework on Nexus Mods][nexus]
+
 ---
 
 ## Contents
@@ -105,8 +107,8 @@ quirks (skeleton, camera) are not specifically tested.
 
 1. Install all **hard requirements** above first. Launch the game once
    to confirm they work.
-2. Install **Magic Tattoos Framework** with your mod manager (Vortex /
-   MO2). Place it after RaceMenu in your load order.
+2. Install **[Magic Tattoos Framework][nexus]** with your mod manager
+   (Vortex / MO2). Place it after RaceMenu in your load order.
 3. Install one or more **MTF content packs** (e.g. *[LewdMarks][lewdmarks]*,
    *[RX'Overlays][rxoverlays]*). Packs are standalone mods that depend on MTF.
 4. *(Optional)* Install any of the supported integration mods listed
@@ -303,6 +305,8 @@ bidirectional bridge in v0.1.19. SkyrimNet LLM integration in v0.1.20.
 ---
 
 <!-- Reference-style link definitions -->
+
+[nexus]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
 
 [skse]: https://skse.silverlock.org/
 [addrlib]: https://www.nexusmods.com/skyrimspecialedition/mods/32444
