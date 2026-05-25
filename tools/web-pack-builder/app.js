@@ -49,23 +49,46 @@ let state = null;
  * the remainder is what Skyrim looks up under Data/textures/.
  * Returns null if no recognizable layout was found.
  *
- * Recognized layouts (case-insensitive):
- *   - "textures/..."           → strip "textures/"
- *   - "Data/textures/..."      → strip "Data/textures/"
- *   - "data/textures/..."      → strip "data/textures/"
+ * Tolerates wrapper directories — Nexus mods are very often packed as
+ * `<ModName>/Data/Textures/...` or `<ModName>/textures/...` so that
+ * extraction creates a named folder. We scan for the first <dds path>
+ * that contains a `/textures/` segment and return everything up to and
+ * including that segment, preferring a `/Data/textures/` match
+ * (longer / more specific) over a bare `/textures/` match.
+ *
+ * All matching is case-insensitive (Bethesda paths mix `Textures` and
+ * `textures` freely).
+ *
+ * Recognized layouts (examples):
+ *   "textures/foo.dds"                               → "textures/"
+ *   "Data/textures/foo.dds"                          → "Data/textures/"
+ *   "ZAO Pack/Data/Textures/zao/foo.dds"             → "ZAO Pack/Data/Textures/"
+ *   "MyMod 1.0/textures/foo.dds"                     → "MyMod 1.0/textures/"
  */
 function detectTexturesRoot(entryPaths) {
-    const candidates = [
-        'data/textures/',
-        'textures/',
-    ];
-    for (const ep of entryPaths) {
-        const lower = ep.toLowerCase();
-        if (!lower.endsWith('.dds')) continue;
-        for (const prefix of candidates) {
-            if (lower.startsWith(prefix)) {
-                return ep.substring(0, prefix.length);
-            }
+    const ddsPaths = entryPaths.filter(p => p.toLowerCase().endsWith('.dds'));
+    if (ddsPaths.length === 0) return null;
+
+    // Pass 1: prefer 'data/textures/' anywhere in the path (most specific).
+    for (const p of ddsPaths) {
+        const lower = p.toLowerCase();
+        if (lower.startsWith('data/textures/')) {
+            return p.substring(0, 'data/textures/'.length);
+        }
+        const idx = lower.indexOf('/data/textures/');
+        if (idx >= 0) {
+            return p.substring(0, idx + '/data/textures/'.length);
+        }
+    }
+    // Pass 2: fall back to bare 'textures/' anywhere in the path.
+    for (const p of ddsPaths) {
+        const lower = p.toLowerCase();
+        if (lower.startsWith('textures/')) {
+            return p.substring(0, 'textures/'.length);
+        }
+        const idx = lower.indexOf('/textures/');
+        if (idx >= 0) {
+            return p.substring(0, idx + '/textures/'.length);
         }
     }
     return null;
@@ -107,6 +130,27 @@ function stemOf(path) {
  */
 function toSkyrimPath(forward) {
     return forward.replace(/\//g, '\\');
+}
+
+/**
+ * Compute the wrapper prefix to strip from output paths.
+ *
+ * Given the detected textures root, this returns everything BEFORE the
+ * trailing `textures/` segment — i.e. the wrapper-dir + Data/ prefix
+ * that should be peeled off in the output ZIP so it lands as a clean
+ * MO2 mod layout (`textures/...`, `scripts/...`, `*.esp` at root)
+ * instead of nesting under the source archive's wrapper.
+ *
+ * Examples:
+ *   "textures/"                                 → ""
+ *   "Data/textures/"                            → "Data/"
+ *   "ZAO Pack/Data/Textures/"                   → "ZAO Pack/Data/"
+ *   "MyMod 1.0/textures/"                       → "MyMod 1.0/"
+ */
+function computeStripPrefix(root) {
+    const lower = root.toLowerCase();
+    const idx = lower.lastIndexOf('textures/');
+    return idx <= 0 ? '' : root.substring(0, idx);
 }
 
 /**
@@ -312,6 +356,7 @@ async function handleArchive(file) {
         file:              file,
         extractedEntries:  extractedEntries,
         root:              root,
+        stripPrefix:       computeStripPrefix(root),
         ddsEntries:        ddsEntries,
         extraneousDDS:     extraneousDDS,
         existingCatalog:   existingCatalog,
@@ -389,8 +434,14 @@ function rebuildCatalog() {
     );
 
     addStatus('ok',
-        `Texture root: <code>${escapeHtml(state.root)}</code> &mdash; left unchanged in the output ZIP.`
+        `Texture root detected: <code>${escapeHtml(state.root)}</code>.`
     );
+    if (state.stripPrefix) {
+        addStatus('info',
+            `Stripping wrapper from output paths: <code>${escapeHtml(state.stripPrefix)}</code>. ` +
+            `Output ZIP will land cleanly as a MO2 mod (no nested folder).`
+        );
+    }
     addStatus('ok',
         `JSON output path: <code>SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/${escapeHtml(packId)}.json</code>`
     );
@@ -451,10 +502,19 @@ els.downloadBtn.addEventListener('click', async () => {
             `SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/${state.catalog.packId}.json`;
         const newJsonLower = newJsonPath.toLowerCase();
 
+        const strip = state.stripPrefix;
         const copyJobs = state.extractedEntries.map(async (entry) => {
-            if (entry.path.toLowerCase() === newJsonLower) return;
+            // Strip the wrapper prefix when the entry sits under it.
+            // Anything outside the wrapper (rare — usually top-level
+            // readmes/changelogs) passes through unchanged.
+            let outPath = entry.path;
+            if (strip && outPath.startsWith(strip)) {
+                outPath = outPath.substring(strip.length);
+            }
+            if (!outPath) return; // defensive: don't write empty path
+            if (outPath.toLowerCase() === newJsonLower) return;
             const buf = await entry.file.arrayBuffer();
-            out.file(entry.path, new Uint8Array(buf), {
+            out.file(outPath, new Uint8Array(buf), {
                 date: new Date(entry.file.lastModified || Date.now()),
             });
         });
