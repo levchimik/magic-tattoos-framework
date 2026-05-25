@@ -240,6 +240,63 @@ function lookupLabel(labels, relativePath) {
     return null;
 }
 
+/**
+ * Auto-detect which body region a pack covers (Body / Face / Hands / Feet).
+ *
+ * Two passes, strongest-signal first:
+ *   1. RaceMenu API function calls in the .psc — `AddBodyPaint`,
+ *      `AddFacePaint`, `AddHandPaint`, `AddFeetPaint` (and their
+ *      `*Overlay` variants). Majority wins. Most authoritative because
+ *      the script author EXPLICITLY chose the API.
+ *   2. Path-keyword heuristic on the .dds relative paths — looks for
+ *      "head", "face", "hand", "nail", "polish", "feet", "foot" as
+ *      substrings (no word boundaries — catches Bardle's
+ *      `BardleNailPolishBubbles.dds`-style filenames). Bucket with
+ *      majority wins, but only if >50% of paths classify.
+ *   3. Default: Body (most common; LewdMarks / ZAO / generic packs
+ *      have no helpful keyword in their paths).
+ *
+ * Returns { area, source } where source is one of:
+ *   "psc"     — .psc function-call majority
+ *   "paths"   — path-keyword majority
+ *   "default" — fallback
+ */
+function detectArea(pscText, ddsRelativePaths) {
+    // Pass 1: .psc function calls.
+    const fnCounts = { Body: 0, Face: 0, Hands: 0, Feet: 0 };
+    if (pscText) {
+        const count = (pat) => (pscText.match(pat) || []).length;
+        // RaceMenu API: Add{Body,Face,Hand,Hands,Feet,Foot}{Paint,Overlay}
+        fnCounts.Body  += count(/\bAdd(?:Body)(?:Paint|Overlay)\b/gi);
+        fnCounts.Face  += count(/\bAdd(?:Face|Head)(?:Paint|Overlay)\b/gi);
+        fnCounts.Hands += count(/\bAdd(?:Hand|Hands|Nail|Nails)(?:Paint|Overlay)\b/gi);
+        fnCounts.Feet  += count(/\bAdd(?:Feet|Foot)(?:Paint|Overlay)\b/gi);
+    }
+    const fnTotal = fnCounts.Body + fnCounts.Face + fnCounts.Hands + fnCounts.Feet;
+    if (fnTotal > 0) {
+        const winner = Object.entries(fnCounts)
+            .reduce((a, b) => b[1] > a[1] ? b : a);
+        return { area: winner[0], source: 'psc', counts: fnCounts };
+    }
+
+    // Pass 2: path-keyword heuristic.
+    const pathCounts = { Face: 0, Hands: 0, Feet: 0 };
+    for (const p of ddsRelativePaths) {
+        const lower = p.toLowerCase();
+        if (lower.includes('head') || lower.includes('face')) pathCounts.Face++;
+        else if (lower.includes('nail') || lower.includes('polish') ||
+                 lower.includes('hand')) pathCounts.Hands++;
+        else if (lower.includes('feet') || lower.includes('foot')) pathCounts.Feet++;
+    }
+    const pmax = Math.max(pathCounts.Face, pathCounts.Hands, pathCounts.Feet);
+    if (pmax / ddsRelativePaths.length > 0.5) {
+        const winner = ['Face', 'Hands', 'Feet'].find(k => pathCounts[k] === pmax);
+        return { area: winner, source: 'paths', counts: pathCounts };
+    }
+
+    return { area: 'Body', source: 'default', counts: pathCounts };
+}
+
 // ─── Status panel ───────────────────────────────────────────────────────
 
 function clearStatus() {
@@ -375,15 +432,20 @@ async function handleArchive(file) {
     // gives much better MCM dropdowns than the bare filename stem.
     // We extract each .psc via extractSingleFile (worker stays alive
     // until we explicitly close it) and merge all parsed labels.
+    // We also keep the concatenated .psc text around for detectArea() —
+    // RaceMenu's function-name choice (AddBodyPaint vs AddFacePaint
+    // vs AddHandPaint vs AddFeetPaint) is the strongest area signal.
     const pscEntries = entries.filter(e => (e.path + e.file.name).toLowerCase().endsWith('.psc'));
     let labels = new Map();
     let pscParsed = null; // { paths: [...], count: N }
+    let pscTextAll = '';
     if (pscEntries.length > 0) {
         const pscPaths = pscEntries.map(e => e.path + e.file.name);
         for (const pscPath of pscPaths) {
             try {
                 const pscFile = await archive.extractSingleFile(pscPath);
                 const text = await pscFile.text();
+                pscTextAll += '\n' + text;
                 const oneLabels = parseScriptLabels(text);
                 for (const [k, v] of oneLabels) labels.set(k, v);
             } catch (err) {
@@ -437,6 +499,13 @@ async function handleArchive(file) {
         return;
     }
 
+    // Auto-detect area from .psc function names (strongest signal),
+    // falling back to path keywords, then default Body. Sets the form
+    // dropdown so the catalog rebuild uses the detected area; user can
+    // still override.
+    const areaDet = detectArea(pscTextAll, ddsEntries.map(d => d.relative));
+    els.packArea.value = areaDet.area;
+
     state = {
         file:           file,
         root:           root,
@@ -444,6 +513,7 @@ async function handleArchive(file) {
         extraneousDDS:  extraneousDDS,
         labels:         labels,
         pscParsed:      pscParsed,
+        areaDet:        areaDet,
         catalog:        null,
     };
 
@@ -523,6 +593,32 @@ function rebuildCatalog() {
     addStatus('ok',
         `Texture root detected: <code>${escapeHtml(state.root)}</code>.`
     );
+
+    // Area auto-detection report (only when we picked a non-default
+    // bucket — the default case is silent so the panel stays terse).
+    if (state.areaDet) {
+        if (state.areaDet.source === 'psc') {
+            const breakdown = Object.entries(state.areaDet.counts)
+                .filter(([, n]) => n > 0)
+                .map(([k, n]) => `${k}=${n}`)
+                .join(', ');
+            addStatus('ok',
+                `Area set to <strong>${escapeHtml(state.areaDet.area)}</strong> &mdash; ` +
+                `from RaceMenu function calls in .psc (${breakdown}).`
+            );
+        } else if (state.areaDet.source === 'paths') {
+            addStatus('ok',
+                `Area set to <strong>${escapeHtml(state.areaDet.area)}</strong> &mdash; ` +
+                `from texture-path keywords.`
+            );
+        } else if (packArea !== 'Body') {
+            // User manually changed away from the default.
+            addStatus('info',
+                `Area set to <strong>${escapeHtml(packArea)}</strong> (manual).`
+            );
+        }
+    }
+
     addStatus('ok',
         `JSON output path: <code>SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/${escapeHtml(packId)}.json</code>`
     );
