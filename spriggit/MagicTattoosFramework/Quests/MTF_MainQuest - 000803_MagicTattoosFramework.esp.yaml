@@ -13,16 +13,8 @@ VirtualMachineAdapter:
     - MutagenObjectType: ScriptObjectProperty
       Name: PlayerRef
       Object: 000014:Skyrim.esm
-    - MutagenObjectType: ScriptStringProperty
-      Name: texturePathGlow
-      Data: actors\character\overlays\lewdmarks-glow\
-    - MutagenObjectType: ScriptStringProperty
-      Name: texturePathNormal
-      Data: actors\character\overlays\lewdmarks\
     - MutagenObjectType: ScriptFloatProperty
       Name: updateInterval
-    - MutagenObjectType: ScriptBoolProperty
-      Name: useSlaveTats
   FileName: ''
   Aliases:
   - Property:
