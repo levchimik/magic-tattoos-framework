@@ -24,9 +24,7 @@ Scriptname MTF_Plugin_SLA extends MTF_Plugin
 
 slaFrameWorkScr Property SLAFramework Auto Hidden
 
-MTF_MainQuest Function _host()
-    return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
-EndFunction
+; _host() lifted to MTF_Plugin base class.
 
 ; Maximum NPCs the Pheromone Aura can affect in one game-hour tick.
 ; Caps the cost in crowds. Not user-tunable.
@@ -46,24 +44,8 @@ bool Function _resolveDeps()
     return SLAFramework != None
 EndFunction
 
-Function _tryRegister()
-    if _registered
-        return
-    endif
-    if !_resolveDeps()
-        ; Deps not yet loaded — re-arm. Without this the bail is silent and
-        ; we'd stay unregistered for the session.
-        RegisterForSingleUpdate(2.0)
-        return
-    endif
-    MTF_MainQuest host = Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
-    if host == None || host.registeredPlugins == None
-        RegisterForSingleUpdate(1.0)
-        return
-    endif
-    host.RegisterPlugin(self)
-    _registered = true
-EndFunction
+; _tryRegister lifted to MTF_Plugin base class. _resolveDeps above is the
+; only thing this plugin customises.
 
 ; ── Behaviour ───────────────────────────────────────────────────────────────
 bool Function checkCondition(Actor target, int param, string cid)

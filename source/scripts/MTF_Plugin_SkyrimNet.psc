@@ -92,9 +92,9 @@ string Function GetPluginLabel()
 EndFunction
 
 ; ── Soft-dep resolution ─────────────────────────────────────────────────────
-MTF_MainQuest Function _host()
-    return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
-EndFunction
+; _host() + _tryRegister lifted to MTF_Plugin base class. We customise
+; _resolveDeps (soft-master probe) and _onRegistered (post-register bridge
+; setup) — the base's _tryRegister calls them at the right points.
 
 bool Function _resolveDeps()
     if _depsResolved
@@ -107,23 +107,7 @@ bool Function _resolveDeps()
     return true
 EndFunction
 
-Function _tryRegister()
-    if _registered
-        return
-    endif
-    if !_resolveDeps()
-        ; Re-arm. Without this we'd silently stay unregistered (late load
-        ; order / late init scenarios).
-        RegisterForSingleUpdate(2.0)
-        return
-    endif
-    MTF_MainQuest host = _host()
-    if host == None || host.registeredPlugins == None
-        RegisterForSingleUpdate(1.0)
-        return
-    endif
-    host.RegisterPlugin(self)
-    _registered = true
+Function _onRegistered()
     _setupBridge()
 EndFunction
 

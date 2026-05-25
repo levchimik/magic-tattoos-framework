@@ -73,9 +73,7 @@ string Function GetPluginId()
 EndFunction
 
 ; ── Soft-dep resolution ─────────────────────────────────────────────────────
-MTF_MainQuest Function _host()
-    return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
-EndFunction
+; _host() lifted to MTF_Plugin base class.
 
 bool Function _resolveDeps()
     if _depsResolved
@@ -95,24 +93,8 @@ bool Function _resolveDeps()
     return true
 EndFunction
 
-Function _tryRegister()
-    if _registered
-        return
-    endif
-    if !_resolveDeps()
-        ; Deps not yet loaded — re-arm. Without the re-arm we'd silently
-        ; stay unregistered (load order or late-init scenarios).
-        RegisterForSingleUpdate(2.0)
-        return
-    endif
-    MTF_MainQuest host = _host()
-    if host == None || host.registeredPlugins == None
-        RegisterForSingleUpdate(1.0)
-        return
-    endif
-    host.RegisterPlugin(self)
-    _registered = true
-EndFunction
+; _tryRegister lifted to MTF_Plugin base class. _resolveDeps above is the
+; only thing this plugin customises.
 
 ; ── Helpers ─────────────────────────────────────────────────────────────────
 string Function _areaToString(int areaIdx)

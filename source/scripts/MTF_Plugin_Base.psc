@@ -282,10 +282,8 @@ EndFunction
 ; ── Conditions ──────────────────────────────────────────────────────────────
 ; Metadata (id/label/description/param) lives in mtf.base.json — see top-of-
 ; file header. Only the runtime evaluator stays here.
-
-MTF_MainQuest Function _host()
-    return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
-EndFunction
+;
+; _host() lifted to MTF_Plugin base class.
 
 ; Called by MTF_HitListener on each player OnHit event.
 Function _onHit(int classIdx)

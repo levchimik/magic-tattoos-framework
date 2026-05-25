@@ -35,24 +35,8 @@ bool Function _resolveDeps()
     return BFController != None
 EndFunction
 
-Function _tryRegister()
-    if _registered
-        return
-    endif
-    if !_resolveDeps()
-        ; BFNG not loaded — re-arm. Without the re-arm we'd silently stay
-        ; unregistered forever (load order or late-init scenarios).
-        RegisterForSingleUpdate(2.0)
-        return
-    endif
-    MTF_MainQuest host = Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
-    if host == None || host.registeredPlugins == None
-        RegisterForSingleUpdate(1.0)
-        return
-    endif
-    host.RegisterPlugin(self)
-    _registered = true
-EndFunction
+; _tryRegister + _host lifted to MTF_Plugin base class. _resolveDeps above is
+; the only thing this plugin customises.
 
 ; ── Behaviour (stays in Papyrus — can't be data) ────────────────────────────
 bool Function checkCondition(Actor target, int param, string cid)

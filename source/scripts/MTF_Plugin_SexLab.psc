@@ -48,22 +48,8 @@ bool Function _resolveDeps()
     return SexLab != None
 EndFunction
 
-Function _tryRegister()
-    if _registered
-        return
-    endif
-    if !_resolveDeps()
-        RegisterForSingleUpdate(2.0)
-        return
-    endif
-    MTF_MainQuest host = Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
-    if host == None || host.registeredPlugins == None
-        RegisterForSingleUpdate(1.0)
-        return
-    endif
-    host.RegisterPlugin(self)
-    _registered = true
-EndFunction
+; _tryRegister + _host lifted to MTF_Plugin base class. _resolveDeps above is
+; the only thing this plugin customises.
 
 ; ── Behaviour ───────────────────────────────────────────────────────────────
 bool Function checkCondition(Actor target, int param, string cid)

@@ -39,17 +39,64 @@ Event OnUpdate()
     _tryRegister()
 EndEvent
 
+; Resolve the framework host quest. Identical body across every plugin —
+; lifted here so derived classes don't have to repeat the FormID/master.
+MTF_MainQuest Function _host()
+    return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
+EndFunction
+
+; Lifted registration loop. Every integration plugin used to repeat this
+; ~15-line shape verbatim (deps gate + host gate + register + post-hook).
+; Two override hooks below let plugins customise without re-declaring the
+; whole function:
+;
+;   _resolveDeps() — probe for the target mod's forms / API; return false
+;                    until the deps are ready, then cache+true. Default
+;                    returns true (no soft-dep — e.g. MTF_Plugin_Base).
+;
+;   _onRegistered() — called once, after the host accepted the plugin.
+;                     Use for one-shot per-session bridge setup (e.g.
+;                     SkyrimNet schema registration). Default no-op.
+;
+; Re-arm cadence: 2s when waiting for deps (mod may still be loading), 1s
+; when waiting for host (registry array allocates during MainQuest.OnInit).
+; Both bail silently otherwise — without the re-arms the plugin would
+; stay unregistered for the rest of the session.
 Function _tryRegister()
     if _registered
         return
     endif
-    MTF_MainQuest host = Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
+    if !_resolveDeps()
+        RegisterForSingleUpdate(2.0)
+        return
+    endif
+    MTF_MainQuest host = _host()
     if host == None || host.registeredPlugins == None
         RegisterForSingleUpdate(1.0)
         return
     endif
     host.RegisterPlugin(self)
     _registered = true
+    _onRegistered()
+EndFunction
+
+; ── OVERRIDE: dependency gate ───────────────────────────────────────────────
+bool Function _resolveDeps()
+{Return false until the plugin's target mod is loaded and its forms/APIs
+ are resolvable; return true once dependencies are satisfied. Plugins with
+ no soft-dep leave the default (always-true) alone. Implementations should
+ cache resolved Form properties on first success so subsequent calls are
+ a no-cost early-out.}
+    return true
+EndFunction
+
+; ── OVERRIDE: post-registration hook ────────────────────────────────────────
+Function _onRegistered()
+{Called once when registration succeeds. Default no-op. Override for
+ first-session bridge setup that requires the host to know about us — e.g.
+ SkyrimNet schema registration, seeding a default StorageUtil entry, etc.
+ Reload-time setup should NOT live here (this fires only on the OnInit
+ path); use the plugin's host-alias OnPlayerLoadGame for every-load work.}
 EndFunction
 
 ; ── OVERRIDE: plugin identity ────────────────────────────────────────────────
