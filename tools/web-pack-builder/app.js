@@ -109,6 +109,28 @@ function toSkyrimPath(forward) {
     return forward.replace(/\//g, '\\');
 }
 
+/**
+ * Flatten the nested {dirName: {dirName: {fileName: File}}} object that
+ * libarchive's `extractFiles()` returns into a flat list of
+ * { path: "full/forward/slashed/path.dds", file: File } entries.
+ *
+ * We don't use libarchive's own per-entry callback because it fires via
+ * setTimeout and resolves AFTER the extractFiles promise — see the call
+ * site for the full RACE TRAP comment.
+ */
+function flattenContent(obj, prefix = '') {
+    const out = [];
+    if (!obj || typeof obj !== 'object') return out;
+    for (const [key, val] of Object.entries(obj)) {
+        if (val instanceof File) {
+            out.push({ path: prefix + key, file: val });
+        } else if (val && typeof val === 'object') {
+            out.push(...flattenContent(val, prefix + key + '/'));
+        }
+    }
+    return out;
+}
+
 // ─── Status panel ───────────────────────────────────────────────────────
 
 function clearStatus() {
@@ -206,20 +228,19 @@ async function handleArchive(file) {
     // Extract every entry into memory. libarchive's worker terminates
     // after extractFiles completes, so we have to hoist the File objects
     // out for the output ZIP composition later.
-    const extractedEntries = []; // { path: "full/path/file.dds", file: File }
-    let counter = 0;
+    //
+    // RACE TRAP: libarchive's per-entry callback fires via `setTimeout`,
+    // meaning callbacks land AFTER the awaited promise resolves. Don't
+    // collect via the callback — the array would still be empty when
+    // we observe it. Instead, consume the resolved nested-object
+    // RETURN value (the same `_content` libarchive builds internally
+    // before scheduling those callbacks) and flatten it ourselves.
+    els.dropMeta.innerHTML =
+        `<strong>${escapeHtml(file.name)}</strong> (${formatBytes(file.size)}) &mdash; extracting&hellip;`;
+
+    let contentObj;
     try {
-        await archive.extractFiles(({ file: f, path }) => {
-            extractedEntries.push({ path: path, file: f });
-            counter++;
-            // Throttled progress display — every 25 files to avoid
-            // hammering the DOM on huge archives.
-            if (counter % 25 === 0 || counter === 1) {
-                els.dropMeta.innerHTML =
-                    `<strong>${escapeHtml(file.name)}</strong> (${formatBytes(file.size)}) &mdash; ` +
-                    `extracting ${counter}&hellip;`;
-            }
-        });
+        contentObj = await archive.extractFiles();
     } catch (err) {
         els.dropMeta.innerHTML =
             `<strong>${escapeHtml(file.name)}</strong> &mdash; extraction failed.`;
@@ -229,6 +250,7 @@ async function handleArchive(file) {
         );
         return;
     }
+    const extractedEntries = flattenContent(contentObj);
 
     if (extractedEntries.length === 0) {
         els.dropMeta.innerHTML =
