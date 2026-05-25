@@ -519,7 +519,7 @@ async function handleArchive(file) {
 
     els.dropMeta.innerHTML =
         `<strong>${escapeHtml(file.name)}</strong> (${formatBytes(file.size)}) &mdash; ` +
-        `${ddsEntries.length} texture${ddsEntries.length === 1 ? '' : 's'} catalogued under ` +
+        `${ddsEntries.length} <code>.dds</code> file${ddsEntries.length === 1 ? '' : 's'} found under ` +
         `<code>${escapeHtml(root)}</code>.`;
 
     rebuildCatalog();
@@ -558,12 +558,34 @@ function rebuildCatalog() {
         return;
     }
 
+    // Resolve .psc-derived labels for every .dds up front so we can
+    // both filter and label in one pass.
+    const ddsWithLabels = state.ddsEntries.map(d => ({
+        ...d,
+        pscLabel: lookupLabel(state.labels, d.relative),
+    }));
+
+    // When a .psc is present, treat it as the author's curation: skip
+    // any .dds the .psc didn't explicitly register. (Authors commonly
+    // leave unused / draft textures in their archive that they meant
+    // to remove; including them would clutter the MCM dropdown.)
+    //
+    // Safety valve: if NOTHING matches (zero hits), the .psc paths
+    // probably don't align with the archive layout — fall back to
+    // catalogging everything rather than emitting an empty pack.
+    let sourceEntries = ddsWithLabels;
+    let skippedUnregistered = 0;
+    if (state.labels.size > 0) {
+        const matched = ddsWithLabels.filter(d => d.pscLabel !== null);
+        if (matched.length > 0) {
+            skippedUnregistered = ddsWithLabels.length - matched.length;
+            sourceEntries = matched;
+        }
+    }
+
     const takenIds = new Set();
-    let labeledFromPsc = 0;
-    const entries = state.ddsEntries.map(d => {
-        const fromPsc = lookupLabel(state.labels, d.relative);
-        const displayName = fromPsc || d.stem;
-        if (fromPsc) labeledFromPsc++;
+    const entries = sourceEntries.map(d => {
+        const displayName = d.pscLabel || d.stem;
         return {
             id:    makeEntryId(displayName, takenIds),
             label: displayName,
@@ -572,7 +594,8 @@ function rebuildCatalog() {
             ],
         };
     });
-    state.labeledFromPsc = labeledFromPsc;
+    state.labeledFromPsc      = sourceEntries.filter(d => d.pscLabel).length;
+    state.skippedUnregistered = skippedUnregistered;
 
     state.catalog = {
         schemaVersion: 3,
@@ -663,6 +686,13 @@ function rebuildCatalog() {
             addStatus('info',
                 `${state.labeledFromPsc} of ${entries.length} entries labelled from ${pscList}. ` +
                 `The rest fall back to filename stems &mdash; the .psc likely doesn't register them.`
+            );
+        }
+        if (state.skippedUnregistered > 0) {
+            addStatus('info',
+                `${state.skippedUnregistered} <code>.dds</code> file${state.skippedUnregistered === 1 ? '' : 's'} ` +
+                `not registered in the .psc &mdash; skipped from the catalog (treating the .psc ` +
+                `as the author's curation). Pre-extract the archive and remove the .psc if you want them all in.`
             );
         }
     } else if (state.pscParsed) {

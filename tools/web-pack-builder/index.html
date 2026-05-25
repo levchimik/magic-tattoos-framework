@@ -142,6 +142,16 @@
                     must stay unique within the pack but are otherwise free-form.
                 </p>
                 <p>
+                    <strong>.psc as the source of truth.</strong> If a Papyrus script
+                    is bundled with the archive, the tool uses it to (1) supply
+                    human-readable entry labels and (2) DECIDE WHICH textures to
+                    catalog &mdash; any <code>.dds</code> not registered in the .psc
+                    is skipped. Authors often leave unused / draft textures alongside
+                    the script; respecting the .psc avoids surfacing those. If you
+                    want every <code>.dds</code> regardless, pre-extract the archive
+                    and remove the <code>.psc</code> before re-zipping.
+                </p>
+                <p>
                     <strong>Privacy.</strong> Everything happens in your browser.
                     Your archive never touches a server. View page source or open dev
                     tools to verify.
