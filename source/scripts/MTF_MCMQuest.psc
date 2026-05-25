@@ -602,22 +602,21 @@ function drawPresetEditorPage()
                 _drawEffectRow(idx, 3, "SLOT_EFFECT_4_TYPE", "SLOT_EFFECT_4_P1", "SLOT_EFFECT_4_P2", \
                                "SLOT_EFFECT_4_P3", "SLOT_EFFECT_4_P4", "SLOT_EFFECT_4_P5")
                 if MainQuest.GetSlotEffectKey(idx, 3) != ""
-                    ; v0.1.24: rows 5-8 added to raise MCM-editable cap from
-                    ; 4 to 8. These rows pass empty extra-state IDs ("") to
-                    ; _drawEffectRow — the SkyUI 127-named-state ceiling left
-                    ; us no room for per-row EX1/EX2/EX3 widgets here. Effects
-                    ; with extras (flash.onhit, sound.play) can still be bound
-                    ; to rows 5-8; their extras default to plugin-declared
-                    ; defaults. To edit extras, place the effect in rows 1-4
-                    ; (progressive-disclosure compaction shifts hidden rows
-                    ; up when a visible row is cleared).
-                    _drawEffectRow(idx, 4, "SLOT_EFFECT_5_TYPE", "SLOT_EFFECT_5_P1", "SLOT_EFFECT_5_P2", "", "", "")
+                    ; Rows 5-8 reached parity with 1-4 in v0.2.2 once the MCM
+                    ; state-budget recovery (subjects-page drop + plugin
+                    ; pagination + plugin-level settings drop) freed enough
+                    ; named-state slots to add P3/P4/P5 here too.
+                    _drawEffectRow(idx, 4, "SLOT_EFFECT_5_TYPE", "SLOT_EFFECT_5_P1", "SLOT_EFFECT_5_P2", \
+                                   "SLOT_EFFECT_5_P3", "SLOT_EFFECT_5_P4", "SLOT_EFFECT_5_P5")
                     if MainQuest.GetSlotEffectKey(idx, 4) != ""
-                        _drawEffectRow(idx, 5, "SLOT_EFFECT_6_TYPE", "SLOT_EFFECT_6_P1", "SLOT_EFFECT_6_P2", "", "", "")
+                        _drawEffectRow(idx, 5, "SLOT_EFFECT_6_TYPE", "SLOT_EFFECT_6_P1", "SLOT_EFFECT_6_P2", \
+                                       "SLOT_EFFECT_6_P3", "SLOT_EFFECT_6_P4", "SLOT_EFFECT_6_P5")
                         if MainQuest.GetSlotEffectKey(idx, 5) != ""
-                            _drawEffectRow(idx, 6, "SLOT_EFFECT_7_TYPE", "SLOT_EFFECT_7_P1", "SLOT_EFFECT_7_P2", "", "", "")
+                            _drawEffectRow(idx, 6, "SLOT_EFFECT_7_TYPE", "SLOT_EFFECT_7_P1", "SLOT_EFFECT_7_P2", \
+                                           "SLOT_EFFECT_7_P3", "SLOT_EFFECT_7_P4", "SLOT_EFFECT_7_P5")
                             if MainQuest.GetSlotEffectKey(idx, 6) != ""
-                                _drawEffectRow(idx, 7, "SLOT_EFFECT_8_TYPE", "SLOT_EFFECT_8_P1", "SLOT_EFFECT_8_P2", "", "", "")
+                                _drawEffectRow(idx, 7, "SLOT_EFFECT_8_TYPE", "SLOT_EFFECT_8_P1", "SLOT_EFFECT_8_P2", \
+                                               "SLOT_EFFECT_8_P3", "SLOT_EFFECT_8_P4", "SLOT_EFFECT_8_P5")
                             endif
                         endif
                     endif
@@ -1748,9 +1747,8 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string p1St
 {Render one effect row: the type picker plus one MCM widget per declared
  paramN slot (N = 1..5). The "is declared" probe is `GetEffectParamLabel(idx, n) != ""`
  — same convention the JSON catalog uses to mark slots as active.
- Rows 5-8 pass "" for p3/p4/p5 because there aren't enough named-state
- slots for those positions; those effects fall back to plugin defaults
- for the un-rendered params.}
+ As of v0.2.2 all 8 rows have full paramN parity; callers should always
+ pass real state IDs for p1..p5 (empty strings still safely no-op).}
     AddMenuOptionST(typeStateId, "Effect " + (effectIdx + 1), _effectTypeLabel(effectIdx))
     string key = MainQuest.GetSlotEffectKey(slot, effectIdx)
     if key == ""
@@ -2393,12 +2391,11 @@ state SLOT_EFFECT_4_P2
     endEvent
 endState
 
-; ── Rows 5-8 (v0.1.24) ──────────────────────────────────────────────────────
-; Added to raise MAX_EFFECTS_PER_SLOT_MCM from 4 to 8. Mirror rows 1-4
-; but WITHOUT per-row EX1/EX2/EX3 extras states — the SkyUI 127-named-state
-; ceiling forces us to drop them here. Effects with plugin extras (flash.onhit,
-; sound.play) can still be bound to these rows; their extras use plugin-
-; declared defaults until the row is shifted into 1-4 via compaction.
+; ── Rows 5-8 TYPE/P1/P2 (v0.1.24, parity completed v0.2.2) ─────────────────
+; Added in v0.1.24 to raise MAX_EFFECTS_PER_SLOT_MCM from 4 to 8.
+; Originally shipped without P3/P4/P5 because of the SkyUI 127-named-state
+; ceiling; the P3-P5 blocks for these rows now live further down (after
+; SLOT_EFFECT_4_P5) and rows 5-8 are at full parity with 1-4.
 
 state SLOT_EFFECT_5_TYPE
     event OnMenuOpenST()
@@ -2892,6 +2889,264 @@ state SLOT_EFFECT_4_P5
     endEvent
     event OnHighlightST()
         _highlightEffectParam(3, 5)
+    endEvent
+endState
+
+; ── Rows 5-8 paramN states (P3/P4/P5) ───────────────────────────────────────
+; Added in v0.2.2 once the MCM state budget recovery (subjects-page drop +
+; plugin pagination + plugin-level settings drop) opened enough headroom to
+; bring slots 5-8 to parity with 1-4. Pure mechanical copies of the slot
+; 1-4 P3/P4/P5 blocks at different slot indices (4..7).
+
+state SLOT_EFFECT_5_P3
+    event OnSliderOpenST()
+        _openEffectParam(4, 3)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(4, 3, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(4, 3)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(4, 3, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(4, 3)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(4, 3)
+    endEvent
+endState
+
+state SLOT_EFFECT_5_P4
+    event OnSliderOpenST()
+        _openEffectParam(4, 4)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(4, 4, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(4, 4)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(4, 4, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(4, 4)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(4, 4)
+    endEvent
+endState
+
+state SLOT_EFFECT_5_P5
+    event OnSliderOpenST()
+        _openEffectParam(4, 5)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(4, 5, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(4, 5)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(4, 5, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(4, 5)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(4, 5)
+    endEvent
+endState
+
+state SLOT_EFFECT_6_P3
+    event OnSliderOpenST()
+        _openEffectParam(5, 3)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(5, 3, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(5, 3)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(5, 3, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(5, 3)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(5, 3)
+    endEvent
+endState
+
+state SLOT_EFFECT_6_P4
+    event OnSliderOpenST()
+        _openEffectParam(5, 4)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(5, 4, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(5, 4)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(5, 4, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(5, 4)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(5, 4)
+    endEvent
+endState
+
+state SLOT_EFFECT_6_P5
+    event OnSliderOpenST()
+        _openEffectParam(5, 5)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(5, 5, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(5, 5)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(5, 5, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(5, 5)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(5, 5)
+    endEvent
+endState
+
+state SLOT_EFFECT_7_P3
+    event OnSliderOpenST()
+        _openEffectParam(6, 3)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(6, 3, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(6, 3)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(6, 3, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(6, 3)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(6, 3)
+    endEvent
+endState
+
+state SLOT_EFFECT_7_P4
+    event OnSliderOpenST()
+        _openEffectParam(6, 4)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(6, 4, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(6, 4)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(6, 4, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(6, 4)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(6, 4)
+    endEvent
+endState
+
+state SLOT_EFFECT_7_P5
+    event OnSliderOpenST()
+        _openEffectParam(6, 5)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(6, 5, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(6, 5)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(6, 5, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(6, 5)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(6, 5)
+    endEvent
+endState
+
+state SLOT_EFFECT_8_P3
+    event OnSliderOpenST()
+        _openEffectParam(7, 3)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(7, 3, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(7, 3)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(7, 3, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(7, 3)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(7, 3)
+    endEvent
+endState
+
+state SLOT_EFFECT_8_P4
+    event OnSliderOpenST()
+        _openEffectParam(7, 4)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(7, 4, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(7, 4)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(7, 4, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(7, 4)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(7, 4)
+    endEvent
+endState
+
+state SLOT_EFFECT_8_P5
+    event OnSliderOpenST()
+        _openEffectParam(7, 5)
+    endEvent
+    event OnSliderAcceptST(float value)
+        _acceptEffectParam(7, 5, value)
+    endEvent
+    event OnMenuOpenST()
+        _openEffectParamMenu(7, 5)
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptEffectParamMenu(7, 5, index)
+    endEvent
+    event OnDefaultST()
+        _defaultEffectParam(7, 5)
+    endEvent
+    event OnHighlightST()
+        _highlightEffectParam(7, 5)
     endEvent
 endState
 
