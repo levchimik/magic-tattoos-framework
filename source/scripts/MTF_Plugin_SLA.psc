@@ -66,19 +66,19 @@ Function _tryRegister()
 EndFunction
 
 ; ── Behaviour ───────────────────────────────────────────────────────────────
-bool Function checkCondition(int idx, Actor target, int param)
+bool Function checkCondition(int idx, Actor target, int param, string cid)
     if target == None || SLAFramework == None
         return false
     endif
-    if idx == 0
+    if cid == "arousal"
         return SLAFramework.GetActorArousal(target) >= param
-    elseif idx == 1
+    elseif cid == "days.since.orgasm"
         ; GetActorDaysSinceLastOrgasm returns float days. Threshold is integer days.
         return SLAFramework.GetActorDaysSinceLastOrgasm(target) >= (param as float)
-    elseif idx == 2
+    elseif cid == "exposure.rate"
         ; ExposureRate is float. Threshold is integer.
         return SLAFramework.GetActorExposureRate(target) >= (param as float)
-    elseif idx == 3
+    elseif cid == "arousal.lock"
         bool locked = SLAFramework.IsActorArousalLocked(target)
         if param == 1
             return locked
@@ -99,11 +99,11 @@ string Function _rateStashKey(Actor target, int slot, int eff) global
     return "mtf.sla.rate.prev." + slot + "." + eff
 EndFunction
 
-Function onActivate(int idx, Actor target, int param, int param2)
+Function onActivate(int idx, Actor target, int param, int param2, string eid)
     if SLAFramework == None || target == None
         return
     endif
-    if idx == 2
+    if eid == "modify.arousal"
         if param <= 0
             return
         endif
@@ -112,7 +112,7 @@ Function onActivate(int idx, Actor target, int param, int param2)
             return
         endif
         SLAFramework.SetActorExposure(target, cur + param)
-    elseif idx == 3
+    elseif eid == "set.exposure.rate"
         MTF_MainQuest h = _host()
         if h == None
             return
@@ -128,17 +128,17 @@ Function onActivate(int idx, Actor target, int param, int param2)
         float prev = SLAFramework.GetActorExposureRate(target)
         StorageUtil.SetFloatValue(target, key, prev)
         SLAFramework.SetActorExposureRate(target, param as float)
-    elseif idx == 4
+    elseif eid == "trigger.orgasm"
         ; One-shot: reset "days since orgasm" timer.
         SLAFramework.UpdateActorOrgasmDate(target)
     endif
 EndFunction
 
-Function onDeactivate(int idx, Actor target, int param, int param2)
+Function onDeactivate(int idx, Actor target, int param, int param2, string eid)
     if SLAFramework == None || target == None
         return
     endif
-    if idx == 3
+    if eid == "set.exposure.rate"
         MTF_MainQuest h = _host()
         if h == None
             return
@@ -158,16 +158,16 @@ Function onDeactivate(int idx, Actor target, int param, int param2)
     endif
 EndFunction
 
-Function onGameTime(int idx, Actor target, int param, int param2)
+Function onGameTime(int idx, Actor target, int param, int param2, string eid)
     if SLAFramework == None || target == None || param <= 0
         return
     endif
-    if idx == 0
+    if eid == "arousal.rate"
         if SLAFramework.GetActorArousal(target) < 99
             int cur = SLAFramework.GetActorExposure(target)
             SLAFramework.SetActorExposure(target, cur + param)
         endif
-    elseif idx == 1
+    elseif eid == "arousal.rate.npc"
         int radiusM = param2
         if radiusM <= 0
             radiusM = 22

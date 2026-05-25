@@ -13,15 +13,19 @@ Scriptname MTF_Plugin_Base extends MTF_Plugin
 ;   • GetPluginId — the base class reads it to derive the catalog path.
 ;   • checkCondition (and its scan/check helpers) — runs at slot-eval time
 ;     and reads live engine state; pure data couldn't capture it.
-;   • onActivate / onDeactivate / onTick — dispatch into the per-effect
-;     behaviour. The category-dispatch helpers (_isAbsShift, _isToggle,
-;     _isBurstAV, _avNameFor) live next to them.
+;   • checkCondition / onActivate / onDeactivate / onTick — dispatch into
+;     the per-effect behaviour, keyed on the catalog id string (cid/eid).
+;     The category-dispatch predicates (_isAbsShift, _isToggle) are
+;     prefix-matched on eid and live next to them; _avNameFor is keyed on
+;     idx because it's only called from internal helpers that already have
+;     idx in scope for storage keying.
 ;   • _apply* / _remove* / _recompute* / _tick* runtime helpers, spell+
 ;     keyword+faction property resolvers, shader and sound FormID resolvers.
 ;
 ; If you add an effect: extend tools/build_base_catalog.py, regenerate the
 ; JSON, then add the matching behaviour branch in onActivate (+ onDeactivate
-; / onTick if applicable) and any _is*/_avNameFor entry for the new idx.
+; / onTick if applicable) keyed on `eid == "your.new.id"`, and any
+; _avNameFor entry if the effect modifies an AV.
 
 ; LEGACY (pre-v0.0.33): per-quest applied state. Replaced by per-actor
 ; StorageUtil keyed on target. Properties retained for save-file
@@ -237,33 +241,33 @@ Race Property _raceWerewolf Auto Hidden
 ; Cached gold form (Skyrim.esm 0xF).
 Form Property _goldForm Auto Hidden
 
-Keyword Function _locKw(int idx)
-    if idx == 18
+Keyword Function _locKw(string cid)
+    if cid == "location.playerHome"
         if _kwPlayerHouse == None
             _kwPlayerHouse = Game.GetForm(0x0FC1A3) as Keyword
         endif
         return _kwPlayerHouse
-    elseif idx == 19
+    elseif cid == "location.dungeon"
         if _kwDungeon == None
             _kwDungeon = Game.GetForm(0x18EF1) as Keyword
         endif
         return _kwDungeon
-    elseif idx == 20
+    elseif cid == "location.city"
         if _kwCity == None
             _kwCity = Game.GetForm(0x13167) as Keyword
         endif
         return _kwCity
-    elseif idx == 21
+    elseif cid == "location.town"
         if _kwTown == None
             _kwTown = Game.GetForm(0x192BD) as Keyword
         endif
         return _kwTown
-    elseif idx == 22
+    elseif cid == "location.inn"
         if _kwInn == None
             _kwInn = Game.GetForm(0x1929F) as Keyword
         endif
         return _kwInn
-    elseif idx == 23
+    elseif cid == "location.jail"
         if _kwJail == None
             _kwJail = Game.GetForm(0x5254C) as Keyword
         endif
@@ -362,21 +366,22 @@ float Function _avPercent(Actor target, string av)
     return (target.GetActorValue(av) / maxV) * 100.0
 EndFunction
 
-int Function _hitClassFor(int idx)
-    ; 7=ANY 8=BLUNT 9=BLADED 10=RANGED 11=FIRE 12=FROST 13=SHOCK
-    if idx == 7
+int Function _hitClassFor(string cid)
+    ; Maps catalog id to the hit-class enum the MainQuest counter uses.
+    ; Class 0=ANY 1=BLUNT 2=BLADED 3=RANGED 4=FIRE 5=FROST 6=SHOCK.
+    if cid == "combat.hit"
         return 0
-    elseif idx == 8
+    elseif cid == "combat.hit.blunt"
         return 1
-    elseif idx == 9
+    elseif cid == "combat.hit.bladed"
         return 2
-    elseif idx == 10
+    elseif cid == "combat.hit.ranged"
         return 3
-    elseif idx == 11
+    elseif cid == "combat.hit.magic.fire"
         return 4
-    elseif idx == 12
+    elseif cid == "combat.hit.magic.frost"
         return 5
-    elseif idx == 13
+    elseif cid == "combat.hit.magic.shock"
         return 6
     endif
     return -1
@@ -399,70 +404,88 @@ bool Function _checkHit(int classIdx, int param)
     return now < h.GetHitArmedRT(classIdx)
 EndFunction
 
-bool Function checkCondition(int idx, Actor target, int param)
+bool Function checkCondition(int idx, Actor target, int param, string cid)
     if target == None
         return false
     endif
-    if idx == 0
+    ; Dispatch by catalog id (cid) — robust against JSON reorder. Group
+    ; ordering matters in two places: location.indoors/outdoors must come
+    ; BEFORE the generic "location.*" prefix branch, and the explicit
+    ; "combat.in/alerted/hostile" must come BEFORE the "combat.hit*"
+    ; prefix branch.
+    if cid == "magicka"
         float p = _avPercent(target, "Magicka")
         return p >= 0.0 && p >= param as float
-    elseif idx == 1
+    elseif cid == "magicka.below"
         float p = _avPercent(target, "Magicka")
         return p >= 0.0 && p <= param as float
-    elseif idx == 2
+    elseif cid == "stamina"
         float p = _avPercent(target, "Stamina")
         return p >= 0.0 && p >= param as float
-    elseif idx == 3
+    elseif cid == "stamina.below"
         float p = _avPercent(target, "Stamina")
         return p >= 0.0 && p <= param as float
-    elseif idx == 4
+    elseif cid == "combat.in"
         return target.IsInCombat()
-    elseif idx == 5
+    elseif cid == "combat.alerted"
         return _scanNearbyCombat(target, param)
-    elseif idx == 6
+    elseif cid == "combat.hostile"
         return _scanNearbyHostile(target, param)
-    elseif idx >= 7 && idx <= 13
-        int c = _hitClassFor(idx)
+    elseif StringUtil.Find(cid, "combat.hit") == 0
+        ; combat.casting starts with combat.c, not combat.h — safe.
+        int c = _hitClassFor(cid)
         if c < 0
             return false
         endif
         return _checkHit(c, param)
-    elseif idx == 14
+    elseif cid == "health"
         float p = _avPercent(target, "Health")
         return p >= 0.0 && p >= param as float
-    elseif idx == 15
+    elseif cid == "health.below"
         float p = _avPercent(target, "Health")
         return p >= 0.0 && p <= param as float
-    elseif idx == 16
+    elseif cid == "location.indoors"
         Cell c = target.GetParentCell()
         return c != None && c.IsInterior()
-    elseif idx == 17
+    elseif cid == "location.outdoors"
         Cell c = target.GetParentCell()
         return c != None && !c.IsInterior()
-    elseif idx >= 18 && idx <= 23
+    elseif StringUtil.Find(cid, "location.") == 0
+        ; Catches location.playerHome / dungeon / city / town / inn / jail.
+        ; indoors/outdoors handled above.
         Location loc = target.GetCurrentLocation()
         if loc == None
             return false
         endif
-        Keyword kw = _locKw(idx)
+        Keyword kw = _locKw(cid)
         if kw == None
             return false
         endif
         return loc.HasKeyword(kw)
-    elseif idx >= 24 && idx <= 27
+    elseif StringUtil.Find(cid, "weather.") == 0
         Weather w = Weather.GetCurrentWeather()
         if w == None
             return false
         endif
-        return w.GetClassification() == (idx - 24)
-    elseif idx == 28
+        int cls = w.GetClassification()
+        if cid == "weather.pleasant"
+            return cls == 0
+        elseif cid == "weather.cloudy"
+            return cls == 1
+        elseif cid == "weather.rainy"
+            return cls == 2
+        elseif cid == "weather.snowy"
+            return cls == 3
+        endif
+        return false
+    elseif cid == "state.sprinting"
         return target.IsSprinting()
-    elseif idx == 29
+    elseif cid == "state.running"
         ; "Running" without the sprint state — distinct condition.
         return target.IsRunning() && !target.IsSprinting()
-    elseif idx == 30
+    elseif cid == "state.weaponDrawn"
         return target.IsWeaponDrawn()
-    elseif idx == 31
+    elseif cid == "state.loversEmbrace"
         if _loversComfort == None
             _loversComfort = Game.GetForm(0x000CDA1D) as Spell
         endif
@@ -470,16 +493,16 @@ bool Function checkCondition(int idx, Actor target, int param)
             return false
         endif
         return target.HasSpell(_loversComfort)
-    elseif idx == 32
+    elseif cid == "state.sneaking"
         return target.IsSneaking()
-    elseif idx == 33
+    elseif cid == "state.swimming"
         return target.IsSwimming()
-    elseif idx == 34
+    elseif cid == "state.mounted"
         return target.IsOnMount()
-    elseif idx == 35
+    elseif cid == "state.bleedingOut"
         return target.IsBleedingOut()
-    elseif idx == 36
-        ; time.range — param=from hour, param2=till hour. Wraps if from > till.
+    elseif cid == "time.range"
+        ; param=from hour, param2=till hour. Wraps if from > till.
         float t36 = Utility.GetCurrentGameTime()
         float h36 = (t36 - Math.Floor(t36)) * 24.0
         int fromH = param
@@ -492,53 +515,53 @@ bool Function checkCondition(int idx, Actor target, int param)
             ; Wrap-around (e.g. 22-6 = night)
             return h36 >= fromH as float || h36 < tillH as float
         endif
-    elseif idx == 37
+    elseif cid == "faction.playerFollower"
         if _facCurrentFollower == None
             _facCurrentFollower = Game.GetForm(0x0005C84D) as Faction
         endif
         return _facCurrentFollower != None && target.IsInFaction(_facCurrentFollower)
-    elseif idx == 38
+    elseif cid == "magiceffect.kw.fire"
         if _kwMgefFire == None
             _kwMgefFire = Game.GetForm(0x0001CEAD) as Keyword
         endif
         return _kwMgefFire != None && target.HasMagicEffectWithKeyword(_kwMgefFire)
-    elseif idx == 39
+    elseif cid == "magiceffect.kw.frost"
         if _kwMgefFrost == None
             _kwMgefFrost = Game.GetForm(0x0001CEAE) as Keyword
         endif
         return _kwMgefFrost != None && target.HasMagicEffectWithKeyword(_kwMgefFrost)
-    elseif idx == 40
+    elseif cid == "magiceffect.kw.shock"
         if _kwMgefShock == None
             _kwMgefShock = Game.GetForm(0x0001CEAF) as Keyword
         endif
         return _kwMgefShock != None && target.HasMagicEffectWithKeyword(_kwMgefShock)
-    elseif idx == 41
+    elseif cid == "magiceffect.kw.invisibility"
         ; Use the Invisibility actor value (set by ANY source — potion, spell,
         ; racial). HasMagicEffectWithKeyword(MagicInvisibility) misses some
         ; effects since not all invisibility-applying effects carry the keyword.
         return target.GetActorValue("Invisibility") > 0.0
-    elseif idx == 42
+    elseif cid == "followers.any"
         return _scanNearbyFollower(target, param)
-    elseif idx == 43
+    elseif cid == "gold.aboveThousand"
         if _goldForm == None
             _goldForm = Game.GetForm(0x0000000F)
         endif
         return _goldForm != None && target.GetItemCount(_goldForm) >= (param * 1000)
-    elseif idx == 44
+    elseif cid == "worn.heavyArmor"
         if _kwArmorHeavy == None
             _kwArmorHeavy = Game.GetForm(0x0006BBD2) as Keyword
         endif
         return _kwArmorHeavy != None && _wornHasArmorKw(target, _kwArmorHeavy)
-    elseif idx == 45
+    elseif cid == "worn.lightArmor"
         if _kwArmorLight == None
             _kwArmorLight = Game.GetForm(0x0006BBD3) as Keyword
         endif
         return _kwArmorLight != None && _wornHasArmorKw(target, _kwArmorLight)
-    elseif idx == 46
-        ; combat.casting: continuous "is the actor mid-cast" check. State is
-        ; maintained by MTF_CastListener (animvar polling — see KB entry).
-        ; Currently player-only because the listener is on the player alias;
-        ; NPCs always read false here (StorageUtil default).
+    elseif cid == "combat.casting"
+        ; Continuous "is the actor mid-cast" check. State is maintained by
+        ; MTF_CastListener (animvar polling — see KB entry). Currently
+        ; player-only because the listener is on the player alias; NPCs
+        ; always read false here (StorageUtil default).
         MTF_MainQuest h = _host()
         return h != None && h.IsCasting(target)
     endif
@@ -595,31 +618,24 @@ EndFunction
 ; Signed-convention classifiers. Positive param = buff, negative = penalty.
 ; Applied magnitudes stored in mtf.shift.<idx> on the target so
 ; deactivate/recompute can roll them back precisely.
-bool Function _isAbsShift(int idx)
-    ; Additive AV shifts. Three underlying paths inside _recomputeAbsShift:
-    ;   • Spell-routed (idx 18-21, 34-35): engine-managed Resist* AVs that
-    ;     ignore direct ModActorValue — Fire/Frost/Shock/Magic + Disease/
-    ;     Poison. Each has a paired MGEF+Spell in MagicTattoosFramework.esp;
-    ;     SetNthEffectMagnitude carries the signed param.
-    ;   • Direct ModActorValue, integer units: most AVs accept param as-is.
-    ;     MagickaRegen/StaminaRegen/HealRegen/SpeedMult (the vanilla
-    ;     *RateMult / SpeedMult set whose baseline is 100, so +N = +N
-    ;     percentage points), CarryWeight, Magicka, Stamina (raw points),
-    ;     all vanilla skill AVs (38-54), plus Sneak (2) for legacy slot
-    ;     reasons, plus UnarmedDamage/CritChance/BowSpeed (15-17),
-    ;     AbsorbChance/ReflectDamage (36-37).
-    ;   • Direct ModActorValue, float-mult units (idx 7, 14 —
-    ;     AttackDamageMult / WeaponSpeedMult): vanilla baseline 1.0, so
-    ;     param is divided by 100 inside _recomputeAbsShift via
-    ;     _absShiftMagnitude. param=20 means +0.2 (=20%) on the mult.
+bool Function _isAbsShift(string eid)
+    ; Additive AV shifts — every "modify.*" effect except the two float-mult
+    ; ones (handled inline below via _isAbsShiftFloatMult). Prefix-matched
+    ; on the catalog id so adding a new modify.* effect just works; the
+    ; runtime path is picked by name, not by JSON array position.
     ;
-    ; Pre-v0.1.10 these were pct shifts via _recomputeShift; converted to
-    ; abs to close the double-apply race. See project_papyrus_storage_before
-    ; _suspend memory note. v0.1.10 also dropped the old idx 8 (modify.armor
-    ; — direct DamageResist, unreliable because the engine recomputes it per
-    ; frame) and shifted everything past it down by one. Use idx 27
-    ; (spell.modifyArmor) for armor changes.
-    return idx <= 2 || (idx >= 5 && idx <= 7) || (idx >= 11 && idx <= 21) || (idx >= 34 && idx <= 54)
+    ; Three underlying paths inside _recomputeAbsShift, all driven by AV
+    ; name (resolved from idx via _avNameFor):
+    ;   • Spell-routed: engine-managed Resist* AVs that ignore direct
+    ;     ModActorValue — Fire/Frost/Shock/Magic + Disease/Poison. Each has
+    ;     a paired MGEF+Spell in MagicTattoosFramework.esp; SetNthEffect-
+    ;     Magnitude carries the signed param.
+    ;   • Direct ModActorValue, integer units: most AVs accept param as-is.
+    ;   • Direct ModActorValue, float-mult units (AttackDamageMult /
+    ;     WeaponSpeedMult): vanilla baseline 1.0, so param is divided by
+    ;     100 inside _recomputeAbsShift. param=20 means +0.2 (=20%) on
+    ;     the mult.
+    return StringUtil.Find(eid, "modify.") == 0
 EndFunction
 
 bool Function _isAbsShiftFloatMult(int idx)
@@ -627,15 +643,13 @@ bool Function _isAbsShiftFloatMult(int idx)
     ; param is interpreted as percent-point shift so param=20 → +0.2 on the
     ; mult (= +20% damage / +20% swing speed). Same idea as vanilla
     ; "Smithing — Damage" perk which does ModActorValue(AttackDamageMult, 0.2).
+    ; Kept on int idx because the only caller (_recomputeAbsShift) already
+    ; has idx in scope for storage-key purposes.
     return idx == 7 || idx == 14
 EndFunction
 
-bool Function _isToggle(int idx)
-    return idx >= 22 && idx <= 24
-EndFunction
-
-bool Function _isBurstAV(int idx)
-    return idx == 3 || idx == 4 || idx == 25
+bool Function _isToggle(string eid)
+    return StringUtil.Find(eid, "toggle.") == 0
 EndFunction
 
 string Function _avNameFor(int idx)
@@ -2013,86 +2027,90 @@ Function _tickSoundRow(Actor target, int soundIdx, int param2)
     endif
 EndFunction
 
-Function onActivate(int idx, Actor target, int param, int param2)
-    if _isAbsShift(idx)
+Function onActivate(int idx, Actor target, int param, int param2, string eid)
+    ; Outer dispatch by `eid` — robust against JSON reorder. The inner
+    ; helpers (_recomputeAbsShift, _avNameFor, etc.) still take `idx` because
+    ; they key storage on it for per-effect persistence; see roadmap entry
+    ; "storage-key positional binding" for the separate followup.
+    if _isAbsShift(eid)
         _recomputeAbsShift(idx, target, param)
-    elseif _isToggle(idx)
+    elseif _isToggle(eid)
         _recomputeToggle(idx, target, true)
-    elseif idx == 3
+    elseif eid == "damage.magicka"
         _burstDelta("Magicka", target, param)
-    elseif idx == 4
+    elseif eid == "damage.stamina"
         _burstDelta("Stamina", target, param)
-    elseif idx == 8
+    elseif eid == "burst.stagger"
         if target != None
             Debug.SendAnimationEvent(target, "staggerStart")
         endif
-    elseif idx == 9
+    elseif eid == "burst.blowCover"
         _alertNearby(target, param)
-    elseif idx == 10
+    elseif eid == "scale.magickaCost"
         _applyCostPenalty(target, param)
-    elseif idx == 25
+    elseif eid == "damage.health"
         _burstDelta("Health", target, param)
-    elseif idx == 26
+    elseif eid == "burst.bounty"
         _modBounty(target, param)
-    elseif idx == 27
+    elseif eid == "spell.modifyArmor"
         _applyFlesh(target, param)
-    elseif idx == 28
+    elseif eid == "spell.detectLife"
         _applyDetectAll(target, param)
-    elseif idx == 29
+    elseif eid == "spell.slowTime"
         _applySlowTime(target, param)
-    elseif idx == 30
+    elseif eid == "spell.flameCloak"
         _applyCloak(_resolveFlameCloakSpell(), _resolveFlameCloakDmgSpell(), target, param, param2, "mtf.shift.flameCloak")
-    elseif idx == 31
+    elseif eid == "spell.frostCloak"
         _applyCloak(_resolveFrostCloakSpell(), _resolveFrostCloakDmgSpell(), target, param, param2, "mtf.shift.frostCloak")
-    elseif idx == 32
+    elseif eid == "spell.lightningCloak"
         _applyCloak(_resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
-    elseif idx == 33
+    elseif eid == "flash.onhit"
         _applyFlashOnHit(target, param, param2)
-    elseif idx == 55
+    elseif eid == "shader.play"
         _activateShaderRow(target, param, param2)
-    elseif idx == 56
+    elseif eid == "sound.play"
         _activateSoundRow(target, param, param2)
-    elseif idx == 57
+    elseif eid == "flash.oncast"
         _applyFlashOnCast(target, param)
     endif
 EndFunction
 
-Function onDeactivate(int idx, Actor target, int param, int param2)
-    if _isAbsShift(idx)
+Function onDeactivate(int idx, Actor target, int param, int param2, string eid)
+    if _isAbsShift(eid)
         _recomputeAbsShift(idx, target, 0)
-    elseif _isToggle(idx)
+    elseif _isToggle(eid)
         _recomputeToggle(idx, target, false)
-    elseif idx == 10
+    elseif eid == "scale.magickaCost"
         _removeCostPenalty(target)
-    elseif idx == 27
+    elseif eid == "spell.modifyArmor"
         _removeFlesh(target)
-    elseif idx == 28
+    elseif eid == "spell.detectLife"
         _removeDetectAll(target)
-    elseif idx == 29
+    elseif eid == "spell.slowTime"
         _removeSlowTime(target)
-    elseif idx == 30
+    elseif eid == "spell.flameCloak"
         _removeCloak(_resolveFlameCloakSpell(), target, "mtf.shift.flameCloak")
-    elseif idx == 31
+    elseif eid == "spell.frostCloak"
         _removeCloak(_resolveFrostCloakSpell(), target, "mtf.shift.frostCloak")
-    elseif idx == 32
+    elseif eid == "spell.lightningCloak"
         _removeCloak(_resolveLightningCloakSpell(), target, "mtf.shift.lightningCloak")
-    elseif idx == 33
+    elseif eid == "flash.onhit"
         _removeFlashOnHit(target)
-    elseif idx == 55
+    elseif eid == "shader.play"
         _deactivateShaderRow(target, param)
-    elseif idx == 56
+    elseif eid == "sound.play"
         _deactivateSoundRow(target, param, param2)
-    elseif idx == 57
+    elseif eid == "flash.oncast"
         _removeFlashOnCast(target)
     endif
 EndFunction
 
-Function onTick(int idx, Actor target, int param, int param2)
-    if _isAbsShift(idx)
+Function onTick(int idx, Actor target, int param, int param2, string eid)
+    if _isAbsShift(eid)
         _recomputeAbsShift(idx, target, param)
-    elseif _isToggle(idx)
+    elseif _isToggle(eid)
         _recomputeToggle(idx, target, true)
-    elseif idx == 10
+    elseif eid == "scale.magickaCost"
         ; Re-apply if param changed (slider) or after save/load (magnitude
         ; reverts to ESP default which is 0). Skip when already in sync.
         ; Storage tracks the engine magnitude (= 100 - param), so compare in
@@ -2109,14 +2127,14 @@ Function onTick(int idx, Actor target, int param, int param2)
         if applied != wantMag
             _applyCostPenalty(target, clamped)
         endif
-    elseif idx == 27
+    elseif eid == "spell.modifyArmor"
         ; Constant-effect ability — no time-based refresh needed. Just
         ; re-apply if magnitude (param) changed since last application.
         float stored = StorageUtil.GetFloatValue(target, "mtf.shift.flesh", -99999.0)
         if stored != (param as float)
             _applyFlesh(target, param)
         endif
-    elseif idx == 28
+    elseif eid == "spell.detectLife"
         ; FAF DetectLife only scans actors at cast time — new actors entering
         ; the radius mid-duration don't get painted. Refresh on EVERY slow
         ; tick (≤2s) so newcomers get picked up. _applyDetectAll dispels
@@ -2128,7 +2146,7 @@ Function onTick(int idx, Actor target, int param, int param2)
         if storedDA != (param as float) || deltaDA > 1.5 || deltaDA < 0.0
             _applyDetectAll(target, param)
         endif
-    elseif idx == 29
+    elseif eid == "spell.slowTime"
         ; FAF spell with 30s Duration. Refresh every ~25s by re-casting OR on
         ; slider change OR after save/load (delta < 0 because GetCurrentRealTime
         ; resets to a small value on session start).
@@ -2139,28 +2157,28 @@ Function onTick(int idx, Actor target, int param, int param2)
         if storedMag != (param as float) || delta > 25.0 || delta < 0.0
             _applySlowTime(target, param)
         endif
-    elseif idx == 30
+    elseif eid == "spell.flameCloak"
         _tickCloak(idx, _resolveFlameCloakSpell(), _resolveFlameCloakDmgSpell(), target, param, param2, "mtf.shift.flameCloak")
-    elseif idx == 31
+    elseif eid == "spell.frostCloak"
         _tickCloak(idx, _resolveFrostCloakSpell(), _resolveFrostCloakDmgSpell(), target, param, param2, "mtf.shift.frostCloak")
-    elseif idx == 32
+    elseif eid == "spell.lightningCloak"
         _tickCloak(idx, _resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
-    elseif idx == 33
+    elseif eid == "flash.onhit"
         ; Re-push flash params every slow tick. Cheap (one Roster lookup +
         ; field write) and means MCM slider edits on ramp/decay/retrig/peak
         ; take effect within ~2s without needing a tier rebuild.
         _applyFlashOnHit(target, param, param2)
-    elseif idx == 55
+    elseif eid == "shader.play"
         ; Re-Play shader on slow-tick to survive save/load (the engine
         ; doesn't persist EffectShader.Play state), and re-Play the bound
         ; sound when its handle is stale (session resume) or when the
         ; user opted into re-trigger mode for short SNDRs.
         _tickShaderRow(target, param, param2)
-    elseif idx == 56
+    elseif eid == "sound.play"
         ; Loop-mode SNDRs need a re-Play after session resume (same engine
         ; quirk as shaders: Sound.Play handles don't persist across save/load).
         _tickSoundRow(target, param, param2)
-    elseif idx == 57
+    elseif eid == "flash.oncast"
         ; Same re-push pattern as flash.onhit: cheap roster write keeps the
         ; lane's params in sync with MCM slider edits within one slow tick.
         _applyFlashOnCast(target, param)

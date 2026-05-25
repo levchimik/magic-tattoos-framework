@@ -56,14 +56,14 @@ Function _tryRegister()
 EndFunction
 
 ; ── Behaviour ───────────────────────────────────────────────────────────────
-bool Function checkCondition(int idx, Actor target, int param)
+bool Function checkCondition(int idx, Actor target, int param, string cid)
     if target == None
         return false
     endif
     ; in.scene + has.schlong are valid regardless of scene state.
-    if idx == 0
+    if cid == "in.scene"
         return OActor.IsInOStim(target)
-    elseif idx == 4
+    elseif cid == "has.schlong"
         return OActor.HasSchlong(target)
     endif
     ; Everything else (excitement, times.climaxed, climax.stalled) is
@@ -74,11 +74,11 @@ bool Function checkCondition(int idx, Actor target, int param)
     if !OActor.IsInOStim(target)
         return false
     endif
-    if idx == 1
+    if cid == "excitement"
         return OActor.GetExcitement(target) >= (param as float)
-    elseif idx == 2
+    elseif cid == "times.climaxed"
         return OActor.GetTimesClimaxed(target) >= param
-    elseif idx == 3
+    elseif cid == "climax.stalled"
         bool stalled = OActor.IsClimaxStalled(target, true)
         if param == 1
             return stalled
@@ -96,7 +96,7 @@ EndFunction
 ; permits, so two overlapping MTF stall effects would race; document the
 ; limitation, don't try to manage refcount.
 
-Function onActivate(int idx, Actor target, int param, int param2)
+Function onActivate(int idx, Actor target, int param, int param2, string eid)
     if target == None
         return
     endif
@@ -104,35 +104,35 @@ Function onActivate(int idx, Actor target, int param, int param2)
     ; Modify/SetExcitement, StallClimax. Outside an active scene the
     ; natives are no-ops at best, silently corrupt at worst. Skip the
     ; whole dispatch if the actor isn't in a scene. Callers should pair
-    ; these effects with `in.scene` (cond idx 0) so the tier never
+    ; these effects with the `in.scene` condition so the tier never
     ; activates outside a scene in the first place — this is a defensive
     ; backstop for misconfigured presets.
     if !OActor.IsInOStim(target)
         return
     endif
-    if idx == 0
-        ; trigger.climax: param2 = 0 honor stall, 1 bypass
+    if eid == "trigger.climax"
+        ; param2 = 0 honor stall, 1 bypass
         OActor.Climax(target, param2 == 1)
-    elseif idx == 1
-        ; excitement.modify: param = delta, param2 = respect mult
+    elseif eid == "excitement.modify"
+        ; param = delta, param2 = respect mult
         OActor.ModifyExcitement(target, param as float, param2 == 1)
-    elseif idx == 2
-        ; excitement.set: param = absolute
+    elseif eid == "excitement.set"
+        ; param = absolute
         OActor.SetExcitement(target, param as float)
-    elseif idx == 3
-        ; climax.stall: hold the stall until deactivate
+    elseif eid == "climax.stall"
+        ; hold the stall until deactivate
         OActor.StallClimax(target)
-    elseif idx == 4
-        ; excitement.mult.set: integer multiplier mapped to float (param=3 → 3.0×)
+    elseif eid == "excitement.mult.set"
+        ; integer multiplier mapped to float (param=3 → 3.0×)
         OActor.SetExcitementMultiplier(target, param as float)
     endif
 EndFunction
 
-Function onDeactivate(int idx, Actor target, int param, int param2)
+Function onDeactivate(int idx, Actor target, int param, int param2, string eid)
     if target == None
         return
     endif
-    if idx == 3
+    if eid == "climax.stall"
         ; PermitClimax outside a scene is a safe no-op (the engine
         ; clears stall state when scenes end), so don't gate it on
         ; IsInOStim — we still want to undo any stall we set while the

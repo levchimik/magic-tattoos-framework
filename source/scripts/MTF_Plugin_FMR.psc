@@ -94,7 +94,7 @@ int Function _trackedIndex(Actor target)
     return FMR_Storage.TrackedActors.Find(target as Form)
 EndFunction
 
-bool Function checkCondition(int idx, Actor target, int param)
+bool Function checkCondition(int idx, Actor target, int param, string cid)
     if target == None
         return false
     endif
@@ -111,10 +111,10 @@ bool Function checkCondition(int idx, Actor target, int param)
         return false
     endif
     int rank = target.GetFactionRank(FMR_IEFaction)
-    if idx == 0
+    if cid == "pregnancy"
         ; Pregnancy: rank 1..100 directly IS the belly-stage percentage.
         return rank >= 1 && rank <= 100 && rank >= param
-    elseif idx == 1
+    elseif cid == "ovulation"
         ; Ovulation: rank 118 (egg present OR in ovulation window).
         ; Pregnancy ranks (1..100) take precedence — no !isPregnant gate needed.
         return rank == 118
@@ -122,8 +122,8 @@ bool Function checkCondition(int idx, Actor target, int param)
     return false
 EndFunction
 
-Function onActivate(int idx, Actor target, int param, int param2)
-    if idx != 0 || target == None || FMR_Storage == None
+Function onActivate(int idx, Actor target, int param, int param2, string eid)
+    if eid != "trigger.ovulation" || target == None || FMR_Storage == None
         return
     endif
     int i = _trackedIndex(target)

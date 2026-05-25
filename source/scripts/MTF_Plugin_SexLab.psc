@@ -66,54 +66,54 @@ Function _tryRegister()
 EndFunction
 
 ; ── Behaviour ───────────────────────────────────────────────────────────────
-bool Function checkCondition(int idx, Actor target, int param)
+bool Function checkCondition(int idx, Actor target, int param, string cid)
     if target == None || SexLab == None
         return false
     endif
-    if idx == 0
+    if cid == "in.scene"
         return SexLab.IsActorActive(target)
-    elseif idx == 1
+    elseif cid == "cum.total"
         return SexLab.CountCumFx(target, -1) >= param
-    elseif idx == 2
+    elseif cid == "cum.vaginal"
         return SexLab.CountCumVaginal(target) >= param
-    elseif idx == 3
+    elseif cid == "cum.oral"
         return SexLab.CountCumOral(target) >= param
-    elseif idx == 4
+    elseif cid == "cum.anal"
         return SexLab.CountCumAnal(target) >= param
-    elseif idx == 5
+    elseif cid == "skill.vaginal"
         if SLStats == None
             return false
         endif
         return SLStats.GetSkill(target, "Vaginal") >= (param as float)
-    elseif idx == 6
+    elseif cid == "skill.anal"
         if SLStats == None
             return false
         endif
         return SLStats.GetSkill(target, "Anal") >= (param as float)
-    elseif idx == 7
+    elseif cid == "skill.oral"
         if SLStats == None
             return false
         endif
         return SLStats.GetSkill(target, "Oral") >= (param as float)
-    elseif idx == 8
+    elseif cid == "purity"
         if SLStats == None
             return false
         endif
         ; GetPurity returns float = (Pure - Lewd) * 1.5. Negative = lewd-
         ; leaning, 0 = neutral, positive = pure-leaning.
         return SLStats.GetPurity(target) >= (param as float)
-    elseif idx == 9
+    elseif cid == "has.strapon"
         return SexLab.HasStrapon(target)
     endif
     return false
 EndFunction
 
-Function onActivate(int idx, Actor target, int param, int param2)
+Function onActivate(int idx, Actor target, int param, int param2, string eid)
     if SexLab == None || target == None
         return
     endif
-    if idx == 0
-        ; cum.apply: param = type (0/1/2), param2 = layers (1..5)
+    if eid == "cum.apply"
+        ; param = type (0/1/2), param2 = layers (1..5)
         int layers = param2
         if layers <= 0
             layers = 1
@@ -123,11 +123,11 @@ Function onActivate(int idx, Actor target, int param, int param2)
         else
             SexLab.AddCumFxLayers(target, param, layers)
         endif
-    elseif idx == 1
-        ; cum.remove: param = type (-1 / 0 / 1 / 2)
+    elseif eid == "cum.remove"
+        ; param = type (-1 / 0 / 1 / 2)
         SexLab.RemoveCumFx(target, param)
-    elseif idx == 2
-        ; skill.add.xp: param = amount, param2 = skill enum
+    elseif eid == "skill.add.xp"
+        ; param = amount, param2 = skill enum
         if SLStats == None || param <= 0
             return
         endif

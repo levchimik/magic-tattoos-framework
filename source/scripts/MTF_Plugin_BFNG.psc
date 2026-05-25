@@ -55,11 +55,11 @@ Function _tryRegister()
 EndFunction
 
 ; ── Behaviour (stays in Papyrus — can't be data) ────────────────────────────
-bool Function checkCondition(int idx, Actor target, int param)
+bool Function checkCondition(int idx, Actor target, int param, string cid)
     if target == None || BFController == None
         return false
     endif
-    if idx == 0
+    if cid == "pregnancy"
         ; pregnancy: actor must be pregnant AND belly stage >= param.
         if !BFController.IsPregnant(target)
             return false
@@ -74,26 +74,26 @@ bool Function checkCondition(int idx, Actor target, int param)
             stage = 100
         endif
         return stage >= param
-    elseif idx == 1
+    elseif cid == "ovulation"
         ; ovulation: cycle phase == 1 (Ovulating).
         return BFController.GetFemaleState(target) == 1
-    elseif idx == 2
+    elseif cid == "cycle.phase"
         ; cycle.phase: phase enum matches the picked option.
         return BFController.GetFemaleState(target) == param
-    elseif idx == 3
+    elseif cid == "baby.health"
         ; baby.health: only meaningful while pregnant.
         if !BFController.IsPregnant(target)
             return false
         endif
         return (BFController.GetBabyHealth(target) as int) >= param
-    elseif idx == 4
+    elseif cid == "num.births"
         return BFController.GetNumBirth(target) >= param
     endif
     return false
 EndFunction
 
-Function onActivate(int idx, Actor target, int param, int param2)
-    if idx != 0 || target == None || BFController == None
+Function onActivate(int idx, Actor target, int param, int param2, string eid)
+    if eid != "trigger.ovulation" || target == None || BFController == None
         return
     endif
     ; Don't override a pregnancy — same guard FMR uses. Forcing ovulation

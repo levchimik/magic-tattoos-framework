@@ -3082,7 +3082,7 @@ int Function evaluateTier()
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
                     if itemIdx >= 0
                         _setEvalParam2(GetCondParam2(i))
-                        if p.checkCondition(itemIdx, PlayerRef, condParam[i])
+                        if p.checkCondition(itemIdx, PlayerRef, condParam[i], p.GetConditionId(itemIdx))
                             return i
                         endif
                     endif
@@ -3152,7 +3152,7 @@ EndFunction
 ; toggle DebugMode off to stop incrementing).
 
 Function _dispatchActivate(MTF_Plugin p, int itemIdx, Actor target, int param, int param2)
-    p.onActivate(itemIdx, target, param, param2)
+    p.onActivate(itemIdx, target, param, param2, p.GetEffectId(itemIdx))
     if !DebugMode
         return
     endif
@@ -3163,7 +3163,7 @@ Function _dispatchActivate(MTF_Plugin p, int itemIdx, Actor target, int param, i
 EndFunction
 
 Function _dispatchDeactivate(MTF_Plugin p, int itemIdx, Actor target, int param, int param2)
-    p.onDeactivate(itemIdx, target, param, param2)
+    p.onDeactivate(itemIdx, target, param, param2, p.GetEffectId(itemIdx))
     if !DebugMode
         return
     endif
@@ -3326,7 +3326,7 @@ Function _tickSlotEffects(int slot)
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onTick(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
+                    p.onTick(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), p.GetEffectId(itemIdx))
                 endif
             endif
         endif
@@ -3350,7 +3350,7 @@ Function _gameTickSlotEffects(int slot)
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onGameTime(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
+                    p.onGameTime(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), p.GetEffectId(itemIdx))
                 endif
             endif
         endif
@@ -5710,7 +5710,7 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
                     if itemIdx >= 0
                         int param = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
                         _setEvalParam2(0)
-                        if p.checkCondition(itemIdx, target, param)
+                        if p.checkCondition(itemIdx, target, param, p.GetConditionId(itemIdx))
                             return i
                         endif
                     endif
@@ -5791,7 +5791,7 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
                         else
                             _setEvalParam2(GetCondParam2(i))
                         endif
-                        if p.checkCondition(itemIdx, target, _g_condParam(i, useScratch))
+                        if p.checkCondition(itemIdx, target, _g_condParam(i, useScratch), p.GetConditionId(itemIdx))
                             return i
                         endif
                     endif
@@ -5937,7 +5937,7 @@ Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch, strin
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onTick(itemIdx, target, params[e], params2[e])
+                    p.onTick(itemIdx, target, params[e], params2[e], p.GetEffectId(itemIdx))
                 endif
             endif
         endif
