@@ -66,7 +66,7 @@ Function _tryRegister()
 EndFunction
 
 ; ── Behaviour ───────────────────────────────────────────────────────────────
-bool Function checkCondition(int idx, Actor target, int param, string cid)
+bool Function checkCondition(Actor target, int param, string cid)
     if target == None || SexLab == None
         return false
     endif
@@ -108,7 +108,7 @@ bool Function checkCondition(int idx, Actor target, int param, string cid)
     return false
 EndFunction
 
-Function onActivate(int idx, Actor target, int param, int param2, string eid)
+Function onActivate(Actor target, int param, int param2, string eid)
     if SexLab == None || target == None
         return
     endif

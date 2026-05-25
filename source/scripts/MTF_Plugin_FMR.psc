@@ -94,7 +94,7 @@ int Function _trackedIndex(Actor target)
     return FMR_Storage.TrackedActors.Find(target as Form)
 EndFunction
 
-bool Function checkCondition(int idx, Actor target, int param, string cid)
+bool Function checkCondition(Actor target, int param, string cid)
     if target == None
         return false
     endif
@@ -122,7 +122,7 @@ bool Function checkCondition(int idx, Actor target, int param, string cid)
     return false
 EndFunction
 
-Function onActivate(int idx, Actor target, int param, int param2, string eid)
+Function onActivate(Actor target, int param, int param2, string eid)
     if eid != "trigger.ovulation" || target == None || FMR_Storage == None
         return
     endif

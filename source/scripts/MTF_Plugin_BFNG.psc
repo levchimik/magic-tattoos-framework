@@ -55,7 +55,7 @@ Function _tryRegister()
 EndFunction
 
 ; ── Behaviour (stays in Papyrus — can't be data) ────────────────────────────
-bool Function checkCondition(int idx, Actor target, int param, string cid)
+bool Function checkCondition(Actor target, int param, string cid)
     if target == None || BFController == None
         return false
     endif
@@ -92,7 +92,7 @@ bool Function checkCondition(int idx, Actor target, int param, string cid)
     return false
 EndFunction
 
-Function onActivate(int idx, Actor target, int param, int param2, string eid)
+Function onActivate(Actor target, int param, int param2, string eid)
     if eid != "trigger.ovulation" || target == None || BFController == None
         return
     endif

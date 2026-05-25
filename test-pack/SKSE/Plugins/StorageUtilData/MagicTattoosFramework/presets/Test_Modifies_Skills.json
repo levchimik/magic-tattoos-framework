@@ -21,89 +21,89 @@
 			},
 			"effect": [
 				{
-					"key": "mtf.base:modify.oneHanded",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 0
 				},
 				{
-					"key": "mtf.base:modify.twoHanded",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 1
 				},
 				{
-					"key": "mtf.base:modify.archery",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 2
 				},
 				{
-					"key": "mtf.base:modify.block",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 3
 				},
 				{
-					"key": "mtf.base:modify.heavyArmor",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 4
 				},
 				{
-					"key": "mtf.base:modify.lightArmor",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 5
 				},
 				{
-					"key": "mtf.base:modify.smithing",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 6
 				},
 				{
-					"key": "mtf.base:modify.enchanting",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 7
 				},
 				{
-					"key": "mtf.base:modify.alchemy",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 8
 				},
 				{
-					"key": "mtf.base:modify.destruction",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 9
 				},
 				{
-					"key": "mtf.base:modify.restoration",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 10
 				},
 				{
-					"key": "mtf.base:modify.alteration",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 11
 				},
 				{
-					"key": "mtf.base:modify.illusion",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 12
 				},
 				{
-					"key": "mtf.base:modify.conjuration",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 13
 				},
 				{
-					"key": "mtf.base:modify.speech",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 14
 				},
 				{
-					"key": "mtf.base:modify.lockpicking",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 15
 				},
 				{
-					"key": "mtf.base:modify.pickpocket",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 16
 				}
 			]
 		},

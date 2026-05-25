@@ -27,20 +27,6 @@ Scriptname MTF_Plugin_Base extends MTF_Plugin
 ; / onTick if applicable) keyed on `eid == "your.new.id"`, and any
 ; _avNameFor entry if the effect modifies an AV.
 
-; LEGACY (pre-v0.0.33): per-quest applied state. Replaced by per-actor
-; StorageUtil keyed on target. Properties retained for save-file
-; compatibility and one-shot migration in _migrateLegacyApplied.
-; Do NOT read or write these from new code — use _getApplied/_setApplied.
-float Property _appliedMana       = 0.0 Auto Hidden
-float Property _appliedCarry      = 0.0 Auto Hidden
-float Property _appliedSneak      = 0.0 Auto Hidden
-float Property _appliedSpeed      = 0.0 Auto Hidden
-float Property _appliedStamRate   = 0.0 Auto Hidden
-float Property _appliedAtkDmg     = 0.0 Auto Hidden
-float Property _appliedDmgResist  = 0.0 Auto Hidden
-float Property _appliedSpellCost  = 0.0 Auto Hidden
-bool  Property _legacyMigrated    = false Auto Hidden
-
 Spell  Property _costPenaltySpell        Auto Hidden
 Spell  Property _fleshSpell               Auto Hidden
 Spell  Property _waterBreathingSpell      Auto Hidden
@@ -241,33 +227,36 @@ Race Property _raceWerewolf Auto Hidden
 ; Cached gold form (Skyrim.esm 0xF).
 Form Property _goldForm Auto Hidden
 
-Keyword Function _locKw(string cid)
-    if cid == "location.playerHome"
+; Location-keyword enum → Skyrim Location Keyword. Values 0..5 match
+; LOCATION_KW_MENU in tools/build_base_catalog.py and location.kw's
+; param1 dropdown. Caches each keyword on first resolve.
+Keyword Function _locKwByIdx(int idx)
+    if idx == 0
         if _kwPlayerHouse == None
             _kwPlayerHouse = Game.GetForm(0x0FC1A3) as Keyword
         endif
         return _kwPlayerHouse
-    elseif cid == "location.dungeon"
+    elseif idx == 1
         if _kwDungeon == None
             _kwDungeon = Game.GetForm(0x18EF1) as Keyword
         endif
         return _kwDungeon
-    elseif cid == "location.city"
+    elseif idx == 2
         if _kwCity == None
             _kwCity = Game.GetForm(0x13167) as Keyword
         endif
         return _kwCity
-    elseif cid == "location.town"
+    elseif idx == 3
         if _kwTown == None
             _kwTown = Game.GetForm(0x192BD) as Keyword
         endif
         return _kwTown
-    elseif cid == "location.inn"
+    elseif idx == 4
         if _kwInn == None
             _kwInn = Game.GetForm(0x1929F) as Keyword
         endif
         return _kwInn
-    elseif cid == "location.jail"
+    elseif idx == 5
         if _kwJail == None
             _kwJail = Game.GetForm(0x5254C) as Keyword
         endif
@@ -366,27 +355,6 @@ float Function _avPercent(Actor target, string av)
     return (target.GetActorValue(av) / maxV) * 100.0
 EndFunction
 
-int Function _hitClassFor(string cid)
-    ; Maps catalog id to the hit-class enum the MainQuest counter uses.
-    ; Class 0=ANY 1=BLUNT 2=BLADED 3=RANGED 4=FIRE 5=FROST 6=SHOCK.
-    if cid == "combat.hit"
-        return 0
-    elseif cid == "combat.hit.blunt"
-        return 1
-    elseif cid == "combat.hit.bladed"
-        return 2
-    elseif cid == "combat.hit.ranged"
-        return 3
-    elseif cid == "combat.hit.magic.fire"
-        return 4
-    elseif cid == "combat.hit.magic.frost"
-        return 5
-    elseif cid == "combat.hit.magic.shock"
-        return 6
-    endif
-    return -1
-EndFunction
-
 bool Function _checkHit(int classIdx, int param)
     MTF_MainQuest h = _host()
     if h == None
@@ -404,15 +372,14 @@ bool Function _checkHit(int classIdx, int param)
     return now < h.GetHitArmedRT(classIdx)
 EndFunction
 
-bool Function checkCondition(int idx, Actor target, int param, string cid)
+bool Function checkCondition(Actor target, int param, string cid)
     if target == None
         return false
     endif
     ; Dispatch by catalog id (cid) — robust against JSON reorder. Group
-    ; ordering matters in two places: location.indoors/outdoors must come
-    ; BEFORE the generic "location.*" prefix branch, and the explicit
-    ; "combat.in/alerted/hostile" must come BEFORE the "combat.hit*"
-    ; prefix branch.
+    ; ordering matters in one place: location.indoors/outdoors must come
+    ; BEFORE the generic "location.*" prefix branch (otherwise the prefix
+    ; branch swallows them with a kw lookup that misses).
     if cid == "magicka"
         float p = _avPercent(target, "Magicka")
         return p >= 0.0 && p >= param as float
@@ -431,13 +398,16 @@ bool Function checkCondition(int idx, Actor target, int param, string cid)
         return _scanNearbyCombat(target, param)
     elseif cid == "combat.hostile"
         return _scanNearbyHostile(target, param)
-    elseif StringUtil.Find(cid, "combat.hit") == 0
-        ; combat.casting starts with combat.c, not combat.h — safe.
-        int c = _hitClassFor(cid)
-        if c < 0
+    elseif cid == "combat.hit"
+        ; param1 = hit class enum (0=Any, 1=Blunt, 2=Bladed, 3=Ranged,
+        ; 4=Fire, 5=Frost, 6=Shock — values match _checkHit's classIdx
+        ; AND host-side hit-counter storage keys). param2 = chance % per
+        ; matching hit. Pre-v0.2.5 used 7 separate combat.hit.* conditions.
+        int hitClass = param
+        if hitClass < 0 || hitClass > 6
             return false
         endif
-        return _checkHit(c, param)
+        return _checkHit(hitClass, _host().GetEvalParam2())
     elseif cid == "health"
         float p = _avPercent(target, "Health")
         return p >= 0.0 && p >= param as float
@@ -450,34 +420,28 @@ bool Function checkCondition(int idx, Actor target, int param, string cid)
     elseif cid == "location.outdoors"
         Cell c = target.GetParentCell()
         return c != None && !c.IsInterior()
-    elseif StringUtil.Find(cid, "location.") == 0
-        ; Catches location.playerHome / dungeon / city / town / inn / jail.
-        ; indoors/outdoors handled above.
+    elseif cid == "location.kw"
+        ; param1 = location type enum (0=Player Home, 1=Dungeon, 2=City,
+        ; 3=Town, 4=Inn, 5=Jail). Pre-v0.2.5 used 6 separate
+        ; location.{playerHome,dungeon,city,town,inn,jail} conditions.
         Location loc = target.GetCurrentLocation()
         if loc == None
             return false
         endif
-        Keyword kw = _locKw(cid)
+        Keyword kw = _locKwByIdx(param)
         if kw == None
             return false
         endif
         return loc.HasKeyword(kw)
-    elseif StringUtil.Find(cid, "weather.") == 0
+    elseif cid == "weather"
+        ; param1 = weather class (0=Pleasant, 1=Cloudy, 2=Rainy, 3=Snowy)
+        ; — matches Weather.GetClassification. Pre-v0.2.5 used 4 separate
+        ; weather.{pleasant,cloudy,rainy,snowy} conditions.
         Weather w = Weather.GetCurrentWeather()
         if w == None
             return false
         endif
-        int cls = w.GetClassification()
-        if cid == "weather.pleasant"
-            return cls == 0
-        elseif cid == "weather.cloudy"
-            return cls == 1
-        elseif cid == "weather.rainy"
-            return cls == 2
-        elseif cid == "weather.snowy"
-            return cls == 3
-        endif
-        return false
+        return w.GetClassification() == param
     elseif cid == "state.sprinting"
         return target.IsSprinting()
     elseif cid == "state.running"
@@ -619,261 +583,144 @@ EndFunction
 ; Applied magnitudes stored in mtf.shift.<idx> on the target so
 ; deactivate/recompute can roll them back precisely.
 bool Function _isAbsShift(string eid)
-    ; Additive AV shifts — every "modify.*" effect except the two float-mult
-    ; ones (handled inline below via _isAbsShiftFloatMult). Prefix-matched
-    ; on the catalog id so adding a new modify.* effect just works; the
-    ; runtime path is picked by name, not by JSON array position.
-    ;
-    ; Three underlying paths inside _recomputeAbsShift, all driven by AV
-    ; name (resolved from idx via _avNameFor):
-    ;   • Spell-routed: engine-managed Resist* AVs that ignore direct
-    ;     ModActorValue — Fire/Frost/Shock/Magic + Disease/Poison. Each has
-    ;     a paired MGEF+Spell in MagicTattoosFramework.esp; SetNthEffect-
-    ;     Magnitude carries the signed param.
-    ;   • Direct ModActorValue, integer units: most AVs accept param as-is.
-    ;   • Direct ModActorValue, float-mult units (AttackDamageMult /
-    ;     WeaponSpeedMult): vanilla baseline 1.0, so param is divided by
-    ;     100 inside _recomputeAbsShift. param=20 means +0.2 (=20%) on
-    ;     the mult.
+    ; Additive AV shifts — every per-AV "modify.*" effect except:
+    ;   • modify.skill (consolidated; param1 picks skill, param2 the shift)
+    ;   • modify.resist (consolidated; param1 picks resist, param2 the shift)
+    ;   • the two float-mult ones (modify.attackDamage / modify.weaponSpeed)
+    ;     are still abs-shift but with /100 scaling inside the helper
+    ;     (handled by _isAbsShiftFloatMult).
+    ; Prefix-matched on the catalog id so adding a new per-AV modify.*
+    ; effect just works; runtime path picked by name, not JSON position.
+    if eid == "modify.skill" || eid == "modify.resist"
+        return false
+    endif
     return StringUtil.Find(eid, "modify.") == 0
 EndFunction
 
-bool Function _isAbsShiftFloatMult(int idx)
+bool Function _isAbsShiftFloatMult(string eid)
     ; AttackDamageMult / WeaponSpeedMult: vanilla baseline 1.0, not 100.
     ; param is interpreted as percent-point shift so param=20 → +0.2 on the
     ; mult (= +20% damage / +20% swing speed). Same idea as vanilla
     ; "Smithing — Damage" perk which does ModActorValue(AttackDamageMult, 0.2).
-    ; Kept on int idx because the only caller (_recomputeAbsShift) already
-    ; has idx in scope for storage-key purposes.
-    return idx == 7 || idx == 14
+    return eid == "modify.attackDamage" || eid == "modify.weaponSpeed"
 EndFunction
 
 bool Function _isToggle(string eid)
     return StringUtil.Find(eid, "toggle.") == 0
 EndFunction
 
-string Function _avNameFor(int idx)
-    if idx < 13
-        return _avNameForLow(idx)
-    endif
-    return _avNameForHigh(idx)
-EndFunction
-
-string Function _avNameForLow(int idx)
-    if idx == 0
+; eid → Skyrim AV name for the eid-keyed modify.* set. The 17 skill modifies
+; (modify.<oneHanded..pickpocket>) and 6 resist modifies (modify.resist*) are
+; NOT here — they were consolidated into modify.skill and modify.resist
+; (v0.2.5) and route through _skillAVForIdx / _resolveResistSpellByIdx
+; from explicit branches in onActivate.
+string Function _avNameFor(string eid)
+    if eid == "modify.magickaRegen"
         return "MagickaRateMult"
-    elseif idx == 1
+    elseif eid == "modify.carryWeight"
         return "CarryWeight"
-    elseif idx == 2
+    elseif eid == "modify.sneak"
         return "Sneak"
-    elseif idx == 3
-        return "Magicka"
-    elseif idx == 4
-        return "Stamina"
-    elseif idx == 5
+    elseif eid == "modify.movementSpeed"
         return "SpeedMult"
-    elseif idx == 6
+    elseif eid == "modify.staminaRegen"
         return "StaminaRateMult"
-    elseif idx == 7
+    elseif eid == "modify.attackDamage"
         return "AttackDamageMult"
-    elseif idx == 11
+    elseif eid == "modify.healthRegen"
         return "HealRateMult"
-    elseif idx == 12
+    elseif eid == "modify.maxMagicka"
         return "Magicka"
-    endif
-    return ""
-EndFunction
-
-string Function _avNameForHigh(int idx)
-    if idx == 13
+    elseif eid == "modify.maxStamina"
         return "Stamina"
-    elseif idx == 14
+    elseif eid == "modify.weaponSpeed"
         return "WeaponSpeedMult"
-    elseif idx == 15
+    elseif eid == "modify.unarmedDamage"
         return "UnarmedDamage"
-    elseif idx == 16
+    elseif eid == "modify.criticalChance"
         return "CriticalChance"
-    elseif idx == 17
+    elseif eid == "modify.bowSpeed"
         return "BowSpeedBonus"
-    elseif idx == 18
-        return "ResistFire"
-    elseif idx == 19
-        return "ResistFrost"
-    elseif idx == 20
-        return "ResistShock"
-    elseif idx == 21
-        return "ResistMagic"
-    elseif idx == 22
-        return "Muffled"
-    elseif idx == 23
-        return "WaterBreathing"
-    elseif idx == 24
-        return "WaterWalking"
-    elseif idx == 25
-        return "Health"
-    elseif idx == 34
-        return "ResistDisease"
-    elseif idx == 35
-        ; Skyrim AV naming quirk — poison resist is "PoisonResist", not
-        ; "ResistPoison" (inverted vs. ResistFire/Frost/Shock/Magic). The
-        ; MGEF in the ESP uses ActorValue: PoisonResist for the same reason.
-        return "PoisonResist"
-    elseif idx == 36
+    elseif eid == "modify.absorbChance"
         return "AbsorbChance"
-    elseif idx == 37
+    elseif eid == "modify.reflectDamage"
         return "ReflectDamage"
-    elseif idx == 38
-        return "OneHanded"
-    elseif idx == 39
-        return "TwoHanded"
-    elseif idx == 40
-        ; Skyrim AV naming quirk — the Archery skill's AV is "Marksman",
-        ; a leftover Morrowind/Oblivion name. The skill-tree UI says
-        ; Archery; GetActorValue/ModActorValue need "Marksman".
-        return "Marksman"
-    elseif idx == 41
-        return "Block"
-    elseif idx == 42
-        return "HeavyArmor"
-    elseif idx == 43
-        return "LightArmor"
-    elseif idx == 44
-        return "Smithing"
-    elseif idx == 45
-        return "Enchanting"
-    elseif idx == 46
-        return "Alchemy"
-    elseif idx == 47
-        return "Destruction"
-    elseif idx == 48
-        return "Restoration"
-    elseif idx == 49
-        return "Alteration"
-    elseif idx == 50
-        return "Illusion"
-    elseif idx == 51
-        return "Conjuration"
-    elseif idx == 52
-        ; Skyrim AV naming quirk — the Speech skill's AV is "Speechcraft",
-        ; another Morrowind/Oblivion holdover. UI says Speech.
-        return "Speechcraft"
-    elseif idx == 53
-        return "Lockpicking"
-    elseif idx == 54
-        return "Pickpocket"
+    ; Toggle AVs (used by _recomputeToggle for the non-spell-routed branch).
+    elseif eid == "toggle.muffle"
+        return "Muffled"
+    elseif eid == "toggle.waterbreathing"
+        return "WaterBreathing"
+    elseif eid == "toggle.waterWalking"
+        return "WaterWalking"
     endif
     return ""
 EndFunction
 
-; Per-actor applied state via StorageUtil. Keys: "mtf.shift.<idx>" (signed).
+; Per-actor applied state via StorageUtil. Keys: "mtf.shift.<eid>" (signed).
 ; Stores the SIGNED amount we applied via ModActorValue. Deactivate/recompute
 ; reverts by ModActorValue(av, -prev). Per-actor so NPC subjects don't thrash
-; each other. (Pre-v0.0.35 used "mtf.applied.<idx>" with positive magnitude;
-; those orphaned entries are harmless under the signed convention.)
-float Function _getApplied(int idx, Actor target)
+; each other. (v0.2.4 switched key from idx → eid; older saves' "mtf.shift.<N>"
+; entries are orphaned and harmless — the next session of activity on that
+; effect just establishes the new key. Pre-v0.0.35 also used "mtf.applied.<idx>"
+; with positive magnitude; those orphans are equally harmless.)
+float Function _getApplied(string eid, Actor target)
     if target == None
         return 0.0
     endif
-    return StorageUtil.GetFloatValue(target, "mtf.shift." + idx, 0.0)
+    return StorageUtil.GetFloatValue(target, "mtf.shift." + eid, 0.0)
 EndFunction
 
-Function _setApplied(int idx, Actor target, float v)
+Function _setApplied(string eid, Actor target, float v)
     if target == None
         return
     endif
     if v == 0.0
-        StorageUtil.UnsetFloatValue(target, "mtf.shift." + idx)
+        StorageUtil.UnsetFloatValue(target, "mtf.shift." + eid)
     else
-        StorageUtil.SetFloatValue(target, "mtf.shift." + idx, v)
+        StorageUtil.SetFloatValue(target, "mtf.shift." + eid, v)
     endif
 EndFunction
 
 ; abs shift: signed `param` in AV points (no scaling, except _isAbsShiftFloatMult).
-Function _recomputeAbsShift(int idx, Actor target, int param)
+; Wrapper over _recomputeAbsShiftAV for eid-keyed effects (the per-AV
+; modify.* set). Resist-routed and skill-routed effects bypass this and
+; call _recomputeAbsShiftAV / _absShiftSpellByKey directly via the
+; consolidated modify.skill / modify.resist branches in onActivate.
+Function _recomputeAbsShift(string eid, Actor target, int param)
     if target == None
         return
     endif
-    ; Engine-managed Resist* AVs ignore direct ModActorValue. Route through
-    ; an Ability spell with ValueModifier archetype (vanilla AbResistFire
-    ; pattern). Magnitude is set per-cast, signed via SetNthEffectMagnitude.
-    ; idx 18-21: elemental (Fire/Frost/Shock/Magic). idx 34-35: Disease/
-    ; Poison — same engine-managed quirk, same routing.
-    if (idx >= 18 && idx <= 21) || idx == 34 || idx == 35
-        _absShiftSpell(_resolveResistSpell(idx), target, param, idx)
-        return
-    endif
-    string av = _avNameFor(idx)
+    string av = _avNameFor(eid)
     if av == ""
         return
     endif
-    float prev = _getApplied(idx, target)
-    float amt  = param as float
-    if _isAbsShiftFloatMult(idx)
-        ; AttackDamageMult / WeaponSpeedMult are float multipliers (baseline
-        ; 1.0), not percent-baselined like the *RateMult set (baseline 100).
-        ; Treat the int param as percent points → divide by 100 so param=20
-        ; means +0.2 on the mult (= +20%). Storage is in the SAME float-mult
-        ; units so revert math stays simple.
-        amt = amt / 100.0
-    endif
-    ; Early-out: onTick fires every poll (10 Hz default). Without this guard
-    ; we'd revert+re-apply every tick, which is wasteful and — for laggy
-    ; engine-managed AVs like PoisonResist — keeps the value flickering at
-    ; the poll cadence so reads return stale values for a few seconds before
-    ; the engine settles.
-    if prev == amt
-        return
-    endif
-    ; CRITICAL ORDER: write _setApplied (synchronous StorageUtil) BEFORE the
-    ; suspending ModActorValue calls. Without this, two concurrent stacks
-    ; (e.g. spell-driven initial apply + slow-tick re-eval running its own
-    ; _tickSlotEffectsForActor on the same preset) both read prev=0 from
-    ; storage and both call ModActorValue(+amt), doubling the AV shift.
-    ; Storage-then-mutate means the second stack reads prev=amt, hits the
-    ; early-out above, and skips. The half-finished AV state during A's
-    ; suspension is fine because ±amt deltas sum correctly regardless of
-    ; interleaving — the invariant is "applied delta == stored value", and
-    ; storage is the synchronization point. See 2026-05-21 partial-revert
-    ; diag where idx 51-54 (Illusion/Conjuration/Speechcraft/Lockpicking)
-    ; double-applied during TestAllNewEffects preset apply.
-    if param == 0
-        _setApplied(idx, target, 0.0)
-    else
-        _setApplied(idx, target, amt)
-    endif
-    if prev != 0.0
-        target.ModActorValue(av, -prev)
-    endif
-    if param == 0
-        return
-    endif
-    target.ModActorValue(av, amt)
+    _recomputeAbsShiftAV(av, eid, target, param, _isAbsShiftFloatMult(eid))
 EndFunction
 
 ; toggle: bind/unbind sets AV ±1 (or AddSpell/RemoveSpell for engine-managed
 ; AVs like WaterBreathing/WaterWalking that don't respond to direct ModAV).
 ; `param` is ignored; `on` = activate.
-Function _recomputeToggle(int idx, Actor target, bool on)
+Function _recomputeToggle(string eid, Actor target, bool on)
     if target == None
         return
     endif
     ; Engine-managed AVs need an ability spell (constant-effect ability).
     ; Direct ModActorValue silently no-ops on Muffled/WaterBreathing/WaterWalking.
-    if idx == 22
-        _toggleSpell(_resolveMuffleSpell(), target, on, idx)
+    if eid == "toggle.muffle"
+        _toggleSpell(_resolveMuffleSpell(), target, on, eid)
         return
-    elseif idx == 23
-        _toggleSpell(_resolveWaterBreathingSpell(), target, on, idx)
+    elseif eid == "toggle.waterbreathing"
+        _toggleSpell(_resolveWaterBreathingSpell(), target, on, eid)
         return
-    elseif idx == 24
-        _toggleSpell(_resolveWaterWalkingSpell(), target, on, idx)
+    elseif eid == "toggle.waterWalking"
+        _toggleSpell(_resolveWaterWalkingSpell(), target, on, eid)
         return
     endif
-    string av = _avNameFor(idx)
+    string av = _avNameFor(eid)
     if av == ""
         return
     endif
-    float prev = _getApplied(idx, target)
+    float prev = _getApplied(eid, target)
     if on
         if prev > 0.0
             return ; already applied
@@ -882,29 +729,29 @@ Function _recomputeToggle(int idx, Actor target, bool on)
             target.ModActorValue(av, -prev)
         endif
         target.ModActorValue(av, 1.0)
-        _setApplied(idx, target, 1.0)
+        _setApplied(eid, target, 1.0)
     else
         if prev != 0.0
             target.ModActorValue(av, -prev)
         endif
-        _setApplied(idx, target, 0.0)
+        _setApplied(eid, target, 0.0)
     endif
 EndFunction
 
-Function _toggleSpell(Spell s, Actor target, bool on, int idx)
+Function _toggleSpell(Spell s, Actor target, bool on, string eid)
     if s == None
         return
     endif
-    float prev = _getApplied(idx, target)
+    float prev = _getApplied(eid, target)
     if on
         if prev > 0.0
             return ; already applied
         endif
         target.AddSpell(s, false)
-        _setApplied(idx, target, 1.0)
+        _setApplied(eid, target, 1.0)
     else
         target.RemoveSpell(s)
-        _setApplied(idx, target, 0.0)
+        _setApplied(eid, target, 0.0)
     endif
 EndFunction
 
@@ -946,17 +793,22 @@ Function _burstDelta(string av, Actor target, int param)
     endif
 EndFunction
 
-; Apply a signed-magnitude resist via an Ability spell. Removes first to
-; clear stale magnitude, mutates the spell's effect magnitude, then re-adds.
-; Early-outs when the desired magnitude already matches what we last
-; applied — without this, onTick's 10 Hz cadence does RemoveSpell+AddSpell
-; every poll, which keeps lazy AVs like PoisonResist flickering 0/+N for
-; ~2-3s before the engine settles. Idempotent re-add was also pure churn.
-Function _absShiftSpell(Spell s, Actor target, int param, int idx)
+; Apply a signed-magnitude resist via an Ability spell, keyed on an
+; arbitrary storage key (not necessarily the eid). Used by both
+; eid-keyed effects and the consolidated modify.resist (which uses
+; "modify.resist.<typeIdx>" as the key so per-type stored deltas don't
+; collide across resist types within one effect slot).
+;
+; Removes first to clear stale magnitude, mutates the spell's effect
+; magnitude, then re-adds. Early-outs when the desired magnitude already
+; matches what we last applied — without this, onTick's 10 Hz cadence
+; does RemoveSpell+AddSpell every poll, which keeps lazy AVs like
+; PoisonResist flickering 0/+N for ~2-3s before the engine settles.
+Function _absShiftSpellByKey(Spell s, Actor target, int param, string key)
     if s == None
         return
     endif
-    float prev = _getApplied(idx, target)
+    float prev = _getApplied(key, target)
     float mag  = param as float
     if prev == mag
         return
@@ -965,9 +817,9 @@ Function _absShiftSpell(Spell s, Actor target, int param, int idx)
     ; AddSpell calls so concurrent stacks see prev=mag and hit the early-out
     ; above. Same race as _recomputeAbsShift; see comment there for details.
     if param == 0
-        _setApplied(idx, target, 0.0)
+        _setApplied(key, target, 0.0)
     else
-        _setApplied(idx, target, mag)
+        _setApplied(key, target, mag)
     endif
     target.RemoveSpell(s)
     if param == 0
@@ -977,39 +829,228 @@ Function _absShiftSpell(Spell s, Actor target, int param, int idx)
     target.AddSpell(s, false)
 EndFunction
 
-Spell Function _resolveResistSpell(int idx)
-    if idx == 18
+; Resist type enum → Ability Spell. Values 0..5 match RESIST_TYPE_MENU
+; in tools/build_base_catalog.py and modify.resist's param1 dropdown.
+Spell Function _resolveResistSpellByIdx(int idx)
+    if idx == 0
         if _resistFireSpell == None
             _resistFireSpell = Game.GetFormFromFile(0x837, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistFireSpell
-    elseif idx == 19
+    elseif idx == 1
         if _resistFrostSpell == None
             _resistFrostSpell = Game.GetFormFromFile(0x839, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistFrostSpell
-    elseif idx == 20
+    elseif idx == 2
         if _resistShockSpell == None
             _resistShockSpell = Game.GetFormFromFile(0x83B, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistShockSpell
-    elseif idx == 21
+    elseif idx == 3
         if _resistMagicSpell == None
             _resistMagicSpell = Game.GetFormFromFile(0x83D, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistMagicSpell
-    elseif idx == 34
+    elseif idx == 4
         if _resistDiseaseSpell == None
             _resistDiseaseSpell = Game.GetFormFromFile(0x851, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistDiseaseSpell
-    elseif idx == 35
+    elseif idx == 5
         if _resistPoisonSpell == None
             _resistPoisonSpell = Game.GetFormFromFile(0x853, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistPoisonSpell
     endif
     return None
+EndFunction
+
+; Skill enum → Skyrim AV name. Values 0..16 match SKILL_AV_MENU in
+; tools/build_base_catalog.py and modify.skill's param1 dropdown.
+; Same AV naming quirks as _avNameFor (Marksman = Archery, Speechcraft
+; = Speech — both Morrowind holdovers).
+string Function _skillAVForIdx(int idx)
+    if idx == 0
+        return "OneHanded"
+    elseif idx == 1
+        return "TwoHanded"
+    elseif idx == 2
+        return "Marksman"
+    elseif idx == 3
+        return "Block"
+    elseif idx == 4
+        return "HeavyArmor"
+    elseif idx == 5
+        return "LightArmor"
+    elseif idx == 6
+        return "Smithing"
+    elseif idx == 7
+        return "Enchanting"
+    elseif idx == 8
+        return "Alchemy"
+    elseif idx == 9
+        return "Destruction"
+    elseif idx == 10
+        return "Restoration"
+    elseif idx == 11
+        return "Alteration"
+    elseif idx == 12
+        return "Illusion"
+    elseif idx == 13
+        return "Conjuration"
+    elseif idx == 14
+        return "Speechcraft"
+    elseif idx == 15
+        return "Lockpicking"
+    elseif idx == 16
+        return "Pickpocket"
+    endif
+    return ""
+EndFunction
+
+; AV-keyed variant of _recomputeAbsShift. Caller supplies the AV name and
+; storage key directly (no eid lookup). Used by the consolidated
+; modify.skill effect — each skill enum needs its own storage key so
+; per-skill deltas don't collide when the user changes the dropdown.
+Function _recomputeAbsShiftAV(string av, string key, Actor target, int param, bool isFloatMult)
+    if target == None || av == ""
+        return
+    endif
+    float prev = _getApplied(key, target)
+    float amt  = param as float
+    if isFloatMult
+        amt = amt / 100.0
+    endif
+    if prev == amt
+        return
+    endif
+    if param == 0
+        _setApplied(key, target, 0.0)
+    else
+        _setApplied(key, target, amt)
+    endif
+    if prev != 0.0
+        target.ModActorValue(av, -prev)
+    endif
+    if param == 0
+        return
+    endif
+    target.ModActorValue(av, amt)
+EndFunction
+
+; Consolidated modify.skill / modify.resist apply.
+;
+; Both effects put the TYPE on param1 (dropdown) and the SHIFT on param2.
+; Per-skill / per-resist independent storage keys
+; (`mtf.shift.modify.skill.<idx>`, `mtf.shift.modify.resist.<idx>`) keep
+; deltas independent when slot bindings differ.
+;
+; Per-(slot, eff) `lastApplied` tracker stores which type enum was active
+; on this slot last tick. When the user moves the param1 dropdown from
+; Smithing→Alteration (or Fire→Frost), the old enum's stored delta is
+; reverted before the new one is applied — otherwise the previous AV
+; would stay buffed silently.
+Function _recomputeSkillShift(Actor target, int currentSkill, int delta)
+    if target == None || currentSkill < 0 || currentSkill > 16
+        return
+    endif
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot = h._getDispatchSlot()
+    int eff  = h._getDispatchEffectIdx()
+    if slot < 0 || eff < 0
+        return
+    endif
+    string lastKey = "mtf.skill.last." + slot + "." + eff
+    int prevSkill = StorageUtil.GetIntValue(target, lastKey, -1)
+    if prevSkill >= 0 && prevSkill != currentSkill
+        string prevAv = _skillAVForIdx(prevSkill)
+        if prevAv != ""
+            _recomputeAbsShiftAV(prevAv, "modify.skill." + prevSkill, target, 0, false)
+        endif
+    endif
+    StorageUtil.SetIntValue(target, lastKey, currentSkill)
+    string av = _skillAVForIdx(currentSkill)
+    _recomputeAbsShiftAV(av, "modify.skill." + currentSkill, target, delta, false)
+EndFunction
+
+Function _removeSkillShift(Actor target)
+    if target == None
+        return
+    endif
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot = h._getDispatchSlot()
+    int eff  = h._getDispatchEffectIdx()
+    if slot < 0 || eff < 0
+        return
+    endif
+    string lastKey = "mtf.skill.last." + slot + "." + eff
+    int prevSkill = StorageUtil.GetIntValue(target, lastKey, -1)
+    if prevSkill >= 0
+        string prevAv = _skillAVForIdx(prevSkill)
+        if prevAv != ""
+            _recomputeAbsShiftAV(prevAv, "modify.skill." + prevSkill, target, 0, false)
+        endif
+        StorageUtil.UnsetIntValue(target, lastKey)
+    endif
+EndFunction
+
+Function _recomputeResistShift(Actor target, int currentResist, int delta)
+    if target == None || currentResist < 0 || currentResist > 5
+        return
+    endif
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot = h._getDispatchSlot()
+    int eff  = h._getDispatchEffectIdx()
+    if slot < 0 || eff < 0
+        return
+    endif
+    string lastKey = "mtf.resist.last." + slot + "." + eff
+    int prevResist = StorageUtil.GetIntValue(target, lastKey, -1)
+    if prevResist >= 0 && prevResist != currentResist
+        Spell prevSpell = _resolveResistSpellByIdx(prevResist)
+        if prevSpell != None
+            _absShiftSpellByKey(prevSpell, target, 0, "modify.resist." + prevResist)
+        endif
+    endif
+    StorageUtil.SetIntValue(target, lastKey, currentResist)
+    Spell s = _resolveResistSpellByIdx(currentResist)
+    if s != None
+        _absShiftSpellByKey(s, target, delta, "modify.resist." + currentResist)
+    endif
+EndFunction
+
+Function _removeResistShift(Actor target)
+    if target == None
+        return
+    endif
+    MTF_MainQuest h = _host()
+    if h == None
+        return
+    endif
+    int slot = h._getDispatchSlot()
+    int eff  = h._getDispatchEffectIdx()
+    if slot < 0 || eff < 0
+        return
+    endif
+    string lastKey = "mtf.resist.last." + slot + "." + eff
+    int prevResist = StorageUtil.GetIntValue(target, lastKey, -1)
+    if prevResist >= 0
+        Spell prevSpell = _resolveResistSpellByIdx(prevResist)
+        if prevSpell != None
+            _absShiftSpellByKey(prevSpell, target, 0, "modify.resist." + prevResist)
+        endif
+        StorageUtil.UnsetIntValue(target, lastKey)
+    endif
 EndFunction
 
 ; one-shot bounty: add signed `param` gold to the crime faction of the hold
@@ -1374,7 +1415,10 @@ Function _removeCloak(Spell outer, Actor target, string key)
     StorageUtil.UnsetFloatValue(target, key + ".cast")
 EndFunction
 
-Function _tickCloak(int idx, Spell outer, Spell inner, Actor target, int paramDmg, int paramRadius, string key)
+Function _tickCloak(Spell outer, Spell inner, Actor target, int paramDmg, int paramRadius, string key)
+{`key` is the StorageUtil base key (e.g. "mtf.shift.flameCloak") — caller
+ disambiguates between fire/frost/lightning. No idx/eid parameter needed:
+ the storage namespace is fully encoded by the key string.}
     if target == None || outer == None
         return
     endif
@@ -1506,60 +1550,6 @@ string Function _classMaskToTags(int classMask)
 EndFunction
 
 Function _removeFlashOnHit(Actor target)
-    if target == None
-        return
-    endif
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    MTFPulse.ClearActorFlash(target, h._getDispatchBaseSlot(), h._getDispatchArea())
-EndFunction
-
-; ── Flash on Cast (v0.1.25) ─────────────────────────────────────────────────
-; Mirror of _applyFlashOnHit but with a fixed "cast" tag. No class mask —
-; MCM param is the peak% directly (same 0..1000 scale as flash.onhit's
-; param2: 1000 = +10.0 additive at peak). Triggered by MTF_CastListener
-; via MainQuest.DispatchFlashCast("cast") which calls TriggerActorFlash
-; with the "cast" tag; the C++ pulse roster matches against the registered
-; tag CSV. Listener re-dispatches at 0.1s while the cast is held, so the
-; retrigms sustain window (default 250ms) keeps the lane lit during
-; concentration/charge-and-hold casts.
-Function _applyFlashOnCast(Actor target, int peakPct)
-    if target == None || peakPct <= 0
-        return
-    endif
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot      = h._getDispatchSlot()
-    int effectIdx = h._getDispatchEffectIdx()
-    if slot < 0 || effectIdx < 0
-        return
-    endif
-    ; param2/3/4 — flash.oncast envelope timings (idx 57 uses param2=ramp,
-    ; param3=decay, param4=retrig because its primary param1 IS the peak%).
-    ; Wait — flash.oncast's primary param IS the peak; the extras position
-    ; them at param3..5 (extras start at 3, regardless of param2 usage).
-    int rampMs   = h.GetSlotEffectParamN(slot, effectIdx, 3)
-    int decayMs  = h.GetSlotEffectParamN(slot, effectIdx, 4)
-    int retrigMs = h.GetSlotEffectParamN(slot, effectIdx, 5)
-    if rampMs   <= 0
-        rampMs = 200
-    endif
-    if decayMs  <= 0
-        decayMs = 600
-    endif
-    if retrigMs <= 0
-        retrigMs = 250
-    endif
-    int dispatchBase = h._getDispatchBaseSlot()
-    int dispatchArea = h._getDispatchArea()
-    MTFPulse.SetActorFlash(target, dispatchBase, peakPct, rampMs, decayMs, retrigMs, "cast", dispatchArea)
-EndFunction
-
-Function _removeFlashOnCast(Actor target)
     if target == None
         return
     endif
@@ -2027,15 +2017,23 @@ Function _tickSoundRow(Actor target, int soundIdx, int param2)
     endif
 EndFunction
 
-Function onActivate(int idx, Actor target, int param, int param2, string eid)
-    ; Outer dispatch by `eid` — robust against JSON reorder. The inner
-    ; helpers (_recomputeAbsShift, _avNameFor, etc.) still take `idx` because
-    ; they key storage on it for per-effect persistence; see roadmap entry
-    ; "storage-key positional binding" for the separate followup.
-    if _isAbsShift(eid)
-        _recomputeAbsShift(idx, target, param)
+Function onActivate(Actor target, int param, int param2, string eid)
+    ; Outer dispatch by `eid` — robust against JSON reorder. Inner helpers
+    ; (_recomputeAbsShift, _setApplied, _avNameFor, etc.) also take eid so
+    ; per-actor StorageUtil keys are stable across catalog edits.
+    ;
+    ; Consolidated effects come first: modify.skill / modify.resist read
+    ; the type from param1 (dropdown) and the shift from param2, so they
+    ; route through dedicated wrappers that handle per-slot lastApplied
+    ; tracking (revert old type on dropdown change).
+    if eid == "modify.skill"
+        _recomputeSkillShift(target, param, param2)
+    elseif eid == "modify.resist"
+        _recomputeResistShift(target, param, param2)
+    elseif _isAbsShift(eid)
+        _recomputeAbsShift(eid, target, param)
     elseif _isToggle(eid)
-        _recomputeToggle(idx, target, true)
+        _recomputeToggle(eid, target, true)
     elseif eid == "damage.magicka"
         _burstDelta("Magicka", target, param)
     elseif eid == "damage.stamina"
@@ -2070,16 +2068,18 @@ Function onActivate(int idx, Actor target, int param, int param2, string eid)
         _activateShaderRow(target, param, param2)
     elseif eid == "sound.play"
         _activateSoundRow(target, param, param2)
-    elseif eid == "flash.oncast"
-        _applyFlashOnCast(target, param)
     endif
 EndFunction
 
-Function onDeactivate(int idx, Actor target, int param, int param2, string eid)
-    if _isAbsShift(eid)
-        _recomputeAbsShift(idx, target, 0)
+Function onDeactivate(Actor target, int param, int param2, string eid)
+    if eid == "modify.skill"
+        _removeSkillShift(target)
+    elseif eid == "modify.resist"
+        _removeResistShift(target)
+    elseif _isAbsShift(eid)
+        _recomputeAbsShift(eid, target, 0)
     elseif _isToggle(eid)
-        _recomputeToggle(idx, target, false)
+        _recomputeToggle(eid, target, false)
     elseif eid == "scale.magickaCost"
         _removeCostPenalty(target)
     elseif eid == "spell.modifyArmor"
@@ -2100,16 +2100,18 @@ Function onDeactivate(int idx, Actor target, int param, int param2, string eid)
         _deactivateShaderRow(target, param)
     elseif eid == "sound.play"
         _deactivateSoundRow(target, param, param2)
-    elseif eid == "flash.oncast"
-        _removeFlashOnCast(target)
     endif
 EndFunction
 
-Function onTick(int idx, Actor target, int param, int param2, string eid)
-    if _isAbsShift(eid)
-        _recomputeAbsShift(idx, target, param)
+Function onTick(Actor target, int param, int param2, string eid)
+    if eid == "modify.skill"
+        _recomputeSkillShift(target, param, param2)
+    elseif eid == "modify.resist"
+        _recomputeResistShift(target, param, param2)
+    elseif _isAbsShift(eid)
+        _recomputeAbsShift(eid, target, param)
     elseif _isToggle(eid)
-        _recomputeToggle(idx, target, true)
+        _recomputeToggle(eid, target, true)
     elseif eid == "scale.magickaCost"
         ; Re-apply if param changed (slider) or after save/load (magnitude
         ; reverts to ESP default which is 0). Skip when already in sync.
@@ -2158,11 +2160,11 @@ Function onTick(int idx, Actor target, int param, int param2, string eid)
             _applySlowTime(target, param)
         endif
     elseif eid == "spell.flameCloak"
-        _tickCloak(idx, _resolveFlameCloakSpell(), _resolveFlameCloakDmgSpell(), target, param, param2, "mtf.shift.flameCloak")
+        _tickCloak(_resolveFlameCloakSpell(), _resolveFlameCloakDmgSpell(), target, param, param2, "mtf.shift.flameCloak")
     elseif eid == "spell.frostCloak"
-        _tickCloak(idx, _resolveFrostCloakSpell(), _resolveFrostCloakDmgSpell(), target, param, param2, "mtf.shift.frostCloak")
+        _tickCloak(_resolveFrostCloakSpell(), _resolveFrostCloakDmgSpell(), target, param, param2, "mtf.shift.frostCloak")
     elseif eid == "spell.lightningCloak"
-        _tickCloak(idx, _resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
+        _tickCloak(_resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
     elseif eid == "flash.onhit"
         ; Re-push flash params every slow tick. Cheap (one Roster lookup +
         ; field write) and means MCM slider edits on ramp/decay/retrig/peak
@@ -2178,62 +2180,6 @@ Function onTick(int idx, Actor target, int param, int param2, string eid)
         ; Loop-mode SNDRs need a re-Play after session resume (same engine
         ; quirk as shaders: Sound.Play handles don't persist across save/load).
         _tickSoundRow(target, param, param2)
-    elseif eid == "flash.oncast"
-        ; Same re-push pattern as flash.onhit: cheap roster write keeps the
-        ; lane's params in sync with MCM slider edits within one slow tick.
-        _applyFlashOnCast(target, param)
     endif
 EndFunction
 
-; ── Legacy migration (v0.0.32 → v0.0.33) ─────────────────────────────────────
-; Pre-v0.0.33, applied magnitudes lived on this script's quest as plain
-; floats (_appliedMana, _appliedCarry, …). v0.0.33 moves them to per-actor
-; StorageUtil so NPC subjects can carry independent state. On the version
-; bump there's a one-shot: any leftover magnitude that was modded onto the
-; *player's* actor values via those legacy floats must be backed out from
-; the player and the legacy floats zeroed, otherwise on first recompute
-; under the new code prev=0 (new key empty) and we'd stack a fresh delta on
-; top of the already-applied legacy delta. Called by MTF_MainQuest version
-; migration. Safe to call repeatedly — _legacyMigrated guards re-runs.
-Function _migrateLegacyApplied(Actor player)
-    if _legacyMigrated
-        return
-    endif
-    if player == None
-        return
-    endif
-    _migrateLegacyOne(0, "MagickaRateMult",  _appliedMana,      player)
-    _migrateLegacyOne(1, "CarryWeight",      _appliedCarry,     player)
-    _migrateLegacyOne(2, "Sneak",            _appliedSneak,     player)
-    _migrateLegacyOne(5, "SpeedMult",        _appliedSpeed,     player)
-    _migrateLegacyOne(6, "StaminaRateMult",  _appliedStamRate,  player)
-    _migrateLegacyOne(7, "AttackDamageMult", _appliedAtkDmg,    player)
-    _migrateLegacyOne(8, "DamageResist",     _appliedDmgResist, player)
-
-    ; Spell-cost: back out any in-flight magnitude by removing the spell;
-    ; onTick re-applies cleanly under per-actor tracking next loop.
-    if _appliedSpellCost != 0.0
-        Spell s = _resolveCostPenaltySpell()
-        if s != None
-            player.RemoveSpell(s)
-        endif
-        _appliedSpellCost = 0.0
-    endif
-
-    _appliedMana      = 0.0
-    _appliedCarry     = 0.0
-    _appliedSneak     = 0.0
-    _appliedSpeed     = 0.0
-    _appliedStamRate  = 0.0
-    _appliedAtkDmg    = 0.0
-    _appliedDmgResist = 0.0
-    _legacyMigrated   = true
-EndFunction
-
-Function _migrateLegacyOne(int idx, string av, float legacyVal, Actor player)
-    if legacyVal == 0.0
-        return
-    endif
-    player.ModActorValue(av, legacyVal)
-    StorageUtil.UnsetFloatValue(player, "mtf.applied." + idx)
-EndFunction

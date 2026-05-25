@@ -205,7 +205,7 @@ Function _ensureSlaveTatsVersion(Actor target)
 EndFunction
 
 ; ── Lifecycle ───────────────────────────────────────────────────────────────
-Function onActivate(int idx, Actor target, int param, int param2, string eid)
+Function onActivate(Actor target, int param, int param2, string eid)
     if eid != "slavetats.mirror" || target == None
         return
     endif
@@ -293,7 +293,7 @@ Function onActivate(int idx, Actor target, int param, int param2, string eid)
     JValue.cleanPool("MTFSlaveTatsBridge")
 EndFunction
 
-Function onDeactivate(int idx, Actor target, int param, int param2, string eid)
+Function onDeactivate(Actor target, int param, int param2, string eid)
     if eid != "slavetats.mirror" || target == None
         return
     endif

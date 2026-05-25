@@ -25,15 +25,100 @@ OUT = Path(__file__).resolve().parents[1] / "data" / "SKSE" / "Plugins" / \
 # ── Helpers mirroring the Papyrus dispatch ────────────────────────────────────
 def is_abs_shift(idx: int) -> bool:
     """Mirrors MTF_Plugin_Base._isAbsShift. Signed AV-point shifts; default
-    range -100..100, default 0, slider unit = 'points'/'%'."""
-    return (idx <= 2 or (5 <= idx <= 7) or (11 <= idx <= 21) or (34 <= idx <= 54))
+    range -100..100, default 0, slider unit = 'points'/'%'.
+
+    NOTE: this applies the default to param1 only. Effects that put the
+    signed shift on param2 (modify.resist, modify.skill) are NOT in this
+    set — they specify min/max/default on the param2 override explicitly.
+    """
+    return (idx <= 2 or (5 <= idx <= 7) or (11 <= idx <= 17) or (31 <= idx <= 32))
 
 
 # Idxes of burst-kind effects in Base — fires once on activate, no rolling
 # state. Continuous is the default (kind field omitted in JSON). MCM
 # prepends a "[!] " badge automatically for kind == burst at render time —
 # don't put the prefix in labels here.
-BASE_BURSTS = {3, 4, 8, 9, 25, 26}
+BASE_BURSTS = {3, 4, 8, 9, 22, 23}
+
+# Hit class enum for the combat.hit condition's param1 dropdown. Values
+# match _checkHit's classIdx in MTF_Plugin_Base — host-side hit counters
+# are keyed on the same int. Pre-v0.2.5 used 7 separate combat.hit.*
+# conditions; consolidated to mirror the FLASH_TRIGGER_MENU pattern.
+HIT_CLASS_MENU = [
+    (0, "Any"),
+    (1, "Blunt"),
+    (2, "Bladed"),
+    (3, "Ranged"),
+    (4, "Fire"),
+    (5, "Frost"),
+    (6, "Shock"),
+]
+assert len(HIT_CLASS_MENU) == 7
+
+# Location keyword enum for the location.kw condition's param1 dropdown.
+# Values map to Skyrim location keyword form IDs in _locKwByIdx (Base).
+# Pre-v0.2.5 used 6 separate location.{playerHome,dungeon,city,town,inn,jail}.
+LOCATION_KW_MENU = [
+    (0, "Player Home"),
+    (1, "Dungeon"),
+    (2, "City"),
+    (3, "Town"),
+    (4, "Inn"),
+    (5, "Jail"),
+]
+assert len(LOCATION_KW_MENU) == 6
+
+# Weather class enum for the weather condition's param1 dropdown.
+# Values match Weather.GetClassification (0=pleasant, 1=cloudy, 2=rainy,
+# 3=snowy). Pre-v0.2.5 used 4 separate weather.* conditions.
+WEATHER_MENU = [
+    (0, "Pleasant"),
+    (1, "Cloudy"),
+    (2, "Rainy"),
+    (3, "Snowy"),
+]
+assert len(WEATHER_MENU) == 4
+
+# Resist type enum for the modify.resist effect's param1 dropdown.
+# Values are arbitrary stable ints; the Base script maps them to the
+# resist Ability spells in MagicTattoosFramework.esp via
+# _resolveResistSpellByIdx. Pre-v0.2.5 used 6 separate modify.resist*
+# effects keyed by element name in the eid.
+RESIST_TYPE_MENU = [
+    (0, "Fire"),
+    (1, "Frost"),
+    (2, "Shock"),
+    (3, "Magic"),
+    (4, "Disease"),
+    (5, "Poison"),
+]
+assert len(RESIST_TYPE_MENU) == 6
+
+# Skill AV enum for the modify.skill effect's param1 dropdown.
+# Values 0..16 stable; the Base script maps each to the Skyrim AV name
+# via _skillAVForIdx. Pre-v0.2.5 used 17 separate modify.<skillname>
+# effects. AV names follow the Marksman/Speechcraft Morrowind-holdover
+# quirks (see _avNameFor docstring).
+SKILL_AV_MENU = [
+    (0,  "One-Handed"),
+    (1,  "Two-Handed"),
+    (2,  "Archery"),
+    (3,  "Block"),
+    (4,  "Heavy Armor"),
+    (5,  "Light Armor"),
+    (6,  "Smithing"),
+    (7,  "Enchanting"),
+    (8,  "Alchemy"),
+    (9,  "Destruction"),
+    (10, "Restoration"),
+    (11, "Alteration"),
+    (12, "Illusion"),
+    (13, "Conjuration"),
+    (14, "Speech"),
+    (15, "Lockpicking"),
+    (16, "Pickpocket"),
+]
+assert len(SKILL_AV_MENU) == 17
 
 # ── Conditions ────────────────────────────────────────────────────────────────
 # (idx, id, label, description, param?)
@@ -62,28 +147,12 @@ CONDITIONS = [
     ("combat.hostile",  "Hostile Nearby",
      "Triggers when at least one hostile NPC is within {param1}m.",
      {"label": "Scan radius (meters)", "min": 1, "default": 25}),
-    # On-hit (7-13)
-    ("combat.hit",        "On Hit (Any)",
-     "Triggers with a {param1}% chance per incoming hit (any type).",
-     {"label": "Chance % per hit", "min": 1, "default": 25}),
-    ("combat.hit.blunt",  "On Hit (Blunt: mace/warhammer/fist)",
-     "Triggers with a {param1}% chance per blunt-weapon hit (mace, warhammer, unarmed).",
-     {"label": "Chance % per hit", "min": 1, "default": 25}),
-    ("combat.hit.bladed", "On Hit (Bladed)",
-     "Triggers with a {param1}% chance per bladed-weapon hit.",
-     {"label": "Chance % per hit", "min": 1, "default": 25}),
-    ("combat.hit.ranged", "On Hit (Ranged)",
-     "Triggers with a {param1}% chance per ranged hit (arrow or bolt).",
-     {"label": "Chance % per hit", "min": 1, "default": 25}),
-    ("combat.hit.magic.fire",  "On Hit (Fire)",
-     "Triggers with a {param1}% chance per fire-school damage hit.",
-     {"label": "Chance % per hit", "min": 1, "default": 25}),
-    ("combat.hit.magic.frost", "On Hit (Frost)",
-     "Triggers with a {param1}% chance per frost-school damage hit.",
-     {"label": "Chance % per hit", "min": 1, "default": 25}),
-    ("combat.hit.magic.shock", "On Hit (Shock)",
-     "Triggers with a {param1}% chance per shock-school damage hit.",
-     {"label": "Chance % per hit", "min": 1, "default": 25}),
+    # On-hit (single entry; class picked via param1 dropdown).
+    ("combat.hit", "On Hit",
+     "Triggers with a {param2}% chance per matching incoming hit of class {param1}.",
+     {"label": "Hit class", "min": 0, "max": 6, "default": 0,
+      "menu": [{"value": v, "label": l} for v, l in HIT_CLASS_MENU],
+      "_param2": {"label": "Chance % per hit", "min": 1, "max": 100, "default": 25}}),
     # Health %
     ("health",       "Above Health %",
      "Triggers when the actor's health is at or above {param1}%.",
@@ -91,32 +160,22 @@ CONDITIONS = [
     ("health.below", "Below Health %",
      "Triggers when the actor's health drops below {param1}%.",
      {"label": "Health/Magicka/Stamina % threshold", "default": 30}),
-    # Location (16-23)
+    # Location — indoors/outdoors stay separate (engine cell check, not
+    # keyword based). The 6 keyword-based location types are consolidated
+    # under location.kw with a dropdown.
     ("location.indoors",    "Indoors",
      "Triggers whenever the actor is inside any interior cell.", None),
     ("location.outdoors",   "Outdoors",
      "Triggers whenever the actor is in an exterior worldspace.", None),
-    ("location.playerHome", "In Player Home",
-     "Triggers when the actor is inside a location flagged as the player's home.", None),
-    ("location.dungeon",    "In Dungeon",
-     "Triggers when the actor is inside a dungeon-type location.", None),
-    ("location.city",       "In City",
-     "Triggers when the actor is inside a city worldspace (Whiterun, Solitude, etc.).", None),
-    ("location.town",       "In Town",
-     "Triggers when the actor is inside a town-type location.", None),
-    ("location.inn",        "In Inn",
-     "Triggers when the actor is inside an inn or tavern.", None),
-    ("location.jail",       "In Jail",
-     "Triggers when the actor is held in a jail cell.", None),
-    # Weather (24-27)
-    ("weather.pleasant", "Weather: Clear / Sunny",
-     "Triggers when the current weather is clear or sunny.", None),
-    ("weather.cloudy",   "Weather: Cloudy",
-     "Triggers when the current weather is cloudy.", None),
-    ("weather.rainy",    "Weather: Rainy",
-     "Triggers when the current weather is rainy.", None),
-    ("weather.snowy",    "Weather: Snowy",
-     "Triggers when the current weather is snowy.", None),
+    ("location.kw", "Location",
+     "Triggers when the actor is inside a {param1}-flagged location.",
+     {"label": "Location type", "min": 0, "max": 5, "default": 0,
+      "menu": [{"value": v, "label": l} for v, l in LOCATION_KW_MENU]}),
+    # Weather — single entry with classification dropdown.
+    ("weather", "Weather",
+     "Triggers when the current weather class is {param1}.",
+     {"label": "Weather class", "min": 0, "max": 3, "default": 0,
+      "menu": [{"value": v, "label": l} for v, l in WEATHER_MENU]}),
     # State (28-35)
     ("state.sprinting",     "Sprinting",
      "Triggers while the actor is sprinting.", None),
@@ -167,7 +226,7 @@ CONDITIONS = [
     ("combat.casting", "While Casting Spell",
      "Triggers while the actor is charging or holding a spell mid-cast.", None),
 ]
-assert len(CONDITIONS) == 47, f"expected 47 conditions, got {len(CONDITIONS)}"
+assert len(CONDITIONS) == 33, f"expected 33 conditions, got {len(CONDITIONS)}"
 
 # ── Shader catalog (idx 55 menu) ──────────────────────────────────────────────
 # Labels match MTF_Plugin_Base._shaderLabel; ordering matches _shaderFormId.
@@ -219,16 +278,13 @@ FLASH_TRIGGER_MENU = [
 ]
 assert len(FLASH_TRIGGER_MENU) == 12
 
-# Extras envelope used by flash.onhit (idx 33) and flash.oncast (idx 57).
+# Extras envelope used by flash.onhit (idx 33). Pre-v0.2.4 a separate
+# flash.oncast effect (idx 57) had its own envelope; merged into flash.onhit
+# with trigger option 128 ("On spell cast") since v0.1.29.
 FLASH_ENVELOPE_EXTRAS_33 = [
     {"name": "rampms",   "label": "Ramp up (ms)",          "min": 1, "max": 2000, "default": 150, "step": 10},
     {"name": "decayms",  "label": "Decay (ms)",            "min": 1, "max": 5000, "default": 500, "step": 10},
     {"name": "retrigms", "label": "Sustain window (ms)",   "min": 0, "max": 2000, "default": 800, "step": 10},
-]
-FLASH_ENVELOPE_EXTRAS_57 = [
-    {"name": "rampms",   "label": "Ramp up (ms)",          "min": 1, "max": 2000, "default": 200, "step": 10},
-    {"name": "decayms",  "label": "Decay (ms)",            "min": 1, "max": 5000, "default": 600, "step": 10},
-    {"name": "retrigms", "label": "Sustain window (ms)",   "min": 0, "max": 2000, "default": 250, "step": 10},
 ]
 SOUND_VOLUME_EXTRAS = [
     {"name": "volume",   "label": "Volume (%)",            "min": 0, "max": 100, "default": 100, "step": 5},
@@ -241,7 +297,7 @@ SOUND_VOLUME_EXTRAS = [
 # Tuple shape: (idx, id, label, description, param_label, overrides_dict|None)
 # overrides_dict keys: param (min/max/default/step/menu), param2, extras
 EFFECTS_RAW = [
-    # Low band (0-12)
+    # Low band (0-17)
     (0,  "modify.magickaRegen",
      "Modify Magicka Regen",
      "Shifts the actor's magicka regeneration rate by {param1}%.",
@@ -299,8 +355,6 @@ EFFECTS_RAW = [
      "Modify Max Magicka",
      "Shifts the actor's maximum magicka by {param1}.",
      "Max magicka shift (points; + buff, - drain)", None),
-
-    # High band (13-34)
     (13, "modify.maxStamina",
      "Modify Max Stamina",
      "Shifts the actor's maximum stamina by {param1}.",
@@ -321,81 +375,80 @@ EFFECTS_RAW = [
      "Modify Bow Speed",
      "Shifts the actor's bow draw and release speed by {param1}.",
      "Bow speed bonus shift (units; + faster draw, - slower)", None),
-    (18, "modify.resistFire",
-     "Modify Fire Resist",
-     "Shifts the actor's fire resistance by {param1}%.",
-     "Fire resist shift (points; + resist, - weakness)", None),
-    (19, "modify.resistFrost",
-     "Modify Frost Resist",
-     "Shifts the actor's frost resistance by {param1}%.",
-     "Frost resist shift (points; + resist, - weakness)", None),
-    (20, "modify.resistShock",
-     "Modify Shock Resist",
-     "Shifts the actor's shock resistance by {param1}%.",
-     "Shock resist shift (points; + resist, - weakness)", None),
-    (21, "modify.resistMagic",
-     "Modify Magic Resist",
-     "Shifts the actor's magic resistance by {param1}%.",
-     "Magic resist shift (points; + resist, - weakness)", None),
-    (22, "toggle.muffle",
+
+    # Consolidated resists (was 6 separate modify.resist* entries, idx
+    # 18-21 + 34-35). param1 picks the resist type; param2 carries the
+    # signed shift in resist points. Internal routing via
+    # _resolveResistSpellByIdx in MTF_Plugin_Base.
+    (18, "modify.resist",
+     "Modify Resist",
+     "Shifts the actor's {param1} resistance by {param2} points.",
+     "Resist type",
+     {"param":  {"label": "Resist type", "min": 0, "max": 5, "default": 0,
+                 "menu": [{"value": v, "label": l} for v, l in RESIST_TYPE_MENU]},
+      "param2": {"label": "Resist shift (points; + resist, - weakness)",
+                 "min": -100, "max": 100, "default": 0}}),
+
+    # Toggles (engine-managed AVs that need ability-spell routing).
+    (19, "toggle.muffle",
      "Muffle",
      "Toggles silenced footsteps on the actor while active.",
      "",
      {"param": {"min": 0, "max": 0, "default": 0}}),
-    (23, "toggle.waterbreathing",
+    (20, "toggle.waterbreathing",
      "Waterbreathing",
      "Toggles waterbreathing on the actor while active.",
      "",
      {"param": {"min": 0, "max": 0, "default": 0}}),
-    (24, "toggle.waterWalking",
+    (21, "toggle.waterWalking",
      "Water Walking",
      "Toggles water-walking on the actor while active.",
      "",
      {"param": {"min": 0, "max": 0, "default": 0}}),
-    (25, "damage.health",
+    (22, "damage.health",
      "Damage Health",
      "Burst — damages or restores {param1}% of the actor's base health when the tier activates.",
      "Burst % of base Health (+ restore, - damage)",
      {"param": {"min": -100, "max": 100, "default": 0}}),
-    (26, "burst.bounty",
+    (23, "burst.bounty",
      "Add Bounty",
      "Burst — adjusts the actor's bounty in their current hold by {param1} gold (positive adds, negative pays off).",
      "Bounty change (gold; + add, - remove)",
      {"param": {"min": -10000, "max": 10000, "default": 0, "step": 50}}),
-    (27, "spell.modifyArmor",
+    (24, "spell.modifyArmor",
      "Modify Armor",
      "Toggles a flat armor-rating bonus of {param1} while active.",
      "Armor rating points",
      {"param": {"min": 0, "max": 500, "default": 100, "step": 10}}),
-    (28, "spell.detectLife",
+    (25, "spell.detectLife",
      "Detect Life",
      "Toggles a Detect Life aura that highlights living NPCs within {param1}ft while active.",
      "Detect radius (feet)",
      {"param": {"min": 5, "max": 500, "default": 100, "step": 10}}),
-    (29, "spell.slowTime",
+    (26, "spell.slowTime",
      "Slow Time",
      "Toggles a slow-time effect that drags everything around the actor to {param1}% of normal speed while active.",
      "Time speed % (lower = slower; 100 = normal)",
      {"param": {"min": 5, "max": 100, "default": 50, "step": 5}}),
-    (30, "spell.flameCloak",
+    (27, "spell.flameCloak",
      "Flame Cloak",
      "Toggles a flame cloak that burns enemies within {param2}ft for {param1} damage/s while active.",
      "Damage per second",
      {"param":  {"min": 1, "max": 200, "default": 8},
       "param2": {"label": "Radius (feet)", "min": 3, "max": 500, "default": 5}}),
-    (31, "spell.frostCloak",
+    (28, "spell.frostCloak",
      "Frost Cloak",
      "Toggles a frost cloak that chills enemies within {param2}ft for {param1} damage/s while active.",
      "Damage per second",
      {"param":  {"min": 1, "max": 200, "default": 8},
       "param2": {"label": "Radius (feet)", "min": 3, "max": 500, "default": 5}}),
-    (32, "spell.lightningCloak",
+    (29, "spell.lightningCloak",
      "Lightning Cloak",
      "Toggles a lightning cloak that shocks enemies within {param2}ft for {param1} damage/s while active.",
      "Damage per second",
      {"param":  {"min": 1, "max": 200, "default": 8},
       "param2": {"label": "Radius (feet)", "min": 3, "max": 500, "default": 5}}),
-    (33, "flash.onhit",
+    (30, "flash.onhit",
      "Flash",
      "Flashes the tattoo's emissive layer to {param2}% brightness on the chosen trigger event ({param1}).",
      "Trigger event",
@@ -404,93 +457,29 @@ EFFECTS_RAW = [
       "param2": {"label": "Peak emissive (additive, % of 1.0)",
                  "min": 0, "max": 1000, "default": 300, "step": 10},
       "extras": FLASH_ENVELOPE_EXTRAS_33}),
-    (34, "modify.resistDisease",
-     "Modify Disease Resist",
-     "Shifts the actor's disease resistance by {param1}%.",
-     "Disease resist shift (points; + resist, - weakness)", None),
-
-    # Very high band (35-57)
-    (35, "modify.resistPoison",
-     "Modify Poison Resist",
-     "Shifts the actor's poison resistance by {param1}%.",
-     "Poison resist shift (points; + resist, - weakness)", None),
-    (36, "modify.absorbChance",
+    (31, "modify.absorbChance",
      "Modify Spell Absorb",
      "Shifts the actor's chance to absorb incoming spells by {param1}%.",
      "Spell absorb chance shift (points; + absorb, - vulnerable)", None),
-    (37, "modify.reflectDamage",
+    (32, "modify.reflectDamage",
      "Modify Reflect Damage",
      "Shifts the actor's chance to reflect incoming melee damage by {param1}%.",
      "Reflect damage chance shift (points; + reflect, - vulnerable)", None),
-    (38, "modify.oneHanded",
-     "Modify One-Handed",
-     "Shifts the actor's One-Handed weapon skill by {param1}.",
-     "One-Handed skill shift (points; + buff, - drain)", None),
-    (39, "modify.twoHanded",
-     "Modify Two-Handed",
-     "Shifts the actor's Two-Handed weapon skill by {param1}.",
-     "Two-Handed skill shift (points; + buff, - drain)", None),
-    (40, "modify.archery",
-     "Modify Archery",
-     "Shifts the actor's Archery (Marksman) skill by {param1}.",
-     "Archery skill shift (points; + buff, - drain)", None),
-    (41, "modify.block",
-     "Modify Block",
-     "Shifts the actor's Block skill by {param1}.",
-     "Block skill shift (points; + buff, - drain)", None),
-    (42, "modify.heavyArmor",
-     "Modify Heavy Armor",
-     "Shifts the actor's Heavy Armor skill by {param1}.",
-     "Heavy Armor skill shift (points; + buff, - drain)", None),
-    (43, "modify.lightArmor",
-     "Modify Light Armor",
-     "Shifts the actor's Light Armor skill by {param1}.",
-     "Light Armor skill shift (points; + buff, - drain)", None),
-    (44, "modify.smithing",
-     "Modify Smithing",
-     "Shifts the actor's Smithing skill by {param1}.",
-     "Smithing skill shift (points; + buff, - drain)", None),
-    (45, "modify.enchanting",
-     "Modify Enchanting",
-     "Shifts the actor's Enchanting skill by {param1}.",
-     "Enchanting skill shift (points; + buff, - drain)", None),
-    (46, "modify.alchemy",
-     "Modify Alchemy",
-     "Shifts the actor's Alchemy skill by {param1}.",
-     "Alchemy skill shift (points; + buff, - drain)", None),
-    (47, "modify.destruction",
-     "Modify Destruction",
-     "Shifts the actor's Destruction magic skill by {param1}.",
-     "Destruction skill shift (points; + buff, - drain)", None),
-    (48, "modify.restoration",
-     "Modify Restoration",
-     "Shifts the actor's Restoration magic skill by {param1}.",
-     "Restoration skill shift (points; + buff, - drain)", None),
-    (49, "modify.alteration",
-     "Modify Alteration",
-     "Shifts the actor's Alteration magic skill by {param1}.",
-     "Alteration skill shift (points; + buff, - drain)", None),
-    (50, "modify.illusion",
-     "Modify Illusion",
-     "Shifts the actor's Illusion magic skill by {param1}.",
-     "Illusion skill shift (points; + buff, - drain)", None),
-    (51, "modify.conjuration",
-     "Modify Conjuration",
-     "Shifts the actor's Conjuration magic skill by {param1}.",
-     "Conjuration skill shift (points; + buff, - drain)", None),
-    (52, "modify.speech",
-     "Modify Speech",
-     "Shifts the actor's Speech (persuasion / barter) skill by {param1}.",
-     "Speech skill shift (points; + buff, - drain)", None),
-    (53, "modify.lockpicking",
-     "Modify Lockpicking",
-     "Shifts the actor's Lockpicking skill by {param1}.",
-     "Lockpicking skill shift (points; + buff, - drain)", None),
-    (54, "modify.pickpocket",
-     "Modify Pickpocket",
-     "Shifts the actor's Pickpocket skill by {param1}.",
-     "Pickpocket skill shift (points; + buff, - drain)", None),
-    (55, "shader.play",
+
+    # Consolidated skill modifies (was 17 separate modify.<skillname>
+    # entries, idx 38-54). param1 picks the Skyrim skill; param2 carries
+    # the signed shift in skill points. Internal routing via
+    # _skillAVForIdx in MTF_Plugin_Base.
+    (33, "modify.skill",
+     "Modify Skill",
+     "Shifts the actor's {param1} skill by {param2} points.",
+     "Skill",
+     {"param":  {"label": "Skill", "min": 0, "max": 16, "default": 0,
+                 "menu": [{"value": v, "label": l} for v, l in SKILL_AV_MENU]},
+      "param2": {"label": "Skill shift (points; + buff, - drain)",
+                 "min": -100, "max": 100, "default": 0}}),
+
+    (34, "shader.play",
      "Vanilla Shader",
      "Plays the {param1} effect shader on the actor while active (duration {param2}s; 0 = until removed).",
      "Shader",
@@ -498,7 +487,7 @@ EFFECTS_RAW = [
                  "menu": [{"value": i, "label": l} for i, l in enumerate(SHADERS)]},
       "param2": {"label": "Duration (s, 0 = until removed)",
                  "min": 0, "max": 60, "default": 0}}),
-    (56, "sound.play",
+    (35, "sound.play",
      "Vanilla Sound",
      "Plays the {param1} looping sound on the actor while active (duration {param2}s; 0 = until removed).",
      "Sound",
@@ -507,15 +496,9 @@ EFFECTS_RAW = [
       "param2": {"label": "Duration (s, 0 = until removed)",
                  "min": 0, "max": 60, "default": 0},
       "extras": SOUND_VOLUME_EXTRAS}),
-    (57, "flash.oncast",
-     "[deprecated] Flash on Cast — use Flash",
-     "Flashes the tattoo's emissive layer to {param1}% brightness while the actor is casting a spell.",
-     "Peak emissive (additive, % of 1.0)",
-     {"param": {"min": 0, "max": 1000, "default": 300, "step": 10},
-      "extras": FLASH_ENVELOPE_EXTRAS_57}),
 ]
-assert len(EFFECTS_RAW) == 58, f"expected 58 effects, got {len(EFFECTS_RAW)}"
-# Sanity: indices contiguous 0..57.
+assert len(EFFECTS_RAW) == 36, f"expected 36 effects, got {len(EFFECTS_RAW)}"
+# Sanity: indices contiguous 0..35.
 for i, t in enumerate(EFFECTS_RAW):
     assert t[0] == i, f"effect tuple {i} has idx {t[0]}"
 

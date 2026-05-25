@@ -66,71 +66,48 @@
     },
     {
       "id": "combat.hit",
-      "label": "On Hit (Any)",
-      "description": "Triggers with a {param1}% chance per incoming hit (any type).",
+      "label": "On Hit",
+      "description": "Triggers with a {param2}% chance per matching incoming hit of class {param1}.",
       "param": {
+        "label": "Hit class",
+        "min": 0,
+        "max": 6,
+        "default": 0,
+        "menu": [
+          {
+            "value": 0,
+            "label": "Any"
+          },
+          {
+            "value": 1,
+            "label": "Blunt"
+          },
+          {
+            "value": 2,
+            "label": "Bladed"
+          },
+          {
+            "value": 3,
+            "label": "Ranged"
+          },
+          {
+            "value": 4,
+            "label": "Fire"
+          },
+          {
+            "value": 5,
+            "label": "Frost"
+          },
+          {
+            "value": 6,
+            "label": "Shock"
+          }
+        ]
+      },
+      "param2": {
         "label": "Chance % per hit",
         "min": 1,
-        "default": 25
-      }
-    },
-    {
-      "id": "combat.hit.blunt",
-      "label": "On Hit (Blunt: mace/warhammer/fist)",
-      "description": "Triggers with a {param1}% chance per blunt-weapon hit (mace, warhammer, unarmed).",
-      "param": {
-        "label": "Chance % per hit",
-        "min": 1,
-        "default": 25
-      }
-    },
-    {
-      "id": "combat.hit.bladed",
-      "label": "On Hit (Bladed)",
-      "description": "Triggers with a {param1}% chance per bladed-weapon hit.",
-      "param": {
-        "label": "Chance % per hit",
-        "min": 1,
-        "default": 25
-      }
-    },
-    {
-      "id": "combat.hit.ranged",
-      "label": "On Hit (Ranged)",
-      "description": "Triggers with a {param1}% chance per ranged hit (arrow or bolt).",
-      "param": {
-        "label": "Chance % per hit",
-        "min": 1,
-        "default": 25
-      }
-    },
-    {
-      "id": "combat.hit.magic.fire",
-      "label": "On Hit (Fire)",
-      "description": "Triggers with a {param1}% chance per fire-school damage hit.",
-      "param": {
-        "label": "Chance % per hit",
-        "min": 1,
-        "default": 25
-      }
-    },
-    {
-      "id": "combat.hit.magic.frost",
-      "label": "On Hit (Frost)",
-      "description": "Triggers with a {param1}% chance per frost-school damage hit.",
-      "param": {
-        "label": "Chance % per hit",
-        "min": 1,
-        "default": 25
-      }
-    },
-    {
-      "id": "combat.hit.magic.shock",
-      "label": "On Hit (Shock)",
-      "description": "Triggers with a {param1}% chance per shock-school damage hit.",
-      "param": {
-        "label": "Chance % per hit",
-        "min": 1,
+        "max": 100,
         "default": 25
       }
     },
@@ -163,54 +140,70 @@
       "description": "Triggers whenever the actor is in an exterior worldspace."
     },
     {
-      "id": "location.playerHome",
-      "label": "In Player Home",
-      "description": "Triggers when the actor is inside a location flagged as the player's home."
+      "id": "location.kw",
+      "label": "Location",
+      "description": "Triggers when the actor is inside a {param1}-flagged location.",
+      "param": {
+        "label": "Location type",
+        "min": 0,
+        "max": 5,
+        "default": 0,
+        "menu": [
+          {
+            "value": 0,
+            "label": "Player Home"
+          },
+          {
+            "value": 1,
+            "label": "Dungeon"
+          },
+          {
+            "value": 2,
+            "label": "City"
+          },
+          {
+            "value": 3,
+            "label": "Town"
+          },
+          {
+            "value": 4,
+            "label": "Inn"
+          },
+          {
+            "value": 5,
+            "label": "Jail"
+          }
+        ]
+      }
     },
     {
-      "id": "location.dungeon",
-      "label": "In Dungeon",
-      "description": "Triggers when the actor is inside a dungeon-type location."
-    },
-    {
-      "id": "location.city",
-      "label": "In City",
-      "description": "Triggers when the actor is inside a city worldspace (Whiterun, Solitude, etc.)."
-    },
-    {
-      "id": "location.town",
-      "label": "In Town",
-      "description": "Triggers when the actor is inside a town-type location."
-    },
-    {
-      "id": "location.inn",
-      "label": "In Inn",
-      "description": "Triggers when the actor is inside an inn or tavern."
-    },
-    {
-      "id": "location.jail",
-      "label": "In Jail",
-      "description": "Triggers when the actor is held in a jail cell."
-    },
-    {
-      "id": "weather.pleasant",
-      "label": "Weather: Clear / Sunny",
-      "description": "Triggers when the current weather is clear or sunny."
-    },
-    {
-      "id": "weather.cloudy",
-      "label": "Weather: Cloudy",
-      "description": "Triggers when the current weather is cloudy."
-    },
-    {
-      "id": "weather.rainy",
-      "label": "Weather: Rainy",
-      "description": "Triggers when the current weather is rainy."
-    },
-    {
-      "id": "weather.snowy",
-      "label": "Weather: Snowy",
-      "description": "Triggers when the current weather is snowy."
+      "id": "weather",
+      "label": "Weather",
+      "description": "Triggers when the current weather class is {param1}.",
+      "param": {
+        "label": "Weather class",
+        "min": 0,
+        "max": 3,
+        "default": 0,
+        "menu": [
+          {
+            "value": 0,
+            "label": "Pleasant"
+          },
+          {
+            "value": 1,
+            "label": "Cloudy"
+          },
+          {
+            "value": 2,
+            "label": "Rainy"
+          },
+          {
+            "value": 3,
+            "label": "Snowy"
+          }
+        ]
+      }
     },
     {
       "id": "state.sprinting",
@@ -507,39 +500,46 @@
       }
     },
     {
-      "id": "modify.resistFire",
-      "label": "Modify Fire Resist",
-      "description": "Shifts the actor's fire resistance by {param1}%.",
+      "id": "modify.resist",
+      "label": "Modify Resist",
+      "description": "Shifts the actor's {param1} resistance by {param2} points.",
       "param1": {
-        "label": "Fire resist shift (points; + resist, - weakness)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.resistFrost",
-      "label": "Modify Frost Resist",
-      "description": "Shifts the actor's frost resistance by {param1}%.",
-      "param1": {
-        "label": "Frost resist shift (points; + resist, - weakness)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.resistShock",
-      "label": "Modify Shock Resist",
-      "description": "Shifts the actor's shock resistance by {param1}%.",
-      "param1": {
-        "label": "Shock resist shift (points; + resist, - weakness)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.resistMagic",
-      "label": "Modify Magic Resist",
-      "description": "Shifts the actor's magic resistance by {param1}%.",
-      "param1": {
-        "label": "Magic resist shift (points; + resist, - weakness)",
-        "min": -100
+        "label": "Resist type",
+        "min": 0,
+        "max": 5,
+        "default": 0,
+        "menu": [
+          {
+            "value": 0,
+            "label": "Fire"
+          },
+          {
+            "value": 1,
+            "label": "Frost"
+          },
+          {
+            "value": 2,
+            "label": "Shock"
+          },
+          {
+            "value": 3,
+            "label": "Magic"
+          },
+          {
+            "value": 4,
+            "label": "Disease"
+          },
+          {
+            "value": 5,
+            "label": "Poison"
+          }
+        ]
+      },
+      "param2": {
+        "label": "Resist shift (points; + resist, - weakness)",
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -774,24 +774,6 @@
       }
     },
     {
-      "id": "modify.resistDisease",
-      "label": "Modify Disease Resist",
-      "description": "Shifts the actor's disease resistance by {param1}%.",
-      "param1": {
-        "label": "Disease resist shift (points; + resist, - weakness)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.resistPoison",
-      "label": "Modify Poison Resist",
-      "description": "Shifts the actor's poison resistance by {param1}%.",
-      "param1": {
-        "label": "Poison resist shift (points; + resist, - weakness)",
-        "min": -100
-      }
-    },
-    {
       "id": "modify.absorbChance",
       "label": "Modify Spell Absorb",
       "description": "Shifts the actor's chance to absorb incoming spells by {param1}%.",
@@ -810,156 +792,90 @@
       }
     },
     {
-      "id": "modify.oneHanded",
-      "label": "Modify One-Handed",
-      "description": "Shifts the actor's One-Handed weapon skill by {param1}.",
+      "id": "modify.skill",
+      "label": "Modify Skill",
+      "description": "Shifts the actor's {param1} skill by {param2} points.",
       "param1": {
-        "label": "One-Handed skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.twoHanded",
-      "label": "Modify Two-Handed",
-      "description": "Shifts the actor's Two-Handed weapon skill by {param1}.",
-      "param1": {
-        "label": "Two-Handed skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.archery",
-      "label": "Modify Archery",
-      "description": "Shifts the actor's Archery (Marksman) skill by {param1}.",
-      "param1": {
-        "label": "Archery skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.block",
-      "label": "Modify Block",
-      "description": "Shifts the actor's Block skill by {param1}.",
-      "param1": {
-        "label": "Block skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.heavyArmor",
-      "label": "Modify Heavy Armor",
-      "description": "Shifts the actor's Heavy Armor skill by {param1}.",
-      "param1": {
-        "label": "Heavy Armor skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.lightArmor",
-      "label": "Modify Light Armor",
-      "description": "Shifts the actor's Light Armor skill by {param1}.",
-      "param1": {
-        "label": "Light Armor skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.smithing",
-      "label": "Modify Smithing",
-      "description": "Shifts the actor's Smithing skill by {param1}.",
-      "param1": {
-        "label": "Smithing skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.enchanting",
-      "label": "Modify Enchanting",
-      "description": "Shifts the actor's Enchanting skill by {param1}.",
-      "param1": {
-        "label": "Enchanting skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.alchemy",
-      "label": "Modify Alchemy",
-      "description": "Shifts the actor's Alchemy skill by {param1}.",
-      "param1": {
-        "label": "Alchemy skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.destruction",
-      "label": "Modify Destruction",
-      "description": "Shifts the actor's Destruction magic skill by {param1}.",
-      "param1": {
-        "label": "Destruction skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.restoration",
-      "label": "Modify Restoration",
-      "description": "Shifts the actor's Restoration magic skill by {param1}.",
-      "param1": {
-        "label": "Restoration skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.alteration",
-      "label": "Modify Alteration",
-      "description": "Shifts the actor's Alteration magic skill by {param1}.",
-      "param1": {
-        "label": "Alteration skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.illusion",
-      "label": "Modify Illusion",
-      "description": "Shifts the actor's Illusion magic skill by {param1}.",
-      "param1": {
-        "label": "Illusion skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.conjuration",
-      "label": "Modify Conjuration",
-      "description": "Shifts the actor's Conjuration magic skill by {param1}.",
-      "param1": {
-        "label": "Conjuration skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.speech",
-      "label": "Modify Speech",
-      "description": "Shifts the actor's Speech (persuasion / barter) skill by {param1}.",
-      "param1": {
-        "label": "Speech skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.lockpicking",
-      "label": "Modify Lockpicking",
-      "description": "Shifts the actor's Lockpicking skill by {param1}.",
-      "param1": {
-        "label": "Lockpicking skill shift (points; + buff, - drain)",
-        "min": -100
-      }
-    },
-    {
-      "id": "modify.pickpocket",
-      "label": "Modify Pickpocket",
-      "description": "Shifts the actor's Pickpocket skill by {param1}.",
-      "param1": {
-        "label": "Pickpocket skill shift (points; + buff, - drain)",
-        "min": -100
+        "label": "Skill",
+        "min": 0,
+        "max": 16,
+        "default": 0,
+        "menu": [
+          {
+            "value": 0,
+            "label": "One-Handed"
+          },
+          {
+            "value": 1,
+            "label": "Two-Handed"
+          },
+          {
+            "value": 2,
+            "label": "Archery"
+          },
+          {
+            "value": 3,
+            "label": "Block"
+          },
+          {
+            "value": 4,
+            "label": "Heavy Armor"
+          },
+          {
+            "value": 5,
+            "label": "Light Armor"
+          },
+          {
+            "value": 6,
+            "label": "Smithing"
+          },
+          {
+            "value": 7,
+            "label": "Enchanting"
+          },
+          {
+            "value": 8,
+            "label": "Alchemy"
+          },
+          {
+            "value": 9,
+            "label": "Destruction"
+          },
+          {
+            "value": 10,
+            "label": "Restoration"
+          },
+          {
+            "value": 11,
+            "label": "Alteration"
+          },
+          {
+            "value": 12,
+            "label": "Illusion"
+          },
+          {
+            "value": 13,
+            "label": "Conjuration"
+          },
+          {
+            "value": 14,
+            "label": "Speech"
+          },
+          {
+            "value": 15,
+            "label": "Lockpicking"
+          },
+          {
+            "value": 16,
+            "label": "Pickpocket"
+          }
+        ]
+      },
+      "param2": {
+        "label": "Skill shift (points; + buff, - drain)",
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -1229,39 +1145,6 @@
         "max": 100,
         "default": 100,
         "step": 5
-      }
-    },
-    {
-      "id": "flash.oncast",
-      "label": "[deprecated] Flash on Cast — use Flash",
-      "description": "Flashes the tattoo's emissive layer to {param1}% brightness while the actor is casting a spell.",
-      "param1": {
-        "label": "Peak emissive (additive, % of 1.0)",
-        "min": 0,
-        "max": 1000,
-        "default": 300,
-        "step": 10
-      },
-      "param3": {
-        "label": "Ramp up (ms)",
-        "min": 1,
-        "max": 2000,
-        "default": 200,
-        "step": 10
-      },
-      "param4": {
-        "label": "Decay (ms)",
-        "min": 1,
-        "max": 5000,
-        "default": 600,
-        "step": 10
-      },
-      "param5": {
-        "label": "Sustain window (ms)",
-        "min": 0,
-        "max": 2000,
-        "default": 250,
-        "step": 10
       }
     }
   ]

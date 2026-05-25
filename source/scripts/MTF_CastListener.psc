@@ -1,8 +1,8 @@
 Scriptname MTF_CastListener extends ReferenceAlias
 {Listens for spell-cast begin events on the player (forced reference) and
  polls Skyrim's animation variables to track whether a cast is still being
- held. Drives the combat.casting condition + the flash.oncast effect's
- retrigger dispatch.
+ held. Drives the combat.casting condition + the flash.onhit "On spell
+ cast" trigger (classmask 128, tag "cast").
 
  Detection design (see KNOWLEDGEBASE "Cast-state detection"):
    - Begin: RegisterForAnimationEvent for BeginCastLeft / BeginCastRight
@@ -16,11 +16,11 @@ Scriptname MTF_CastListener extends ReferenceAlias
         IsCastingDual
         bRitualSpellActive
      When all four are false, the cast has ended for any reason.
-   - Re-dispatch flash on every poll tick: flash.oncast effects use the
-     C++ pulse roster's retrigger window (default 250ms) to keep the
-     additive emissive lane lit while the cast is held; without the
-     re-dispatch the lane would decay halfway through a long
-     concentration cast.
+   - Re-dispatch flash on every poll tick: flash.onhit effects bound to
+     the "cast" trigger use the C++ pulse roster's retrigger window
+     (default 800ms) to keep the additive emissive lane lit while the
+     cast is held; without the re-dispatch the lane would decay halfway
+     through a long concentration cast.
 
  Reference implementation: ZAO Active Overlays' zao_onspellleft_script.psc
  — author's own comment notes "CK IsCasting checks ... seem to miss a lot,"

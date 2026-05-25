@@ -156,32 +156,12 @@ event OnVersionUpdate(int Version)
         MainQuest._migrationLevel = 34
         return
     endif
-    ; v0.0.33 (ml=33): non-destructive. Two things:
-    ;   1. Back out any legacy per-quest applied magnitudes on Plugin_Base
-    ;      (mana/carry/sneak/speed/staminaRate/atkDmg/dmgResist/spellCost)
-    ;      now that they live in StorageUtil keyed on the actor. If we
-    ;      didn't, the next _recompute would stack a fresh delta on top of
-    ;      the legacy delta — the player would see the drain double.
-    ;   2. Defensive scratch-buffer allocation (Auto property attach trap
-    ;      protection — these are new in v0.0.33).
-    if ml >= 20
-        MTF_Plugin basePlug = MainQuest.FindPlugin("mtf.base")
-        if basePlug != None
-            (basePlug as MTF_Plugin_Base)._migrateLegacyApplied(MainQuest.PlayerRef)
-        endif
-        ; Lazy-allocate the scratch arrays via the host helper. If they
-        ; were declared but never attached, this is a no-op and the
-        ; runtime falls back to per-call allocation in _loadPresetToScratch.
-        MainQuest._ensureScratchArrays()
-        MainQuest._migrationLevel = 33
-        return
-    endif
-    ; v0.0.32 (ml=20): pulse rate/depth used to be Auto arrays here; they're
-    ; now StorageUtil-backed, no allocation needed.
-    if ml >= 19
-        MainQuest._migrationLevel = 20
-        return
-    endif
+    ; (v0.2.4: removed ml=33 / ml=20 / ml=19 ladder rungs. They handled the
+    ;  v0.0.32 → v0.0.33 transition — backing out per-quest applied
+    ;  magnitudes on Plugin_Base. Anyone on a save that old is long gone;
+    ;  _ensureScratchArrays is still called defensively from inside
+    ;  _loadPresetToScratch so dropping the migration call doesn't strand
+    ;  pre-v0.0.33 saves' scratch arrays anyway.)
 
     ; Pages: 3-page layout (also set by OnConfigInit; redundant here for the
     ; sake of upgraders whose Pages array predates the current shape).
@@ -373,9 +353,12 @@ function drawPluginsPage()
 
     AddHeaderOption("Plugins (" + total + ", " + MainQuest.GetTotalConditionItemCount() + " conditions, " + MainQuest.GetTotalEffectItemCount() + " effects)")
 
-    ; Page controls — disabled at the ends so users don't get a confusing
-    ; "click does nothing" interaction. Always rendered so the page-of-N
-    ; counter is visible even when only one page exists.
+    ; Page controls on one row (col 1 = Prev, col 2 = Next). Disabled at
+    ; the ends so users don't get a confusing "click does nothing"
+    ; interaction. Always rendered so the page-of-N counter is visible
+    ; even when only one page exists. Flip fill mode to LEFT_TO_RIGHT
+    ; for this row only — SkyUI's default font doesn't render the
+    ; unicode arrows (←/→) we tried in v0.2.2, so labels are plain text.
     int prevFlag = OPTION_FLAG_NONE
     int nextFlag = OPTION_FLAG_NONE
     if _pluginsPage == 0
@@ -384,8 +367,10 @@ function drawPluginsPage()
     if _pluginsPage >= maxPage
         nextFlag = OPTION_FLAG_DISABLED
     endif
-    AddTextOptionST("PLUGIN_PAGE_PREV", "  ← Previous page", "(page " + (_pluginsPage + 1) + " of " + (maxPage + 1) + ")", prevFlag)
-    AddTextOptionST("PLUGIN_PAGE_NEXT", "  Next page →", "", nextFlag)
+    SetCursorFillMode(LEFT_TO_RIGHT)
+    AddTextOptionST("PLUGIN_PAGE_PREV", "Previous page", "(page " + (_pluginsPage + 1) + " of " + (maxPage + 1) + ")", prevFlag)
+    AddTextOptionST("PLUGIN_PAGE_NEXT", "Next page", "", nextFlag)
+    SetCursorFillMode(TOP_TO_BOTTOM)
 
     ; Per-plugin "Show in selectors" toggle. Replaces the old per-item
     ; Menu Options page — disabling hides every condition and effect this

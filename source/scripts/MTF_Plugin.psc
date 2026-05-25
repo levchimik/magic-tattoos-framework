@@ -162,15 +162,15 @@ string Function GetConditionParam2MenuOptionLabel(int idx, int optionIdx)
 EndFunction
 
 ; ── OVERRIDE: condition behaviour (stays in Papyrus) ────────────────────────
-bool Function checkCondition(int idx, Actor target, int param, string cid)
-{Return true when condition `idx` is currently satisfied for `target`. Use
+bool Function checkCondition(Actor target, int param, string cid)
+{Return true when condition `cid` is currently satisfied for `target`. Use
  `_host().GetEvalParam2()` to read the second per-slot parameter when your
  condition declares one.
 
- `cid` is the catalog id string (e.g. "loc.playerHouse"). Dispatch on this,
- NOT on `idx` — `idx` is the JSON array position and shifts whenever the
- catalog is reordered or expanded. The id string is stable across catalog
- edits and identical to what the save data stores.}
+ `cid` is the catalog id string (e.g. "loc.playerHouse"). Stable across
+ catalog reorders; identical to what the save data stores. If your branch
+ needs to read other catalog metadata (e.g. param defaults), resolve the
+ array index lazily with `_host()._condIdxFor(self, cid)`.}
     return false
 EndFunction
 
@@ -277,18 +277,18 @@ string Function GetEffectParamMenuOptionLabel(int idx, int n, int optionIdx)
 EndFunction
 
 ; ── OVERRIDE: effect behaviour (stays in Papyrus) ───────────────────────────
-; All four lifecycle hooks take `string eid` as the last parameter — the
-; catalog id (e.g. "flash.onhit"). Dispatch on `eid`, NOT on `idx`: `idx`
-; is the JSON array position and shifts whenever the catalog is reordered
-; or expanded. The id string is stable across catalog edits and identical
-; to what the save data stores.
+; All four lifecycle hooks take `string eid` as the dispatch key — the
+; catalog id (e.g. "flash.onhit"). It's stable across catalog reorders and
+; identical to what the save data stores. If your branch needs to read
+; other catalog metadata (param defaults, kind, etc.), resolve the array
+; index lazily with `_host()._effectIdxFor(self, eid)`.
 
-Function onActivate(int idx, Actor target, int param, int param2, string eid)
-{Called when effect `idx` becomes active (slot just became the winning tier).}
+Function onActivate(Actor target, int param, int param2, string eid)
+{Called when effect `eid` becomes active (slot just became the winning tier).}
 EndFunction
 
-Function onDeactivate(int idx, Actor target, int param, int param2, string eid)
-{Called when effect `idx` stops being active. Must restore any persistent
+Function onDeactivate(Actor target, int param, int param2, string eid)
+{Called when effect `eid` stops being active. Must restore any persistent
  changes (AV mods, applied magic effects, etc.). Safe to call even if
  onActivate was never called.
 
@@ -317,14 +317,14 @@ Function onDeactivate(int idx, Actor target, int param, int param2, string eid)
  (project_papyrus_storage_before_suspend).}
 EndFunction
 
-Function onTick(int idx, Actor target, int param, int param2, string eid)
-{Called every MainQuest update tick (typically every 2s) while effect `idx`
+Function onTick(Actor target, int param, int param2, string eid)
+{Called every MainQuest update tick (typically every 2s) while effect `eid`
  is active. Use for stateful effects that need to recompute (e.g. %-of-
  current AV drains shifting with gear changes). No-op by default.}
 EndFunction
 
-Function onGameTime(int idx, Actor target, int param, int param2, string eid)
-{Called once per in-game hour while effect `idx` is active. Use for
+Function onGameTime(Actor target, int param, int param2, string eid)
+{Called once per in-game hour while effect `eid` is active. Use for
  cumulative effects (e.g. SLA exposure deltas). No-op by default.}
 EndFunction
 

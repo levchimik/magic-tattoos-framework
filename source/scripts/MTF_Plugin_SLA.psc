@@ -66,7 +66,7 @@ Function _tryRegister()
 EndFunction
 
 ; ── Behaviour ───────────────────────────────────────────────────────────────
-bool Function checkCondition(int idx, Actor target, int param, string cid)
+bool Function checkCondition(Actor target, int param, string cid)
     if target == None || SLAFramework == None
         return false
     endif
@@ -99,7 +99,7 @@ string Function _rateStashKey(Actor target, int slot, int eff) global
     return "mtf.sla.rate.prev." + slot + "." + eff
 EndFunction
 
-Function onActivate(int idx, Actor target, int param, int param2, string eid)
+Function onActivate(Actor target, int param, int param2, string eid)
     if SLAFramework == None || target == None
         return
     endif
@@ -134,7 +134,7 @@ Function onActivate(int idx, Actor target, int param, int param2, string eid)
     endif
 EndFunction
 
-Function onDeactivate(int idx, Actor target, int param, int param2, string eid)
+Function onDeactivate(Actor target, int param, int param2, string eid)
     if SLAFramework == None || target == None
         return
     endif
@@ -158,7 +158,7 @@ Function onDeactivate(int idx, Actor target, int param, int param2, string eid)
     endif
 EndFunction
 
-Function onGameTime(int idx, Actor target, int param, int param2, string eid)
+Function onGameTime(Actor target, int param, int param2, string eid)
     if SLAFramework == None || target == None || param <= 0
         return
     endif

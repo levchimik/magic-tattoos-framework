@@ -21,34 +21,34 @@
 			},
 			"effect": [
 				{
-					"key": "mtf.base:modify.resistFire",
-					"param2": 0,
-					"param1": 30
+					"key": "mtf.base:modify.resist",
+					"param2": 30,
+					"param1": 0
 				},
 				{
-					"key": "mtf.base:modify.resistFrost",
-					"param2": 0,
-					"param1": 30
+					"key": "mtf.base:modify.resist",
+					"param2": 30,
+					"param1": 1
 				},
 				{
-					"key": "mtf.base:modify.resistShock",
-					"param2": 0,
-					"param1": 30
+					"key": "mtf.base:modify.resist",
+					"param2": 30,
+					"param1": 2
 				},
 				{
-					"key": "mtf.base:modify.resistMagic",
-					"param2": 0,
-					"param1": 30
+					"key": "mtf.base:modify.resist",
+					"param2": 30,
+					"param1": 3
 				},
 				{
-					"key": "mtf.base:modify.resistDisease",
-					"param2": 0,
-					"param1": 30
+					"key": "mtf.base:modify.resist",
+					"param2": 30,
+					"param1": 4
 				},
 				{
-					"key": "mtf.base:modify.resistPoison",
-					"param2": 0,
-					"param1": 30
+					"key": "mtf.base:modify.resist",
+					"param2": 30,
+					"param1": 5
 				},
 				{
 					"key": "mtf.base:toggle.muffle",

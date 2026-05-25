@@ -1687,9 +1687,10 @@ EndFunction
 ; emissive lane lit between calls.
 Function DispatchFlashCast(string tag)
 {Public extension hook. External mods can call this with their own tag
- ("cast.fire", "cast.healing", etc.) and any flash.oncast effect whose
- registered tag CSV matches will flash. Built-in CastListener fires the
- plain "cast" tag; flash.oncast registrations bind exactly that.}
+ ("cast.fire", "cast.healing", etc.) and any flash.onhit effect bound to
+ the matching trigger tag will flash. Built-in CastListener fires the
+ plain "cast" tag — flash.onhit with trigger option 128 ("On spell cast")
+ registers exactly that.}
     if PlayerRef == None || tag == ""
         return
     endif
@@ -3082,7 +3083,7 @@ int Function evaluateTier()
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
                     if itemIdx >= 0
                         _setEvalParam2(GetCondParam2(i))
-                        if p.checkCondition(itemIdx, PlayerRef, condParam[i], p.GetConditionId(itemIdx))
+                        if p.checkCondition(PlayerRef, condParam[i], p.GetConditionId(itemIdx))
                             return i
                         endif
                     endif
@@ -3152,25 +3153,27 @@ EndFunction
 ; toggle DebugMode off to stop incrementing).
 
 Function _dispatchActivate(MTF_Plugin p, int itemIdx, Actor target, int param, int param2)
-    p.onActivate(itemIdx, target, param, param2, p.GetEffectId(itemIdx))
+    string eid = p.GetEffectId(itemIdx)
+    p.onActivate(target, param, param2, eid)
     if !DebugMode
         return
     endif
     if p.GetEffectKind(itemIdx) == "burst"
         return
     endif
-    StorageUtil.AdjustIntValue(target, "mtf.audit." + p.GetPluginId() + "." + itemIdx, 1)
+    StorageUtil.AdjustIntValue(target, "mtf.audit." + p.GetPluginId() + "." + eid, 1)
 EndFunction
 
 Function _dispatchDeactivate(MTF_Plugin p, int itemIdx, Actor target, int param, int param2)
-    p.onDeactivate(itemIdx, target, param, param2, p.GetEffectId(itemIdx))
+    string eid = p.GetEffectId(itemIdx)
+    p.onDeactivate(target, param, param2, eid)
     if !DebugMode
         return
     endif
     if p.GetEffectKind(itemIdx) == "burst"
         return
     endif
-    StorageUtil.AdjustIntValue(target, "mtf.audit." + p.GetPluginId() + "." + itemIdx, -1)
+    StorageUtil.AdjustIntValue(target, "mtf.audit." + p.GetPluginId() + "." + eid, -1)
 EndFunction
 
 Function DumpLifecycleAudit()
@@ -3198,10 +3201,11 @@ Function DumpLifecycleAudit()
                     int eCount = p.GetEffectCount()
                     int ei = 0
                     while ei < eCount
-                        int n = StorageUtil.GetIntValue(a, "mtf.audit." + pid + "." + ei, 0)
+                        string eid = p.GetEffectId(ei)
+                        int n = StorageUtil.GetIntValue(a, "mtf.audit." + pid + "." + eid, 0)
                         if n != 0
                             string actorName = a.GetDisplayName()
-                            Debug.Trace("[MTF audit]   " + actorName + "  " + pid + "." + p.GetEffectId(ei) + "  " + n)
+                            Debug.Trace("[MTF audit]   " + actorName + "  " + pid + "." + eid + "  " + n)
                             leakedRows += 1
                         endif
                         ei += 1
@@ -3242,7 +3246,7 @@ Function ResetLifecycleAudit()
                     int eCount = p.GetEffectCount()
                     int ei = 0
                     while ei < eCount
-                        StorageUtil.UnsetIntValue(a, "mtf.audit." + pid + "." + ei)
+                        StorageUtil.UnsetIntValue(a, "mtf.audit." + pid + "." + p.GetEffectId(ei))
                         ei += 1
                     endwhile
                 endif
@@ -3326,7 +3330,7 @@ Function _tickSlotEffects(int slot)
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onTick(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), p.GetEffectId(itemIdx))
+                    p.onTick(PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), p.GetEffectId(itemIdx))
                 endif
             endif
         endif
@@ -3350,7 +3354,7 @@ Function _gameTickSlotEffects(int slot)
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onGameTime(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), p.GetEffectId(itemIdx))
+                    p.onGameTime(PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), p.GetEffectId(itemIdx))
                 endif
             endif
         endif
@@ -5710,7 +5714,7 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
                     if itemIdx >= 0
                         int param = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
                         _setEvalParam2(0)
-                        if p.checkCondition(itemIdx, target, param, p.GetConditionId(itemIdx))
+                        if p.checkCondition(target, param, p.GetConditionId(itemIdx))
                             return i
                         endif
                     endif
@@ -5791,7 +5795,7 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
                         else
                             _setEvalParam2(GetCondParam2(i))
                         endif
-                        if p.checkCondition(itemIdx, target, _g_condParam(i, useScratch), p.GetConditionId(itemIdx))
+                        if p.checkCondition(target, _g_condParam(i, useScratch), p.GetConditionId(itemIdx))
                             return i
                         endif
                     endif
@@ -5937,7 +5941,7 @@ Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch, strin
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onTick(itemIdx, target, params[e], params2[e], p.GetEffectId(itemIdx))
+                    p.onTick(target, params[e], params2[e], p.GetEffectId(itemIdx))
                 endif
             endif
         endif
