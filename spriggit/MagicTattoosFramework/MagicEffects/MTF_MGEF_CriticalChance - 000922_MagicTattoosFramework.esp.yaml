@@ -1,0 +1,13 @@
+FormKey: 000922:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_CriticalChance
+Name:
+  TargetLanguage: English
+  Value: Critical Chance Shift (MTF)
+Flags:
+- Recover
+- HideInUI
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: CriticalChance

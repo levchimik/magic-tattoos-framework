@@ -38,6 +38,7 @@ Spell  Property _resistMagicSpell         Auto Hidden
 Spell  Property _resistDiseaseSpell       Auto Hidden
 Spell  Property _resistPoisonSpell        Auto Hidden
 Spell  Property _muffleSpell              Auto Hidden
+Spell  Property _criticalChanceSpell      Auto Hidden
 Spell  Property _detectAllSpell           Auto Hidden
 Spell  Property _slowTimeSpell            Auto Hidden
 Spell  Property _flameCloakSpell          Auto Hidden
@@ -787,6 +788,17 @@ Spell Function _resolveMuffleSpell()
         _muffleSpell = Game.GetFormFromFile(0x83F, "MagicTattoosFramework.esp") as Spell
     endif
     return _muffleSpell
+EndFunction
+
+; CriticalChance AV silently no-ops to direct ModActorValue calls (engine
+; routes it through perk/spell magnitude only). modify.criticalChance
+; therefore goes through this ability spell instead of the generic
+; _recomputeAbsShift path -- same pattern as the resist abilities.
+Spell Function _resolveCriticalChanceSpell()
+    if _criticalChanceSpell == None
+        _criticalChanceSpell = Game.GetFormFromFile(0x923, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _criticalChanceSpell
 EndFunction
 
 ; one-shot burst: signed % of BASE AV. + → RestoreActorValue, - → Damage.
@@ -2043,6 +2055,9 @@ Function onActivate(Actor target, int param, int param2, string eid)
         _recomputeSkillShift(target, param, param2)
     elseif eid == "modify.resist"
         _recomputeResistShift(target, param, param2)
+    elseif eid == "modify.criticalChance"
+        ; AV not writable via ModActorValue -- route through spell magnitude
+        _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, param, "modify.criticalChance")
     elseif _isAbsShift(eid)
         _recomputeAbsShift(eid, target, param)
     elseif _isToggle(eid)
@@ -2089,6 +2104,8 @@ Function onDeactivate(Actor target, int param, int param2, string eid)
         _removeSkillShift(target)
     elseif eid == "modify.resist"
         _removeResistShift(target)
+    elseif eid == "modify.criticalChance"
+        _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, 0, "modify.criticalChance")
     elseif _isAbsShift(eid)
         _recomputeAbsShift(eid, target, 0)
     elseif _isToggle(eid)
@@ -2121,6 +2138,8 @@ Function onTick(Actor target, int param, int param2, string eid)
         _recomputeSkillShift(target, param, param2)
     elseif eid == "modify.resist"
         _recomputeResistShift(target, param, param2)
+    elseif eid == "modify.criticalChance"
+        _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, param, "modify.criticalChance")
     elseif _isAbsShift(eid)
         _recomputeAbsShift(eid, target, param)
     elseif _isToggle(eid)

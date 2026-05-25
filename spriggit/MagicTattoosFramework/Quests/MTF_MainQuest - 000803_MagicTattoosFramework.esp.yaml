@@ -23,6 +23,7 @@ VirtualMachineAdapter:
       Alias: 1
     Scripts:
     - Name: MTF_HitListener
+    - Name: MTF_TestRunner
   - Property:
       Name: ''
       Object: 000803:MagicTattoosFramework.esp
