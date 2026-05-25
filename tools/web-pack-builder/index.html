@@ -10,9 +10,11 @@
     <header>
         <h1>MTF Content Pack Builder</h1>
         <p class="subtitle">
-            Drop a Skyrim mod ZIP, get back a
-            <a href="https://github.com/levchimik/magic-tattoos-framework" target="_blank" rel="noopener">Magic Tattoos Framework</a>-ready
-            content pack with the catalog JSON wired up.
+            Drop a Skyrim texture mod archive, get back a thin
+            <a href="https://github.com/levchimik/magic-tattoos-framework" target="_blank" rel="noopener">Magic Tattoos Framework</a>
+            content pack ZIP &mdash; just the catalog JSON pointing at every
+            texture in the mod. End users install your pack alongside the
+            source mod and MTF picks the textures up.
             Everything runs in your browser &mdash; no upload, no tracking.
         </p>
     </header>
@@ -20,10 +22,16 @@
     <main>
         <section class="form-card">
             <h2>1. Pack metadata</h2>
+            <p class="form-hint">
+                Pack ID and display label are auto-filled from the dropped
+                archive's filename &mdash; tweak if needed. Area defaults
+                to <strong>Body</strong>; switch it for face / hands /
+                feet packs.
+            </p>
 
             <label for="packId">
                 Pack ID
-                <span class="hint">unique, lowercase, dotted, e.g. <code>mtf.my-tattoos</code></span>
+                <span class="hint">unique, lowercase, dotted, e.g. <code>mtf.zao-active-overlays</code></span>
             </label>
             <input
                 type="text"
@@ -82,13 +90,14 @@
 
         <section class="action-card">
             <button id="downloadBtn" type="button" disabled>
-                Download converted ZIP
+                Download pack ZIP
             </button>
             <p class="action-hint">
-                The output ZIP carries your original textures unchanged
-                plus the new catalog JSON at the right path. Drop it into
-                MO2 / Vortex's "Install from archive" the same way you'd
-                install any mod.
+                The output ZIP carries just the catalog JSON at the right
+                path. Drop it into MO2 / Vortex's "Install from archive" &mdash;
+                end users must also install the original texture mod separately
+                (MTF reads textures by their <code>Data/textures/&hellip;</code>
+                path, so both mods need to be active).
             </p>
         </section>
 
@@ -96,10 +105,22 @@
             <summary>How it works &amp; gotchas</summary>
             <div class="help-body">
                 <p>
-                    <strong>What gets written.</strong> For every <code>.dds</code> the tool finds under
-                    <code>textures/</code>, it emits one entry in the catalog with
-                    <code>id</code> = <code>label</code> = the filename stem (no extension),
-                    a single layer pointing at the texture, and the area you picked.
+                    <strong>What gets written.</strong> The output ZIP contains a
+                    single JSON file at
+                    <code>SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/&lt;packid&gt;.json</code>.
+                    For every <code>.dds</code> the tool finds under <code>textures/</code>,
+                    it adds one entry with <code>id</code> = <code>label</code> = the filename
+                    stem (no extension), a single layer pointing at the texture,
+                    and the area you picked.
+                </p>
+                <p>
+                    <strong>Why no textures in the output?</strong> Content packs are
+                    pointer-only by convention &mdash; the catalog references textures
+                    at their <code>Data/textures/&hellip;</code> paths, and the end user
+                    is expected to have the source texture mod already installed. This
+                    matches every shipping pack in the framework's
+                    <a href="https://github.com/levchimik/magic-tattoos-framework/tree/main/content-packs" target="_blank" rel="noopener">content-packs/</a>
+                    directory, and sidesteps redistribution / permission concerns.
                 </p>
                 <p>
                     <strong>No previews.</strong> Browsers can't render <code>.dds</code> natively;
@@ -122,11 +143,12 @@
                 </p>
                 <p>
                     <strong>Privacy.</strong> Everything happens in your browser.
-                    Your ZIP never touches a server. View page source or open dev
+                    Your archive never touches a server. View page source or open dev
                     tools to verify.
                 </p>
                 <p class="help-meta">
-                    Powered by <a href="https://stuk.github.io/jszip/" target="_blank" rel="noopener">JSZip</a>.
+                    Powered by <a href="https://stuk.github.io/jszip/" target="_blank" rel="noopener">JSZip</a>
+                    and <a href="https://github.com/nika-begiashvili/libarchivejs" target="_blank" rel="noopener">libarchive.js</a>.
                     Source: <a href="https://github.com/levchimik/magic-tattoos-framework/tree/main/tools/web-pack-builder" target="_blank" rel="noopener">tools/web-pack-builder/</a>.
                 </p>
             </div>

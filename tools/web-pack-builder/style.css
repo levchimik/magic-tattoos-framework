@@ -90,6 +90,17 @@ section h2 {
 }
 
 /* ─── Form ──────────────────────────────────────────────────────────────── */
+.form-card .form-hint {
+    margin: 0 0 16px;
+    color: var(--fg-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+.form-card .form-hint strong {
+    color: var(--fg);
+    font-weight: 600;
+}
+
 .form-card label {
     display: block;
     margin-top: 14px;

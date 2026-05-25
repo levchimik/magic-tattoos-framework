@@ -8,26 +8,32 @@ content pack ZIP.
 
 ## What it does
 
-1. You fill in three fields: `packId`, display label, area (`Body` /
-   `Face` / `Hands` / `Feet`).
-2. You drop a Skyrim mod archive — `.zip`, `.7z`, `.rar`, `.tar`, or
-   `.tar.gz`/`.xz`/`.bz2`. Layout: `textures/...*.dds` at the root
-   (same shape as any Nexus download). `Data/textures/...` also works.
-3. The tool walks every `.dds` it finds, generates an MTF catalog JSON,
-   and emits a new **ZIP** containing the original textures unchanged
-   plus the catalog at the right path:
+1. You drop a Skyrim mod archive — `.zip`, `.7z`, `.rar`, `.tar`, or
+   `.tar.gz`/`.xz`/`.bz2`. The tool auto-fills the form by parsing the
+   filename: `ZAO Active Overlays 0.3 SE-39407-…7z` →
+   label `ZAO Active Overlays`, packId `mtf.zao-active-overlays`.
+2. (Optional) Tweak `packId`, display label, or area (`Body` / `Face`
+   / `Hands` / `Feet`) — area defaults to Body.
+3. The tool lists every `.dds` under `textures/` (auto-detecting
+   `Data/textures/…` and arbitrary wrapper directories like
+   `ZAO Pack/Data/Textures/…`), generates an MTF catalog JSON.
+4. You click download and get a thin **ZIP** containing just one file:
    ```
    SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/<packid>.json
    ```
-4. You drag the output ZIP into MO2 / Vortex's "Install from archive"
-   the same way you'd install any mod.
+5. Drag the ZIP into MO2 / Vortex's "Install from archive". End users
+   need both this pack AND the original texture mod active — MTF reads
+   textures by their `Data/textures/...` path, not from inside the
+   pack ZIP itself.
+
+This pointer-only model matches every shipping pack under the
+framework's [`content-packs/`](../../content-packs/) directory and
+sidesteps redistribution / permission concerns.
 
 **Read** is via [libarchive.js](https://github.com/nika-begiashvili/libarchivejs)
 (a WASM port of libarchive — same C library 7-Zip ports use). **Write**
-is via [JSZip](https://stuk.github.io/jszip/). Output is always ZIP
-because writing 7z in-browser would need bundling an LZMA2 encoder,
-and mod managers accept ZIP fine. 100% client-side, no upload, no
-telemetry.
+is via [JSZip](https://stuk.github.io/jszip/). 100% client-side, no
+upload, no telemetry.
 
 ## What it doesn't do (yet)
 

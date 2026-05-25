@@ -1,18 +1,26 @@
-/* MTF Content Pack Builder — pure-browser archive→pack converter.
+/* MTF Content Pack Builder — pure-browser archive→catalog converter.
  *
  * Pipeline:
  *   1. User picks/drops a Skyrim mod archive (zip, 7z, rar, tar, ...)
- *   2. libarchive.js opens it and extracts every entry
- *   3. We walk the entries, find .dds files under textures/ (or Data/textures/),
- *      build the MTF catalog JSON
- *   4. JSZip composes a new ZIP containing all original entries + the catalog at
+ *   2. libarchive.js opens it and LISTS entries (no actual extraction —
+ *      we only need filenames, not file contents)
+ *   3. We auto-derive `packId` and display label from the archive's
+ *      filename, populating the form (user can edit)
+ *   4. We walk the entry list, find .dds files under textures/
+ *      (auto-detecting wrapper directories like ZAO's), build the MTF
+ *      catalog JSON
+ *   5. JSZip composes an output ZIP containing ONLY the catalog at
  *      SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/<packid>.json
- *   5. Trigger download — Blob + <a download>, no upload anywhere
+ *      Textures themselves are NOT bundled — the user already has the
+ *      source mod installed; content packs are pointer-only catalogs by
+ *      convention (see content-packs/ in the framework repo)
+ *   6. Trigger download — Blob + <a download>, no upload anywhere
  *
  * libarchive.js (WASM port of libarchive) reads any format the C library
- * supports; JSZip writes the output ZIP. Mod managers want ZIP (or 7z) —
- * we always emit ZIP because writing 7z in-browser would need an LZMA2
- * encoder, which is bigger and slower than the value adds.
+ * supports. JSZip writes the output ZIP. Mod managers want ZIP, so we
+ * always emit one (even though the payload is a single JSON file —
+ * the ZIP wrapper makes MO2's "Install from archive" work without
+ * manual extraction).
  *
  * This file is loaded as an ES module (<script type="module">) so it can
  * `import` libarchive.js. JSZip is a classic-script global pulled in via
@@ -35,10 +43,9 @@ const els = {
 };
 
 // ─── State ──────────────────────────────────────────────────────────────
-// Holds the parsed input + derived catalog between "drop" and "download".
-// `extractedEntries` holds File objects already pulled out of the input
-// archive (libarchive's worker dies after extractFiles, so we can't
-// re-extract — we hold the bytes in memory until download).
+// Holds the parsed entry list + derived catalog between drop and download.
+// We never hold extracted file CONTENT — only path metadata, since the
+// output ZIP doesn't carry the textures themselves.
 let state = null;
 
 // ─── Utilities ──────────────────────────────────────────────────────────
@@ -51,7 +58,7 @@ let state = null;
  *
  * Tolerates wrapper directories — Nexus mods are very often packed as
  * `<ModName>/Data/Textures/...` or `<ModName>/textures/...` so that
- * extraction creates a named folder. We scan for the first <dds path>
+ * extraction creates a named folder. We scan for the first dds path
  * that contains a `/textures/` segment and return everything up to and
  * including that segment, preferring a `/Data/textures/` match
  * (longer / more specific) over a bare `/textures/` match.
@@ -95,6 +102,52 @@ function detectTexturesRoot(entryPaths) {
 }
 
 /**
+ * Derive a sensible default display label + packId from the dropped
+ * archive's filename. Nexus filenames look like
+ *   "<HumanName> <version> <variant>-<NexusID>-<verSegments>-<unixTime>.<ext>"
+ * e.g. "ZAO Active Overlays 0.3 SE-39407-0-31-1612931382.7z"
+ * The reliable signal is "everything before the first digit" — once
+ * digits appear it's all version / Nexus metadata. We trim trailing
+ * junk (spaces, dashes, version markers like a lone 'v') and call that
+ * the display label. The packId is `mtf.` + a lowercase dash-slug.
+ *
+ * Examples:
+ *   "ZAO Active Overlays 0.3 SE-39407-..."  → "ZAO Active Overlays"  / mtf.zao-active-overlays
+ *   "Beeing Female NG 3.4.2-168434-..."     → "Beeing Female NG"     / mtf.beeing-female-ng
+ *   "Fertility Mode Reloaded v 1.0.3-..."   → "Fertility Mode Reloaded" / mtf.fertility-mode-reloaded
+ *   "RaceMenu Animated Overlays SE-37275-…" → "RaceMenu Animated Overlays SE" / mtf.racemenu-animated-overlays-se
+ *   "LewdMarksAroused-83794-..."            → "LewdMarksAroused"      / mtf.lewdmarksaroused
+ *   "MyMod.7z"                              → "MyMod"                 / mtf.mymod
+ */
+function deriveDefaults(filename) {
+    // Strip recognized archive extensions (handle compound .tar.gz first).
+    let stem = filename.replace(/\.(tar\.gz|tar\.xz|tar\.bz2)$/i, '');
+    stem = stem.replace(/\.(zip|7z|rar|tar|tgz|iso)$/i, '');
+
+    // Take everything before the first digit. If the filename starts with
+    // a digit, fall back to the whole stem.
+    const digitIdx = stem.search(/\d/);
+    let label = digitIdx > 0 ? stem.substring(0, digitIdx) : stem;
+
+    // Trim trailing whitespace, hyphens, underscores.
+    label = label.replace(/[\s_-]+$/, '');
+    // Drop a trailing lone-letter version marker ("v", "V") with its space.
+    label = label.replace(/\s+[vV]$/, '');
+    label = label.trim();
+
+    // Fallback if everything got stripped (e.g. all-digits filename).
+    if (!label) label = stem;
+
+    // Build slug: lowercase, runs of non-alphanumeric → single hyphen.
+    const slug = label.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    const packId = `mtf.${slug || 'pack'}`;
+
+    return { label, packId };
+}
+
+/**
  * Sanitize an entry id derived from a filename. Keep visible case but
  * collapse whitespace to underscores (some Papyrus paths get cranky
  * about spaces in StorageUtil keys).
@@ -130,49 +183,6 @@ function stemOf(path) {
  */
 function toSkyrimPath(forward) {
     return forward.replace(/\//g, '\\');
-}
-
-/**
- * Compute the wrapper prefix to strip from output paths.
- *
- * Given the detected textures root, this returns everything BEFORE the
- * trailing `textures/` segment — i.e. the wrapper-dir + Data/ prefix
- * that should be peeled off in the output ZIP so it lands as a clean
- * MO2 mod layout (`textures/...`, `scripts/...`, `*.esp` at root)
- * instead of nesting under the source archive's wrapper.
- *
- * Examples:
- *   "textures/"                                 → ""
- *   "Data/textures/"                            → "Data/"
- *   "ZAO Pack/Data/Textures/"                   → "ZAO Pack/Data/"
- *   "MyMod 1.0/textures/"                       → "MyMod 1.0/"
- */
-function computeStripPrefix(root) {
-    const lower = root.toLowerCase();
-    const idx = lower.lastIndexOf('textures/');
-    return idx <= 0 ? '' : root.substring(0, idx);
-}
-
-/**
- * Flatten the nested {dirName: {dirName: {fileName: File}}} object that
- * libarchive's `extractFiles()` returns into a flat list of
- * { path: "full/forward/slashed/path.dds", file: File } entries.
- *
- * We don't use libarchive's own per-entry callback because it fires via
- * setTimeout and resolves AFTER the extractFiles promise — see the call
- * site for the full RACE TRAP comment.
- */
-function flattenContent(obj, prefix = '') {
-    const out = [];
-    if (!obj || typeof obj !== 'object') return out;
-    for (const [key, val] of Object.entries(obj)) {
-        if (val instanceof File) {
-            out.push({ path: prefix + key, file: val });
-        } else if (val && typeof val === 'object') {
-            out.push(...flattenContent(val, prefix + key + '/'));
-        }
-    }
-    return out;
 }
 
 // ─── Status panel ───────────────────────────────────────────────────────
@@ -251,6 +261,12 @@ async function handleArchive(file) {
     els.dropMeta.innerHTML =
         `<strong>${escapeHtml(file.name)}</strong> (${formatBytes(file.size)}) &mdash; opening&hellip;`;
 
+    // Auto-fill the form with defaults derived from the filename. Users
+    // can still edit any of these before downloading.
+    const { label, packId } = deriveDefaults(file.name);
+    els.packId.value = packId;
+    els.packLabel.value = label;
+
     // Open the archive. First call also triggers the wasm download
     // (libarchive lazy-loads it on first Archive.open) — that's why the
     // very first drop in a session is a touch slower than subsequent
@@ -269,42 +285,35 @@ async function handleArchive(file) {
         return;
     }
 
-    // Extract every entry into memory. libarchive's worker terminates
-    // after extractFiles completes, so we have to hoist the File objects
-    // out for the output ZIP composition later.
-    //
-    // RACE TRAP: libarchive's per-entry callback fires via `setTimeout`,
-    // meaning callbacks land AFTER the awaited promise resolves. Don't
-    // collect via the callback — the array would still be empty when
-    // we observe it. Instead, consume the resolved nested-object
-    // RETURN value (the same `_content` libarchive builds internally
-    // before scheduling those callbacks) and flatten it ourselves.
-    els.dropMeta.innerHTML =
-        `<strong>${escapeHtml(file.name)}</strong> (${formatBytes(file.size)}) &mdash; extracting&hellip;`;
-
-    let contentObj;
+    // List entries WITHOUT extracting contents — getFilesArray returns
+    // metadata only (compressed-file refs). We never call extract on
+    // them because the output ZIP doesn't carry texture bytes; only the
+    // filenames + sizes are needed to build the catalog.
+    let entries;
     try {
-        contentObj = await archive.extractFiles();
+        entries = await archive.getFilesArray();
     } catch (err) {
         els.dropMeta.innerHTML =
-            `<strong>${escapeHtml(file.name)}</strong> &mdash; extraction failed.`;
+            `<strong>${escapeHtml(file.name)}</strong> &mdash; listing failed.`;
         showSummary(
-            `<strong>Extraction failed.</strong> ${escapeHtml(err.message || String(err))} ` +
+            `<strong>Couldn't list archive contents.</strong> ${escapeHtml(err.message || String(err))} ` +
             `&mdash; the archive may be password-protected or corrupted.`
         );
         return;
     }
-    const extractedEntries = flattenContent(contentObj);
 
-    if (extractedEntries.length === 0) {
+    if (entries.length === 0) {
         els.dropMeta.innerHTML =
             `<strong>${escapeHtml(file.name)}</strong> (${formatBytes(file.size)})`;
         showSummary(`<strong>Archive is empty.</strong>`);
         return;
     }
 
-    // Detect the textures/ root from the extracted entry list.
-    const allPaths = extractedEntries.map(e => e.path);
+    // libarchive returns [{file: CompressedFile, path: "dir/"}] where
+    // `path` is the directory (with trailing slash, empty string for
+    // root) and `file.name` is the basename.
+    const allPaths = entries.map(e => e.path + e.file.name);
+
     const root = detectTexturesRoot(allPaths);
     if (!root) {
         els.dropMeta.innerHTML =
@@ -312,26 +321,26 @@ async function handleArchive(file) {
         showSummary(
             `<strong>No <code>textures/</code> root found.</strong> ` +
             `The archive needs to look like a Skyrim mod download &mdash; with ` +
-            `<code>textures/&hellip;/*.dds</code> at the root (or <code>Data/textures/&hellip;</code>). ` +
-            `Re-package and try again.`
+            `<code>textures/&hellip;/*.dds</code> at the root (or <code>Data/textures/&hellip;</code> ` +
+            `or under a single wrapper directory like <code>MyMod/Data/Textures/&hellip;</code>).`
         );
         return;
     }
 
-    // Categorize entries: DDS under textures/ vs DDS outside vs everything else.
+    // Categorize: DDS under textures/ vs DDS outside (excluded) vs non-DDS.
     const ddsEntries = []; // { fullPath, relative, stem }
     const extraneousDDS = [];
-    for (const entry of extractedEntries) {
-        const lower = entry.path.toLowerCase();
+    for (const p of allPaths) {
+        const lower = p.toLowerCase();
         if (!lower.endsWith('.dds')) continue;
         if (lower.startsWith(root.toLowerCase())) {
             ddsEntries.push({
-                fullPath: entry.path,
-                relative: entry.path.substring(root.length),
-                stem: stemOf(entry.path),
+                fullPath: p,
+                relative: p.substring(root.length),
+                stem:     stemOf(p),
             });
         } else {
-            extraneousDDS.push(entry.path);
+            extraneousDDS.push(p);
         }
     }
 
@@ -345,27 +354,16 @@ async function handleArchive(file) {
         return;
     }
 
-    // Detect existing visuals JSON the output would replace — informational.
-    const existingCatalog = allPaths.find(p => {
-        const l = p.toLowerCase();
-        return l.includes('skse/plugins/storageutildata/magictattoosframework/visuals/') &&
-               l.endsWith('.json');
-    });
-
     state = {
-        file:              file,
-        extractedEntries:  extractedEntries,
-        root:              root,
-        stripPrefix:       computeStripPrefix(root),
-        ddsEntries:        ddsEntries,
-        extraneousDDS:     extraneousDDS,
-        existingCatalog:   existingCatalog,
-        catalog:           null,
+        file:           file,
+        root:           root,
+        ddsEntries:     ddsEntries,
+        extraneousDDS:  extraneousDDS,
+        catalog:        null,
     };
 
     els.dropMeta.innerHTML =
         `<strong>${escapeHtml(file.name)}</strong> (${formatBytes(file.size)}) &mdash; ` +
-        `${extractedEntries.length} entries extracted, ` +
         `${ddsEntries.length} texture${ddsEntries.length === 1 ? '' : 's'} catalogued under ` +
         `<code>${escapeHtml(root)}</code>.`;
 
@@ -374,14 +372,12 @@ async function handleArchive(file) {
 
 /**
  * Build the catalog JSON from current form state + parsed ddsEntries.
- * Re-runs on every form-field change; cheap because all extraction
- * happened at drop time. Records result in state.catalog and renders
- * the status panel.
+ * Re-runs on every form-field change; cheap because we cached the
+ * filename list at drop time.
  */
 function rebuildCatalog() {
     if (!state) return;
 
-    // Validate form
     const packId = els.packId.value.trim();
     const packLabel = els.packLabel.value.trim();
     const packArea = els.packArea.value;
@@ -407,7 +403,6 @@ function rebuildCatalog() {
         return;
     }
 
-    // Build entries
     const takenIds = new Set();
     const entries = state.ddsEntries.map(d => ({
         id:    makeEntryId(d.stem, takenIds),
@@ -436,14 +431,13 @@ function rebuildCatalog() {
     addStatus('ok',
         `Texture root detected: <code>${escapeHtml(state.root)}</code>.`
     );
-    if (state.stripPrefix) {
-        addStatus('info',
-            `Stripping wrapper from output paths: <code>${escapeHtml(state.stripPrefix)}</code>. ` +
-            `Output ZIP will land cleanly as a MO2 mod (no nested folder).`
-        );
-    }
     addStatus('ok',
         `JSON output path: <code>SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/${escapeHtml(packId)}.json</code>`
+    );
+    addStatus('info',
+        `Output is JSON-only &mdash; the catalog points at textures from the source mod, ` +
+        `which the end user installs separately. (Matches the framework's ` +
+        `<code>content-packs/</code> convention.)`
     );
 
     if (state.extraneousDDS.length > 0) {
@@ -451,15 +445,7 @@ function rebuildCatalog() {
         const more = state.extraneousDDS.length > 3 ? ` and ${state.extraneousDDS.length - 3} more` : '';
         addStatus('warn',
             `${state.extraneousDDS.length} <code>.dds</code> file${state.extraneousDDS.length === 1 ? '' : 's'} ` +
-            `outside the <code>${escapeHtml(state.root)}</code> root: ${sample}${more}. ` +
-            `These are passed through to the output ZIP unchanged but not catalogued.`
-        );
-    }
-
-    if (state.existingCatalog) {
-        addStatus('warn',
-            `Input archive already contains a catalog: <code>${escapeHtml(state.existingCatalog)}</code>. ` +
-            `Output will overwrite it.`
+            `outside the <code>${escapeHtml(state.root)}</code> root were ignored: ${sample}${more}.`
         );
     }
 
@@ -493,60 +479,37 @@ els.downloadBtn.addEventListener('click', async () => {
     els.downloadBtn.textContent = 'Packaging…';
 
     try {
+        // The output is a thin MO2-installable ZIP wrapping ONLY the
+        // catalog JSON. No textures pass through. End users install the
+        // source texture mod separately; this catalog is just the
+        // pointer that tells MTF which textures to use.
         const out = new JSZip();
-
-        // 1. Copy every original entry. The libarchive `File` objects
-        //    expose `.arrayBuffer()` and `.lastModified`. We skip an
-        //    existing visuals/<same-name>.json so the new one wins.
         const newJsonPath =
             `SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/${state.catalog.packId}.json`;
-        const newJsonLower = newJsonPath.toLowerCase();
-
-        const strip = state.stripPrefix;
-        const copyJobs = state.extractedEntries.map(async (entry) => {
-            // Strip the wrapper prefix when the entry sits under it.
-            // Anything outside the wrapper (rare — usually top-level
-            // readmes/changelogs) passes through unchanged.
-            let outPath = entry.path;
-            if (strip && outPath.startsWith(strip)) {
-                outPath = outPath.substring(strip.length);
-            }
-            if (!outPath) return; // defensive: don't write empty path
-            if (outPath.toLowerCase() === newJsonLower) return;
-            const buf = await entry.file.arrayBuffer();
-            out.file(outPath, new Uint8Array(buf), {
-                date: new Date(entry.file.lastModified || Date.now()),
-            });
-        });
-        await Promise.all(copyJobs);
-
-        // 2. Add (or replace) the catalog JSON.
         const jsonText = JSON.stringify(state.catalog, null, 2) + '\n';
         out.file(newJsonPath, jsonText);
 
-        // 3. Generate the output blob.
         const blob = await out.generateAsync({
             type: 'blob',
             compression: 'DEFLATE',
             compressionOptions: { level: 6 },
         });
 
-        // 4. Trigger download.
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${state.catalog.packId}-mtf-bundle.zip`;
+        a.download = `${state.catalog.packId}.zip`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         // Free the blob URL after the browser starts the download.
         setTimeout(() => URL.revokeObjectURL(url), 4000);
 
-        els.downloadBtn.textContent = 'Download converted ZIP';
+        els.downloadBtn.textContent = 'Download pack ZIP';
     } catch (err) {
         console.error(err);
         addStatus('err', `Packaging failed: ${escapeHtml(err.message || String(err))}`);
-        els.downloadBtn.textContent = 'Download converted ZIP';
+        els.downloadBtn.textContent = 'Download pack ZIP';
     } finally {
         els.downloadBtn.disabled = false;
     }
