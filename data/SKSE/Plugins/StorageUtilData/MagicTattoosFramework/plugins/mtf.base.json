@@ -9,6 +9,8 @@
       "description": "Triggers when the actor's magicka is at or above {param1}%.",
       "param": {
         "label": "Health/Magicka/Stamina % threshold",
+        "min": 0,
+        "max": 100,
         "default": 50
       }
     },
@@ -18,6 +20,8 @@
       "description": "Triggers when the actor's magicka drops below {param1}%.",
       "param": {
         "label": "Health/Magicka/Stamina % threshold",
+        "min": 0,
+        "max": 100,
         "default": 30
       }
     },
@@ -27,6 +31,8 @@
       "description": "Triggers when the actor's stamina is at or above {param1}%.",
       "param": {
         "label": "Health/Magicka/Stamina % threshold",
+        "min": 0,
+        "max": 100,
         "default": 50
       }
     },
@@ -36,6 +42,8 @@
       "description": "Triggers when the actor's stamina drops below {param1}%.",
       "param": {
         "label": "Health/Magicka/Stamina % threshold",
+        "min": 0,
+        "max": 100,
         "default": 30
       }
     },
@@ -51,6 +59,7 @@
       "param": {
         "label": "Scan radius (meters)",
         "min": 1,
+        "max": 100,
         "default": 40
       }
     },
@@ -61,6 +70,7 @@
       "param": {
         "label": "Scan radius (meters)",
         "min": 1,
+        "max": 100,
         "default": 25
       }
     },
@@ -117,6 +127,8 @@
       "description": "Triggers when the actor's health is at or above {param1}%.",
       "param": {
         "label": "Health/Magicka/Stamina % threshold",
+        "min": 0,
+        "max": 100,
         "default": 50
       }
     },
@@ -126,6 +138,8 @@
       "description": "Triggers when the actor's health drops below {param1}%.",
       "param": {
         "label": "Health/Magicka/Stamina % threshold",
+        "min": 0,
+        "max": 100,
         "default": 30
       }
     },
@@ -251,11 +265,13 @@
       "description": "Triggers between in-game hours {param1} and {param2} (wraps midnight if end is earlier than start).",
       "param": {
         "label": "From (hour)",
+        "min": 0,
         "max": 24,
         "default": 6
       },
       "param2": {
         "label": "Till (hour, wrap if < From)",
+        "min": 0,
         "max": 24,
         "default": 20
       }
@@ -292,6 +308,7 @@
       "param": {
         "label": "Scan radius (meters)",
         "min": 1,
+        "max": 100,
         "default": 80
       }
     },
@@ -301,6 +318,7 @@
       "description": "Triggers when the actor's gold is at or above {param1},000.",
       "param": {
         "label": "Gold threshold (x 1000)",
+        "min": 0,
         "max": 1000,
         "default": 5
       }
@@ -328,7 +346,9 @@
       "description": "Shifts the actor's magicka regeneration rate by {param1}%.",
       "param1": {
         "label": "Magicka regen rate shift (mult points; + faster, - slower)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -337,7 +357,9 @@
       "description": "Shifts the actor's carry-weight cap by {param1}.",
       "param1": {
         "label": "Carry weight shift (points; + buff, - drain)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -346,7 +368,9 @@
       "description": "Shifts the actor's Sneak skill by {param1}.",
       "param1": {
         "label": "Sneak skill shift (points; + buff, - drain)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -379,7 +403,9 @@
       "description": "Shifts the actor's movement-speed multiplier by {param1}%.",
       "param1": {
         "label": "Movement speed shift (mult points; + faster, - slower)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -388,7 +414,9 @@
       "description": "Shifts the actor's stamina regeneration rate by {param1}%.",
       "param1": {
         "label": "Stamina regen rate shift (mult points; + faster, - slower)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -397,19 +425,16 @@
       "description": "Shifts the actor's outgoing attack damage by {param1}%.",
       "param1": {
         "label": "Attack damage shift (% points; + buff, - drain)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
       "id": "burst.stagger",
       "label": "Stagger",
       "description": "Burst — staggers the actor when the tier activates.",
-      "kind": "burst",
-      "param1": {
-        "min": 0,
-        "max": 0,
-        "default": 0
-      }
+      "kind": "burst"
     },
     {
       "id": "burst.blowCover",
@@ -442,7 +467,9 @@
       "description": "Shifts the actor's health regeneration rate by {param1}%.",
       "param1": {
         "label": "Health regen rate shift (mult points; + faster, - slower)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -451,7 +478,9 @@
       "description": "Shifts the actor's maximum magicka by {param1}.",
       "param1": {
         "label": "Max magicka shift (points; + buff, - drain)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -460,7 +489,9 @@
       "description": "Shifts the actor's maximum stamina by {param1}.",
       "param1": {
         "label": "Max stamina shift (points; + buff, - drain)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -469,7 +500,9 @@
       "description": "Shifts the actor's weapon-swing speed by {param1}%.",
       "param1": {
         "label": "Weapon speed shift (% points; + faster, - slower)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -478,7 +511,9 @@
       "description": "Shifts the actor's unarmed melee damage by {param1}.",
       "param1": {
         "label": "Unarmed damage shift (points; + buff, - drain)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -487,7 +522,9 @@
       "description": "Shifts the actor's critical-strike chance by {param1}%.",
       "param1": {
         "label": "Critical chance shift (points; + buff, - drain)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -496,7 +533,9 @@
       "description": "Shifts the actor's bow draw and release speed by {param1}.",
       "param1": {
         "label": "Bow speed bonus shift (units; + faster draw, - slower)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -545,32 +584,17 @@
     {
       "id": "toggle.muffle",
       "label": "Muffle",
-      "description": "Toggles silenced footsteps on the actor while active.",
-      "param1": {
-        "min": 0,
-        "max": 0,
-        "default": 0
-      }
+      "description": "Toggles silenced footsteps on the actor while active."
     },
     {
       "id": "toggle.waterbreathing",
       "label": "Waterbreathing",
-      "description": "Toggles waterbreathing on the actor while active.",
-      "param1": {
-        "min": 0,
-        "max": 0,
-        "default": 0
-      }
+      "description": "Toggles waterbreathing on the actor while active."
     },
     {
       "id": "toggle.waterWalking",
       "label": "Water Walking",
-      "description": "Toggles water-walking on the actor while active.",
-      "param1": {
-        "min": 0,
-        "max": 0,
-        "default": 0
-      }
+      "description": "Toggles water-walking on the actor while active."
     },
     {
       "id": "damage.health",
@@ -692,7 +716,7 @@
         "label": "Trigger event",
         "min": 0,
         "max": 127,
-        "default": 1,
+        "default": 126,
         "menu": [
           {
             "value": 0,
@@ -779,7 +803,9 @@
       "description": "Shifts the actor's chance to absorb incoming spells by {param1}%.",
       "param1": {
         "label": "Spell absorb chance shift (points; + absorb, - vulnerable)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {
@@ -788,7 +814,9 @@
       "description": "Shifts the actor's chance to reflect incoming melee damage by {param1}%.",
       "param1": {
         "label": "Reflect damage chance shift (points; + reflect, - vulnerable)",
-        "min": -100
+        "min": -100,
+        "max": 100,
+        "default": 0
       }
     },
     {

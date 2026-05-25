@@ -335,8 +335,7 @@ EFFECTS_RAW = [
     (8,  "burst.stagger",
      "Stagger",
      "Burst — staggers the actor when the tier activates.",
-     "",
-     {"param": {"min": 0, "max": 0, "default": 0}}),
+     "", None),
     (9,  "burst.blowCover",
      "Blow Cover",
      "Burst — alerts every hostile NPC within {param1}ft to the actor's presence (blows stealth).",
@@ -393,18 +392,15 @@ EFFECTS_RAW = [
     (19, "toggle.muffle",
      "Muffle",
      "Toggles silenced footsteps on the actor while active.",
-     "",
-     {"param": {"min": 0, "max": 0, "default": 0}}),
+     "", None),
     (20, "toggle.waterbreathing",
      "Waterbreathing",
      "Toggles waterbreathing on the actor while active.",
-     "",
-     {"param": {"min": 0, "max": 0, "default": 0}}),
+     "", None),
     (21, "toggle.waterWalking",
      "Water Walking",
      "Toggles water-walking on the actor while active.",
-     "",
-     {"param": {"min": 0, "max": 0, "default": 0}}),
+     "", None),
     (22, "damage.health",
      "Damage Health",
      "Burst — damages or restores {param1}% of the actor's base health when the tier activates.",
@@ -452,7 +448,11 @@ EFFECTS_RAW = [
      "Flash",
      "Flashes the tattoo's emissive layer to {param2}% brightness on the chosen trigger event ({param1}).",
      "Trigger event",
-     {"param":  {"min": 0, "max": 127, "default": 1,
+     # v0.2.6: default 126 ("All combat classes"). Pre-fix this was 1 which
+     # isn't a valid menu value (bit 0 is unused in the class mask). See
+     # roadmap note "flash.onhit refactor candidate" for the longer-term
+     # semantic inversion concern (0 = Disabled here vs 0 = Any in combat.hit).
+     {"param":  {"min": 0, "max": 127, "default": 126,
                  "menu": [{"value": v, "label": l} for v, l in FLASH_TRIGGER_MENU]},
       "param2": {"label": "Peak emissive (additive, % of 1.0)",
                  "min": 0, "max": 1000, "default": 300, "step": 10},
@@ -504,20 +504,48 @@ for i, t in enumerate(EFFECTS_RAW):
 
 
 def build_condition(idx, t):
-    """Assemble one condition entry."""
+    """Assemble one condition entry.
+
+    v0.2.6: backfills implicit min=0/max=100/default=0 for numeric (non-menu)
+    params so the catalog is fully spec'd for downstream validators. The
+    base-class runtime treats missing values as these defaults — making them
+    explicit costs nothing and lets `tools/validate_catalogs.py` stay strict.
+    """
     cid, label, desc, param = t
     out = {"id": cid, "label": label, "description": desc}
     if param is not None:
         p = {}
         if "label"   in param: p["label"]   = param["label"]
-        # Condition base-class defaults: min 0, max 100, default 0.
-        if "min"     in param: p["min"]     = param["min"]
-        if "max"     in param: p["max"]     = param["max"]
-        if "default" in param: p["default"] = param["default"]
-        if "menu"    in param: p["menu"]    = param["menu"]
+        is_menu = "menu" in param
+        # Numeric (non-menu) condition params: implicit defaults are 0..100, default 0.
+        if not is_menu:
+            p["min"]     = param.get("min", 0)
+            p["max"]     = param.get("max", 100)
+            p["default"] = param.get("default", 0)
+        else:
+            if "min"     in param: p["min"]     = param["min"]
+            if "max"     in param: p["max"]     = param["max"]
+            if "default" in param: p["default"] = param["default"]
+            p["menu"] = param["menu"]
+        if "step" in param: p["step"] = param["step"]
         out["param"] = p
         if "_param2" in param:
-            out["param2"] = param["_param2"]
+            # Recursively backfill for param2 too (currently only time.range uses this).
+            p2_src = param["_param2"]
+            p2 = {}
+            if "label" in p2_src: p2["label"] = p2_src["label"]
+            p2_menu = "menu" in p2_src
+            if not p2_menu:
+                p2["min"]     = p2_src.get("min", 0)
+                p2["max"]     = p2_src.get("max", 100)
+                p2["default"] = p2_src.get("default", 0)
+            else:
+                if "min"     in p2_src: p2["min"]     = p2_src["min"]
+                if "max"     in p2_src: p2["max"]     = p2_src["max"]
+                if "default" in p2_src: p2["default"] = p2_src["default"]
+                p2["menu"] = p2_src["menu"]
+            if "step" in p2_src: p2["step"] = p2_src["step"]
+            out["param2"] = p2
     return out
 
 
@@ -554,11 +582,14 @@ def build_effect(idx, t):
     p = {}
     if param_label:
         p["label"] = param_label
-    # For abs-shift effects we want min=-100, max=100, default=0, step=1
-    # — but the base class JSON defaults are min=0/max=100/default=0/step=1.
-    # We MUST write min=-100 explicitly. max=100 we can omit (matches default).
+    # For abs-shift effects backfill min=-100, max=100, default=0 so the
+    # catalog is fully spec'd for validators. v0.2.6: previously only min
+    # was written explicitly and max/default relied on runtime defaults —
+    # making them explicit costs nothing and clears validate_catalogs.py.
     if is_abs_shift(eidx):
         p.setdefault("min", -100)
+        p.setdefault("max", 100)
+        p.setdefault("default", 0)
     for k in ("min", "max", "default", "step"):
         if k in param_o:
             p[k] = param_o[k]

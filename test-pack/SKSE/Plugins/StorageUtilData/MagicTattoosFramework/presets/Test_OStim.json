@@ -56,8 +56,8 @@
 			"effect": [
 				{
 					"key": "mtf.ostim:trigger.climax",
-					"param2": 1,
-					"param1": 0
+					"param2": 0,
+					"param1": 1
 				}
 			]
 		},

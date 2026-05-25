@@ -12,6 +12,14 @@ SRC="$PROJ/source/scripts"
 DEPS="$PROJ/_deps"
 DEPLOY="F:/Modlists/Modding Essentials/mods/Magic Tattoos Framework/scripts"
 
+# Pre-build: validate plugin catalog JSONs. Fast (~50ms total), catches
+# schema drift before the .pex hits MO2. See tools/validate_catalogs.py
+# for the rule set. Failure aborts the build (set -e).
+if command -v python >/dev/null 2>&1; then
+    echo "=== validating catalogs ==="
+    python "$PROJ/tools/validate_catalogs.py"
+fi
+
 cd "$SRC"
 
 if [[ $# -gt 0 ]]; then

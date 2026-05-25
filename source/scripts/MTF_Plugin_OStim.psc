@@ -18,7 +18,7 @@ Scriptname MTF_Plugin_OStim extends MTF_Plugin
    4  has.schlong        — HasSchlong
 
  Effects:
-   0  trigger.climax        — Climax(target, ignoreStall). param2 = 1 bypass
+   0  trigger.climax        — Climax(target, ignoreStall). param = 1 bypass
    1  excitement.modify     — ModifyExcitement(target, param). param2 = mult
    2  excitement.set        — SetExcitement(target, param)
    3  climax.stall          — toggle: StallClimax while active, PermitClimax on deactivate
@@ -97,8 +97,9 @@ Function onActivate(Actor target, int param, int param2, string eid)
         return
     endif
     if eid == "trigger.climax"
-        ; param2 = 0 honor stall, 1 bypass
-        OActor.Climax(target, param2 == 1)
+        ; v0.2.6: catalog renamed param2 → param1 (was non-contiguous).
+        ; param = 0 honor stall, 1 bypass.
+        OActor.Climax(target, param == 1)
     elseif eid == "excitement.modify"
         ; param = delta, param2 = respect mult
         OActor.ModifyExcitement(target, param as float, param2 == 1)

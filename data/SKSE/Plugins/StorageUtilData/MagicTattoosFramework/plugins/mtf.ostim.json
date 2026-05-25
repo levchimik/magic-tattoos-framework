@@ -63,7 +63,7 @@
       "label": "Trigger Climax",
       "description": "Burst — forces the actor to climax immediately (can override any active hold).",
       "kind": "burst",
-      "param2": {
+      "param1": {
         "label": "Bypass stall (0/1)",
         "min": 0,
         "max": 1,
