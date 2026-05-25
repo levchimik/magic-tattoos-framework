@@ -92,6 +92,14 @@ int[]    _sCondLayerAlpha
 float[]  _sCondPulseRate
 int[]    _sCondPulseDepth
 string[] _sCondWaveform
+; v0.2.6: Bool sentinel for the _s* scratch arrays. Per memory note
+; project_papyrus_array_none_cast_noise, `if arr == None` checks on
+; script-level arrays log "Cannot cast from None to T[]" EVEN WHEN
+; allocated. Each error is a sync-disk stack trace; ~150 errors per
+; preset eval was costing real frame time. _sArraysReady is set true
+; once after _ensureScratchArrays allocates, and all accessors gate
+; on it instead of the spurious == None check.
+bool     _sArraysReady = false
 ; _sEffectKey/Param/Param2 removed in v0.1.5 — scratch effect bindings
 ; now live in StorageUtil under mtf.fx.scratch.<slot>.<idx>.* (parallel to
 ; the player live keyspace mtf.fx.<slot>.<idx>.*).
@@ -1372,7 +1380,7 @@ Float[] Function _waveformLUTForTier(int tier, bool useScratch)
 {Resolve waveform name for a tier and return its LUT.}
     string name = ""
     if useScratch
-        if _sCondWaveform != None && tier >= 0 && tier < 8
+        if _sArraysReady && tier >= 0 && tier < 8
             name = _sCondWaveform[tier]
         endif
     else
@@ -5071,6 +5079,16 @@ Function _ensureScratchArrays()
     ; Allocate once. Re-allocating each call would WIPE the cached preset
     ; data — _loadPresetToScratch's cache check returns early without
     ; re-loading, so the second eval tick would see empty arrays.
+    ;
+    ; v0.2.6: _sArraysReady bool gates this so the inner `== None` check
+    ; runs at most ONCE per session (previously ran ~23×/preset eval and
+    ; each call logged "Cannot cast from None to String[]" per memory
+    ; project_papyrus_array_none_cast_noise). The == None check itself
+    ; is kept in the slow path so old saves where the arrays survived
+    ; from a pre-fix session don't re-allocate over their cached data.
+    if _sArraysReady
+        return
+    endif
     if _sCondPluginId == None
         _sCondPluginId          = new string[8]
         _sCondParam             = new int[8]
@@ -5086,6 +5104,7 @@ Function _ensureScratchArrays()
         _sCooldownMin           = new int[8]
         _sCooldownMode          = new int[8]
     endif
+    _sArraysReady = true
 EndFunction
 
 float Function _getScratchPulsePause(int slot)
@@ -5407,7 +5426,7 @@ EndFunction
 ; player-owned cond*/effect* arrays.
 string Function _g_condPluginId(int slot, bool useScratch)
     if useScratch
-        if _sCondPluginId == None
+        if !_sArraysReady
             return ""
         endif
         return _sCondPluginId[slot]
@@ -5420,7 +5439,7 @@ EndFunction
 
 int Function _g_condParam(int slot, bool useScratch)
     if useScratch
-        if _sCondParam == None
+        if !_sArraysReady
             return 0
         endif
         return _sCondParam[slot]
@@ -5438,7 +5457,7 @@ EndFunction
 
 int Function _g_allowOverride(int slot, bool useScratch)
     if useScratch
-        if _sCooldownMode == None
+        if !_sArraysReady
             return 1   ; safe default: allow override when scratch not loaded
         endif
         return _sCooldownMode[slot]
@@ -5451,7 +5470,7 @@ EndFunction
 
 int Function _g_persistMin(int slot, bool useScratch)
     if useScratch
-        if _sCooldownMin == None
+        if !_sArraysReady
             return 0
         endif
         return _sCooldownMin[slot]
@@ -5471,7 +5490,7 @@ EndFunction
 
 float Function _g_pulseRate(int slot, bool useScratch)
     if useScratch
-        if _sCondPulseRate == None
+        if !_sArraysReady
             return 0.0
         endif
         return _sCondPulseRate[slot]
@@ -5481,7 +5500,7 @@ EndFunction
 
 int Function _g_pulseDepth(int slot, bool useScratch)
     if useScratch
-        if _sCondPulseDepth == None
+        if !_sArraysReady
             return 0
         endif
         return _sCondPulseDepth[slot]
@@ -5618,7 +5637,7 @@ string Function _g_resolvePackId(int slot, bool useScratch)
     if !useScratch
         return ResolveSlotPackId(slot)
     endif
-    if _sCondPackId == None
+    if !_sArraysReady
         return ""
     endif
     string pid = _sCondPackId[slot]
@@ -5632,10 +5651,10 @@ string Function _g_resolveEntryId(int slot, bool useScratch)
     if !useScratch
         return ResolveSlotEntryId(slot)
     endif
-    if _sCondEntryId == None
+    if !_sArraysReady
         return ""
     endif
-    if slot > 0 && _sCondPackId != None && _sCondPackId[slot] == ""
+    if slot > 0 && _sCondPackId[slot] == ""
         return _sCondEntryId[0]
     endif
     return _sCondEntryId[slot]
@@ -5643,7 +5662,7 @@ EndFunction
 
 int Function _g_layerTint(int lidx, bool useScratch)
     if useScratch
-        if _sCondLayerTint == None
+        if !_sArraysReady
             return 16777215
         endif
         return _sCondLayerTint[lidx]
@@ -5652,7 +5671,7 @@ int Function _g_layerTint(int lidx, bool useScratch)
 EndFunction
 int Function _g_layerEmissive(int lidx, bool useScratch)
     if useScratch
-        if _sCondLayerEmissive == None
+        if !_sArraysReady
             return 16777215
         endif
         return _sCondLayerEmissive[lidx]
@@ -5661,7 +5680,7 @@ int Function _g_layerEmissive(int lidx, bool useScratch)
 EndFunction
 float Function _g_layerEmissiveMult(int lidx, bool useScratch)
     if useScratch
-        if _sCondLayerEmissiveMult == None
+        if !_sArraysReady
             return 0.0
         endif
         return _sCondLayerEmissiveMult[lidx]
@@ -5670,7 +5689,7 @@ float Function _g_layerEmissiveMult(int lidx, bool useScratch)
 EndFunction
 int Function _g_layerAlpha(int lidx, bool useScratch)
     if useScratch
-        if _sCondLayerAlpha == None
+        if !_sArraysReady
             return 100
         endif
         return _sCondLayerAlpha[lidx]
