@@ -58,18 +58,19 @@
         </section>
 
         <section class="drop-card">
-            <h2>2. Drop your mod ZIP</h2>
-            <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="Drop a ZIP file here or click to browse">
+            <h2>2. Drop your mod archive</h2>
+            <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="Drop an archive here or click to browse">
                 <div class="drop-prompt">
-                    <strong>Drop a Skyrim mod ZIP here</strong>
-                    <span>or click to browse</span>
+                    <strong>Drop a Skyrim mod archive here</strong>
+                    <span>zip, 7z, rar, tar, tar.gz &mdash; or click to browse</span>
                     <p class="drop-hint">
                         Expected layout: <code>textures/&hellip;/*.dds</code> at the root
                         (the same shape as any Nexus download).
                         <code>Data/textures/&hellip;</code> also works.
+                        Output is always <code>.zip</code>.
                     </p>
                 </div>
-                <input type="file" id="fileInput" accept=".zip" hidden>
+                <input type="file" id="fileInput" accept=".zip,.7z,.rar,.tar,.tgz,.tar.gz,.iso" hidden>
             </div>
             <div id="dropMeta" class="drop-meta" hidden></div>
         </section>
@@ -139,7 +140,10 @@
         </p>
     </footer>
 
+    <!-- JSZip is loaded as a classic script so it exposes the `JSZip`
+         global the app.js module reads. libarchive.js is itself an ES
+         module, imported by app.js. -->
     <script src="vendor/jszip.min.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
