@@ -33,7 +33,6 @@ import { Archive } from './vendor/libarchive/libarchive.js';
 const els = {
     packId:        document.getElementById('packId'),
     packLabel:     document.getElementById('packLabel'),
-    packArea:      document.getElementById('packArea'),
     dropZone:      document.getElementById('dropZone'),
     fileInput:     document.getElementById('fileInput'),
     dropMeta:      document.getElementById('dropMeta'),
@@ -41,6 +40,35 @@ const els = {
     statusContent: document.getElementById('statusContent'),
     downloadBtn:   document.getElementById('downloadBtn'),
 };
+
+// ─── Area inference helpers ─────────────────────────────────────────────
+
+// RaceMenu API function-name → area mapping. Both `*Paint` and `*Overlay`
+// variants are recognized. `Warpaint` is treated as face (RaceMenu's
+// warpaint overlays sit on the face mesh).
+const FN_AREA = {
+    addbodypaint:    'Body',  addbodyoverlay:    'Body',
+    addfacepaint:    'Face',  addfaceoverlay:    'Face',
+    addheadpaint:    'Face',  addheadoverlay:    'Face',
+    addwarpaint:     'Face',  addwarpaintoverlay:'Face',
+    addhandpaint:    'Hands', addhandoverlay:    'Hands',
+    addhandspaint:   'Hands', addhandsoverlay:   'Hands',
+    addnailpaint:    'Hands', addnailoverlay:    'Hands',
+    addnailspaint:   'Hands', addnailsoverlay:   'Hands',
+    addfeetpaint:    'Feet',  addfeetoverlay:    'Feet',
+    addfootpaint:    'Feet',  addfootoverlay:    'Feet',
+};
+
+// Per-DDS-path keyword classification — fallback when the .psc didn't
+// register the texture or no .psc is present. Returns one of
+// "Body"/"Face"/"Hands"/"Feet"/null.
+function classifyByPath(p) {
+    const lower = p.toLowerCase();
+    if (lower.includes('head') || lower.includes('face')) return 'Face';
+    if (lower.includes('nail') || lower.includes('polish') || lower.includes('hand')) return 'Hands';
+    if (lower.includes('feet') || lower.includes('foot')) return 'Feet';
+    return null;
+}
 
 // ─── State ──────────────────────────────────────────────────────────────
 // Holds the parsed entry list + derived catalog between drop and download.
@@ -196,34 +224,43 @@ function normalizeKey(path) {
 
 /**
  * Parse a Papyrus .psc source string for function calls that register
- * (name → texture-path) pairs. RaceMenu overlay packs use
- * `AddBodyPaint("name", "path.dds")`, SlaveTats uses `AddSlot(...)`,
- * and a few other minor variants exist — all share the same shape:
+ * (name → texture-path) pairs AND identify which body area each
+ * registration covers from the function name. RaceMenu has separate
+ * APIs per area:
  *
- *   Word("name", "path.dds")
+ *   AddBodyPaint("name", "path.dds")   → Body
+ *   AddFacePaint(...)  / AddWarpaint(...)               → Face
+ *   AddHandPaint(...)  / AddNailPaint(...)              → Hands
+ *   AddFeetPaint(...)  / AddFootPaint(...)              → Feet
  *
  * The regex catches any 2-arg function call whose second string ends
- * in `.dds`. Returns Map<normalizedKey, label>.
+ * in `.dds`; the FN_AREA map decides the area (null → unknown, gets
+ * path-keyword fallback at lookup time).
+ *
+ * Returns Map<normalizedKey, { name, area }>.
  *
  * Papyrus string literals double their backslashes (`\\` in source =
- * `\` in memory); we treat single and double slashes identically via
- * the normalizeKey() pass.
+ * `\` in memory); normalizeKey collapses both to forward slashes.
  */
 function parseScriptLabels(pscText) {
     const labels = new Map();
-    const re = /\b\w+\s*\(\s*"([^"]+)"\s*,\s*"([^"]+\.dds)"\s*\)/gi;
+    const re = /\b(\w+)\s*\(\s*"([^"]+)"\s*,\s*"([^"]+\.dds)"\s*\)/gi;
     let m;
     while ((m = re.exec(pscText)) !== null) {
-        const name = m[1];
-        const rawPath = m[2].replace(/\\\\/g, '\\'); // unescape Papyrus literal
-        labels.set(normalizeKey(rawPath), name);
+        const fnLower = m[1].toLowerCase();
+        const area = FN_AREA[fnLower] || null;
+        const name = m[2];
+        const rawPath = m[3].replace(/\\\\/g, '\\');
+        labels.set(normalizeKey(rawPath), { name, area });
     }
     return labels;
 }
 
 /**
- * Given the labels map (keys are normalized paths) and a texture's
- * relative-to-textures-root path, find the best matching label.
+ * Given the labels map (keys are normalized paths, values are
+ * {name, area} objects) and a texture's relative-to-textures-root
+ * path, find the best matching entry.
+ *
  * Prefers exact match; falls back to suffix match (handles packs
  * whose .psc uses a slightly different leading directory than the
  * archive layout).
@@ -232,8 +269,6 @@ function lookupLabel(labels, relativePath) {
     if (labels.size === 0) return null;
     const key = normalizeKey(relativePath);
     if (labels.has(key)) return labels.get(key);
-    // Suffix match: the .psc path might be shorter (no `actors/character/...`
-    // prefix) or longer. Try both directions.
     for (const [k, v] of labels) {
         if (key.endsWith(k) || k.endsWith(key)) return v;
     }
@@ -241,60 +276,20 @@ function lookupLabel(labels, relativePath) {
 }
 
 /**
- * Auto-detect which body region a pack covers (Body / Face / Hands / Feet).
- *
- * Two passes, strongest-signal first:
- *   1. RaceMenu API function calls in the .psc — `AddBodyPaint`,
- *      `AddFacePaint`, `AddHandPaint`, `AddFeetPaint` (and their
- *      `*Overlay` variants). Majority wins. Most authoritative because
- *      the script author EXPLICITLY chose the API.
- *   2. Path-keyword heuristic on the .dds relative paths — looks for
- *      "head", "face", "hand", "nail", "polish", "feet", "foot" as
- *      substrings (no word boundaries — catches Bardle's
- *      `BardleNailPolishBubbles.dds`-style filenames). Bucket with
- *      majority wins, but only if >50% of paths classify.
- *   3. Default: Body (most common; LewdMarks / ZAO / generic packs
- *      have no helpful keyword in their paths).
- *
- * Returns { area, source } where source is one of:
- *   "psc"     — .psc function-call majority
- *   "paths"   — path-keyword majority
- *   "default" — fallback
+ * Per-area packId / label decoration. Body uses the bare base form;
+ * other areas get an area-suffix on the packId and an "(Area)" tag
+ * appended to the display label so multi-area packs stay
+ * distinguishable in the MCM.
  */
-function detectArea(pscText, ddsRelativePaths) {
-    // Pass 1: .psc function calls.
-    const fnCounts = { Body: 0, Face: 0, Hands: 0, Feet: 0 };
-    if (pscText) {
-        const count = (pat) => (pscText.match(pat) || []).length;
-        // RaceMenu API: Add{Body,Face,Hand,Hands,Feet,Foot}{Paint,Overlay}
-        fnCounts.Body  += count(/\bAdd(?:Body)(?:Paint|Overlay)\b/gi);
-        fnCounts.Face  += count(/\bAdd(?:Face|Head)(?:Paint|Overlay)\b/gi);
-        fnCounts.Hands += count(/\bAdd(?:Hand|Hands|Nail|Nails)(?:Paint|Overlay)\b/gi);
-        fnCounts.Feet  += count(/\bAdd(?:Feet|Foot)(?:Paint|Overlay)\b/gi);
+function decorateForArea(basePackId, baseLabel, area) {
+    if (area === 'Body') {
+        return { packId: basePackId, label: baseLabel };
     }
-    const fnTotal = fnCounts.Body + fnCounts.Face + fnCounts.Hands + fnCounts.Feet;
-    if (fnTotal > 0) {
-        const winner = Object.entries(fnCounts)
-            .reduce((a, b) => b[1] > a[1] ? b : a);
-        return { area: winner[0], source: 'psc', counts: fnCounts };
-    }
-
-    // Pass 2: path-keyword heuristic.
-    const pathCounts = { Face: 0, Hands: 0, Feet: 0 };
-    for (const p of ddsRelativePaths) {
-        const lower = p.toLowerCase();
-        if (lower.includes('head') || lower.includes('face')) pathCounts.Face++;
-        else if (lower.includes('nail') || lower.includes('polish') ||
-                 lower.includes('hand')) pathCounts.Hands++;
-        else if (lower.includes('feet') || lower.includes('foot')) pathCounts.Feet++;
-    }
-    const pmax = Math.max(pathCounts.Face, pathCounts.Hands, pathCounts.Feet);
-    if (pmax / ddsRelativePaths.length > 0.5) {
-        const winner = ['Face', 'Hands', 'Feet'].find(k => pathCounts[k] === pmax);
-        return { area: winner, source: 'paths', counts: pathCounts };
-    }
-
-    return { area: 'Body', source: 'default', counts: pathCounts };
+    const suffix = area.toLowerCase(); // face / hands / feet
+    return {
+        packId: `${basePackId}-${suffix}`,
+        label:  `${baseLabel} (${area})`,
+    };
 }
 
 // ─── Status panel ───────────────────────────────────────────────────────
@@ -357,7 +352,7 @@ els.fileInput.addEventListener('change', (e) => {
 });
 
 // ─── Form change re-renders catalog (cheap, no re-parse) ────────────────
-[els.packId, els.packLabel, els.packArea].forEach(el => {
+[els.packId, els.packLabel].forEach(el => {
     el.addEventListener('input', () => {
         if (state) rebuildCatalog();
     });
@@ -499,13 +494,6 @@ async function handleArchive(file) {
         return;
     }
 
-    // Auto-detect area from .psc function names (strongest signal),
-    // falling back to path keywords, then default Body. Sets the form
-    // dropdown so the catalog rebuild uses the detected area; user can
-    // still override.
-    const areaDet = detectArea(pscTextAll, ddsEntries.map(d => d.relative));
-    els.packArea.value = areaDet.area;
-
     state = {
         file:           file,
         root:           root,
@@ -513,8 +501,8 @@ async function handleArchive(file) {
         extraneousDDS:  extraneousDDS,
         labels:         labels,
         pscParsed:      pscParsed,
-        areaDet:        areaDet,
-        catalog:        null,
+        // Filled by rebuildCatalog: one entry per non-empty area group.
+        catalogs:       null,
     };
 
     els.dropMeta.innerHTML =
@@ -533,10 +521,9 @@ async function handleArchive(file) {
 function rebuildCatalog() {
     if (!state) return;
 
-    const packId = els.packId.value.trim();
-    const packLabel = els.packLabel.value.trim();
-    const packArea = els.packArea.value;
-    const idOk = /^mtf\.[a-z0-9][a-z0-9._-]*$/.test(packId);
+    const basePackId = els.packId.value.trim();
+    const baseLabel  = els.packLabel.value.trim();
+    const idOk = /^mtf\.[a-z0-9][a-z0-9._-]*$/.test(basePackId);
 
     if (!idOk) {
         els.statusCard.hidden = false;
@@ -545,108 +532,107 @@ function rebuildCatalog() {
             `<strong>Pack ID looks off.</strong> Expected the form ` +
             `<code>mtf.&lt;name&gt;</code> &mdash; lowercase, dots / dashes / underscores OK.`
         );
-        state.catalog = null;
+        state.catalogs = null;
         els.downloadBtn.disabled = true;
         return;
     }
-    if (!packLabel) {
+    if (!baseLabel) {
         els.statusCard.hidden = false;
         els.statusContent.innerHTML = '';
         showSummary(`<strong>Display label is required.</strong>`);
-        state.catalog = null;
+        state.catalogs = null;
         els.downloadBtn.disabled = true;
         return;
     }
 
-    // Resolve .psc-derived labels for every .dds up front so we can
-    // both filter and label in one pass.
-    const ddsWithLabels = state.ddsEntries.map(d => ({
-        ...d,
-        pscLabel: lookupLabel(state.labels, d.relative),
-    }));
+    // ─── Per-DDS resolution: label + area ───────────────────────────────
+    // For each .dds we resolve:
+    //   pscMatch  — the {name, area} object the .psc registered (or null)
+    //   area      — pscMatch.area || classifyByPath || 'Body'
+    //   label     — pscMatch.name || filename stem
+    const ddsWithMeta = state.ddsEntries.map(d => {
+        const pscMatch = lookupLabel(state.labels, d.relative);
+        const area = (pscMatch && pscMatch.area)
+            || classifyByPath(d.relative)
+            || 'Body';
+        const label = (pscMatch && pscMatch.name) || d.stem;
+        return { ...d, pscMatch, area, label };
+    });
 
-    // When a .psc is present, treat it as the author's curation: skip
-    // any .dds the .psc didn't explicitly register. (Authors commonly
-    // leave unused / draft textures in their archive that they meant
-    // to remove; including them would clutter the MCM dropdown.)
-    //
-    // Safety valve: if NOTHING matches (zero hits), the .psc paths
-    // probably don't align with the archive layout — fall back to
-    // catalogging everything rather than emitting an empty pack.
-    let sourceEntries = ddsWithLabels;
+    // ─── .psc curation filter ───────────────────────────────────────────
+    // When a .psc is present, treat it as the author's curation: only
+    // catalog .dds files the .psc explicitly registered. Safety valve:
+    // if ZERO matches (paths misaligned), fall back to catalogging
+    // everything.
+    let sourceEntries = ddsWithMeta;
     let skippedUnregistered = 0;
     if (state.labels.size > 0) {
-        const matched = ddsWithLabels.filter(d => d.pscLabel !== null);
+        const matched = ddsWithMeta.filter(d => d.pscMatch !== null);
         if (matched.length > 0) {
-            skippedUnregistered = ddsWithLabels.length - matched.length;
+            skippedUnregistered = ddsWithMeta.length - matched.length;
             sourceEntries = matched;
         }
     }
 
-    const takenIds = new Set();
-    const entries = sourceEntries.map(d => {
-        const displayName = d.pscLabel || d.stem;
-        return {
-            id:    makeEntryId(displayName, takenIds),
-            label: displayName,
-            layers: [
-                { texture: toSkyrimPath(d.relative) },
-            ],
-        };
-    });
-    state.labeledFromPsc      = sourceEntries.filter(d => d.pscLabel).length;
-    state.skippedUnregistered = skippedUnregistered;
+    // ─── Group by area ──────────────────────────────────────────────────
+    const groups = { Body: [], Face: [], Hands: [], Feet: [] };
+    for (const d of sourceEntries) {
+        groups[d.area].push(d);
+    }
 
-    state.catalog = {
-        schemaVersion: 3,
-        packId:        packId,
-        label:         packLabel,
-        area:          packArea,
-        entries:       entries,
-    };
+    // ─── Build one catalog per non-empty group ──────────────────────────
+    const catalogs = [];
+    for (const area of ['Body', 'Face', 'Hands', 'Feet']) {
+        const groupEntries = groups[area];
+        if (groupEntries.length === 0) continue;
+        const { packId, label } = decorateForArea(basePackId, baseLabel, area);
+        const takenIds = new Set();
+        catalogs.push({
+            schemaVersion: 3,
+            packId:        packId,
+            label:         label,
+            area:          area,
+            entries:       groupEntries.map(d => ({
+                id:    makeEntryId(d.label, takenIds),
+                label: d.label,
+                layers: [{ texture: toSkyrimPath(d.relative) }],
+            })),
+        });
+    }
+    state.catalogs            = catalogs;
+    state.skippedUnregistered = skippedUnregistered;
+    state.labeledFromPsc      = sourceEntries.filter(d => d.pscMatch).length;
 
     // ─── Render status panel ────────────────────────────────────────────
     els.statusCard.hidden = false;
     els.statusContent.innerHTML = '';
+
+    const totalEntries = catalogs.reduce((n, c) => n + c.entries.length, 0);
+    const areaBreakdown = catalogs
+        .map(c => `<strong>${c.entries.length}</strong> ${c.area}`)
+        .join(', ');
     showSummary(
-        `Ready to package <strong>${escapeHtml(packId)}</strong> ` +
-        `(<strong>${entries.length}</strong> entries, area: <strong>${escapeHtml(packArea)}</strong>).`
+        `Ready to package <strong>${escapeHtml(basePackId)}</strong> &mdash; ` +
+        `${totalEntries} entries across ${catalogs.length} catalog${catalogs.length === 1 ? '' : 's'} ` +
+        `(${areaBreakdown}).`
     );
 
     addStatus('ok',
         `Texture root detected: <code>${escapeHtml(state.root)}</code>.`
     );
 
-    // Area auto-detection report (only when we picked a non-default
-    // bucket — the default case is silent so the panel stays terse).
-    if (state.areaDet) {
-        if (state.areaDet.source === 'psc') {
-            const breakdown = Object.entries(state.areaDet.counts)
-                .filter(([, n]) => n > 0)
-                .map(([k, n]) => `${k}=${n}`)
-                .join(', ');
-            addStatus('ok',
-                `Area set to <strong>${escapeHtml(state.areaDet.area)}</strong> &mdash; ` +
-                `from RaceMenu function calls in .psc (${breakdown}).`
-            );
-        } else if (state.areaDet.source === 'paths') {
-            addStatus('ok',
-                `Area set to <strong>${escapeHtml(state.areaDet.area)}</strong> &mdash; ` +
-                `from texture-path keywords.`
-            );
-        } else if (packArea !== 'Body') {
-            // User manually changed away from the default.
-            addStatus('info',
-                `Area set to <strong>${escapeHtml(packArea)}</strong> (manual).`
-            );
-        }
+    // Per-catalog summary rows — one per output JSON.
+    for (const cat of catalogs) {
+        const fileName = `${cat.packId}.json`;
+        addStatus('ok',
+            `<strong>${escapeHtml(cat.label)}</strong> ` +
+            `(${cat.entries.length} entries, area: ${cat.area}) &rarr; ` +
+            `<code>${escapeHtml(fileName)}</code>`
+        );
     }
 
-    addStatus('ok',
-        `JSON output path: <code>SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/${escapeHtml(packId)}.json</code>`
-    );
     addStatus('info',
-        `Output is JSON-only &mdash; the catalog points at textures from the source mod, ` +
+        `Output is JSON-only &mdash; catalog${catalogs.length === 1 ? '' : 's'} point at textures from the source mod, ` +
         `which the end user installs separately. (Matches the framework's ` +
         `<code>content-packs/</code> convention.)`
     );
@@ -660,9 +646,10 @@ function rebuildCatalog() {
         );
     }
 
-    // Collision report
+    // Collision report (across all catalogs combined)
+    const allLabels = catalogs.flatMap(c => c.entries.map(e => e.label));
     const labelCounts = new Map();
-    entries.forEach(e => labelCounts.set(e.label, (labelCounts.get(e.label) || 0) + 1));
+    allLabels.forEach(l => labelCounts.set(l, (labelCounts.get(l) || 0) + 1));
     const collisions = [...labelCounts.entries()].filter(([, n]) => n > 1);
     if (collisions.length > 0) {
         const sample = collisions.slice(0, 3).map(([k, n]) => `<code>${escapeHtml(k)}</code> &times;${n}`).join(', ');
@@ -675,16 +662,16 @@ function rebuildCatalog() {
 
     // .psc label sourcing report
     if (state.pscParsed && state.pscParsed.count > 0) {
-        const allLabeled = state.labeledFromPsc === entries.length;
         const pscList = state.pscParsed.paths.map(p => `<code>${escapeHtml(p)}</code>`).join(', ');
+        const allLabeled = state.labeledFromPsc === totalEntries;
         if (allLabeled) {
             addStatus('ok',
-                `All ${entries.length} entries labelled from ${pscList} ` +
+                `All ${totalEntries} entries labelled from ${pscList} ` +
                 `(${state.pscParsed.count} mappings found).`
             );
         } else {
             addStatus('info',
-                `${state.labeledFromPsc} of ${entries.length} entries labelled from ${pscList}. ` +
+                `${state.labeledFromPsc} of ${totalEntries} entries labelled from ${pscList}. ` +
                 `The rest fall back to filename stems &mdash; the .psc likely doesn't register them.`
             );
         }
@@ -702,8 +689,8 @@ function rebuildCatalog() {
         );
     } else {
         addStatus('info',
-            `No <code>.psc</code> source script found &mdash; entry labels default to filename stems. ` +
-            `Edit the JSON afterward if you want better MCM display names.`
+            `No <code>.psc</code> source script found &mdash; entry labels default to filename stems, ` +
+            `areas inferred from path keywords. Edit the JSON${catalogs.length === 1 ? '' : 's'} afterward if needed.`
         );
     }
 
@@ -713,21 +700,21 @@ function rebuildCatalog() {
 // ─── Output composition ─────────────────────────────────────────────────
 
 els.downloadBtn.addEventListener('click', async () => {
-    if (!state || !state.catalog) return;
+    if (!state || !state.catalogs || state.catalogs.length === 0) return;
 
     els.downloadBtn.disabled = true;
     els.downloadBtn.textContent = 'Packaging…';
 
     try {
-        // The output is a thin MO2-installable ZIP wrapping ONLY the
-        // catalog JSON. No textures pass through. End users install the
-        // source texture mod separately; this catalog is just the
-        // pointer that tells MTF which textures to use.
+        // Thin MO2-installable ZIP wrapping ONE catalog JSON per area
+        // group (1-4 files total). No textures pass through. End users
+        // install the source texture mod separately.
         const out = new JSZip();
-        const newJsonPath =
-            `SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/${state.catalog.packId}.json`;
-        const jsonText = JSON.stringify(state.catalog, null, 2) + '\n';
-        out.file(newJsonPath, jsonText);
+        for (const cat of state.catalogs) {
+            const jsonPath =
+                `SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/${cat.packId}.json`;
+            out.file(jsonPath, JSON.stringify(cat, null, 2) + '\n');
+        }
 
         const blob = await out.generateAsync({
             type: 'blob',
@@ -735,10 +722,13 @@ els.downloadBtn.addEventListener('click', async () => {
             compressionOptions: { level: 6 },
         });
 
+        // Output filename uses the BASE packId (the Body / first one),
+        // so a multi-area pack still gets a sensible mod name.
+        const baseId = state.catalogs[0].packId;
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${state.catalog.packId}.zip`;
+        a.download = `${baseId}.zip`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

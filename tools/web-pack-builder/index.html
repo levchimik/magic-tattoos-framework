@@ -24,14 +24,20 @@
             <h2>1. Pack metadata</h2>
             <p class="form-hint">
                 Pack ID and display label are auto-filled from the dropped
-                archive's filename &mdash; tweak if needed. Area defaults
-                to <strong>Body</strong>; switch it for face / hands /
-                feet packs.
+                archive's filename &mdash; tweak if needed. Area is
+                auto-detected per texture from the bundled <code>.psc</code>
+                (or filename keywords when none); a multi-area pack splits
+                into one catalog JSON per area in the output ZIP.
             </p>
 
             <label for="packId">
                 Pack ID
-                <span class="hint">unique, lowercase, dotted, e.g. <code>mtf.zao-active-overlays</code></span>
+                <span class="hint">
+                    base form, lowercase / dotted, e.g.
+                    <code>mtf.zao-active-overlays</code>. Non-body areas get
+                    <code>-face</code> / <code>-hands</code> / <code>-feet</code>
+                    suffixes in their JSON.
+                </span>
             </label>
             <input
                 type="text"
@@ -44,7 +50,11 @@
 
             <label for="packLabel">
                 Display label
-                <span class="hint">shown in the MCM (pack picker dropdown)</span>
+                <span class="hint">
+                    base form shown in the MCM pack-picker. Non-body splits
+                    get <code>(Face)</code> / <code>(Hands)</code> /
+                    <code>(Feet)</code> appended.
+                </span>
             </label>
             <input
                 type="text"
@@ -52,17 +62,6 @@
                 value="My Pack"
                 required
                 autocomplete="off">
-
-            <label for="packArea">
-                Area
-                <span class="hint">which body region the textures cover</span>
-            </label>
-            <select id="packArea">
-                <option value="Body" selected>Body</option>
-                <option value="Face">Face</option>
-                <option value="Hands">Hands</option>
-                <option value="Feet">Feet</option>
-            </select>
         </section>
 
         <section class="drop-card">
