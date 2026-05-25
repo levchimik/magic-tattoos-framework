@@ -1,57 +1,196 @@
 {
-	"displayname" : "Test: Modifies (Skills)",
-	"int" :
-	{
-		"valid" : 0
+	"displayname": "Test: Modifies (Skills)",
+	"int": {
+		"valid": 0
 	},
-	"schemaversion" : 7,
-	"transition" :
-	{
-		"duration" : 0.3
+	"schemaversion": 8,
+	"transition": {
+		"duration": 0.3
 	},
-	"slot" :
-	[
+	"slot": [
 		{
-			"cond" :
-			{
-				"entryid" : "",
-				"packid" : "",
-				"param" : 0,
-				"pluginid" : ""
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
 			},
-			"cooldown" :
-			{
-				"min" : 0,
-				"mode" : 0
+			"cooldown": {
+				"min": 0,
+				"mode": 0
 			},
-			"effect" :
-			[
-				{ "key" : "mtf.base:modify.oneHanded",   "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.twoHanded",   "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.archery",     "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.block",       "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.heavyArmor",  "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.lightArmor",  "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.smithing",    "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.enchanting",  "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.alchemy",     "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.destruction", "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.restoration", "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.alteration",  "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.illusion",    "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.conjuration", "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.speech",      "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.lockpicking", "param" : 20, "param2" : 0 },
-				{ "key" : "mtf.base:modify.pickpocket",  "param" : 20, "param2" : 0 }
+			"effect": [
+				{
+					"key": "mtf.base:modify.oneHanded",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.twoHanded",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.archery",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.block",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.heavyArmor",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.lightArmor",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.smithing",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.enchanting",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.alchemy",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.destruction",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.restoration",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.alteration",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.illusion",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.conjuration",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.speech",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.lockpicking",
+					"param2": 0,
+					"param1": 20
+				},
+				{
+					"key": "mtf.base:modify.pickpocket",
+					"param2": 0,
+					"param1": 20
+				}
 			]
 		},
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		}
 	],
-	"valid" : 1
+	"valid": 1
 }

@@ -182,9 +182,16 @@ EndFunction
 
 string Function GetEffectLabel(int idx)
     if idx == 0
-        return "[!] Award Gold"
+        return "Award Gold"
     endif
     return ""
+EndFunction
+
+string Function GetEffectKind(int idx)
+    if idx == 0
+        return "burst"
+    endif
+    return "continuous"
 EndFunction
 
 string Function GetEffectDescription(int idx)
@@ -309,7 +316,8 @@ active (`onActivate`) and reverts when the tier becomes inactive
 |---|---|---|
 | `GetEffectCount()` | int | Number of effects this plugin provides. |
 | `GetEffectId(int idx)` | string | Stable per-plugin id. |
-| `GetEffectLabel(int idx)` | string | MCM display name. Prefix `[!]` for one-shot bursts (community convention — UX cue that the effect doesn't toggle off). |
+| `GetEffectLabel(int idx)` | string | MCM display name. Do NOT prefix `[!]` manually — set `"kind": "burst"` in the JSON catalog and the framework prepends the badge at render time. |
+| `GetEffectKind(int idx)` | string | `"burst"` (one-shot on activate) or `"continuous"` (default; active while the tier is on). Determines whether MCM badges the label and whether the lifecycle audit tracks it. |
 | `GetEffectDescription(int idx)` | string | Plain-English description. `{param1}` / `{param2}` substituted. |
 | `onActivate(int idx, Actor target, int param, int param2)` | — | Called when the effect becomes active. |
 

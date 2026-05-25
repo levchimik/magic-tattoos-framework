@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.sexlab",
   "pluginlabel": "SexLab Framework",
   "conditions": [
@@ -12,49 +12,89 @@
       "id": "cum.total",
       "label": "Cum (Total Layers)",
       "description": "Triggers when the actor has at least {param1} cum stain(s) on her body.",
-      "param": { "label": "Min layers", "min": 0, "max": 30, "default": 1 }
+      "param": {
+        "label": "Min layers",
+        "min": 0,
+        "max": 30,
+        "default": 1
+      }
     },
     {
       "id": "cum.vaginal",
       "label": "Cum (Vaginal)",
       "description": "Triggers when the actor has at least {param1} vaginal cum stain(s).",
-      "param": { "label": "Min layers", "min": 0, "max": 30, "default": 1 }
+      "param": {
+        "label": "Min layers",
+        "min": 0,
+        "max": 30,
+        "default": 1
+      }
     },
     {
       "id": "cum.oral",
       "label": "Cum (Oral)",
       "description": "Triggers when the actor has at least {param1} oral cum stain(s).",
-      "param": { "label": "Min layers", "min": 0, "max": 30, "default": 1 }
+      "param": {
+        "label": "Min layers",
+        "min": 0,
+        "max": 30,
+        "default": 1
+      }
     },
     {
       "id": "cum.anal",
       "label": "Cum (Anal)",
       "description": "Triggers when the actor has at least {param1} anal cum stain(s).",
-      "param": { "label": "Min layers", "min": 0, "max": 30, "default": 1 }
+      "param": {
+        "label": "Min layers",
+        "min": 0,
+        "max": 30,
+        "default": 1
+      }
     },
     {
       "id": "skill.vaginal",
       "label": "Skill — Vaginal",
       "description": "Triggers when the actor's lifetime vaginal experience is at or above {param1}.",
-      "param": { "label": "Min skill XP", "min": 0, "max": 500, "default": 50 }
+      "param": {
+        "label": "Min skill XP",
+        "min": 0,
+        "max": 500,
+        "default": 50
+      }
     },
     {
       "id": "skill.anal",
       "label": "Skill — Anal",
       "description": "Triggers when the actor's lifetime anal experience is at or above {param1}.",
-      "param": { "label": "Min skill XP", "min": 0, "max": 500, "default": 50 }
+      "param": {
+        "label": "Min skill XP",
+        "min": 0,
+        "max": 500,
+        "default": 50
+      }
     },
     {
       "id": "skill.oral",
       "label": "Skill — Oral",
       "description": "Triggers when the actor's lifetime oral experience is at or above {param1}.",
-      "param": { "label": "Min skill XP", "min": 0, "max": 500, "default": 50 }
+      "param": {
+        "label": "Min skill XP",
+        "min": 0,
+        "max": 500,
+        "default": 50
+      }
     },
     {
       "id": "purity",
       "label": "Purity (signed)",
       "description": "Triggers when the actor's purity score is at or above {param1} (positive = pure, negative = lewd).",
-      "param": { "label": "Min purity (signed)", "min": -500, "max": 500, "default": 0 }
+      "param": {
+        "label": "Min purity (signed)",
+        "min": -500,
+        "max": 500,
+        "default": 0
+      }
     },
     {
       "id": "has.strapon",
@@ -65,48 +105,100 @@
   "effects": [
     {
       "id": "cum.apply",
-      "label": "[!] Apply Cum",
+      "label": "Apply Cum",
       "description": "Burst — splatters {param2} {param1} cum stain(s) on the actor.",
-      "param": {
-        "label": "Cum type",
-        "min": 0, "max": 2, "default": 0,
-        "menu": [
-          { "value": 0, "label": "Vaginal" },
-          { "value": 1, "label": "Oral" },
-          { "value": 2, "label": "Anal" }
-        ]
+      "kind": "burst",
+      "param2": {
+        "label": "Layer count",
+        "min": 1,
+        "max": 5,
+        "default": 1
       },
-      "param2": { "label": "Layer count", "min": 1, "max": 5, "default": 1 }
+      "param1": {
+        "label": "Cum type",
+        "min": 0,
+        "max": 2,
+        "default": 0,
+        "menu": [
+          {
+            "value": 0,
+            "label": "Vaginal"
+          },
+          {
+            "value": 1,
+            "label": "Oral"
+          },
+          {
+            "value": 2,
+            "label": "Anal"
+          }
+        ]
+      }
     },
     {
       "id": "cum.remove",
-      "label": "[!] Remove Cum",
+      "label": "Remove Cum",
       "description": "Burst — wipes off {param1} cum stains from the actor.",
-      "param": {
+      "kind": "burst",
+      "param1": {
         "label": "Cum type to remove",
-        "min": -1, "max": 2, "default": -1,
+        "min": -1,
+        "max": 2,
+        "default": -1,
         "menu": [
-          { "value": -1, "label": "All" },
-          { "value": 0,  "label": "Vaginal" },
-          { "value": 1,  "label": "Oral" },
-          { "value": 2,  "label": "Anal" }
+          {
+            "value": -1,
+            "label": "All"
+          },
+          {
+            "value": 0,
+            "label": "Vaginal"
+          },
+          {
+            "value": 1,
+            "label": "Oral"
+          },
+          {
+            "value": 2,
+            "label": "Anal"
+          }
         ]
       }
     },
     {
       "id": "skill.add.xp",
-      "label": "[!] Add Skill XP",
+      "label": "Add Skill XP",
       "description": "Burst — gives the actor {param1} experience in her {param2} skill.",
-      "param": { "label": "XP amount", "min": 0, "max": 100, "default": 10 },
+      "kind": "burst",
       "param2": {
         "label": "Skill (0=vag, 1=anal, 2=oral, 3=foreplay)",
-        "min": 0, "max": 3, "default": 0,
+        "min": 0,
+        "max": 3,
+        "default": 0,
         "menu": [
-          { "value": 0, "label": "Vaginal" },
-          { "value": 1, "label": "Anal" },
-          { "value": 2, "label": "Oral" },
-          { "value": 3, "label": "Foreplay" }
+          {
+            "value": 0,
+            "label": "Vaginal"
+          },
+          {
+            "value": 1,
+            "label": "Anal"
+          },
+          {
+            "value": 2,
+            "label": "Oral"
+          },
+          {
+            "value": 3,
+            "label": "Foreplay"
+          }
         ]
+      },
+      "param1": {
+        "label": "XP amount",
+        "min": 0,
+        "max": 100,
+        "default": 10
       }
     }
   ]

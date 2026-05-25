@@ -28,6 +28,13 @@ def is_abs_shift(idx: int) -> bool:
     range -100..100, default 0, slider unit = 'points'/'%'."""
     return (idx <= 2 or (5 <= idx <= 7) or (11 <= idx <= 21) or (34 <= idx <= 54))
 
+
+# Idxes of burst-kind effects in Base — fires once on activate, no rolling
+# state. Continuous is the default (kind field omitted in JSON). MCM
+# prepends a "[!] " badge automatically for kind == burst at render time —
+# don't put the prefix in labels here.
+BASE_BURSTS = {3, 4, 8, 9, 25, 26}
+
 # ── Conditions ────────────────────────────────────────────────────────────────
 # (idx, id, label, description, param?)
 # param schema: dict with optional label/min/max/default/format/menu
@@ -248,12 +255,12 @@ EFFECTS_RAW = [
      "Shifts the actor's Sneak skill by {param1}.",
      "Sneak skill shift (points; + buff, - drain)", None),
     (3,  "damage.magicka",
-     "[!] Damage Magicka",
+     "Damage Magicka",
      "Burst — damages or restores {param1}% of the actor's base magicka when the tier activates.",
      "Burst % of base Magicka (+ restore, - damage)",
      {"param": {"min": -100, "max": 100, "default": 0}}),
     (4,  "damage.stamina",
-     "[!] Damage Stamina",
+     "Damage Stamina",
      "Burst — damages or restores {param1}% of the actor's base stamina when the tier activates.",
      "Burst % of base Stamina (+ restore, - damage)",
      {"param": {"min": -100, "max": 100, "default": 0}}),
@@ -270,12 +277,12 @@ EFFECTS_RAW = [
      "Shifts the actor's outgoing attack damage by {param1}%.",
      "Attack damage shift (% points; + buff, - drain)", None),
     (8,  "burst.stagger",
-     "[!] Stagger",
+     "Stagger",
      "Burst — staggers the actor when the tier activates.",
      "",
      {"param": {"min": 0, "max": 0, "default": 0}}),
     (9,  "burst.blowCover",
-     "[!] Blow Cover",
+     "Blow Cover",
      "Burst — alerts every hostile NPC within {param1}ft to the actor's presence (blows stealth).",
      "Alert radius (feet)",
      {"param": {"min": 5, "max": 300, "default": 80, "step": 5}}),
@@ -331,65 +338,65 @@ EFFECTS_RAW = [
      "Shifts the actor's magic resistance by {param1}%.",
      "Magic resist shift (points; + resist, - weakness)", None),
     (22, "toggle.muffle",
-     "[+] Muffle",
+     "Muffle",
      "Toggles silenced footsteps on the actor while active.",
      "",
      {"param": {"min": 0, "max": 0, "default": 0}}),
     (23, "toggle.waterbreathing",
-     "[+] Waterbreathing",
+     "Waterbreathing",
      "Toggles waterbreathing on the actor while active.",
      "",
      {"param": {"min": 0, "max": 0, "default": 0}}),
     (24, "toggle.waterWalking",
-     "[+] Water Walking",
+     "Water Walking",
      "Toggles water-walking on the actor while active.",
      "",
      {"param": {"min": 0, "max": 0, "default": 0}}),
     (25, "damage.health",
-     "[!] Damage Health",
+     "Damage Health",
      "Burst — damages or restores {param1}% of the actor's base health when the tier activates.",
      "Burst % of base Health (+ restore, - damage)",
      {"param": {"min": -100, "max": 100, "default": 0}}),
     (26, "burst.bounty",
-     "[!] Add Bounty",
+     "Add Bounty",
      "Burst — adjusts the actor's bounty in their current hold by {param1} gold (positive adds, negative pays off).",
      "Bounty change (gold; + add, - remove)",
      {"param": {"min": -10000, "max": 10000, "default": 0, "step": 50}}),
     (27, "spell.modifyArmor",
-     "[+] Modify Armor",
+     "Modify Armor",
      "Toggles a flat armor-rating bonus of {param1} while active.",
      "Armor rating points",
      {"param": {"min": 0, "max": 500, "default": 100, "step": 10}}),
     (28, "spell.detectLife",
-     "[+] Detect Life",
+     "Detect Life",
      "Toggles a Detect Life aura that highlights living NPCs within {param1}ft while active.",
      "Detect radius (feet)",
      {"param": {"min": 5, "max": 500, "default": 100, "step": 10}}),
     (29, "spell.slowTime",
-     "[+] Slow Time",
+     "Slow Time",
      "Toggles a slow-time effect that drags everything around the actor to {param1}% of normal speed while active.",
      "Time speed % (lower = slower; 100 = normal)",
      {"param": {"min": 5, "max": 100, "default": 50, "step": 5}}),
     (30, "spell.flameCloak",
-     "[+] Flame Cloak",
+     "Flame Cloak",
      "Toggles a flame cloak that burns enemies within {param2}ft for {param1} damage/s while active.",
      "Damage per second",
      {"param":  {"min": 1, "max": 200, "default": 8},
       "param2": {"label": "Radius (feet)", "min": 3, "max": 500, "default": 5}}),
     (31, "spell.frostCloak",
-     "[+] Frost Cloak",
+     "Frost Cloak",
      "Toggles a frost cloak that chills enemies within {param2}ft for {param1} damage/s while active.",
      "Damage per second",
      {"param":  {"min": 1, "max": 200, "default": 8},
       "param2": {"label": "Radius (feet)", "min": 3, "max": 500, "default": 5}}),
     (32, "spell.lightningCloak",
-     "[+] Lightning Cloak",
+     "Lightning Cloak",
      "Toggles a lightning cloak that shocks enemies within {param2}ft for {param1} damage/s while active.",
      "Damage per second",
      {"param":  {"min": 1, "max": 200, "default": 8},
       "param2": {"label": "Radius (feet)", "min": 3, "max": 500, "default": 5}}),
     (33, "flash.onhit",
-     "[+] Flash",
+     "Flash",
      "Flashes the tattoo's emissive layer to {param2}% brightness on the chosen trigger event ({param1}).",
      "Trigger event",
      {"param":  {"min": 0, "max": 127, "default": 1,
@@ -484,7 +491,7 @@ EFFECTS_RAW = [
      "Shifts the actor's Pickpocket skill by {param1}.",
      "Pickpocket skill shift (points; + buff, - drain)", None),
     (55, "shader.play",
-     "[+] Vanilla Shader",
+     "Vanilla Shader",
      "Plays the {param1} effect shader on the actor while active (duration {param2}s; 0 = until removed).",
      "Shader",
      {"param":  {"min": 0, "max": len(SHADERS) - 1, "default": 0,
@@ -492,7 +499,7 @@ EFFECTS_RAW = [
       "param2": {"label": "Duration (s, 0 = until removed)",
                  "min": 0, "max": 60, "default": 0}}),
     (56, "sound.play",
-     "[+] Vanilla Sound",
+     "Vanilla Sound",
      "Plays the {param1} looping sound on the actor while active (duration {param2}s; 0 = until removed).",
      "Sound",
      {"param":  {"min": 0, "max": len(SOUNDS) - 1, "default": 0,
@@ -532,19 +539,36 @@ def build_condition(idx, t):
 
 
 def build_effect(idx, t):
-    """Assemble one effect entry. Fills in abs-shift defaults for the majority
-    of effects (-100..100, default 0, step 1)."""
+    """Assemble one effect entry in the v0.2.1+ uniform paramN schema.
+
+    Each effect declares up to 5 numbered params (param1..param5). All optional;
+    the framework probes paramN.label and renders/dispatches only the ones
+    declared. The previous schema had asymmetric `param`/`param2`/`extras[]`
+    triplet — collapsed for uniformity.
+
+    For Base specifically, params map positionally:
+      param1 = the "param" slider (slider/menu)
+      param2 = the optional second slider (cloak radius, flash peak, etc)
+      param3..param5 = former extras (envelope timings on flash, volume on sound)
+    Fills in abs-shift defaults for the majority of effects (-100..100, default
+    0, step 1) on param1.
+    """
     eidx, eid, label, desc, param_label, overrides = t
     out = {"id": eid, "label": label, "description": desc}
+
+    # Burst effects fire once on activate; continuous is the default and the
+    # field is omitted (MTF_Plugin.GetEffectKind returns "continuous" when
+    # absent). Bursts get the "[!]" badge prepended by MCM at render time.
+    if eidx in BASE_BURSTS:
+        out["kind"] = "burst"
 
     overrides = overrides or {}
     param_o   = overrides.get("param", {})
     param2_o  = overrides.get("param2")
-    extras_o  = overrides.get("extras")
+    extras_o  = overrides.get("extras") or []
 
-    # ── param block ────────────────────────────────────────────────────────
+    # ── param1 (primary slider/menu) ───────────────────────────────────────
     p = {}
-    # Label always present (empty string OK — base defaults to "").
     if param_label:
         p["label"] = param_label
     # For abs-shift effects we want min=-100, max=100, default=0, step=1
@@ -552,34 +576,38 @@ def build_effect(idx, t):
     # We MUST write min=-100 explicitly. max=100 we can omit (matches default).
     if is_abs_shift(eidx):
         p.setdefault("min", -100)
-        # Override-side wins
-        for k in ("min", "max", "default", "step"):
-            if k in param_o:
-                p[k] = param_o[k]
-    else:
-        for k in ("min", "max", "default", "step"):
-            if k in param_o:
-                p[k] = param_o[k]
+    for k in ("min", "max", "default", "step"):
+        if k in param_o:
+            p[k] = param_o[k]
     if "menu" in param_o:
         p["menu"] = param_o["menu"]
-    # Only emit param if it has content.
     if p:
-        out["param"] = p
+        out["param1"] = p
 
-    # ── param2 block ───────────────────────────────────────────────────────
+    # ── param2 (optional second slider/menu) ───────────────────────────────
     if param2_o is not None:
-        out["param2"] = param2_o
+        # Strip any legacy `name` key — meaningless under positional schema.
+        p2 = {k: v for k, v in param2_o.items() if k != "name"}
+        out["param2"] = p2
 
-    # ── extras block ───────────────────────────────────────────────────────
-    if extras_o is not None:
-        out["extras"] = extras_o
+    # ── param3..param5 (former extras, now positional) ─────────────────────
+    # extras were authored as [{name, label, min, max, step, default, menu}].
+    # Under the uniform schema the `name` field is dropped — the position
+    # IS the name. Plugin behaviour code reads them by index via
+    # host.GetSlotEffectParam(slot, eff, n) for n in {3,4,5}.
+    for i, ex in enumerate(extras_o):
+        n = i + 3
+        if n > 5:
+            raise ValueError(f"effect idx {eidx} has more than 3 extras")
+        pN = {k: v for k, v in ex.items() if k != "name"}
+        out[f"param{n}"] = pN
 
     return out
 
 
 def main():
     catalog = {
-        "schemaversion": 1,
+        "schemaversion": 2,
         "pluginid": "mtf.base",
         "pluginlabel": "Base",
         "conditions": [build_condition(i, t) for i, t in enumerate(CONDITIONS)],

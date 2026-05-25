@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.ostim",
   "pluginlabel": "OStim Standalone",
   "conditions": [
@@ -12,13 +12,23 @@
       "id": "excitement",
       "label": "Excitement",
       "description": "Triggers during an intimate scene when the actor is at least {param1}% aroused.",
-      "param": { "label": "Min excitement", "min": 0, "max": 100, "default": 50 }
+      "param": {
+        "label": "Min excitement",
+        "min": 0,
+        "max": 100,
+        "default": 50
+      }
     },
     {
       "id": "times.climaxed",
       "label": "Times Climaxed",
       "description": "Triggers when the actor has climaxed at least {param1} time(s) in the current scene.",
-      "param": { "label": "Min climax count", "min": 0, "max": 10, "default": 1 }
+      "param": {
+        "label": "Min climax count",
+        "min": 0,
+        "max": 10,
+        "default": 1
+      }
     },
     {
       "id": "climax.stalled",
@@ -30,8 +40,14 @@
         "max": 1,
         "default": 1,
         "menu": [
-          { "value": 0, "label": "Not stalled" },
-          { "value": 1, "label": "Stalled" }
+          {
+            "value": 0,
+            "label": "Not stalled"
+          },
+          {
+            "value": 1,
+            "label": "Stalled"
+          }
         ]
       }
     },
@@ -44,22 +60,45 @@
   "effects": [
     {
       "id": "trigger.climax",
-      "label": "[!] Trigger Climax",
+      "label": "Trigger Climax",
       "description": "Burst — forces the actor to climax immediately (can override any active hold).",
-      "param2": { "label": "Bypass stall (0/1)", "min": 0, "max": 1, "default": 0 }
+      "kind": "burst",
+      "param2": {
+        "label": "Bypass stall (0/1)",
+        "min": 0,
+        "max": 1,
+        "default": 0
+      }
     },
     {
       "id": "excitement.modify",
-      "label": "[!] Modify Excitement",
+      "label": "Modify Excitement",
       "description": "Burst — adds {param1} to the actor's arousal (negative subtracts).",
-      "param":  { "label": "Excitement delta", "min": -100, "max": 100, "default": 20 },
-      "param2": { "label": "Respect multiplier (0/1)", "min": 0, "max": 1, "default": 1 }
+      "kind": "burst",
+      "param2": {
+        "label": "Respect multiplier (0/1)",
+        "min": 0,
+        "max": 1,
+        "default": 1
+      },
+      "param1": {
+        "label": "Excitement delta",
+        "min": -100,
+        "max": 100,
+        "default": 20
+      }
     },
     {
       "id": "excitement.set",
-      "label": "[!] Set Excitement",
+      "label": "Set Excitement",
       "description": "Burst — sets the actor's arousal to {param1}.",
-      "param": { "label": "Target excitement", "min": 0, "max": 100, "default": 80 }
+      "kind": "burst",
+      "param1": {
+        "label": "Target excitement",
+        "min": 0,
+        "max": 100,
+        "default": 80
+      }
     },
     {
       "id": "climax.stall",
@@ -68,9 +107,14 @@
     },
     {
       "id": "excitement.mult.set",
-      "label": "[!] Set Excitement Multiplier",
+      "label": "Set Excitement Multiplier",
       "description": "Sets the actor's arousal-climb speed to {param1}x normal while active (arousal builds {param1}x faster).",
-      "param": { "label": "Multiplier (×1.0)", "min": 0, "max": 10, "default": 3 }
+      "param1": {
+        "label": "Multiplier (×1.0)",
+        "min": 0,
+        "max": 10,
+        "default": 3
+      }
     }
   ]
 }

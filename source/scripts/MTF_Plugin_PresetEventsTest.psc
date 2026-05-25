@@ -37,10 +37,6 @@ int Function GetEffectCount()
     return 0
 EndFunction
 
-int Function GetSettingCount()
-    return 0
-EndFunction
-
 ; ── Outbound-result handler (invoked by MTF_AliasPresetEventsTest) ──────────
 ; Surface API confirmations as in-game toasts so the tester sees evidence
 ; the round-trip worked. The strArg/numArg shape comes from MainQuest's

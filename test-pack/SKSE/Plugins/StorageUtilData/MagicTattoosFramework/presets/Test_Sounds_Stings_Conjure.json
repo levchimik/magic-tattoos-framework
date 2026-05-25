@@ -1,44 +1,143 @@
 {
-	"displayname" : "Test: Stings Conjure (3s)",
-	"int" :
-	{
-		"valid" : 0
+	"displayname": "Test: Stings Conjure (3s)",
+	"int": {
+		"valid": 0
 	},
-	"schemaversion" : 7,
-	"transition" :
-	{
-		"duration" : 0.3
+	"schemaversion": 8,
+	"transition": {
+		"duration": 0.3
 	},
-	"slot" :
-	[
+	"slot": [
 		{
-			"cond" :
-			{
-				"entryid" : "",
-				"packid" : "",
-				"param" : 0,
-				"pluginid" : ""
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
 			},
-			"cooldown" :
-			{
-				"min" : 0,
-				"mode" : 0
+			"cooldown": {
+				"min": 0,
+				"mode": 0
 			},
-			"effect" :
-			[
-				{ "key" : "mtf.base:sound.play", "param" : 30, "param2" : 3, "extras" : { "volume" : 100 } },
-				{ "key" : "mtf.base:sound.play", "param" : 31, "param2" : 3, "extras" : { "volume" : 100 } },
-				{ "key" : "mtf.base:sound.play", "param" : 32, "param2" : 3, "extras" : { "volume" : 100 } },
-				{ "key" : "mtf.base:sound.play", "param" : 33, "param2" : 3, "extras" : { "volume" : 100 } }
+			"effect": [
+				{
+					"key": "mtf.base:sound.play",
+					"param2": 3,
+					"extras": {
+						"volume": 100
+					},
+					"param1": 30
+				},
+				{
+					"key": "mtf.base:sound.play",
+					"param2": 3,
+					"extras": {
+						"volume": 100
+					},
+					"param1": 31
+				},
+				{
+					"key": "mtf.base:sound.play",
+					"param2": 3,
+					"extras": {
+						"volume": 100
+					},
+					"param1": 32
+				},
+				{
+					"key": "mtf.base:sound.play",
+					"param2": 3,
+					"extras": {
+						"volume": 100
+					},
+					"param1": 33
+				}
 			]
 		},
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		}
 	],
-	"valid" : 1
+	"valid": 1
 }

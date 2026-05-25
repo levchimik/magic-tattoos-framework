@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.bfng",
   "pluginlabel": "Beeing Female NG",
   "conditions": [
@@ -29,10 +29,22 @@
         "max": 3,
         "default": 1,
         "menu": [
-          { "value": 0, "label": "Follicular" },
-          { "value": 1, "label": "Ovulating" },
-          { "value": 2, "label": "Luteal" },
-          { "value": 3, "label": "Menstruating" }
+          {
+            "value": 0,
+            "label": "Follicular"
+          },
+          {
+            "value": 1,
+            "label": "Ovulating"
+          },
+          {
+            "value": 2,
+            "label": "Luteal"
+          },
+          {
+            "value": 3,
+            "label": "Menstruating"
+          }
         ]
       }
     },
@@ -62,8 +74,9 @@
   "effects": [
     {
       "id": "trigger.ovulation",
-      "label": "[!] Trigger Ovulation",
-      "description": "Burst — forces the actor to start ovulating (does nothing if she is already pregnant)."
+      "label": "Trigger Ovulation",
+      "description": "Burst — forces the actor to start ovulating (does nothing if she is already pregnant).",
+      "kind": "burst"
     }
   ]
 }

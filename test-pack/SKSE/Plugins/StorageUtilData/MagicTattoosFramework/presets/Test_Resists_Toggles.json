@@ -1,49 +1,156 @@
 {
-	"displayname" : "Test: Resists + Toggles",
-	"int" :
-	{
-		"valid" : 0
+	"displayname": "Test: Resists + Toggles",
+	"int": {
+		"valid": 0
 	},
-	"schemaversion" : 7,
-	"transition" :
-	{
-		"duration" : 0.3
+	"schemaversion": 8,
+	"transition": {
+		"duration": 0.3
 	},
-	"slot" :
-	[
+	"slot": [
 		{
-			"cond" :
-			{
-				"entryid" : "",
-				"packid" : "",
-				"param" : 0,
-				"pluginid" : ""
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
 			},
-			"cooldown" :
-			{
-				"min" : 0,
-				"mode" : 0
+			"cooldown": {
+				"min": 0,
+				"mode": 0
 			},
-			"effect" :
-			[
-				{ "key" : "mtf.base:modify.resistFire",    "param" : 30, "param2" : 0 },
-				{ "key" : "mtf.base:modify.resistFrost",   "param" : 30, "param2" : 0 },
-				{ "key" : "mtf.base:modify.resistShock",   "param" : 30, "param2" : 0 },
-				{ "key" : "mtf.base:modify.resistMagic",   "param" : 30, "param2" : 0 },
-				{ "key" : "mtf.base:modify.resistDisease", "param" : 30, "param2" : 0 },
-				{ "key" : "mtf.base:modify.resistPoison",  "param" : 30, "param2" : 0 },
-				{ "key" : "mtf.base:toggle.muffle",          "param" : 0, "param2" : 0 },
-				{ "key" : "mtf.base:toggle.waterbreathing",  "param" : 0, "param2" : 0 },
-				{ "key" : "mtf.base:toggle.waterWalking",    "param" : 0, "param2" : 0 }
+			"effect": [
+				{
+					"key": "mtf.base:modify.resistFire",
+					"param2": 0,
+					"param1": 30
+				},
+				{
+					"key": "mtf.base:modify.resistFrost",
+					"param2": 0,
+					"param1": 30
+				},
+				{
+					"key": "mtf.base:modify.resistShock",
+					"param2": 0,
+					"param1": 30
+				},
+				{
+					"key": "mtf.base:modify.resistMagic",
+					"param2": 0,
+					"param1": 30
+				},
+				{
+					"key": "mtf.base:modify.resistDisease",
+					"param2": 0,
+					"param1": 30
+				},
+				{
+					"key": "mtf.base:modify.resistPoison",
+					"param2": 0,
+					"param1": 30
+				},
+				{
+					"key": "mtf.base:toggle.muffle",
+					"param2": 0,
+					"param1": 0
+				},
+				{
+					"key": "mtf.base:toggle.waterbreathing",
+					"param2": 0,
+					"param1": 0
+				},
+				{
+					"key": "mtf.base:toggle.waterWalking",
+					"param2": 0,
+					"param1": 0
+				}
 			]
 		},
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		}
 	],
-	"valid" : 1
+	"valid": 1
 }

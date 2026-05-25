@@ -1,42 +1,121 @@
 {
-	"displayname" : "Test: Flash + Cost",
-	"int" :
-	{
-		"valid" : 0
+	"displayname": "Test: Flash + Cost",
+	"int": {
+		"valid": 0
 	},
-	"schemaversion" : 7,
-	"transition" :
-	{
-		"duration" : 0.3
+	"schemaversion": 8,
+	"transition": {
+		"duration": 0.3
 	},
-	"slot" :
-	[
+	"slot": [
 		{
-			"cond" :
-			{
-				"entryid" : "",
-				"packid" : "",
-				"param" : 0,
-				"pluginid" : ""
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
 			},
-			"cooldown" :
-			{
-				"min" : 0,
-				"mode" : 0
+			"cooldown": {
+				"min": 0,
+				"mode": 0
 			},
-			"effect" :
-			[
-				{ "key" : "mtf.base:scale.magickaCost", "param" : 50, "param2" : 0 },
-				{ "key" : "mtf.base:flash.onhit",       "param" : 1,  "param2" : 300 }
+			"effect": [
+				{
+					"key": "mtf.base:scale.magickaCost",
+					"param2": 0,
+					"param1": 50
+				},
+				{
+					"key": "mtf.base:flash.onhit",
+					"param2": 300,
+					"param1": 1
+				}
 			]
 		},
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		}
 	],
-	"valid" : 1
+	"valid": 1
 }

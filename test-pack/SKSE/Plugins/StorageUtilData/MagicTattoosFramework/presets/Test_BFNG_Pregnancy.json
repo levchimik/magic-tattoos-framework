@@ -1,41 +1,119 @@
 {
-	"displayname" : "Test: BFNG Pregnancy (>=1)",
-	"int" :
-	{
-		"valid" : 0
+	"displayname": "Test: BFNG Pregnancy (>=1)",
+	"int": {
+		"valid": 0
 	},
-	"schemaversion" : 7,
-	"transition" :
-	{
-		"duration" : 0.3
+	"schemaversion": 8,
+	"transition": {
+		"duration": 0.3
 	},
-	"slot" :
-	[
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
+	"slot": [
 		{
-			"cond" :
-			{
-				"entryid" : "",
-				"packid" : "",
-				"param" : 1,
-				"pluginid" : "mtf.bfng:pregnancy"
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
 			},
-			"cooldown" :
-			{
-				"min" : 0,
-				"mode" : 0
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 1,
+				"pluginid": "mtf.bfng:pregnancy"
 			},
-			"effect" :
-			[
-				{ "key" : "mtf.base:sound.play", "param" : 27, "param2" : 5, "extras" : { "volume" : 100 } }
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			},
+			"effect": [
+				{
+					"key": "mtf.base:sound.play",
+					"param2": 5,
+					"extras": {
+						"volume": 100
+					},
+					"param1": 27
+				}
 			]
 		},
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		},
+		{
+			"cond": {
+				"entryid": "",
+				"packid": "",
+				"param": 0,
+				"pluginid": ""
+			},
+			"cooldown": {
+				"min": 0,
+				"mode": 0
+			}
+		}
 	],
-	"valid" : 1
+	"valid": 1
 }

@@ -1135,91 +1135,20 @@ EndFunction
 ; All keys are lowercase ASCII (JsonUtil lowercases on write — mixed case
 ; would round-trip blank).
 
-float Function GetSlotEffectExtra(int slot, int effectIdx, string fieldName)
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
-        return 0.0
-    endif
-    string k
-    if _getDispatchUseScratch()
-        ; NPC / stacked-preset dispatch — read from scratch keys populated
-        ; by _loadPresetToScratch. The player's persistent slot extras live
-        ; on different effect[][] indices and don't apply here.
-        ; v0.2: namespaced by the currently-loaded scratch preset so the
-        ; Plan B v2 cache keeps each preset's extras separate.
-        k = "mtf.scratch.fx." + _scratchLoadedFor + "." + slot + "." + effectIdx + ".ex." + fieldName
-    else
-        k = "mtf.fx." + slot + "." + effectIdx + ".ex." + fieldName
-    endif
-    return StorageUtil.GetFloatValue(self, k, 0.0)
-EndFunction
+; v0.2.1: the legacy `.ex.<name>` keyspace + GetSlotEffectExtra/
+; SetSlotEffectExtra / _populateEffectExtrasDefaults / _clearEffectExtras
+; collapsed into the uniform paramN scheme below. Params 1 and 2 use
+; `mtf.fx.<s>.<e>.paramN`; params 3-5 (former extras) use the same path
+; and are now positional (the catalog's order in param3/param4/param5
+; defines what each slot means). Plugin behaviour code that used to read
+; `GetSlotEffectExtra(slot, eff, "rampms")` now reads
+; `GetSlotEffectParam(slot, eff, 3)`.
 
-Function SetSlotEffectExtra(int slot, int effectIdx, string fieldName, float value)
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
-        return
-    endif
-    string k = "mtf.fx." + slot + "." + effectIdx + ".ex." + fieldName
-    StorageUtil.SetFloatValue(self, k, value)
-EndFunction
-
-Function _populateEffectExtrasDefaults(int slot, int effectIdx, string key)
-{Called when the bound effect on (slot, effectIdx) changes. Asks the new
- plugin for declared extra fields, stamps each one's default into storage.
- Wipes are handled by _clearEffectExtras (called before this with the OLD
- key). Empty key (effect unbound) is a no-op — caller should still wipe
- the old extras.}
-    if key == ""
-        return
-    endif
-    MTF_Plugin p = ResolvePluginByKey(key)
-    if p == None
-        return
-    endif
-    int itemIdx = _effectIdxFor(p, _keyItemId(key))
-    if itemIdx < 0
-        return
-    endif
-    int n = p.GetEffectExtraFieldCount(itemIdx)
-    int i = 0
-    while i < n
-        string fieldName = p.GetEffectExtraFieldName(itemIdx, i)
-        if fieldName != ""
-            float defVal = p.GetEffectExtraFieldDefault(itemIdx, i) as float
-            SetSlotEffectExtra(slot, effectIdx, fieldName, defVal)
-        endif
-        i += 1
-    endwhile
-EndFunction
-
-Function _clearEffectExtras(int slot, int effectIdx)
-{Wipe any extras stored for (slot, effectIdx). Called before binding a new
- effect or when the effect is unbound. We don't know the previous plugin's
- field list (the old key may already be gone), so we sweep via key prefix.}
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
-        return
-    endif
-    string prefix = "mtf.fx." + slot + "." + effectIdx + ".ex."
-    ; StorageUtil doesn't expose a prefix-wipe; iterate known keys via the
-    ; live plugin if we can resolve it, otherwise leave stale floats (they
-    ; cost ~24 bytes each in the cosave and won't be read by anyone — the
-    ; new key's extras live under a different fieldName set).
-    string oldKey = GetSlotEffectKey(slot, effectIdx)
-    if oldKey != ""
-        MTF_Plugin p = ResolvePluginByKey(oldKey)
-        if p != None
-            int itemIdx = _effectIdxFor(p, _keyItemId(oldKey))
-            if itemIdx >= 0
-                int n = p.GetEffectExtraFieldCount(itemIdx)
-                int i = 0
-                while i < n
-                    string fieldName = p.GetEffectExtraFieldName(itemIdx, i)
-                    if fieldName != ""
-                        StorageUtil.UnsetFloatValue(self, prefix + fieldName)
-                    endif
-                    i += 1
-                endwhile
-            endif
-        endif
-    endif
+int Function _maxParamN() global
+{Compile-time max for uniform paramN. 1+2 = legacy primary/secondary
+ slider; 3-5 = former extras. Bump this and the matching MCM state pool
+ if a future effect needs more controls.}
+    return 5
 EndFunction
 
 ; ── Effect dispatch context (v0.1.3) ────────────────────────────────────────
@@ -1309,15 +1238,9 @@ bool Function _getDispatchUseScratch()
     return StorageUtil.GetIntValue(self, "mtf.dispatch.usescratch", 0) != 0
 EndFunction
 
-Function _loadScratchExtra(string f, string ep, int slot, int effectIdx, string xname)
-{Helper for _loadPresetToScratch — reads one known extra from the preset
- JSON and stores it at the scratch StorageUtil key. Zero is fine for
- missing extras (the consumer applies its own fallback default).
- v0.2: namespaced by current scratch preset so the StorageUtil cache
- (Plan B v2) keeps each preset's extras under its own slot.}
-    float xval = JsonUtil.GetPathFloatValue(f, ep + ".extras." + xname, 0.0)
-    StorageUtil.SetFloatValue(self, "mtf.scratch.fx." + _scratchLoadedFor + "." + slot + "." + effectIdx + ".ex." + xname, xval)
-EndFunction
+; (v0.2.1: _loadScratchExtra removed — the named-extras storage path it
+; populated is gone, replaced by the uniform paramN scratch keys written
+; inline in _loadPresetToScratch.)
 
 int Function WAVE_LUT_SIZE() global
 {Resolution of one pulse cycle. Picked so a 1Hz cycle samples at ~64 Hz —
@@ -1960,51 +1883,25 @@ bool Function SavePreset(string rawName)
             string fxKey = _readFxKey(s, e, false)
             if fxKey != ""
                 string ep = sp + ".effect[" + e + "]"
-                JsonUtil.SetPathStringValue(f, ep + ".key",    fxKey)
-                JsonUtil.SetPathIntValue(f,    ep + ".param",  _readFxParam(s, e, false))
-                JsonUtil.SetPathIntValue(f,    ep + ".param2", _readFxParam2(s, e, false))
-                ; v0.1.3 extras — per-effect named float fields (ramp/decay/etc.)
-                ; Walk the bound plugin's declared extra field names and emit
-                ; each one. JsonUtil lowercases keys; our spec already uses
-                ; lowercase ASCII names so round-trip is faithful.
-                MTF_Plugin pSerExt = ResolvePluginByKey(fxKey)
-                if pSerExt != None
-                    int itemIdxSerExt = _effectIdxFor(pSerExt, _keyItemId(fxKey))
-                    if itemIdxSerExt >= 0
-                        int xN = pSerExt.GetEffectExtraFieldCount(itemIdxSerExt)
-                        int xi = 0
-                        while xi < xN
-                            string xname = pSerExt.GetEffectExtraFieldName(itemIdxSerExt, xi)
-                            if xname != ""
-                                JsonUtil.SetPathFloatValue(f, ep + ".extras." + xname, \
-                                    GetSlotEffectExtra(s, e, xname))
-                            endif
-                            xi += 1
-                        endwhile
-                    endif
-                endif
+                JsonUtil.SetPathStringValue(f, ep + ".key", fxKey)
+                ; v0.2.1: uniform paramN serialization. Walk 1..5 and emit
+                ; each value as `paramN`. We could probe the bound plugin's
+                ; GetEffectParamLabel(n) and skip undeclared slots, but a
+                ; zero-write is harmless and keeps the loop trivially fast.
+                int n = 1
+                while n <= 5
+                    JsonUtil.SetPathIntValue(f, ep + ".param" + n, _readFxParamN(s, e, n, false))
+                    n += 1
+                endwhile
             endif
             e += 1
         endwhile
         s += 1
     endwhile
 
-    ; Plugin settings — walk registered plugins; key by stable pluginId+settingId.
-    int p = 0
-    while p < pluginCount
-        MTF_Plugin plug = GetPluginAt(p)
-        if plug != None
-            string pid = plug.GetPluginId()
-            int n = plug.GetSettingCount()
-            int si = 0
-            while si < n
-                string sid = plug.GetSettingId(si)
-                JsonUtil.SetPathIntValue(f, ".setting." + pid + "." + sid, plug.GetSettingValue(si))
-                si += 1
-            endwhile
-        endif
-        p += 1
-    endwhile
+    ; (v0.2.1: per-plugin settings persistence removed — base class no
+    ; longer exposes GetSettingCount/Id/Value. Preset JSON `.setting.*`
+    ; paths from older saves are simply ignored on load.)
 
     JsonUtil.Save(f)
     ; Drop the cached scratch (Plan B v2) so the next _loadPresetToScratch
@@ -2114,38 +2011,32 @@ bool Function LoadPreset(string name)
         int e = 0
         while e < maxE
             string ep = sp + ".effect[" + e + "]"
-            ; Wipe the OLD effect's extras BEFORE overwriting the key — the
-            ; helper needs the live key string in StorageUtil to look up
-            ; declared extra field names. _writeFxKey below clobbers it.
-            _clearEffectExtras(s, e)
-            string newKey = JsonUtil.GetPathStringValue(f, ep + ".key",    "")
+            string newKey = JsonUtil.GetPathStringValue(f, ep + ".key", "")
             _writeFxKey(s, e, false, newKey)
-            _writeFxParam(s, e, false, JsonUtil.GetPathIntValue(f,    ep + ".param",  0))
-            _writeFxParam2(s, e, false, JsonUtil.GetPathIntValue(f,    ep + ".param2", 0))
-            ; v0.1.3 extras restore — read each declared extra field from
-            ; JSON, falling back to the plugin's declared default when the
-            ; preset omits the key. Stamps directly into StorageUtil (the
-            ; per-slot/effectIdx float keyspace) — not part of the array
-            ; round-trip above.
-            if newKey != ""
-                MTF_Plugin pLoadExt = ResolvePluginByKey(newKey)
-                if pLoadExt != None
-                    int itemIdxLoadExt = _effectIdxFor(pLoadExt, _keyItemId(newKey))
-                    if itemIdxLoadExt >= 0
-                        int xN = pLoadExt.GetEffectExtraFieldCount(itemIdxLoadExt)
-                        int xi = 0
-                        while xi < xN
-                            string xname = pLoadExt.GetEffectExtraFieldName(itemIdxLoadExt, xi)
-                            if xname != ""
-                                float defVal = pLoadExt.GetEffectExtraFieldDefault(itemIdxLoadExt, xi) as float
-                                SetSlotEffectExtra(s, e, xname, \
-                                    JsonUtil.GetPathFloatValue(f, ep + ".extras." + xname, defVal))
-                            endif
-                            xi += 1
-                        endwhile
+            ; v0.2.1: uniform paramN load. For each n in 1..5: read paramN
+            ; from the preset; if missing, fall back to the bound effect's
+            ; declared default (so a preset that doesn't override a slider
+            ; gets the catalog's intent). Use a sentinel -999999 to detect
+            ; absent keys vs explicit 0.
+            MTF_Plugin pLoad = ResolvePluginByKey(newKey)
+            int itemIdxLoad = -1
+            if pLoad != None
+                itemIdxLoad = _effectIdxFor(pLoad, _keyItemId(newKey))
+            endif
+            int n = 1
+            while n <= 5
+                int sentinel = -999999
+                int v = JsonUtil.GetPathIntValue(f, ep + ".param" + n, sentinel)
+                if v == sentinel
+                    if itemIdxLoad >= 0
+                        v = pLoad.GetEffectParamDefault(itemIdxLoad, n)
+                    else
+                        v = 0
                     endif
                 endif
-            endif
+                _writeFxParamN(s, e, n, false, v)
+                n += 1
+            endwhile
             e += 1
         endwhile
         s += 1
@@ -2172,25 +2063,7 @@ bool Function LoadPreset(string name)
     endwhile
     cooldownUntilGT = aPersistUntil
 
-    int p = 0
-    while p < pluginCount
-        MTF_Plugin plug = GetPluginAt(p)
-        if plug != None
-            string pid = plug.GetPluginId()
-            int n = plug.GetSettingCount()
-            int si = 0
-            while si < n
-                string sid = plug.GetSettingId(si)
-                int key = -999999
-                int v = JsonUtil.GetPathIntValue(f, ".setting." + pid + "." + sid, key)
-                if v != key
-                    plug.SetSettingValue(si, v)
-                endif
-                si += 1
-            endwhile
-        endif
-        p += 1
-    endwhile
+    ; (v0.2.1: per-plugin settings load removed — see save site for context.)
 
     forceRedraw = true
     return true
@@ -2253,12 +2126,12 @@ Function ResetEditor()
         endwhile
         int e = 0
         while e < maxE
-            ; Wipe extras for the old binding before clearing the key
-            ; (the helper needs the live key to look up field names).
-            _clearEffectExtras(s, e)
             _writeFxKey(s, e, false, "")
-            _writeFxParam(s, e, false, 0)
-            _writeFxParam2(s, e, false, 0)
+            int n = 1
+            while n <= 5
+                _writeFxParamN(s, e, n, false, 0)
+                n += 1
+            endwhile
             e += 1
         endwhile
         s += 1
@@ -2642,7 +2515,7 @@ string Function GetGlobalEffectLabel(int globalIdx)
             int n = p.GetEffectCount()
             if globalIdx < seen + n
                 string pl = p.GetPluginLabel()
-                string il = p.GetEffectLabel(globalIdx - seen)
+                string il = p.GetEffectDisplayLabel(globalIdx - seen)
                 if pl == ""
                     return il
                 endif
@@ -2736,7 +2609,7 @@ Function BuildVisibleEffectMenu(string includeKey)
                 endif
                 if keep
                     localKeys[n] = k
-                    string il = p.GetEffectLabel(ei)
+                    string il = p.GetEffectDisplayLabel(ei)
                     if pl == ""
                         localLabels[n] = il
                     else
@@ -2902,18 +2775,38 @@ string Function _readFxKey(int slot, int idx, bool useScratch)
     return StorageUtil.GetStringValue(None, "mtf.fx." + slot + "." + idx + ".key", "")
 EndFunction
 
-int Function _readFxParam(int slot, int idx, bool useScratch)
+; ── Param storage (v0.2.1 uniform paramN) ──────────────────────────────────
+; One internal helper family for params 1..5. The legacy _readFxParam /
+; _readFxParam2 / _writeFxParam / _writeFxParam2 are now thin n=1/n=2
+; convenience aliases — keeps existing call sites compiling unchanged
+; while routing all writes through a single unified path.
+;
+; Storage key shape: `mtf.fx.<slot>.<eff>.paramN`. Scratch namespace:
+; `mtf.fx.scratch.<presetName>.<slot>.<eff>.paramN`.
+
+int Function _readFxParamN(int slot, int idx, int n, bool useScratch)
     if useScratch
-        return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param", 0)
+        return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param" + n, 0)
     endif
-    return StorageUtil.GetIntValue(None, "mtf.fx." + slot + "." + idx + ".param", 0)
+    return StorageUtil.GetIntValue(None, "mtf.fx." + slot + "." + idx + ".param" + n, 0)
+EndFunction
+
+Function _writeFxParamN(int slot, int idx, int n, bool useScratch, int val)
+    if useScratch
+        StorageUtil.SetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param" + n, val)
+        return
+    endif
+    StorageUtil.SetIntValue(None, "mtf.fx." + slot + "." + idx + ".param" + n, val)
+EndFunction
+
+int Function _readFxParam(int slot, int idx, bool useScratch)
+{Legacy convenience for param1. Use _readFxParamN(slot, idx, n, useScratch) directly for new code.}
+    return _readFxParamN(slot, idx, 1, useScratch)
 EndFunction
 
 int Function _readFxParam2(int slot, int idx, bool useScratch)
-    if useScratch
-        return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param2", 0)
-    endif
-    return StorageUtil.GetIntValue(None, "mtf.fx." + slot + "." + idx + ".param2", 0)
+{Legacy convenience for param2.}
+    return _readFxParamN(slot, idx, 2, useScratch)
 EndFunction
 
 Function _writeFxKey(int slot, int idx, bool useScratch, string val)
@@ -2925,19 +2818,13 @@ Function _writeFxKey(int slot, int idx, bool useScratch, string val)
 EndFunction
 
 Function _writeFxParam(int slot, int idx, bool useScratch, int val)
-    if useScratch
-        StorageUtil.SetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param", val)
-        return
-    endif
-    StorageUtil.SetIntValue(None, "mtf.fx." + slot + "." + idx + ".param", val)
+{Legacy convenience for param1.}
+    _writeFxParamN(slot, idx, 1, useScratch, val)
 EndFunction
 
 Function _writeFxParam2(int slot, int idx, bool useScratch, int val)
-    if useScratch
-        StorageUtil.SetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param2", val)
-        return
-    endif
-    StorageUtil.SetIntValue(None, "mtf.fx." + slot + "." + idx + ".param2", val)
+{Legacy convenience for param2.}
+    _writeFxParamN(slot, idx, 2, useScratch, val)
 EndFunction
 
 ; ── Per-slot effect-list helpers ─────────────────────────────────────────────
@@ -2949,18 +2836,32 @@ string Function GetSlotEffectKey(int slot, int effectIdx)
     return _readFxKey(slot, effectIdx, false)
 EndFunction
 
-int Function GetSlotEffectParam(int slot, int effectIdx)
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+int Function GetSlotEffectParamN(int slot, int effectIdx, int n)
+{Unified accessor for paramN (n=1..5). Used by plugin behaviour code
+ (host.GetSlotEffectParamN(slot, eff, 3) replaces the old extras read
+ host.GetSlotEffectExtra(slot, eff, "rampms")).}
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
         return 0
     endif
-    return _readFxParam(slot, effectIdx, false)
+    return _readFxParamN(slot, effectIdx, n, false)
+EndFunction
+
+Function SetSlotEffectParamN(int slot, int effectIdx, int n, int val)
+{Unified setter for paramN.}
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+        return
+    endif
+    _writeFxParamN(slot, effectIdx, n, false, val)
+EndFunction
+
+int Function GetSlotEffectParam(int slot, int effectIdx)
+{Legacy 2-arg convenience for param1. New code should call GetSlotEffectParamN(slot, eff, 1).}
+    return GetSlotEffectParamN(slot, effectIdx, 1)
 EndFunction
 
 int Function GetSlotEffectParam2(int slot, int effectIdx)
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
-        return 0
-    endif
-    return _readFxParam2(slot, effectIdx, false)
+{Legacy 2-arg convenience for param2.}
+    return GetSlotEffectParamN(slot, effectIdx, 2)
 EndFunction
 
 Function SetSlotEffect(int slot, int effectIdx, string key, int param)
@@ -2980,9 +2881,9 @@ Function SetSlotEffect(int slot, int effectIdx, string key, int param)
 EndFunction
 
 Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int param2)
-{Sets all three at once. Used when picking a new effect type so the
- default param2 is applied alongside default param. Also wipes the old
- effect's extras and stamps the new effect's declared defaults.}
+{Sets key + param1 + param2 at once. Params 3-5 are written separately
+ via SetSlotEffectParamN where needed; when a new effect is bound, params
+ 3-5 are stamped to the catalog defaults for any declared paramN slot.}
     if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
@@ -2990,14 +2891,39 @@ Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int p
     if live
         _deactivateSingleEffect(slot, effectIdx)
     endif
-    ; Wipe extras tied to the OLD key (StorageUtil still has the old binding
-    ; for the duration of this call, so _clearEffectExtras can look up names).
-    _clearEffectExtras(slot, effectIdx)
     _writeFxKey(slot, effectIdx, false, key)
-    _writeFxParam(slot, effectIdx, false, param)
-    _writeFxParam2(slot, effectIdx, false, param2)
-    ; Populate extras defaults for the NEW key (no-op if key=="" or no extras).
-    _populateEffectExtrasDefaults(slot, effectIdx, key)
+    _writeFxParamN(slot, effectIdx, 1, false, param)
+    _writeFxParamN(slot, effectIdx, 2, false, param2)
+    ; Stamp catalog defaults onto params 3-5 for the new effect (so flash's
+    ; rampms/decayms/retrigms come up populated rather than 0). Old extras
+    ; for the previous binding silently fall away — the new params just
+    ; overwrite the same slots.
+    MTF_Plugin pNew = ResolvePluginByKey(key)
+    if pNew != None
+        int itemIdxNew = _effectIdxFor(pNew, _keyItemId(key))
+        if itemIdxNew >= 0
+            int n = 3
+            while n <= 5
+                ; Skip slots the new effect doesn't declare (label is the
+                ; canonical "is this param declared" probe — same convention
+                ; the MCM render uses).
+                if pNew.GetEffectParamLabel(itemIdxNew, n) != ""
+                    _writeFxParamN(slot, effectIdx, n, false, pNew.GetEffectParamDefault(itemIdxNew, n))
+                else
+                    _writeFxParamN(slot, effectIdx, n, false, 0)
+                endif
+                n += 1
+            endwhile
+        else
+            _writeFxParamN(slot, effectIdx, 3, false, 0)
+            _writeFxParamN(slot, effectIdx, 4, false, 0)
+            _writeFxParamN(slot, effectIdx, 5, false, 0)
+        endif
+    else
+        _writeFxParamN(slot, effectIdx, 3, false, 0)
+        _writeFxParamN(slot, effectIdx, 4, false, 0)
+        _writeFxParamN(slot, effectIdx, 5, false, 0)
+    endif
     if live
         ; Re-prime the pulse roster state — flash.onhit needs a (rate=0)
         ; roster entry as the back-store for SetActorFlash, and conversely
@@ -3018,12 +2944,10 @@ Function CompactEffectsAfter(int slot, int fromIdx)
  shift effect[fromIdx+1..maxE-1] into [fromIdx..maxE-2] so the
  progressive-disclosure UI never leaves a configured-but-hidden row.
 
- Walks front-to-back. Each iteration reads from src = i+1 (untouched by
- prior iterations because we only ever wrote to indices ≤ i and i+1=src
- was still pristine), copies into dst = i via SetSlotEffectFull, then
- blanks src. Extras are snapshotted before the move and re-stamped onto
- dst — SetSlotEffectFull resets dst extras to the NEW key's defaults, so
- the snapshot overwrite is required to carry actual user-tuned values.
+ Walks front-to-back. Each iteration reads from src = i+1, copies into
+ dst = i, then blanks src. After SetSlotEffectFull resets params 3-5 to
+ the new key's catalog defaults, we re-stamp the snapshot values so
+ user-tuned params don't get clobbered.
 
  Stops early at the first empty src — nothing beyond a gap to compact.}
     if slot < 0 || slot >= 8 || fromIdx < 0 || fromIdx >= MAX_EFFECTS_PER_SLOT()
@@ -3036,40 +2960,20 @@ Function CompactEffectsAfter(int slot, int fromIdx)
         if srcKey == ""
             return
         endif
-        int srcParam = _readFxParam(slot, i + 1, false)
-        int srcParam2 = _readFxParam2(slot, i + 1, false)
-        ; Snapshot src extras before SetSlotEffectFull resets dst extras.
-        MTF_Plugin p = ResolvePluginByKey(srcKey)
-        int xN = 0
-        string[] xnames
-        float[] xvals
-        if p != None
-            int itemIdx = _effectIdxFor(p, _keyItemId(srcKey))
-            if itemIdx >= 0
-                xN = p.GetEffectExtraFieldCount(itemIdx)
-                if xN > 0
-                    xnames = Utility.CreateStringArray(xN, "")
-                    xvals  = Utility.CreateFloatArray(xN, 0.0)
-                    int xi = 0
-                    while xi < xN
-                        string xname = p.GetEffectExtraFieldName(itemIdx, xi)
-                        xnames[xi] = xname
-                        if xname != ""
-                            xvals[xi] = GetSlotEffectExtra(slot, i + 1, xname)
-                        endif
-                        xi += 1
-                    endwhile
-                endif
-            endif
-        endif
+        ; Snapshot all 5 src params before SetSlotEffectFull rewrites dst.
+        int[] srcParams = Utility.CreateIntArray(5, 0)
+        int sn = 1
+        while sn <= 5
+            srcParams[sn - 1] = _readFxParamN(slot, i + 1, sn, false)
+            sn += 1
+        endwhile
         ; Move src → dst.
-        SetSlotEffectFull(slot, i, srcKey, srcParam, srcParam2)
-        int xi2 = 0
-        while xi2 < xN
-            if xnames[xi2] != ""
-                SetSlotEffectExtra(slot, i, xnames[xi2], xvals[xi2])
-            endif
-            xi2 += 1
+        SetSlotEffectFull(slot, i, srcKey, srcParams[0], srcParams[1])
+        ; Re-stamp params 3-5 (SetSlotEffectFull reset them to defaults).
+        int sn2 = 3
+        while sn2 <= 5
+            _writeFxParamN(slot, i, sn2, false, srcParams[sn2 - 1])
+            sn2 += 1
         endwhile
         ; Blank src now that dst owns the data.
         SetSlotEffectFull(slot, i + 1, "", 0, 0)
@@ -3096,7 +3000,7 @@ Function _deactivateSingleEffect(int slot, int effectIdx)
     int itemIdx = _effectIdxFor(p, _keyItemId(key))
     if itemIdx >= 0
         _setDispatchContext(slot, effectIdx)
-        p.onDeactivate(itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
+        _dispatchDeactivate(p, itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
         _emitEffectDeactivated(PlayerRef, key, slot)
         _clearDispatchContext()
     endif
@@ -3117,7 +3021,7 @@ Function _activateSingleEffect(int slot, int effectIdx)
     int itemIdx = _effectIdxFor(p, _keyItemId(key))
     if itemIdx >= 0
         _setDispatchContext(slot, effectIdx)
-        p.onActivate(itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
+        _dispatchActivate(p, itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
         _emitEffectActivated(PlayerRef, key, slot)
         _clearDispatchContext()
     endif
@@ -3221,6 +3125,135 @@ Function _armCoolTimer(int slot)
     _setCoolUntilGT(slot, Utility.GetCurrentGameTime() + (mins as float) / 1440.0)
 EndFunction
 
+; ── Defensive lifecycle audit (debug-mode opt-in) ───────────────────────────
+; Plugin authors who mutate persistent state in onActivate (ModActorValue,
+; AddSpell, SetNthEffectMagnitude, persistent shaders, etc.) MUST balance
+; in onDeactivate. The framework can't statically detect a forgotten
+; cleanup; the bug presents as "removed the tattoo but the buff is still
+; applied," potentially many sessions later. This audit catches it.
+;
+; How it works: when DebugMode is on, every continuous-kind dispatch
+; (re-)balances a per-(actor, pluginId, effectIdx) counter. onActivate
+; increments; onDeactivate decrements. A balanced lifecycle ends at 0.
+; Burst effects are skipped (they can't leak — no rolling state).
+;
+; Storage: `mtf.audit.<pluginId>.<idx>` on the target actor via
+; StorageUtil. Survives save/load (so cross-session leaks are visible).
+; AdjustIntValue is SKSE-native ~5µs; total overhead is ~negligible vs
+; the cross-script onActivate call we're wrapping.
+;
+; To inspect: call DumpLifecycleAudit() from console / MCM. The dump
+; walks the player plus every actor in mtf.tracked, prints non-zero
+; counters. (Continuous effects you currently have ACTIVE will show up
+; as +1 — that's expected. Positive counts on effects that should be
+; OFF are the bug signal.)
+;
+; To reset: call ResetLifecycleAudit() to clear all counters (or just
+; toggle DebugMode off to stop incrementing).
+
+Function _dispatchActivate(MTF_Plugin p, int itemIdx, Actor target, int param, int param2)
+    p.onActivate(itemIdx, target, param, param2)
+    if !DebugMode
+        return
+    endif
+    if p.GetEffectKind(itemIdx) == "burst"
+        return
+    endif
+    StorageUtil.AdjustIntValue(target, "mtf.audit." + p.GetPluginId() + "." + itemIdx, 1)
+EndFunction
+
+Function _dispatchDeactivate(MTF_Plugin p, int itemIdx, Actor target, int param, int param2)
+    p.onDeactivate(itemIdx, target, param, param2)
+    if !DebugMode
+        return
+    endif
+    if p.GetEffectKind(itemIdx) == "burst"
+        return
+    endif
+    StorageUtil.AdjustIntValue(target, "mtf.audit." + p.GetPluginId() + "." + itemIdx, -1)
+EndFunction
+
+Function DumpLifecycleAudit()
+{Scan player + every tracked actor × every registered plugin's effects.
+ Log any non-zero counters. Run from MCM Debug or console:
+   cqf MTF_MainQuest DumpLifecycleAudit}
+    Debug.Trace("[MTF audit] === Lifecycle imbalance scan ===")
+    Debug.Notification("[MTF] Lifecycle audit dumped to log")
+    int leakedRows = 0
+    int actorIdx = -1
+    int trackedN = StorageUtil.FormListCount(self, "mtf.tracked")
+    while actorIdx < trackedN
+        Actor a
+        if actorIdx < 0
+            a = PlayerRef
+        else
+            a = StorageUtil.FormListGet(self, "mtf.tracked", actorIdx) as Actor
+        endif
+        if a != None
+            int pi = 0
+            while pi < pluginCount
+                MTF_Plugin p = GetPluginAt(pi)
+                if p != None
+                    string pid = p.GetPluginId()
+                    int eCount = p.GetEffectCount()
+                    int ei = 0
+                    while ei < eCount
+                        int n = StorageUtil.GetIntValue(a, "mtf.audit." + pid + "." + ei, 0)
+                        if n != 0
+                            string actorName = a.GetDisplayName()
+                            Debug.Trace("[MTF audit]   " + actorName + "  " + pid + "." + p.GetEffectId(ei) + "  " + n)
+                            leakedRows += 1
+                        endif
+                        ei += 1
+                    endwhile
+                endif
+                pi += 1
+            endwhile
+        endif
+        actorIdx += 1
+    endwhile
+    if leakedRows == 0
+        Debug.Trace("[MTF audit]   (all clean)")
+    else
+        Debug.Trace("[MTF audit] " + leakedRows + " imbalance(s) — see lines above")
+    endif
+    Debug.Trace("[MTF audit] === end ===")
+EndFunction
+
+Function ResetLifecycleAudit()
+{Clear every per-actor audit counter. Use after fixing a leak so the
+ next DumpLifecycleAudit starts from a clean baseline. Walks the player
+ + every tracked actor × every registered plugin's effects.}
+    int actorIdx = -1
+    int trackedN = StorageUtil.FormListCount(self, "mtf.tracked")
+    while actorIdx < trackedN
+        Actor a
+        if actorIdx < 0
+            a = PlayerRef
+        else
+            a = StorageUtil.FormListGet(self, "mtf.tracked", actorIdx) as Actor
+        endif
+        if a != None
+            int pi = 0
+            while pi < pluginCount
+                MTF_Plugin p = GetPluginAt(pi)
+                if p != None
+                    string pid = p.GetPluginId()
+                    int eCount = p.GetEffectCount()
+                    int ei = 0
+                    while ei < eCount
+                        StorageUtil.UnsetIntValue(a, "mtf.audit." + pid + "." + ei)
+                        ei += 1
+                    endwhile
+                endif
+                pi += 1
+            endwhile
+        endif
+        actorIdx += 1
+    endwhile
+    Debug.Notification("[MTF] Lifecycle audit counters reset")
+EndFunction
+
 ; ── Effect lifecycle dispatch ────────────────────────────────────────────────
 ; Player single-preset path. The base overlay slot is the MCM-managed
 ; OverlaySlot — for NPCs and stacked player presets, the parallel
@@ -3241,7 +3274,7 @@ Function _activateSlotEffects(int slot)
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onActivate(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
+                    _dispatchActivate(p, itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
                     _emitEffectActivated(PlayerRef, key, slot)
                 endif
             endif
@@ -3267,7 +3300,7 @@ Function _deactivateSlotEffects(int slot)
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onDeactivate(itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
+                    _dispatchDeactivate(p, itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
                     _emitEffectDeactivated(PlayerRef, key, slot)
                 endif
             endif
@@ -3365,7 +3398,7 @@ Function _notifyTierChangeForActor(Actor target, int tier, bool useScratch)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    msg += " - " + p.GetEffectLabel(itemIdx) + " " + _readFxParam(tier, e, useScratch)
+                    msg += " - " + p.GetEffectDisplayLabel(itemIdx) + " " + _readFxParam(tier, e, useScratch)
                 endif
             endif
         endif
@@ -3393,7 +3426,7 @@ Function _notifyTierChange(int tier)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    msg += " - " + p.GetEffectLabel(itemIdx) + " " + _readFxParam(tier, e, false)
+                    msg += " - " + p.GetEffectDisplayLabel(itemIdx) + " " + _readFxParam(tier, e, false)
                 endif
             endif
         endif
@@ -5275,35 +5308,33 @@ bool Function _loadPresetToScratch(string name)
             ; default to "" / 0.
             string effKey = JsonUtil.GetPathStringValue(f, ep + ".key", "")
             _writeFxKey(s, e, true, effKey)
-            _writeFxParam(s, e, true, JsonUtil.GetPathIntValue(f, ep + ".param", 0))
-            _writeFxParam2(s, e, true, JsonUtil.GetPathIntValue(f, ep + ".param2", 0))
-            ; Plugin-driven extras load — walk the bound effect's declared
-            ; extra fields and copy each one from JSON into the scratch
-            ; namespace so GetSlotEffectExtra can read them under the
-            ; dispatch scratch flag. Pre-v0.2.x this was a hardcoded list of
-            ; flash.onhit's three fields (rampms/decayms/retrigms); any
-            ; newly-added extras silently dropped to scratch default 0,
-            ; producing "preset value ignored on apply" bugs (shader.play's
-            ; `sound` toggle was the first casualty). Discovering via the
-            ; plugin keeps this future-proof — adding an extra to any
-            ; plugin's effect declaration automatically participates.
+            ; v0.2.1: uniform paramN scratch load. Walk 1..5, fall back to
+            ; the bound effect's declared default when the preset omits a
+            ; paramN key. Missing-entry sentinel = -999999 (cleaner than the
+            ; old hardcoded 0 default — a preset that legitimately stores 0
+            ; on a param now round-trips correctly).
+            MTF_Plugin pLoadX = None
+            int itemIdxX = -1
             if effKey != ""
-                MTF_Plugin pLoadX = ResolvePluginByKey(effKey)
+                pLoadX = ResolvePluginByKey(effKey)
                 if pLoadX != None
-                    int itemIdxX = _effectIdxFor(pLoadX, _keyItemId(effKey))
-                    if itemIdxX >= 0
-                        int xN = pLoadX.GetEffectExtraFieldCount(itemIdxX)
-                        int xi = 0
-                        while xi < xN
-                            string xname = pLoadX.GetEffectExtraFieldName(itemIdxX, xi)
-                            if xname != ""
-                                _loadScratchExtra(f, ep, s, e, xname)
-                            endif
-                            xi += 1
-                        endwhile
-                    endif
+                    itemIdxX = _effectIdxFor(pLoadX, _keyItemId(effKey))
                 endif
             endif
+            int sn = 1
+            while sn <= 5
+                int sentinel = -999999
+                int v = JsonUtil.GetPathIntValue(f, ep + ".param" + sn, sentinel)
+                if v == sentinel
+                    if itemIdxX >= 0
+                        v = pLoadX.GetEffectParamDefault(itemIdxX, sn)
+                    else
+                        v = 0
+                    endif
+                endif
+                _writeFxParamN(s, e, sn, true, v)
+                sn += 1
+            endwhile
             e += 1
         endwhile
         s += 1
@@ -5812,7 +5843,7 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onActivate(itemIdx, target, params[e], params2[e])
+                    _dispatchActivate(p, itemIdx, target, params[e], params2[e])
                     _emitEffectActivated(target, key, slot)
                 endif
             endif
@@ -5867,7 +5898,7 @@ Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch,
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
                     _setDispatchContext(slot, e)
-                    p.onDeactivate(itemIdx, target, params[e], params2[e])
+                    _dispatchDeactivate(p, itemIdx, target, params[e], params2[e])
                     _emitEffectDeactivated(target, key, slot)
                 endif
             endif

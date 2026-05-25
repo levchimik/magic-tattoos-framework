@@ -183,6 +183,31 @@ string Function GetEffectLabel(int idx)
     return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].label", "")
 EndFunction
 
+string Function GetEffectKind(int idx)
+{Effect lifecycle classifier — semantic, not cosmetic.
+ Returns:
+   "burst"      — fires once on activate; no rolling state. onDeactivate
+                  and onTick are no-ops. Lifecycle audit can ignore these.
+   "continuous" — default; active while the tier is on. Must clean up
+                  in onDeactivate.
+ MCM uses this to prepend a "[!] " badge to burst labels at render time —
+ don't hand-prefix labels in the JSON.}
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].kind", "continuous")
+EndFunction
+
+string Function GetEffectDisplayLabel(int idx)
+{User-facing decorated label for MCM / preset diagnostics. Prepends a
+ "[!] " badge when the effect is a burst, otherwise returns the raw
+ label. SkyrimNet / LLM bridges and any structured-data consumer should
+ call GetEffectLabel + GetEffectKind instead of this so the kind stays
+ a discrete field rather than getting lexically embedded.}
+    string l = JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].label", "")
+    if GetEffectKind(idx) == "burst"
+        return "[!] " + l
+    endif
+    return l
+EndFunction
+
 string Function GetEffectDescription(int idx)
 {One-sentence prose description of what this effect DOES while active.
  Consumed by LLM-integration bridges (e.g. SkyrimNet) so an AI narrator
@@ -190,135 +215,60 @@ string Function GetEffectDescription(int idx)
     return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].description", "")
 EndFunction
 
-string Function GetEffectParamLabel(int idx)
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param.label", "")
-EndFunction
-
-int Function GetEffectParamMin(int idx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param.min", 0)
-EndFunction
-
-int Function GetEffectParamMax(int idx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param.max", 100)
-EndFunction
-
-int Function GetEffectParamDefault(int idx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param.default", 0)
-EndFunction
-
-int Function GetEffectParamStep(int idx)
-{SkyUI slider interval. Defaults to 1. Override per-idx via JSON for coarser steps.}
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param.step", 1)
-EndFunction
-
-string Function GetEffectParamFormat(int idx)
-{SkyUI slider format string. Defaults to raw integer. Override per-idx via
- JSON for units (e.g. "0%", "0 s").}
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param.format", "{0}")
-EndFunction
-
-string Function GetEffectParam2Label(int idx)
-{Slider label for the optional 2nd param. Empty when not used.}
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param2.label", "")
-EndFunction
-
-int Function GetEffectParam2Min(int idx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param2.min", 0)
-EndFunction
-
-int Function GetEffectParam2Max(int idx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param2.max", 100)
-EndFunction
-
-int Function GetEffectParam2Default(int idx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param2.default", 0)
-EndFunction
-
-int Function GetEffectParam2Step(int idx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param2.step", 1)
-EndFunction
-
-string Function GetEffectParam2Format(int idx)
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param2.format", "{0}")
-EndFunction
-
-; Effect param dropdowns.
-int Function GetEffectParamMenuOptionCount(int idx)
-    return JsonUtil.PathCount(_catalogFile(), ".effects[" + idx + "].param.menu")
-EndFunction
-
-int Function GetEffectParamMenuOptionValue(int idx, int optionIdx)
-{The int value to store on the slot when option `optionIdx` is picked.}
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param.menu[" + optionIdx + "].value", 0)
-EndFunction
-
-string Function GetEffectParamMenuOptionLabel(int idx, int optionIdx)
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param.menu[" + optionIdx + "].label", "")
-EndFunction
-
-int Function GetEffectParam2MenuOptionCount(int idx)
-    return JsonUtil.PathCount(_catalogFile(), ".effects[" + idx + "].param2.menu")
-EndFunction
-
-int Function GetEffectParam2MenuOptionValue(int idx, int optionIdx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param2.menu[" + optionIdx + "].value", 0)
-EndFunction
-
-string Function GetEffectParam2MenuOptionLabel(int idx, int optionIdx)
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param2.menu[" + optionIdx + "].label", "")
-EndFunction
-
-; ── Effect extras ───────────────────────────────────────────────────────────
-; Extras values are stored as floats keyed by (slot, effectIdx, fieldName)
-; via MainQuest.GetSlotEffectExtra / SetSlotEffectExtra. When the bound
-; effect changes on a slot, MainQuest populates the new effect's extras
-; with the declared defaults and wipes the old.
+; ── Effect params (v0.2.1 uniform schema) ──────────────────────────────────
+; Each effect declares up to 5 numbered params under `.effects[i].paramN`
+; (N = 1..5). The framework probes each paramN.label — when non-empty, the
+; param is "declared" and gets a slot in the MCM render and in serialized
+; presets. Replaces the v0.2.0 split between `param` / `param2` / `extras[]`.
 ;
-; Field names MUST be lowercase ASCII without spaces — PapyrusUtil lowercases
-; JSON keys on read (project_papyrusutil_lowercase). Keep ≤ 12 chars; label
-; is the user-facing text.
+; Plugin behaviour code reads param1 + param2 from the onActivate signature
+; (positional, by convention — most effects need just 1-2 controls). For
+; param3-5 use the MainQuest dispatch-context accessor:
+;
+;   int v = host.GetSlotEffectParam(slot, eff, n)  ; n in {3, 4, 5}
+;
+; (slot + eff are available via host._getDispatchSlot/_getDispatchEffectIdx
+; while a dispatch is in flight.)
 
-int Function GetEffectExtraFieldCount(int idx)
-{Number of extra fields effect `idx` declares (0..3).}
-    return JsonUtil.PathCount(_catalogFile(), ".effects[" + idx + "].extras")
+string Function GetEffectParamLabel(int idx, int n)
+{Slider/menu label for param `n` (1..5). Empty when not declared.}
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".label", "")
 EndFunction
 
-string Function GetEffectExtraFieldName(int idx, int fieldIdx)
-{Lowercase ASCII name (used as the StorageUtil sub-key for the value).}
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].extras[" + fieldIdx + "].name", "")
+int Function GetEffectParamMin(int idx, int n)
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".min", 0)
 EndFunction
 
-string Function GetEffectExtraFieldLabel(int idx, int fieldIdx)
-{User-facing label rendered as the MCM slider's text.}
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].extras[" + fieldIdx + "].label", "")
+int Function GetEffectParamMax(int idx, int n)
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".max", 100)
 EndFunction
 
-int Function GetEffectExtraFieldMin(int idx, int fieldIdx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].extras[" + fieldIdx + "].min", 0)
+int Function GetEffectParamDefault(int idx, int n)
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".default", 0)
 EndFunction
 
-int Function GetEffectExtraFieldMax(int idx, int fieldIdx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].extras[" + fieldIdx + "].max", 100)
+int Function GetEffectParamStep(int idx, int n)
+{SkyUI slider interval. Defaults to 1. Override per-idx/per-n via JSON for coarser steps.}
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".step", 1)
 EndFunction
 
-int Function GetEffectExtraFieldStep(int idx, int fieldIdx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].extras[" + fieldIdx + "].step", 1)
+string Function GetEffectParamFormat(int idx, int n)
+{SkyUI slider format string. Defaults to raw integer. Override per-idx/per-n
+ via JSON for units (e.g. "0%", "0 s").}
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".format", "{0}")
 EndFunction
 
-int Function GetEffectExtraFieldDefault(int idx, int fieldIdx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].extras[" + fieldIdx + "].default", 0)
+int Function GetEffectParamMenuOptionCount(int idx, int n)
+    return JsonUtil.PathCount(_catalogFile(), ".effects[" + idx + "].param" + n + ".menu")
 EndFunction
 
-int Function GetEffectExtraFieldMenuOptionCount(int idx, int fieldIdx)
-    return JsonUtil.PathCount(_catalogFile(), ".effects[" + idx + "].extras[" + fieldIdx + "].menu")
+int Function GetEffectParamMenuOptionValue(int idx, int n, int optionIdx)
+{The int value to store on the slot when option `optionIdx` is picked.}
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".menu[" + optionIdx + "].value", 0)
 EndFunction
 
-int Function GetEffectExtraFieldMenuOptionValue(int idx, int fieldIdx, int optionIdx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].extras[" + fieldIdx + "].menu[" + optionIdx + "].value", 0)
-EndFunction
-
-string Function GetEffectExtraFieldMenuOptionLabel(int idx, int fieldIdx, int optionIdx)
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].extras[" + fieldIdx + "].menu[" + optionIdx + "].label", "")
+string Function GetEffectParamMenuOptionLabel(int idx, int n, int optionIdx)
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".menu[" + optionIdx + "].label", "")
 EndFunction
 
 ; ── OVERRIDE: effect behaviour (stays in Papyrus) ───────────────────────────
@@ -367,45 +317,12 @@ Function onGameTime(int idx, Actor target, int param, int param2)
  cumulative effects (e.g. SLA exposure deltas). No-op by default.}
 EndFunction
 
-; ── Settings (JSON-driven metadata; behaviour overridable) ──────────────────
-int Function GetSettingCount()
-    return JsonUtil.PathCount(_catalogFile(), ".settings")
-EndFunction
-
-string Function GetSettingId(int idx)
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".settings[" + idx + "].id", "")
-EndFunction
-
-string Function GetSettingLabel(int idx)
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".settings[" + idx + "].label", "")
-EndFunction
-
-string Function GetSettingInfo(int idx)
-{Tooltip text shown when the slider is highlighted.}
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".settings[" + idx + "].info", "")
-EndFunction
-
-int Function GetSettingMin(int idx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".settings[" + idx + "].min", 0)
-EndFunction
-
-int Function GetSettingMax(int idx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".settings[" + idx + "].max", 100)
-EndFunction
-
-int Function GetSettingDefault(int idx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".settings[" + idx + "].default", 0)
-EndFunction
-
-string Function GetSettingFormat(int idx)
-{SkyUI slider format string. Defaults to raw integer.}
-    return JsonUtil.GetPathStringValue(_catalogFile(), ".settings[" + idx + "].format", "{0}")
-EndFunction
-
-; ── OVERRIDE: setting value get/set (state lives in the derived plugin) ─────
-int Function GetSettingValue(int idx)
-    return 0
-EndFunction
-
-Function SetSettingValue(int idx, int v)
-EndFunction
+; ── Plugin-level settings: REMOVED in v0.2.1 ────────────────────────────────
+; Per-plugin settings sliders (GetSettingCount/Id/Label/Value etc) were
+; dropped to free 8 MCM named-state slots (the SETTING_1..8 pool) — needed
+; to stay under SkyUI's 127 per-script cap as the MCM gained features. No
+; plugin ever shipped a non-zero GetSettingCount, so the cut is a clean
+; deletion rather than a migration. Plugins that need user-adjustable knobs
+; should expose them via JSON (under a custom path the plugin reads itself)
+; or hook into another mod's MCM. The `.settings` catalog key is reserved
+; if we ever want to bring this back differently.

@@ -190,16 +190,11 @@ int Function GetEffectCount()
     return 0
 EndFunction
 
-; ── Plugin settings: none ───────────────────────────────────────────────────
-; v0.1.24 narration rework: dropped the MTF-side "Narrate tattoo changes"
-; toggle in favor of SkyrimNet's own per-event-type controls. With
-; shortLivedEnabled=true in the schema, mtf_tattoo_change shows up in
-; SkyrimNet's Event Settings UI with Enabled / Allow NPC Reaction / NPC
-; Reaction Cooldown / Interrupt columns — all the gates and throttles live
-; there now. One source of truth.
-int Function GetSettingCount()
-    return 0
-EndFunction
+; (v0.2.1: plugin-level settings system removed framework-wide — the
+; legacy `GetSettingCount() = 0` override is no longer needed because
+; the base class doesn't declare the method. Historically this plugin
+; would have hosted a "Narrate tattoo changes" toggle, but that ship
+; sailed in v0.1.24 in favor of SkyrimNet's per-event-type controls.)
 
 ; ── Listener callback (invoked by MTF_AliasSkyrimNet) ──────────────────────
 ; Called from MTF_AliasSkyrimNet.OnMTFTierChanged. Two effects per call:
@@ -656,11 +651,11 @@ String Function _renderOneEffectMd(MTF_MainQuest host, string key, int p1, int p
             desc = p.GetEffectDescription(itemIdx)
             ; Capture resolved value labels for description {param1}/{param2}
             ; substitution. Empty label = effect doesn't use that param slot.
-            if p.GetEffectParamLabel(itemIdx) != ""
-                p1Val = _resolveParamValueLabel(p, itemIdx, false, p1)
+            if p.GetEffectParamLabel(itemIdx, 1) != ""
+                p1Val = _resolveParamValueLabel(p, itemIdx, 1, p1)
             endif
-            if p.GetEffectParam2Label(itemIdx) != ""
-                p2Val = _resolveParamValueLabel(p, itemIdx, true, p2)
+            if p.GetEffectParamLabel(itemIdx, 2) != ""
+                p2Val = _resolveParamValueLabel(p, itemIdx, 2, p2)
             endif
         endif
     endif
@@ -763,39 +758,22 @@ EndFunction
 ; Resolve a param value to its display label. Dropdown params resolve to
 ; the matching option's label; numeric params apply the plugin's format
 ; string ("{0}", "{0}%", "{0}s"). Off-list values fall back to "Custom: N".
-String Function _resolveParamValueLabel(MTF_Plugin p, int itemIdx, bool isParam2, int value) global
-    int optCount = 0
-    if isParam2
-        optCount = p.GetEffectParam2MenuOptionCount(itemIdx)
-    else
-        optCount = p.GetEffectParamMenuOptionCount(itemIdx)
-    endif
+; v0.2.1: n is the param index (1..5) under the uniform paramN scheme;
+; replaced the old bool isParam2 (which only addressed param1 vs param2).
+String Function _resolveParamValueLabel(MTF_Plugin p, int itemIdx, int n, int value) global
+    int optCount = p.GetEffectParamMenuOptionCount(itemIdx, n)
     if optCount > 0
         int oi = 0
         while oi < optCount
-            int ov = 0
-            if isParam2
-                ov = p.GetEffectParam2MenuOptionValue(itemIdx, oi)
-            else
-                ov = p.GetEffectParamMenuOptionValue(itemIdx, oi)
-            endif
+            int ov = p.GetEffectParamMenuOptionValue(itemIdx, n, oi)
             if ov == value
-                if isParam2
-                    return p.GetEffectParam2MenuOptionLabel(itemIdx, oi)
-                else
-                    return p.GetEffectParamMenuOptionLabel(itemIdx, oi)
-                endif
+                return p.GetEffectParamMenuOptionLabel(itemIdx, n, oi)
             endif
             oi += 1
         endwhile
         return "Custom: " + value
     endif
-    string fmt = "{0}"
-    if isParam2
-        fmt = p.GetEffectParam2Format(itemIdx)
-    else
-        fmt = p.GetEffectParamFormat(itemIdx)
-    endif
+    string fmt = p.GetEffectParamFormat(itemIdx, n)
     if fmt == ""
         fmt = "{0}"
     endif

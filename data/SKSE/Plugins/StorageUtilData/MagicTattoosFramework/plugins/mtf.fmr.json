@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.fmr",
   "pluginlabel": "Fertility Mode (v3 / Reloaded)",
   "conditions": [
@@ -23,8 +23,9 @@
   "effects": [
     {
       "id": "trigger.ovulation",
-      "label": "[!] Trigger Ovulation",
-      "description": "Burst — forces the actor to start ovulating (does nothing if she is already pregnant)."
+      "label": "Trigger Ovulation",
+      "description": "Burst — forces the actor to start ovulating (does nothing if she is already pregnant).",
+      "kind": "burst"
     }
   ]
 }

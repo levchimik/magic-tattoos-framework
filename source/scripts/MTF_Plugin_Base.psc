@@ -1407,9 +1407,10 @@ Function _applyFlashOnHit(Actor target, int classMask, int peakPct)
         ; Called outside a dispatch (e.g. direct invocation). Nothing to do.
         return
     endif
-    int rampMs   = h.GetSlotEffectExtra(slot, effectIdx, "rampms")   as int
-    int decayMs  = h.GetSlotEffectExtra(slot, effectIdx, "decayms")  as int
-    int retrigMs = h.GetSlotEffectExtra(slot, effectIdx, "retrigms") as int
+    ; param3/4/5 — flash.onhit envelope timings (was extras rampms/decayms/retrigms).
+    int rampMs   = h.GetSlotEffectParamN(slot, effectIdx, 3)
+    int decayMs  = h.GetSlotEffectParamN(slot, effectIdx, 4)
+    int retrigMs = h.GetSlotEffectParamN(slot, effectIdx, 5)
     if rampMs   <= 0
         rampMs = 150
     endif
@@ -1523,9 +1524,13 @@ Function _applyFlashOnCast(Actor target, int peakPct)
     if slot < 0 || effectIdx < 0
         return
     endif
-    int rampMs   = h.GetSlotEffectExtra(slot, effectIdx, "rampms")   as int
-    int decayMs  = h.GetSlotEffectExtra(slot, effectIdx, "decayms")  as int
-    int retrigMs = h.GetSlotEffectExtra(slot, effectIdx, "retrigms") as int
+    ; param2/3/4 — flash.oncast envelope timings (idx 57 uses param2=ramp,
+    ; param3=decay, param4=retrig because its primary param1 IS the peak%).
+    ; Wait — flash.oncast's primary param IS the peak; the extras position
+    ; them at param3..5 (extras start at 3, regardless of param2 usage).
+    int rampMs   = h.GetSlotEffectParamN(slot, effectIdx, 3)
+    int decayMs  = h.GetSlotEffectParamN(slot, effectIdx, 4)
+    int retrigMs = h.GetSlotEffectParamN(slot, effectIdx, 5)
     if rampMs   <= 0
         rampMs = 200
     endif
@@ -1916,21 +1921,22 @@ Function _playSoundLoop(Actor target, int baseSlot, int slot, int eff, int sound
     if handle <= 0
         return
     endif
-    ; Apply per-row volume mixer (extras "volume", 0..100 percent).
-    ; Read from dispatch context — slot/eff already known. Default to 100
-    ; if missing so unconfigured rows still play at full volume.
+    ; Apply per-row volume mixer (param3, 0..100 percent — was the legacy
+    ; "volume" extra). sound.play's params: 1 = sound idx, 2 = duration,
+    ; 3 = volume %.
+    ; Default to 100 if missing so unconfigured rows still play at full volume.
     MTF_MainQuest h = _host()
     if h != None
-        float volPct = h.GetSlotEffectExtra(slot, eff, "volume")
-        if volPct <= 0.0
-            ; Either explicit 0 (mute) or unset extra (treat as 100 unless
-            ; the user wrote 0). We can't tell unset apart from 0 cleanly
-            ; via GetFloatValue, but the populated default is 100, so any
-            ; ≤0 here means either fresh-default-not-stamped or explicit
-            ; mute. Either way, skip SetInstanceVolume — Play() already
-            ; runs at the SNDR's intrinsic volume.
+        int volPct = h.GetSlotEffectParamN(slot, eff, 3)
+        if volPct <= 0
+            ; Either explicit 0 (mute) or unset (treat as 100 unless the user
+            ; wrote 0). We can't tell unset apart from 0 cleanly via GetIntValue,
+            ; but the populated default is 100, so any ≤0 here means either
+            ; fresh-default-not-stamped or explicit mute. Either way, skip
+            ; SetInstanceVolume — Play() already runs at the SNDR's intrinsic
+            ; volume.
         else
-            Sound.SetInstanceVolume(handle, volPct / 100.0)
+            Sound.SetInstanceVolume(handle, (volPct as float) / 100.0)
         endif
     endif
     StorageUtil.SetIntValue(target,   _soundFxKeyId(baseSlot, slot, eff),   handle)
