@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTF Content Pack Builder</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>MTF Content Pack Builder</h1>
+        <p class="subtitle">
+            Drop a Skyrim mod ZIP, get back a
+            <a href="https://github.com/levchimik/magic-tattoos-framework" target="_blank" rel="noopener">Magic Tattoos Framework</a>-ready
+            content pack with the catalog JSON wired up.
+            Everything runs in your browser &mdash; no upload, no tracking.
+        </p>
+    </header>
+
+    <main>
+        <section class="form-card">
+            <h2>1. Pack metadata</h2>
+
+            <label for="packId">
+                Pack ID
+                <span class="hint">unique, lowercase, dotted, e.g. <code>mtf.my-tattoos</code></span>
+            </label>
+            <input
+                type="text"
+                id="packId"
+                value="mtf.my-pack"
+                pattern="^mtf\.[a-z0-9][a-z0-9._-]*$"
+                required
+                spellcheck="false"
+                autocomplete="off">
+
+            <label for="packLabel">
+                Display label
+                <span class="hint">shown in the MCM (pack picker dropdown)</span>
+            </label>
+            <input
+                type="text"
+                id="packLabel"
+                value="My Pack"
+                required
+                autocomplete="off">
+
+            <label for="packArea">
+                Area
+                <span class="hint">which body region the textures cover</span>
+            </label>
+            <select id="packArea">
+                <option value="Body" selected>Body</option>
+                <option value="Face">Face</option>
+                <option value="Hands">Hands</option>
+                <option value="Feet">Feet</option>
+            </select>
+        </section>
+
+        <section class="drop-card">
+            <h2>2. Drop your mod ZIP</h2>
+            <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="Drop a ZIP file here or click to browse">
+                <div class="drop-prompt">
+                    <strong>Drop a Skyrim mod ZIP here</strong>
+                    <span>or click to browse</span>
+                    <p class="drop-hint">
+                        Expected layout: <code>textures/&hellip;/*.dds</code> at the root
+                        (the same shape as any Nexus download).
+                        <code>Data/textures/&hellip;</code> also works.
+                    </p>
+                </div>
+                <input type="file" id="fileInput" accept=".zip" hidden>
+            </div>
+            <div id="dropMeta" class="drop-meta" hidden></div>
+        </section>
+
+        <section class="status-card" id="statusCard" hidden>
+            <h2>3. Conversion report</h2>
+            <div id="statusContent"></div>
+        </section>
+
+        <section class="action-card">
+            <button id="downloadBtn" type="button" disabled>
+                Download converted ZIP
+            </button>
+            <p class="action-hint">
+                The output ZIP carries your original textures unchanged
+                plus the new catalog JSON at the right path. Drop it into
+                MO2 / Vortex's "Install from archive" the same way you'd
+                install any mod.
+            </p>
+        </section>
+
+        <details class="help-card">
+            <summary>How it works &amp; gotchas</summary>
+            <div class="help-body">
+                <p>
+                    <strong>What gets written.</strong> For every <code>.dds</code> the tool finds under
+                    <code>textures/</code>, it emits one entry in the catalog with
+                    <code>id</code> = <code>label</code> = the filename stem (no extension),
+                    a single layer pointing at the texture, and the area you picked.
+                </p>
+                <p>
+                    <strong>No previews.</strong> Browsers can't render <code>.dds</code> natively;
+                    the tool doesn't try. If you want to verify visuals you'll need
+                    your usual texture viewer (or just test in-game).
+                </p>
+                <p>
+                    <strong>Multi-layer packs.</strong> If your pack has a base + glow pair
+                    (e.g. <code>actors/.../foo/001.dds</code> + <code>actors/.../foo-glow/001.dds</code>)
+                    you'll get two separate entries. Open the generated JSON in a
+                    text editor and merge the layers manually &mdash; the format is
+                    one <code>"layers": [&hellip;]</code> array per entry, just add the second
+                    texture object next to the first. <a href="https://github.com/levchimik/magic-tattoos-framework/blob/main/docs/CONTENT_PACKS.md" target="_blank" rel="noopener">Schema reference</a>.
+                </p>
+                <p>
+                    <strong>Renaming entries.</strong> Filenames make for ugly MCM
+                    dropdowns. Open the JSON and edit the <code>label</code> fields to
+                    whatever reads well ("Mark 001" beats "001"). <code>id</code> values
+                    must stay unique within the pack but are otherwise free-form.
+                </p>
+                <p>
+                    <strong>Privacy.</strong> Everything happens in your browser.
+                    Your ZIP never touches a server. View page source or open dev
+                    tools to verify.
+                </p>
+                <p class="help-meta">
+                    Powered by <a href="https://stuk.github.io/jszip/" target="_blank" rel="noopener">JSZip</a>.
+                    Source: <a href="https://github.com/levchimik/magic-tattoos-framework/tree/main/tools/web-pack-builder" target="_blank" rel="noopener">tools/web-pack-builder/</a>.
+                </p>
+            </div>
+        </details>
+    </main>
+
+    <footer>
+        <p>
+            Part of <a href="https://github.com/levchimik/magic-tattoos-framework" target="_blank" rel="noopener">Magic Tattoos Framework</a>.
+            <a href="https://github.com/levchimik/magic-tattoos-framework/blob/main/LICENSE" target="_blank" rel="noopener">GPL-3.0</a>.
+        </p>
+    </footer>
+
+    <script src="vendor/jszip.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

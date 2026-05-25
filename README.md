@@ -204,10 +204,16 @@ A **texture pack adapter** is a JSON catalog that points MTF at
 overlay textures from another mod (RaceMenu overlays, SlaveTats packs,
 nail / face overlays). No ESP, no plugin slot, no scripting.
 
+**Quick path — [Web Pack Builder][packbuilder]** (recommended for
+single-layer packs): drop a Skyrim mod ZIP, fill in three fields, get
+back an MO2-ready ZIP with the catalog wired up. 100% client-side, no
+upload. Best for Community Overlays / SlaveTats / nail overlay packs.
+
 **→ Full guide: [`docs/CONTENT_PACKS.md`](docs/CONTENT_PACKS.md)**
 
 Covers the JSON schema, MO2 mod layout, FOMOD bundling, in-game
-testing, and troubleshooting.
+testing, multi-layer packs (base + glow), and the optional
+description / placement / style tag fields the LLM bridge consumes.
 
 ### 3. Write an integration plugin (Papyrus + tiny ESP)
 
@@ -350,6 +356,7 @@ bidirectional bridge in v0.1.19. SkyrimNet LLM integration in v0.1.20.
 <!-- Reference-style link definitions -->
 
 [nexus]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
+[packbuilder]: https://levchimik.github.io/magic-tattoos-framework/
 
 [skse]: https://skse.silverlock.org/
 [addrlib]: https://www.nexusmods.com/skyrimspecialedition/mods/32444
