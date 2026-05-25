@@ -2317,6 +2317,22 @@ Function SetPluginEnabled(string pid, bool on)
 EndFunction
 
 ; ── Plugin registry ──────────────────────────────────────────────────────────
+
+; Plugin-catalog schema version this host understands. Bumped on breaking
+; changes to the catalog JSON contract (field renames/removes, semantic
+; shifts). When a plugin's catalog declares a different version,
+; RegisterPlugin logs a loud warning so users / authors notice that the
+; plugin is out of sync with the framework. Additive changes don't need
+; a bump — host falls back to defaults for missing optional fields.
+;
+; History:
+;   1 — initial public schema (current). The v0.2.1 paramN refactor and
+;       v0.2.5 menu consolidations both happened before any third-party
+;       plugin existed, so they don't get version numbers.
+int Function PLUGIN_SCHEMA_VERSION() global
+    return 1
+EndFunction
+
 Function RegisterPlugin(MTF_Plugin p)
 {Called by MTF_Plugin._tryRegister(). Idempotent.}
     if p == None || !_arraysReady
@@ -2333,6 +2349,22 @@ Function RegisterPlugin(MTF_Plugin p)
     if pluginCount >= registeredPlugins.Length
         Trace("[MTF_Main] RegisterPlugin REJECTED: registry full (" + pid + ")")
         return
+    endif
+    ; Schema version check — warn but don't reject. A wrong-schema catalog
+    ; will still half-work (the host falls back to defaults on missing
+    ; fields), so it's strictly more useful to register and surface the
+    ; mismatch than to silently drop the plugin entirely.
+    int catalogVer = JsonUtil.GetPathIntValue(p._catalogFile(), ".schemaversion", PLUGIN_SCHEMA_VERSION())
+    int expectedVer = PLUGIN_SCHEMA_VERSION()
+    if catalogVer != expectedVer
+        string msg
+        if catalogVer < expectedVer
+            msg = "[MTF] Plugin '" + pid + "' uses catalog schema v" + catalogVer + ", host expects v" + expectedVer + ". Plugin is outdated — fields may be missing or misread."
+        else
+            msg = "[MTF] Plugin '" + pid + "' uses catalog schema v" + catalogVer + ", host only supports up to v" + expectedVer + ". Update MTF or downgrade the plugin."
+        endif
+        Trace(msg)
+        Debug.Notification(msg)
     endif
     registeredPlugins[pluginCount] = p as Form
     pluginCount += 1

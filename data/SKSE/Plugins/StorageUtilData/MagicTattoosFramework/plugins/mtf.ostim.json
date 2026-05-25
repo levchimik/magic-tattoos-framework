@@ -1,5 +1,5 @@
 {
-  "schemaversion": 2,
+  "schemaversion": 1,
   "pluginid": "mtf.ostim",
   "pluginlabel": "OStim Standalone",
   "conditions": [

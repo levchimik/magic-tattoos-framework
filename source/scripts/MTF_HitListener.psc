@@ -95,11 +95,11 @@ MTF_MainQuest Function _host()
 EndFunction
 
 Event OnPlayerLoadGame()
-    ; Arm the post-load grace window BEFORE _autoEnableTestBranch cycles
-    ; state and schedules the first slow tick. Without this, that first
-    ; eval at ~0.5s can clear stacked presets whose lock-on-activate
-    ; cooldown expired during the load process — tattoo flashes on then
-    ; vanishes. See MTF_MainQuest._postLoadFreezeUntilRT.
+    ; Arm the post-load grace window BEFORE _rearmSlowTick cycles state
+    ; and schedules the first slow tick. Without this, that first eval at
+    ; ~0.5s can clear stacked presets whose lock-on-activate cooldown
+    ; expired during the load process — tattoo flashes on then vanishes.
+    ; See MTF_MainQuest._postLoadFreezeUntilRT.
     MTF_MainQuest hostFreeze = _host()
     if hostFreeze != None
         hostFreeze.ArmPostLoadFreeze(5.0)
@@ -108,7 +108,7 @@ Event OnPlayerLoadGame()
     _registerLifecycleEvents()
     _ensureApplyTattooSpell()
     _cleanupLegacySpells()
-    _autoEnableTestBranch()
+    _rearmSlowTick()
     ; Legacy hotkey registration cleanup — older versions kept a key bound
     ; here for the (now-removed) crosshair-add hotkey.
     int prev = StorageUtil.GetIntValue(_host(), "mtf.subject.hotkey.registered", -1)
@@ -195,7 +195,7 @@ EndFunction
 Event OnInit()
     _registerLifecycleEvents()
     _ensureApplyTattooSpell()
-    _autoEnableTestBranch()
+    _rearmSlowTick()
 EndEvent
 
 Function _ensureApplyTattooSpell()
@@ -211,29 +211,25 @@ Function _ensureApplyTattooSpell()
     endif
 EndFunction
 
-Function _autoEnableTestBranch()
-{Test-branch convenience: ensure Enable+Debug are ON every save load AND
- force the host into checkingAroused state so the OnUpdate loop fires.
- Without the GotoState the slow-tick rotation never runs — ModActive is
- just a flag; the state machine is what drives the loop. Revert before
- shipping.}
+Function _rearmSlowTick()
+{Re-arm MainQuest's slow-tick state machine after save load / fresh init.
+ State persists across save/load but RegisterForSingleUpdate TIMERS do
+ NOT — so a GotoState("checkingAroused") is a no-op when the quest is
+ already in that state, and the OnUpdate loop then never re-fires after
+ reload. Cycle through the empty state first to force OnBeginState to
+ fire on re-entry, which is what re-arms the slow tick that drives
+ _tickSlotEffects (slowTime, detectAll, cloak refreshes all rely on it).
+ Also pokes setRedraw so the next slow tick re-runs drawOverlay.
+
+ v0.2.5 (was _autoEnableTestBranch): dropped the dev-convenience
+ auto-toggling of ModActive + DebugMode — those are user-facing MCM
+ toggles, not state we should be force-flipping on every load. The
+ state-cycle is the load-bearing part and stays.}
     MTF_MainQuest h = _host()
     if h == None
         return
     endif
-    if !h.ModActive
-        h.ModActive = true
-    endif
-    if !h.DebugMode
-        h.DebugMode = true
-    endif
     h.setRedraw()
-    ; Force OnBeginState to re-fire (which calls RegisterForSingleUpdate).
-    ; State persists across save/load, but RegisterForSingleUpdate TIMERS do
-    ; not. If we don't cycle, GotoState("checkingAroused") is a no-op when
-    ; the quest is already in that state — and OnUpdate then never re-fires
-    ; after a save/load, breaking _tickSlotEffects (slowTime, detectAll,
-    ; cloak refreshes all rely on this).
     if h.GetState() == "checkingAroused"
         h.GotoState("")
     endif

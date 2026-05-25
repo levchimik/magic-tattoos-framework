@@ -2,7 +2,7 @@ Scriptname MTF_Plugin_Base extends MTF_Plugin
 {Built-in conditions and effects. Metadata is JSON-driven via the base class.}
 
 ; ── Metadata catalog ────────────────────────────────────────────────────────
-; All Get* metadata getters (47 conditions, 58 effects, every menu and extras
+; All Get* metadata getters (33 conditions, 36 effects, every menu and paramN
 ; field) used to live as ~566-elseif chains here. They now read from
 ; Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.base.json
 ; via the JsonUtil-driven defaults in MTF_Plugin. The JSON is built from
@@ -63,7 +63,8 @@ Event OnUpdate()
     if actN < n
         n = actN
     endif
-    if n > 0
+    MTF_MainQuest hostDbg = _host()
+    if n > 0 && hostDbg != None && hostDbg.DebugMode
         Debug.Notification("[MTF] queue drain: " + n + " spell(s)")
     endif
     Spell daSpell = _resolveDetectAllSpell()
@@ -163,6 +164,17 @@ Function _cloakTickOne(Actor source, Spell inner, string key)
     if dmg <= 0.0 || radFt <= 0.0
         return
     endif
+    ; v0.2.6: Gate the PO3 actor scan on combat state. Cloaks only damage
+    ; IsHostileToActor() targets, so an out-of-combat scan iterates then
+    ; no-ops on every entry. The gate is also a cosmetic-log fix:
+    ; PO3_SKSEFunctions.GetActorsByProcessingLevel(0) returns None when no
+    ; high-process actors are loaded, and the typed-Actor[] local assignment
+    ; logs "Cannot cast from None to Actor[]" (see memory note
+    ; project_papyrus_array_none_cast_noise). IsInCombat covers ~all cases
+    ; where a hostile target is actually nearby.
+    if !source.IsInCombat()
+        return
+    endif
     inner.SetNthEffectMagnitude(0, dmg)
     float radUnits = radFt * 21.336
     Actor[] near = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
@@ -190,7 +202,10 @@ Function _queueCast(Spell s, Actor t)
     if s == None || t == None
         return
     endif
-    Debug.Notification("[MTF] queueCast spell")
+    MTF_MainQuest hostDbg = _host()
+    if hostDbg != None && hostDbg.DebugMode
+        Debug.Notification("[MTF] queueCast spell")
+    endif
     StorageUtil.FormListAdd(self, "mtf.pendCast.spells", s)
     StorageUtil.FormListAdd(self, "mtf.pendCast.actors", t)
     RegisterForSingleUpdate(0.1)

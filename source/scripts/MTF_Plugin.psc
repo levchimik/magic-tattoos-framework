@@ -1,5 +1,5 @@
 Scriptname MTF_Plugin extends Quest
-{Abstract base for MagicTattoosFramework plugins. See docs/PLUGIN_AUTHORING.md.}
+{Abstract base for MagicTattoosFramework plugins. See docs/INTEGRATION_PLUGINS.md.}
 
 ; ── IMPORTANT: ZERO NEW SCRIPT-LEVEL VARS IN THIS BASE CLASS. ───────────────
 ; This base is the parent of 9 derived plugin scripts (Base, FMR, BFNG,

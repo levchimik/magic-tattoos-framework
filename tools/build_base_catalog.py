@@ -590,7 +590,7 @@ def build_effect(idx, t):
 
 def main():
     catalog = {
-        "schemaversion": 2,
+        "schemaversion": 1,
         "pluginid": "mtf.base",
         "pluginlabel": "Base",
         "conditions": [build_condition(i, t) for i, t in enumerate(CONDITIONS)],
