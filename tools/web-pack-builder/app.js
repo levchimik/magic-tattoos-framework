@@ -185,6 +185,61 @@ function toSkyrimPath(forward) {
     return forward.replace(/\//g, '\\');
 }
 
+/**
+ * Normalize a texture path for cross-source comparison: lowercase,
+ * backslashes → forward, strip leading slashes / whitespace. Used as
+ * the key for the .psc label lookup map.
+ */
+function normalizeKey(path) {
+    return path.toLowerCase().replace(/\\/g, '/').replace(/^[\/\s]+/, '');
+}
+
+/**
+ * Parse a Papyrus .psc source string for function calls that register
+ * (name → texture-path) pairs. RaceMenu overlay packs use
+ * `AddBodyPaint("name", "path.dds")`, SlaveTats uses `AddSlot(...)`,
+ * and a few other minor variants exist — all share the same shape:
+ *
+ *   Word("name", "path.dds")
+ *
+ * The regex catches any 2-arg function call whose second string ends
+ * in `.dds`. Returns Map<normalizedKey, label>.
+ *
+ * Papyrus string literals double their backslashes (`\\` in source =
+ * `\` in memory); we treat single and double slashes identically via
+ * the normalizeKey() pass.
+ */
+function parseScriptLabels(pscText) {
+    const labels = new Map();
+    const re = /\b\w+\s*\(\s*"([^"]+)"\s*,\s*"([^"]+\.dds)"\s*\)/gi;
+    let m;
+    while ((m = re.exec(pscText)) !== null) {
+        const name = m[1];
+        const rawPath = m[2].replace(/\\\\/g, '\\'); // unescape Papyrus literal
+        labels.set(normalizeKey(rawPath), name);
+    }
+    return labels;
+}
+
+/**
+ * Given the labels map (keys are normalized paths) and a texture's
+ * relative-to-textures-root path, find the best matching label.
+ * Prefers exact match; falls back to suffix match (handles packs
+ * whose .psc uses a slightly different leading directory than the
+ * archive layout).
+ */
+function lookupLabel(labels, relativePath) {
+    if (labels.size === 0) return null;
+    const key = normalizeKey(relativePath);
+    if (labels.has(key)) return labels.get(key);
+    // Suffix match: the .psc path might be shorter (no `actors/character/...`
+    // prefix) or longer. Try both directions.
+    for (const [k, v] of labels) {
+        if (key.endsWith(k) || k.endsWith(key)) return v;
+    }
+    return null;
+}
+
 // ─── Status panel ───────────────────────────────────────────────────────
 
 function clearStatus() {
@@ -314,6 +369,34 @@ async function handleArchive(file) {
     // root) and `file.name` is the basename.
     const allPaths = entries.map(e => e.path + e.file.name);
 
+    // Optional: parse any .psc files for human-readable entry labels.
+    // SlaveTats / RaceMenu overlay packs ship a Papyrus script that
+    // registers each texture with a curator-chosen name; using those
+    // gives much better MCM dropdowns than the bare filename stem.
+    // We extract each .psc via extractSingleFile (worker stays alive
+    // until we explicitly close it) and merge all parsed labels.
+    const pscEntries = entries.filter(e => (e.path + e.file.name).toLowerCase().endsWith('.psc'));
+    let labels = new Map();
+    let pscParsed = null; // { paths: [...], count: N }
+    if (pscEntries.length > 0) {
+        const pscPaths = pscEntries.map(e => e.path + e.file.name);
+        for (const pscPath of pscPaths) {
+            try {
+                const pscFile = await archive.extractSingleFile(pscPath);
+                const text = await pscFile.text();
+                const oneLabels = parseScriptLabels(text);
+                for (const [k, v] of oneLabels) labels.set(k, v);
+            } catch (err) {
+                // Non-fatal: just skip this .psc, fall back to stems for its textures.
+                console.warn(`Failed to parse ${pscPath}:`, err);
+            }
+        }
+        pscParsed = { paths: pscPaths, count: labels.size };
+    }
+
+    // Close the archive worker — we have all the metadata + .psc text we need.
+    try { await archive.close(); } catch (e) { /* best-effort */ }
+
     const root = detectTexturesRoot(allPaths);
     if (!root) {
         els.dropMeta.innerHTML =
@@ -359,6 +442,8 @@ async function handleArchive(file) {
         root:           root,
         ddsEntries:     ddsEntries,
         extraneousDDS:  extraneousDDS,
+        labels:         labels,
+        pscParsed:      pscParsed,
         catalog:        null,
     };
 
@@ -404,13 +489,20 @@ function rebuildCatalog() {
     }
 
     const takenIds = new Set();
-    const entries = state.ddsEntries.map(d => ({
-        id:    makeEntryId(d.stem, takenIds),
-        label: d.stem,
-        layers: [
-            { texture: toSkyrimPath(d.relative) },
-        ],
-    }));
+    let labeledFromPsc = 0;
+    const entries = state.ddsEntries.map(d => {
+        const fromPsc = lookupLabel(state.labels, d.relative);
+        const displayName = fromPsc || d.stem;
+        if (fromPsc) labeledFromPsc++;
+        return {
+            id:    makeEntryId(displayName, takenIds),
+            label: displayName,
+            layers: [
+                { texture: toSkyrimPath(d.relative) },
+            ],
+        };
+    });
+    state.labeledFromPsc = labeledFromPsc;
 
     state.catalog = {
         schemaVersion: 3,
@@ -462,10 +554,32 @@ function rebuildCatalog() {
         );
     }
 
-    addStatus('info',
-        `Filename stems become the entry <code>id</code> AND <code>label</code>. ` +
-        `Edit labels in the output JSON if you want better MCM display names.`
-    );
+    // .psc label sourcing report
+    if (state.pscParsed && state.pscParsed.count > 0) {
+        const allLabeled = state.labeledFromPsc === entries.length;
+        const pscList = state.pscParsed.paths.map(p => `<code>${escapeHtml(p)}</code>`).join(', ');
+        if (allLabeled) {
+            addStatus('ok',
+                `All ${entries.length} entries labelled from ${pscList} ` +
+                `(${state.pscParsed.count} mappings found).`
+            );
+        } else {
+            addStatus('info',
+                `${state.labeledFromPsc} of ${entries.length} entries labelled from ${pscList}. ` +
+                `The rest fall back to filename stems &mdash; the .psc likely doesn't register them.`
+            );
+        }
+    } else if (state.pscParsed) {
+        addStatus('warn',
+            `Found .psc but no <code>AddBodyPaint</code> / similar calls. ` +
+            `Entry labels fall back to filename stems.`
+        );
+    } else {
+        addStatus('info',
+            `No <code>.psc</code> source script found &mdash; entry labels default to filename stems. ` +
+            `Edit the JSON afterward if you want better MCM display names.`
+        );
+    }
 
     els.downloadBtn.disabled = false;
 }
