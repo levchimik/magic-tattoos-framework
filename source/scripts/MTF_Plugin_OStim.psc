@@ -65,8 +65,10 @@ bool Function checkCondition(Actor target, int param, string cid)
     elseif cid == "times.climaxed"
         return OActor.GetTimesClimaxed(target) >= param
     elseif cid == "climax.stalled"
+        ; v0.2.9: param1 is now a menu id ("stalled" / "not_stalled"), fetched
+        ; via host.GetEvalParamStr(). Int param ignored on this branch.
         bool stalled = OActor.IsClimaxStalled(target, true)
-        if param == 1
+        if _host().GetEvalParamStr() == "stalled"
             return stalled
         endif
         return !stalled

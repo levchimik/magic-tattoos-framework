@@ -113,7 +113,7 @@ The single source of truth for everything except runtime behaviour.
 
 ```json
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.example",
   "pluginlabel": "Example Plugin",
   "conditions": [ ... ],
@@ -121,11 +121,13 @@ The single source of truth for everything except runtime behaviour.
 }
 ```
 
-- `schemaversion` — current schema is `1`. Forward-compatibility marker;
+- `schemaversion` — current schema is `2`. Forward-compatibility marker;
   bumped on breaking changes (field renames/removes, semantic shifts).
   When MTF's host expects a higher version than your catalog declares,
   it logs a loud warning to the Papyrus log so users know to update
-  the plugin.
+  the plugin. Schema 2 (v0.2.9) migrated menu options from
+  `{value: int, label}` to `{id: string, label}` — see
+  [Dropdowns](#dropdowns).
 - `pluginid` — must match what `GetPluginId()` returns in your script.
 - `pluginlabel` — user-facing plugin name shown on the MCM Plugins page.
 - `conditions` / `effects` — arrays; either may be empty (e.g. a
@@ -180,13 +182,11 @@ Effects have one extra field: `kind`.
   "description": "When the actor is hit by a {param1}, the tattoo flashes for {param2} seconds.",
   "param1": {
     "label": "Hit class",
-    "min": 0,
-    "max": 6,
-    "default": 0,
+    "default": "any",
     "menu": [
-      {"value": 0, "label": "Any hit"},
-      {"value": 1, "label": "Bladed"},
-      {"value": 2, "label": "Blunt"}
+      {"id": "any",    "label": "Any hit"},
+      {"id": "bladed", "label": "Bladed"},
+      {"id": "blunt",  "label": "Blunt"}
     ]
   },
   "param2": {
@@ -220,25 +220,31 @@ dropdown instead of a slider:
 ```json
 "param": {
   "label": "Phase",
-  "min": 0, "max": 3, "default": 1,
+  "default": "ovulating",
   "menu": [
-    {"value": 0, "label": "Follicular"},
-    {"value": 1, "label": "Ovulating"},
-    {"value": 2, "label": "Luteal"},
-    {"value": 3, "label": "Menstruating"}
+    {"id": "follicular",   "label": "Follicular"},
+    {"id": "ovulating",    "label": "Ovulating"},
+    {"id": "luteal",       "label": "Luteal"},
+    {"id": "menstruating", "label": "Menstruating"}
   ]
 }
 ```
 
-- `value` is what gets stored on the slot when the option is picked
-  and what your behaviour hook receives in `param`.
-- Values don't have to be contiguous — bitmasks (`1|6|112`) work.
-  Out-of-menu hand-edited preset values display as `Custom: N`.
-- Values must stay **stable across versions** — saved presets reference
-  them. The `label` can be edited freely. **Don't reuse values.**
-
-`min` / `max` / `default` are still honoured for fallback and for hand-
-authored presets that pick out-of-menu values.
+- `id` is the **stable string** stored on the slot and what your behaviour
+  hook receives (read via `_host().GetEvalParamStr()` from
+  `checkCondition`, or `host.GetSlotEffectParamNStr(slot, eff, n)` from
+  effect dispatchers — schema v2, v0.2.9+).
+- `id` must be `[a-z0-9_]+`. Convention is `snake_case`.
+- `id`s must stay **stable across versions** — saved presets reference
+  them. The `label` can be edited freely. **Don't reuse or rename ids.**
+- `default` is the id (not an int) of the option used when no value has
+  been stamped yet.
+- Reordering the `menu` array is **safe** — saved presets reference ids,
+  not positions, so users can shuffle the dropdown without breaking
+  any existing slots.
+- `min` / `max` are **not honoured** on menu params (the migrator strips
+  them). Hand-edited presets with unknown ids fall through to the
+  catch-all branch in your dispatcher (typically a safe default).
 
 ---
 
@@ -252,7 +258,7 @@ A complete plugin doing one trivial condition and one trivial effect.
 
 ```json
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.hello",
   "pluginlabel": "Hello Plugin",
   "conditions": [
@@ -341,10 +347,12 @@ bool Function checkCondition(Actor target, int param, string cid)
         return false
     endif
     if cid == "arousal"
+        ; Slider param — `param` is the int threshold.
         return SLAFramework.GetActorArousal(target) >= param
     elseif cid == "arousal.lock"
+        ; Menu param — read the id via _host().GetEvalParamStr().
         bool locked = SLAFramework.IsActorArousalLocked(target)
-        if param == 1
+        if _host().GetEvalParamStr() == "locked"
             return locked
         endif
         return !locked
@@ -364,6 +372,20 @@ int p2 = _host().GetEvalParam2()
 
 This is only valid during a `checkCondition` call — it reads the
 dispatch context.
+
+### Reading menu (string-id) parameters
+
+For params declared with a `menu`, the **id string** is the dispatch
+value — the int `param` arg is meaningless. Read via the host:
+
+```papyrus
+string p1s = _host().GetEvalParamStr()
+string p2s = _host().GetEvalParam2Str()
+```
+
+Same scope rule as `GetEvalParam2`: only valid inside `checkCondition`.
+Effects read string params via `host.GetSlotEffectParamNStr(slot, eff, n)` —
+see [Reading params 3-5](#reading-params-3-5).
 
 ### Called every ~2 s
 
@@ -419,7 +441,7 @@ EndFunction
   continuous effects. Examples: `flash.onhit`, `modify.skill`,
   `arousal.rate`.
 
-### Reading `param3` / `param4` / `param5`
+### Reading params 3-5
 
 The signature carries `param1` and `param2` positionally; param3–5
 require an extra host call. Inside any dispatch hook:
@@ -437,6 +459,21 @@ currently-dispatching (slot, effect) pair; they're only valid mid-
 dispatch. Snapshot them into locals before calling any suspending
 function (`ModActorValue`, `AddSpell`, etc.) — a concurrent dispatch
 can interleave and clobber the context.
+
+### Reading menu (string-id) effect params
+
+For any `paramN` declared with a `menu`, the int `param` / `param2`
+args don't carry useful data — read the id string instead:
+
+```papyrus
+MTF_MainQuest h = _host()
+int slot = h._getDispatchSlot()
+int eff  = h._getDispatchEffectIdx()
+string p1Id = h.GetSlotEffectParamNStr(slot, eff, 1)
+string p2Id = h.GetSlotEffectParamNStr(slot, eff, 2)
+```
+
+Same dispatch-context lifetime rule as the int accessors.
 
 ---
 
@@ -618,13 +655,16 @@ reference effects by `pluginId:itemId` strings. Always branch on
 `cid` / `eid`. If you need the array index for an internal lookup,
 resolve it lazily via `_host()._effectIdxFor(self, eid)`.
 
-### Don't reuse menu `value`s across versions
+### Don't rename menu `id`s across versions
 
-Saved presets store the raw int from `menu[].value`. Renumbering an
-existing menu value silently mis-dispatches old presets. Adding new
-values at higher numbers is always safe; removing or renumbering
-existing ones isn't. Decommission by hiding the option (drop it from
-the menu list) but keep its `value` reserved.
+Saved presets store the `menu[].id` string. Renaming an existing id
+silently mis-dispatches old presets. Adding new options is always
+safe (no positional dependency, unlike schema v1's int values).
+Reordering the menu list is also safe — the MCM dropdown reflects the
+new order, and old presets keep working because they reference ids
+not indices. Decommission by either hiding the option (drop the menu
+entry but keep the dispatcher branch) or renaming it via a one-shot
+migrator (`tools/migrate_to_string_ids.py` is the reference impl).
 
 ### No per-plugin settings sliders
 

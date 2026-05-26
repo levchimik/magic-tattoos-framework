@@ -61,8 +61,10 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; ExposureRate is float. Threshold is integer.
         return SLAFramework.GetActorExposureRate(target) >= (param as float)
     elseif cid == "arousal.lock"
+        ; v0.2.9: param1 is now a menu id ("locked" / "unlocked"), fetched via
+        ; host.GetEvalParamStr(). Int param ignored on this branch.
         bool locked = SLAFramework.IsActorArousalLocked(target)
-        if param == 1
+        if _host().GetEvalParamStr() == "locked"
             return locked
         endif
         return !locked

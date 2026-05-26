@@ -1,196 +1,196 @@
 {
-	"displayname": "Test: Modifies (Skills)",
-	"int": {
-		"valid": 0
-	},
-	"schemaversion": 8,
-	"transition": {
-		"duration": 0.3
-	},
-	"slot": [
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			},
-			"effect": [
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 0
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 1
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 2
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 3
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 4
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 5
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 6
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 7
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 8
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 9
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 10
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 11
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 12
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 13
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 14
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 15
-				},
-				{
-					"key": "mtf.base:modify.skill",
-					"param2": 20,
-					"param1": 16
-				}
-			]
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		}
-	],
-	"valid": 1
+  "displayname": "Test: Modifies (Skills)",
+  "int": {
+    "valid": 0
+  },
+  "schemaversion": 8,
+  "transition": {
+    "duration": 0.3
+  },
+  "slot": [
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "one_handed"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "two_handed"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "archery"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "block"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "heavy_armor"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "light_armor"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "smithing"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "enchanting"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "alchemy"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "destruction"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "restoration"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "alteration"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "illusion"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "conjuration"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "speech"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "lockpicking"
+        },
+        {
+          "key": "mtf.base:modify.skill",
+          "param2": 20,
+          "param1": "pickpocket"
+        }
+      ]
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    }
+  ],
+  "valid": 1
 }

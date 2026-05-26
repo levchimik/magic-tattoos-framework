@@ -416,9 +416,11 @@ String Function _renderBasePresetMd(MTF_MainQuest host, int tier, string actorNa
     string layersMd = _renderBaseLayersMd(host, tier, packId, entryId)
     string effectsMd = _renderBaseEffectsMd(host, tier)
     string condKey = host.GetCondPluginId(tier)
-    int condP1 = host.GetCondParam(tier)
-    int condP2 = host.GetCondParam2(tier)
-    string conditionMd = _renderConditionMd(host, condKey, condP1, condP2)
+    int    condP1  = host.GetCondParam(tier)
+    int    condP2  = host.GetCondParam2(tier)
+    string condP1s = host.GetCondParamStr(tier)   ; v0.2.9 string-id for menu params
+    string condP2s = host.GetCondParam2Str(tier)
+    string conditionMd = _renderConditionMd(host, condKey, condP1s, condP1, condP2s, condP2)
     return _composePresetMd("", tier, packLabel, entryLabel, visualDesc, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName)
 EndFunction
 
@@ -447,10 +449,12 @@ String Function _renderStackedPresetMd(MTF_MainQuest host, Actor a, string prese
     string layersMd = _renderStackedLayersMd(host, f, tier, packId, entryId)
     string effectsMd = _renderStackedEffectsMd(host, f, tier)
     string displayName = host.GetPresetDisplayName(presetName)
-    string condKey = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.pluginid", "")
-    int condP1 = JsonUtil.GetPathIntValue(f, ".slot[" + tier + "].cond.param", 0)
-    int condP2 = JsonUtil.GetPathIntValue(f, ".slot[" + tier + "].cond.param2", 0)
-    string conditionMd = _renderConditionMd(host, condKey, condP1, condP2)
+    string condKey  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.pluginid", "")
+    int    condP1   = JsonUtil.GetPathIntValue(f,    ".slot[" + tier + "].cond.param",  0)
+    int    condP2   = JsonUtil.GetPathIntValue(f,    ".slot[" + tier + "].cond.param2", 0)
+    string condP1s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.param",  "")
+    string condP2s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.param2", "")
+    string conditionMd = _renderConditionMd(host, condKey, condP1s, condP1, condP2s, condP2)
     return _composePresetMd(displayName, tier, packLabel, entryLabel, visualDesc, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName)
 EndFunction
 
@@ -575,9 +579,11 @@ String Function _renderBaseEffectsMd(MTF_MainQuest host, int slot) global
     while e < maxE
         string key = host._readFxKey(slot, e, false)
         if key != ""
-            int p1 = host._readFxParam(slot, e, false)
-            int p2 = host._readFxParam2(slot, e, false)
-            string line = _renderOneEffectMd(host, key, p1, p2)
+            int    p1  = host._readFxParam(slot, e, false)
+            int    p2  = host._readFxParam2(slot, e, false)
+            string p1s = host._readFxParamNStr(slot, e, 1, false)   ; v0.2.9
+            string p2s = host._readFxParamNStr(slot, e, 2, false)
+            string line = _renderOneEffectMd(host, key, p1s, p1, p2s, p2)
             if line != ""
                 acc = acc + line
             endif
@@ -599,9 +605,12 @@ String Function _renderStackedEffectsMd(MTF_MainQuest host, string presetFile, i
         string base = ".slot[" + slot + "].effect[" + i + "]"
         string key = JsonUtil.GetPathStringValue(presetFile, base + ".key", "")
         if key != ""
-            int p1 = JsonUtil.GetPathIntValue(presetFile, base + ".param", 0)
-            int p2 = JsonUtil.GetPathIntValue(presetFile, base + ".param2", 0)
-            string line = _renderOneEffectMd(host, key, p1, p2)
+            ; v0.2.9: read both shapes; resolver dispatches via catalog probe.
+            int    p1  = JsonUtil.GetPathIntValue(presetFile,    base + ".param1", 0)
+            int    p2  = JsonUtil.GetPathIntValue(presetFile,    base + ".param2", 0)
+            string p1s = JsonUtil.GetPathStringValue(presetFile, base + ".param1", "")
+            string p2s = JsonUtil.GetPathStringValue(presetFile, base + ".param2", "")
+            string line = _renderOneEffectMd(host, key, p1s, p1, p2s, p2)
             if line != ""
                 acc = acc + line
             endif
@@ -622,7 +631,9 @@ EndFunction
 ; parenthetical pure duplication. Plugin authors who want a value visible
 ; must reference it in the description — empty placeholder = author chose
 ; not to expose that param to the LLM.
-String Function _renderOneEffectMd(MTF_MainQuest host, string key, int p1, int p2) global
+String Function _renderOneEffectMd(MTF_MainQuest host, string key, string p1s, int p1, string p2s, int p2) global
+    ; v0.2.9: p1s/p2s carry the string-id form for menu params; p1/p2 carry
+    ; the int form for sliders. Resolver dispatches via catalog probe.
     MTF_Plugin p = host.ResolvePluginByKey(key)
     string label = ""
     string desc = ""
@@ -636,10 +647,10 @@ String Function _renderOneEffectMd(MTF_MainQuest host, string key, int p1, int p
             ; Capture resolved value labels for description {param1}/{param2}
             ; substitution. Empty label = effect doesn't use that param slot.
             if p.GetEffectParamLabel(itemIdx, 1) != ""
-                p1Val = _resolveParamValueLabel(p, itemIdx, 1, p1)
+                p1Val = _resolveParamValueLabel(p, itemIdx, 1, p1s, p1)
             endif
             if p.GetEffectParamLabel(itemIdx, 2) != ""
-                p2Val = _resolveParamValueLabel(p, itemIdx, 2, p2)
+                p2Val = _resolveParamValueLabel(p, itemIdx, 2, p2s, p2)
             endif
         endif
     endif
@@ -663,7 +674,7 @@ EndFunction
 ; Same parenthetical-drop rationale as _renderOneEffectMd: every
 ; parameterised condition description references its values via
 ; {param1}/{param2}, so the trailing "(<label>: <value>)" was duplication.
-String Function _renderConditionMd(MTF_MainQuest host, string key, int p1, int p2) global
+String Function _renderConditionMd(MTF_MainQuest host, string key, string p1s, int p1, string p2s, int p2) global
     if key == ""
         return ""
     endif
@@ -678,10 +689,10 @@ String Function _renderConditionMd(MTF_MainQuest host, string key, int p1, int p
             label = p.GetConditionLabel(itemIdx)
             desc = p.GetConditionDescription(itemIdx)
             if p.GetConditionParamLabel(itemIdx) != ""
-                p1Val = _resolveConditionParamValueLabel(p, itemIdx, false, p1)
+                p1Val = _resolveConditionParamValueLabel(p, itemIdx, false, p1s, p1)
             endif
             if p.GetConditionParam2Label(itemIdx) != ""
-                p2Val = _resolveConditionParamValueLabel(p, itemIdx, true, p2)
+                p2Val = _resolveConditionParamValueLabel(p, itemIdx, true, p2s, p2)
             endif
         endif
     endif
@@ -744,18 +755,24 @@ EndFunction
 ; string ("{0}", "{0}%", "{0}s"). Off-list values fall back to "Custom: N".
 ; v0.2.1: n is the param index (1..5) under the uniform paramN scheme;
 ; replaced the old bool isParam2 (which only addressed param1 vs param2).
-String Function _resolveParamValueLabel(MTF_Plugin p, int itemIdx, int n, int value) global
+; v0.2.9: menu params dispatch on id string; sliders on int. Caller passes
+; both — the catalog menu count tells us which to use. `sId` empty + menu
+; present = unset → return "(unset)".
+String Function _resolveParamValueLabel(MTF_Plugin p, int itemIdx, int n, string sId, int value) global
     int optCount = p.GetEffectParamMenuOptionCount(itemIdx, n)
     if optCount > 0
+        if sId == ""
+            return "(unset)"
+        endif
         int oi = 0
         while oi < optCount
-            int ov = p.GetEffectParamMenuOptionValue(itemIdx, n, oi)
-            if ov == value
+            string ov = p.GetEffectParamMenuOptionId(itemIdx, n, oi)
+            if ov == sId
                 return p.GetEffectParamMenuOptionLabel(itemIdx, n, oi)
             endif
             oi += 1
         endwhile
-        return "Custom: " + value
+        return "Custom: " + sId
     endif
     string fmt = p.GetEffectParamFormat(itemIdx, n)
     if fmt == ""
@@ -765,7 +782,7 @@ String Function _resolveParamValueLabel(MTF_Plugin p, int itemIdx, int n, int va
 EndFunction
 
 ; Condition-side mirror of _resolveParamValueLabel.
-String Function _resolveConditionParamValueLabel(MTF_Plugin p, int itemIdx, bool isParam2, int value) global
+String Function _resolveConditionParamValueLabel(MTF_Plugin p, int itemIdx, bool isParam2, string sId, int value) global
     int optCount = 0
     if isParam2
         optCount = p.GetConditionParam2MenuOptionCount(itemIdx)
@@ -773,15 +790,18 @@ String Function _resolveConditionParamValueLabel(MTF_Plugin p, int itemIdx, bool
         optCount = p.GetConditionParamMenuOptionCount(itemIdx)
     endif
     if optCount > 0
+        if sId == ""
+            return "(unset)"
+        endif
         int oi = 0
         while oi < optCount
-            int ov = 0
+            string ov = ""
             if isParam2
-                ov = p.GetConditionParam2MenuOptionValue(itemIdx, oi)
+                ov = p.GetConditionParam2MenuOptionId(itemIdx, oi)
             else
-                ov = p.GetConditionParamMenuOptionValue(itemIdx, oi)
+                ov = p.GetConditionParamMenuOptionId(itemIdx, oi)
             endif
-            if ov == value
+            if ov == sId
                 if isParam2
                     return p.GetConditionParam2MenuOptionLabel(itemIdx, oi)
                 else
@@ -790,7 +810,7 @@ String Function _resolveConditionParamValueLabel(MTF_Plugin p, int itemIdx, bool
             endif
             oi += 1
         endwhile
-        return "Custom: " + value
+        return "Custom: " + sId
     endif
     string fmt = "{0}"
     if isParam2

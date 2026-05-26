@@ -1090,6 +1090,102 @@ Function SetCondParam2(int slot, int val)
     StorageUtil.SetIntValue(self, "mtf.cond.param2." + slot, val)
 EndFunction
 
+; ── String-typed cond.param accessors (v0.2.9) ──────────────────────────────
+; Menu params now store a stable id string (e.g. "sneak") instead of an int
+; position. Slider params keep using the int-typed Get/SetCondParam above.
+; The catalog tells the caller which to use: probe via
+; GetConditionParamMenuOptionCount > 0 from the bound MTF_Plugin.
+; Key shape: `mtf.cond.param.<slot>.s` (NEW string slot, distinct from the
+; existing int `mtf.cond.param.<slot>`). Two key families keep slider
+; behavior bit-identical and let v8 in-game preset state for legacy menus
+; cleanly orphan rather than silently misread.
+string Function GetCondParamStr(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return ""
+    endif
+    return StorageUtil.GetStringValue(self, "mtf.cond.param." + slot + ".s", "")
+EndFunction
+
+Function SetCondParamStr(int slot, string val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    if val == ""
+        StorageUtil.UnsetStringValue(self, "mtf.cond.param." + slot + ".s")
+    else
+        StorageUtil.SetStringValue(self, "mtf.cond.param." + slot + ".s", val)
+    endif
+EndFunction
+
+string Function GetCondParam2Str(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return ""
+    endif
+    return StorageUtil.GetStringValue(self, "mtf.cond.param2." + slot + ".s", "")
+EndFunction
+
+Function SetCondParam2Str(int slot, string val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    if val == ""
+        StorageUtil.UnsetStringValue(self, "mtf.cond.param2." + slot + ".s")
+    else
+        StorageUtil.SetStringValue(self, "mtf.cond.param2." + slot + ".s", val)
+    endif
+EndFunction
+
+; ── Catalog probe helpers (v0.2.9) ──────────────────────────────────────────
+; "Does this cond/effect param have a menu in the catalog?" Resolves the
+; plugin + item from a slot key. Used by SavePreset/LoadPreset to route to
+; the right string-vs-int accessor family per param.
+;
+; Empty key returns false (treat as slider so default int read returns 0).
+bool Function _condParamIsMenu(string condKey)
+    if condKey == ""
+        return false
+    endif
+    MTF_Plugin p = ResolvePluginByKey(condKey)
+    if p == None
+        return false
+    endif
+    int itemIdx = _condIdxFor(p, _keyItemId(condKey))
+    if itemIdx < 0
+        return false
+    endif
+    return p.GetConditionParamMenuOptionCount(itemIdx) > 0
+EndFunction
+
+bool Function _condParam2IsMenu(string condKey)
+    if condKey == ""
+        return false
+    endif
+    MTF_Plugin p = ResolvePluginByKey(condKey)
+    if p == None
+        return false
+    endif
+    int itemIdx = _condIdxFor(p, _keyItemId(condKey))
+    if itemIdx < 0
+        return false
+    endif
+    return p.GetConditionParam2MenuOptionCount(itemIdx) > 0
+EndFunction
+
+bool Function _effectParamIsMenu(string effKey, int n)
+    if effKey == "" || n < 1 || n > 5
+        return false
+    endif
+    MTF_Plugin p = ResolvePluginByKey(effKey)
+    if p == None
+        return false
+    endif
+    int itemIdx = _effectIdxFor(p, _keyItemId(effKey))
+    if itemIdx < 0
+        return false
+    endif
+    return p.GetEffectParamMenuOptionCount(itemIdx, n) > 0
+EndFunction
+
 ; ── Per-slot display name (StorageUtil-backed, v0.2.9) ──────────────────────
 ; User-authored override for the bare "Default" / "Condition N" labels the MCM
 ; uses by default. Slot 0 (Default) IS renameable — the engine-side meaning of
@@ -1149,6 +1245,8 @@ bool Function SwapSlots(string preset, int a, int b)
     string aPid      = GetCondPluginId(a)
     int    aPar      = GetCondParam(a)
     int    aPar2     = GetCondParam2(a)
+    string aParS     = GetCondParamStr(a)
+    string aPar2S    = GetCondParam2Str(a)
     string aPack     = GetCondPackId(a)
     string aEntry    = GetCondEntryId(a)
     int    aPMin     = GetCondPersistMin(a)
@@ -1161,6 +1259,11 @@ bool Function SwapSlots(string preset, int a, int b)
     int[]    aP3     = Utility.CreateIntArray(maxE, 0)
     int[]    aP4     = Utility.CreateIntArray(maxE, 0)
     int[]    aP5     = Utility.CreateIntArray(maxE, 0)
+    string[] aP1S    = Utility.CreateStringArray(maxE, "")
+    string[] aP2S    = Utility.CreateStringArray(maxE, "")
+    string[] aP3S    = Utility.CreateStringArray(maxE, "")
+    string[] aP4S    = Utility.CreateStringArray(maxE, "")
+    string[] aP5S    = Utility.CreateStringArray(maxE, "")
     int e = 0
     while e < maxE
         aKeys[e] = _readFxKey(a, e, false)
@@ -1169,6 +1272,11 @@ bool Function SwapSlots(string preset, int a, int b)
         aP3[e]   = _readFxParamN(a, e, 3, false)
         aP4[e]   = _readFxParamN(a, e, 4, false)
         aP5[e]   = _readFxParamN(a, e, 5, false)
+        aP1S[e]  = _readFxParamNStr(a, e, 1, false)
+        aP2S[e]  = _readFxParamNStr(a, e, 2, false)
+        aP3S[e]  = _readFxParamNStr(a, e, 3, false)
+        aP4S[e]  = _readFxParamNStr(a, e, 4, false)
+        aP5S[e]  = _readFxParamNStr(a, e, 5, false)
         e += 1
     endwhile
 
@@ -1177,6 +1285,8 @@ bool Function SwapSlots(string preset, int a, int b)
     SetCondPluginId(a,         GetCondPluginId(b))
     SetCondParam(a,            GetCondParam(b))
     SetCondParam2(a,           GetCondParam2(b))
+    SetCondParamStr(a,         GetCondParamStr(b))
+    SetCondParam2Str(a,        GetCondParam2Str(b))
     SetCondPackId(a,           GetCondPackId(b))
     SetCondEntryId(a,          GetCondEntryId(b))
     SetCondPersistMin(a,       GetCondPersistMin(b))
@@ -1190,6 +1300,11 @@ bool Function SwapSlots(string preset, int a, int b)
         _writeFxParamN(a, e, 3, false, _readFxParamN(b, e, 3, false))
         _writeFxParamN(a, e, 4, false, _readFxParamN(b, e, 4, false))
         _writeFxParamN(a, e, 5, false, _readFxParamN(b, e, 5, false))
+        _writeFxParamNStr(a, e, 1, false, _readFxParamNStr(b, e, 1, false))
+        _writeFxParamNStr(a, e, 2, false, _readFxParamNStr(b, e, 2, false))
+        _writeFxParamNStr(a, e, 3, false, _readFxParamNStr(b, e, 3, false))
+        _writeFxParamNStr(a, e, 4, false, _readFxParamNStr(b, e, 4, false))
+        _writeFxParamNStr(a, e, 5, false, _readFxParamNStr(b, e, 5, false))
         e += 1
     endwhile
 
@@ -1198,6 +1313,8 @@ bool Function SwapSlots(string preset, int a, int b)
     SetCondPluginId(b,         aPid)
     SetCondParam(b,            aPar)
     SetCondParam2(b,           aPar2)
+    SetCondParamStr(b,         aParS)
+    SetCondParam2Str(b,        aPar2S)
     SetCondPackId(b,           aPack)
     SetCondEntryId(b,          aEntry)
     SetCondPersistMin(b,       aPMin)
@@ -1211,6 +1328,11 @@ bool Function SwapSlots(string preset, int a, int b)
         _writeFxParamN(b, e, 3, false, aP3[e])
         _writeFxParamN(b, e, 4, false, aP4[e])
         _writeFxParamN(b, e, 5, false, aP5[e])
+        _writeFxParamNStr(b, e, 1, false, aP1S[e])
+        _writeFxParamNStr(b, e, 2, false, aP2S[e])
+        _writeFxParamNStr(b, e, 3, false, aP3S[e])
+        _writeFxParamNStr(b, e, 4, false, aP4S[e])
+        _writeFxParamNStr(b, e, 5, false, aP5S[e])
         e += 1
     endwhile
 
@@ -1256,6 +1378,24 @@ EndFunction
 
 int Function GetEvalParam2()
     return StorageUtil.GetIntValue(self, "mtf.evalParam2", 0)
+EndFunction
+
+; ── String eval-param accessors (v0.2.9) ─────────────────────────────────────
+; For menu-typed cond params: evaluateTier sets the id string before calling
+; the plugin's checkCondition. The plugin reads it via host.GetEvalParamStr()
+; (param) or host.GetEvalParam2Str() (param2). Slider-typed conds still use
+; the int param arg + GetEvalParam2 above.
+Function _setEvalParamStr(string val)
+    StorageUtil.SetStringValue(self, "mtf.evalParam.s", val)
+EndFunction
+string Function GetEvalParamStr()
+    return StorageUtil.GetStringValue(self, "mtf.evalParam.s", "")
+EndFunction
+Function _setEvalParam2Str(string val)
+    StorageUtil.SetStringValue(self, "mtf.evalParam2.s", val)
+EndFunction
+string Function GetEvalParam2Str()
+    return StorageUtil.GetStringValue(self, "mtf.evalParam2.s", "")
 EndFunction
 
 float Function GetCondPulseRate(int slot)
@@ -2191,10 +2331,28 @@ bool Function SavePreset(string rawName)
         else
         string sp = ".slot[" + s + "]"
         JsonUtil.SetPathStringValue(f, sp + ".cond.pluginid", slotPid)
-        JsonUtil.SetPathIntValue(f,    sp + ".cond.param",    GetCondParam(s))
-        int p2 = GetCondParam2(s)
-        if p2 != 0
-            JsonUtil.SetPathIntValue(f, sp + ".cond.param2", p2)
+        ; v0.2.9 menu-vs-slider routing: probe the catalog for this cond's
+        ; param shape. Menu params write a string id; sliders write an int.
+        ; Probe via _condParamIsMenu helper which resolves the plugin + item.
+        if _condParamIsMenu(slotPid)
+            string pStr = GetCondParamStr(s)
+            if pStr != ""
+                JsonUtil.SetPathStringValue(f, sp + ".cond.param", pStr)
+            endif
+        else
+            JsonUtil.SetPathIntValue(f, sp + ".cond.param", GetCondParam(s))
+        endif
+        ; param2 same shape (only emitted when non-default).
+        if _condParam2IsMenu(slotPid)
+            string p2Str = GetCondParam2Str(s)
+            if p2Str != ""
+                JsonUtil.SetPathStringValue(f, sp + ".cond.param2", p2Str)
+            endif
+        else
+            int p2 = GetCondParam2(s)
+            if p2 != 0
+                JsonUtil.SetPathIntValue(f, sp + ".cond.param2", p2)
+            endif
         endif
         ; v0.2.9 per-slot display name (sidecar to cond.*). Only emit when
         ; non-empty so untouched presets keep clean JSON. Empty fallback in
@@ -2249,12 +2407,18 @@ bool Function SavePreset(string rawName)
                 string ep = sp + ".effect[" + e + "]"
                 JsonUtil.SetPathStringValue(f, ep + ".key", fxKey)
                 ; v0.2.1: uniform paramN serialization. Walk 1..5 and emit
-                ; each value as `paramN`. We could probe the bound plugin's
-                ; GetEffectParamLabel(n) and skip undeclared slots, but a
-                ; zero-write is harmless and keeps the loop trivially fast.
+                ; each value as `paramN`. v0.2.9: probe the catalog per
+                ; param — menu params write string id, sliders write int.
                 int n = 1
                 while n <= 5
-                    JsonUtil.SetPathIntValue(f, ep + ".param" + n, _readFxParamN(s, e, n, false))
+                    if _effectParamIsMenu(fxKey, n)
+                        string sval = _readFxParamNStr(s, e, n, false)
+                        if sval != ""
+                            JsonUtil.SetPathStringValue(f, ep + ".param" + n, sval)
+                        endif
+                    else
+                        JsonUtil.SetPathIntValue(f, ep + ".param" + n, _readFxParamN(s, e, n, false))
+                    endif
                     n += 1
                 endwhile
             endif
@@ -2339,8 +2503,21 @@ bool Function LoadPreset(string name)
         string sp = ".slot[" + s + "]"
         string pluginIdHere = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
         SetCondPluginId(s, pluginIdHere)
-        SetCondParam(s,    JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0))
-        SetCondParam2(s,   JsonUtil.GetPathIntValue(f,    sp + ".cond.param2",   0))
+        ; v0.2.9: param/param2 routing — menu params read as string, sliders as int.
+        if _condParamIsMenu(pluginIdHere)
+            SetCondParamStr(s, JsonUtil.GetPathStringValue(f, sp + ".cond.param", ""))
+            SetCondParam(s, 0)
+        else
+            SetCondParam(s, JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0))
+            SetCondParamStr(s, "")
+        endif
+        if _condParam2IsMenu(pluginIdHere)
+            SetCondParam2Str(s, JsonUtil.GetPathStringValue(f, sp + ".cond.param2", ""))
+            SetCondParam2(s, 0)
+        else
+            SetCondParam2(s, JsonUtil.GetPathIntValue(f, sp + ".cond.param2", 0))
+            SetCondParam2Str(s, "")
+        endif
         ; v0.2.9 per-slot display name. Empty default = use canonical label.
         SetCondName(s,     JsonUtil.GetPathStringValue(f, sp + ".name", ""))
         _setCoolMin(s, JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
@@ -2396,16 +2573,30 @@ bool Function LoadPreset(string name)
             endif
             int n = 1
             while n <= 5
-                int sentinel = -999999
-                int v = JsonUtil.GetPathIntValue(f, ep + ".param" + n, sentinel)
-                if v == sentinel
-                    if itemIdxLoad >= 0
-                        v = pLoad.GetEffectParamDefault(itemIdxLoad, n)
-                    else
-                        v = 0
+                ; v0.2.9: per-param menu-vs-slider routing on load too. Menu
+                ; params read string id (default = catalog's GetEffectParamDefaultId);
+                ; sliders read int (default = catalog's GetEffectParamDefault).
+                bool isMenuN = (itemIdxLoad >= 0 && pLoad.GetEffectParamMenuOptionCount(itemIdxLoad, n) > 0)
+                if isMenuN
+                    string svalLoad = JsonUtil.GetPathStringValue(f, ep + ".param" + n, "")
+                    if svalLoad == "" && itemIdxLoad >= 0
+                        svalLoad = pLoad.GetEffectParamDefaultId(itemIdxLoad, n)
                     endif
+                    _writeFxParamNStr(s, e, n, false, svalLoad)
+                    _writeFxParamN(s, e, n, false, 0)
+                else
+                    int sentinel = -999999
+                    int v = JsonUtil.GetPathIntValue(f, ep + ".param" + n, sentinel)
+                    if v == sentinel
+                        if itemIdxLoad >= 0
+                            v = pLoad.GetEffectParamDefault(itemIdxLoad, n)
+                        else
+                            v = 0
+                        endif
+                    endif
+                    _writeFxParamN(s, e, n, false, v)
+                    _writeFxParamNStr(s, e, n, false, "")
                 endif
-                _writeFxParamN(s, e, n, false, v)
                 n += 1
             endwhile
             e += 1
@@ -2660,7 +2851,8 @@ EndFunction
 ;       v0.2.5 menu consolidations both happened before any third-party
 ;       plugin existed, so they don't get version numbers.
 int Function PLUGIN_SCHEMA_VERSION() global
-    return 1
+{v0.2.9: bumped to 2 -- menu params migrated to id-string dispatch. Old plugin catalogs (schemaversion 1) will register but their menu params will silently read empty defaults and dispatch to no matching branch in the consumer code.}
+    return 2
 EndFunction
 
 Function RegisterPlugin(MTF_Plugin p)
@@ -3190,6 +3382,45 @@ Function _writeFxParam2(int slot, int idx, bool useScratch, int val)
     _writeFxParamN(slot, idx, 2, useScratch, val)
 EndFunction
 
+; ── String-typed per-effect paramN (v0.2.9) ─────────────────────────────────
+; Menu effect params store a stable id string (was int position). Sliders
+; keep using _readFxParamN above. Catalog probe `GetEffectParamMenuOptionCount
+; (idx, n) > 0` tells the caller which to use.
+; Key shape: `mtf.fx.<slot>.<idx>.param<N>.s` (string, new) — distinct from
+; the int `mtf.fx.<slot>.<idx>.param<N>` slider key.
+string Function _readFxParamNStr(int slot, int idx, int n, bool useScratch)
+    if useScratch
+        return StorageUtil.GetStringValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param" + n + ".s", "")
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.fx." + slot + "." + idx + ".param" + n + ".s", "")
+EndFunction
+
+Function _writeFxParamNStr(int slot, int idx, int n, bool useScratch, string val)
+    if useScratch
+        StorageUtil.SetStringValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param" + n + ".s", val)
+        return
+    endif
+    StorageUtil.SetStringValue(None, "mtf.fx." + slot + "." + idx + ".param" + n + ".s", val)
+EndFunction
+
+; ── Public accessors for menu effect params (v0.2.9) ────────────────────────
+; Mirrors GetSlotEffectParamN / SetSlotEffectParamN but for string-typed
+; (menu) effect params. Plugin behaviour code consumes via
+; host.GetSlotEffectParamNStr(slot, eff, n) inside its menu-dispatch branches.
+string Function GetSlotEffectParamNStr(int slot, int effectIdx, int n)
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+        return ""
+    endif
+    return _readFxParamNStr(slot, effectIdx, n, false)
+EndFunction
+
+Function SetSlotEffectParamNStr(int slot, int effectIdx, int n, string val)
+    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+        return
+    endif
+    _writeFxParamNStr(slot, effectIdx, n, false, val)
+EndFunction
+
 ; ── Per-slot effect-list helpers ─────────────────────────────────────────────
 
 string Function GetSlotEffectKey(int slot, int effectIdx)
@@ -3447,6 +3678,8 @@ int Function evaluateTier()
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
                     if itemIdx >= 0
                         _setEvalParam2(GetCondParam2(i))
+                        _setEvalParamStr(GetCondParamStr(i))
+                        _setEvalParam2Str(GetCondParam2Str(i))
                         if p.checkCondition(PlayerRef, GetCondParam(i), p.GetConditionId(itemIdx))
                             return i
                         endif
@@ -5444,6 +5677,21 @@ EndFunction
 Function _setScratchCondParam(int slot, int v)
     StorageUtil.SetIntValue(None, "mtf.scratch.cond.param." + _scratchLoadedFor + "." + slot, v)
 EndFunction
+; v0.2.9 string-id scratch accessors for menu cond params. Per-preset namespaced
+; just like the int variants above. Read at eval time before calling
+; plugin.checkCondition via _setEvalParamStr.
+string Function _getScratchCondParamStr(int slot)
+    return StorageUtil.GetStringValue(None, "mtf.scratch.cond.param." + _scratchLoadedFor + "." + slot + ".s", "")
+EndFunction
+Function _setScratchCondParamStr(int slot, string v)
+    StorageUtil.SetStringValue(None, "mtf.scratch.cond.param." + _scratchLoadedFor + "." + slot + ".s", v)
+EndFunction
+string Function _getScratchCondParam2Str(int slot)
+    return StorageUtil.GetStringValue(None, "mtf.scratch.cond.param2." + _scratchLoadedFor + "." + slot + ".s", "")
+EndFunction
+Function _setScratchCondParam2Str(int slot, string v)
+    StorageUtil.SetStringValue(None, "mtf.scratch.cond.param2." + _scratchLoadedFor + "." + slot + ".s", v)
+EndFunction
 ; v0.2.9 per-slot display name (scratch path). Mirrors the cond.pluginid pattern;
 ; namespaced by _scratchLoadedFor so each preset keeps its own slot names. Read
 ; via _g_condName below (currently MCM-only consumer); written by cold load.
@@ -5695,8 +5943,24 @@ bool Function _loadPresetToScratch(string name)
     int s = 0
     while s < 8
         string sp = ".slot[" + s + "]"
-        localCondPluginId[s] = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
-        localCondParam[s]    = JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0)
+        string slotCondKey = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
+        localCondPluginId[s] = slotCondKey
+        ; v0.2.9: param/param2 menu-vs-slider routing. Menu params read string
+        ; id from the JSON; sliders read int. Both write into the slot's
+        ; matching scratch storage (the int array OR a string-typed namespaced
+        ; key) so eval-time can read whichever the catalog says.
+        if _condParamIsMenu(slotCondKey)
+            _setScratchCondParamStr(s, JsonUtil.GetPathStringValue(f, sp + ".cond.param", ""))
+            localCondParam[s] = 0
+        else
+            localCondParam[s] = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
+            _setScratchCondParamStr(s, "")
+        endif
+        if _condParam2IsMenu(slotCondKey)
+            _setScratchCondParam2Str(s, JsonUtil.GetPathStringValue(f, sp + ".cond.param2", ""))
+        else
+            _setScratchCondParam2Str(s, "")
+        endif
         localCondPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",   "")
         localCondEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid",  "")
         ; v0.2.9 per-slot display name into the per-preset scratch keyspace.
@@ -5748,16 +6012,29 @@ bool Function _loadPresetToScratch(string name)
             endif
             int sn = 1
             while sn <= 5
-                int sentinel = -999999
-                int v = JsonUtil.GetPathIntValue(f, ep + ".param" + sn, sentinel)
-                if v == sentinel
-                    if itemIdxX >= 0
-                        v = pLoadX.GetEffectParamDefault(itemIdxX, sn)
-                    else
-                        v = 0
+                ; v0.2.9: menu effect params read as string; sliders as int.
+                ; Catalog probe per param.
+                bool isMenuSn = (itemIdxX >= 0 && pLoadX.GetEffectParamMenuOptionCount(itemIdxX, sn) > 0)
+                if isMenuSn
+                    string snStr = JsonUtil.GetPathStringValue(f, ep + ".param" + sn, "")
+                    if snStr == "" && itemIdxX >= 0
+                        snStr = pLoadX.GetEffectParamDefaultId(itemIdxX, sn)
                     endif
+                    _writeFxParamNStr(s, e, sn, true, snStr)
+                    _writeFxParamN(s, e, sn, true, 0)
+                else
+                    int sentinel = -999999
+                    int v = JsonUtil.GetPathIntValue(f, ep + ".param" + sn, sentinel)
+                    if v == sentinel
+                        if itemIdxX >= 0
+                            v = pLoadX.GetEffectParamDefault(itemIdxX, sn)
+                        else
+                            v = 0
+                        endif
+                    endif
+                    _writeFxParamN(s, e, sn, true, v)
+                    _writeFxParamNStr(s, e, sn, true, "")
                 endif
-                _writeFxParamN(s, e, sn, true, v)
                 sn += 1
             endwhile
             e += 1
@@ -5792,7 +6069,19 @@ bool Function _loadPresetToScratch(string name)
         string sp_b = ".slot[" + sb + "]"
         string pid_b = JsonUtil.GetPathStringValue(f, sp_b + ".cond.pluginid", "")
         _setScratchCondPluginId(sb, pid_b)
-        _setScratchCondParam(sb,    JsonUtil.GetPathIntValue(f, sp_b + ".cond.param", 0))
+        ; v0.2.9: param/param2 menu-vs-slider routing for backend slots too.
+        if _condParamIsMenu(pid_b)
+            _setScratchCondParamStr(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.param", ""))
+            _setScratchCondParam(sb, 0)
+        else
+            _setScratchCondParam(sb, JsonUtil.GetPathIntValue(f, sp_b + ".cond.param", 0))
+            _setScratchCondParamStr(sb, "")
+        endif
+        if _condParam2IsMenu(pid_b)
+            _setScratchCondParam2Str(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.param2", ""))
+        else
+            _setScratchCondParam2Str(sb, "")
+        endif
         ; v0.2.9 per-slot display name (backend slot path).
         _setScratchCondName(sb,     JsonUtil.GetPathStringValue(f, sp_b + ".name", ""))
         ; cool.min for the backend slot (StorageUtil-keyed; safe for any slot).
@@ -6237,7 +6526,11 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
                     if itemIdx >= 0
                         int param = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
+                        string paramStr = JsonUtil.GetPathStringValue(f, sp + ".cond.param", "")
+                        string param2Str = JsonUtil.GetPathStringValue(f, sp + ".cond.param2", "")
                         _setEvalParam2(0)
+                        _setEvalParamStr(paramStr)
+                        _setEvalParam2Str(param2Str)
                         if p.checkCondition(target, param, p.GetConditionId(itemIdx))
                             return i
                         endif
@@ -6319,8 +6612,12 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
                         ; param2 yet — reset to 0 so a stale value can't leak.
                         if useScratch
                             _setEvalParam2(0)
+                            _setEvalParamStr(_getScratchCondParamStr(i))
+                            _setEvalParam2Str("")
                         else
                             _setEvalParam2(GetCondParam2(i))
+                            _setEvalParamStr(GetCondParamStr(i))
+                            _setEvalParam2Str(GetCondParam2Str(i))
                         endif
                         if p.checkCondition(target, _g_condParam(i, useScratch), p.GetConditionId(itemIdx))
                             return i

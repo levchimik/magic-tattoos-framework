@@ -45,6 +45,23 @@ MTF_MainQuest Function _host()
     return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
 EndFunction
 
+; v0.2.9: helper to fetch the menu-id string for the current dispatch's
+; paramN (1..5). Menu-typed effects store their selection in paramN as a
+; stable string id (catalog schema v2). Returns "" outside a dispatch
+; context (e.g. direct invocation, missing host).
+string Function _dispPNStr(int n)
+    MTF_MainQuest h = _host()
+    if h == None
+        return ""
+    endif
+    int slot = h._getDispatchSlot()
+    int eff  = h._getDispatchEffectIdx()
+    if slot < 0 || eff < 0
+        return ""
+    endif
+    return h.GetSlotEffectParamNStr(slot, eff, n)
+EndFunction
+
 ; Lifted registration loop. Every integration plugin used to repeat this
 ; ~15-line shape verbatim (deps gate + host gate + register + post-hook).
 ; Two override hooks below let plugins customise without re-declaring the
@@ -187,9 +204,13 @@ int Function GetConditionParamMenuOptionCount(int idx)
     return JsonUtil.PathCount(_catalogFile(), ".conditions[" + idx + "].param.menu")
 EndFunction
 
-int Function GetConditionParamMenuOptionValue(int idx, int optionIdx)
-{The int value stored on the slot when option `optionIdx` is picked.}
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".conditions[" + idx + "].param.menu[" + optionIdx + "].value", 0)
+; v0.2.9: menu params now store a stable string id (was int value).
+; GetConditionParamMenuOptionId / ...Label / ...Count for param;
+; matching set for param2. Catalog schema 2 (see PLUGIN_SCHEMA_VERSION).
+string Function GetConditionParamMenuOptionId(int idx, int optionIdx)
+{The stable id stored on the slot when option `optionIdx` is picked.
+ Reorder-safe — catalog can grow/shrink without rebinding existing presets.}
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".conditions[" + idx + "].param.menu[" + optionIdx + "].id", "")
 EndFunction
 
 string Function GetConditionParamMenuOptionLabel(int idx, int optionIdx)
@@ -200,12 +221,24 @@ int Function GetConditionParam2MenuOptionCount(int idx)
     return JsonUtil.PathCount(_catalogFile(), ".conditions[" + idx + "].param2.menu")
 EndFunction
 
-int Function GetConditionParam2MenuOptionValue(int idx, int optionIdx)
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".conditions[" + idx + "].param2.menu[" + optionIdx + "].value", 0)
+string Function GetConditionParam2MenuOptionId(int idx, int optionIdx)
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".conditions[" + idx + "].param2.menu[" + optionIdx + "].id", "")
 EndFunction
 
 string Function GetConditionParam2MenuOptionLabel(int idx, int optionIdx)
     return JsonUtil.GetPathStringValue(_catalogFile(), ".conditions[" + idx + "].param2.menu[" + optionIdx + "].label", "")
+EndFunction
+
+; v0.2.9: string default for menu params. Sliders keep using the
+; int-returning GetConditionParamDefault (which now reads the same `default`
+; key but returns 0 when the field is a string — sliders won't have menus,
+; so callers must dispatch on GetConditionParamMenuOptionCount > 0).
+string Function GetConditionParamDefaultId(int idx)
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".conditions[" + idx + "].param.default", "")
+EndFunction
+
+string Function GetConditionParam2DefaultId(int idx)
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".conditions[" + idx + "].param2.default", "")
 EndFunction
 
 ; ── OVERRIDE: condition behaviour (stays in Papyrus) ────────────────────────
@@ -314,13 +347,19 @@ int Function GetEffectParamMenuOptionCount(int idx, int n)
     return JsonUtil.PathCount(_catalogFile(), ".effects[" + idx + "].param" + n + ".menu")
 EndFunction
 
-int Function GetEffectParamMenuOptionValue(int idx, int n, int optionIdx)
-{The int value to store on the slot when option `optionIdx` is picked.}
-    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".menu[" + optionIdx + "].value", 0)
+string Function GetEffectParamMenuOptionId(int idx, int n, int optionIdx)
+{The stable id stored on the slot when option `optionIdx` is picked.
+ Reorder-safe. v0.2.9 schema 2.}
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".menu[" + optionIdx + "].id", "")
 EndFunction
 
 string Function GetEffectParamMenuOptionLabel(int idx, int n, int optionIdx)
     return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".menu[" + optionIdx + "].label", "")
+EndFunction
+
+; v0.2.9: string default for menu effect params.
+string Function GetEffectParamDefaultId(int idx, int n)
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".default", "")
 EndFunction
 
 ; ── OVERRIDE: effect behaviour (stays in Papyrus) ───────────────────────────

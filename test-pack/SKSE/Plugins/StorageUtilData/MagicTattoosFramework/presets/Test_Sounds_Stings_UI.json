@@ -1,183 +1,183 @@
 {
-	"displayname": "Test: Stings UI (3s)",
-	"int": {
-		"valid": 0
-	},
-	"schemaversion": 8,
-	"transition": {
-		"duration": 0.3
-	},
-	"slot": [
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			},
-			"effect": [
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 3,
-					"extras": {
-						"volume": 100
-					},
-					"param1": 18
-				},
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 3,
-					"extras": {
-						"volume": 100
-					},
-					"param1": 19
-				},
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 3,
-					"extras": {
-						"volume": 100
-					},
-					"param1": 20
-				},
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 3,
-					"extras": {
-						"volume": 100
-					},
-					"param1": 21
-				},
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 3,
-					"extras": {
-						"volume": 100
-					},
-					"param1": 22
-				},
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 3,
-					"extras": {
-						"volume": 100
-					},
-					"param1": 23
-				},
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 3,
-					"extras": {
-						"volume": 100
-					},
-					"param1": 24
-				},
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 3,
-					"extras": {
-						"volume": 100
-					},
-					"param1": 25
-				},
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 3,
-					"extras": {
-						"volume": 100
-					},
-					"param1": 26
-				}
-			]
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		}
-	],
-	"valid": 1
+  "displayname": "Test: Stings UI (3s)",
+  "int": {
+    "valid": 0
+  },
+  "schemaversion": 8,
+  "transition": {
+    "duration": 0.3
+  },
+  "slot": [
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_level_up"
+        },
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_skill_up"
+        },
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_new_quest"
+        },
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_quest_update"
+        },
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_quest_complete"
+        },
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_shout_learned"
+        },
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_shout_pop_big"
+        },
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_perk_select"
+        },
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_journal_open"
+        }
+      ]
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    }
+  ],
+  "valid": 1
 }

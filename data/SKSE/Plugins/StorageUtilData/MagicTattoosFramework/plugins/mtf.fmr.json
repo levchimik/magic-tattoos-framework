@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.fmr",
   "pluginlabel": "Fertility Mode (v3 / Reloaded)",
   "conditions": [

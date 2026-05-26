@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.bfng",
   "pluginlabel": "Beeing Female NG",
   "conditions": [
@@ -25,25 +25,23 @@
       "description": "Triggers when the actor is in the {param1} part of her cycle.",
       "param": {
         "label": "Phase",
-        "min": 0,
-        "max": 3,
-        "default": 1,
+        "default": "ovulating",
         "menu": [
           {
-            "value": 0,
-            "label": "Follicular"
+            "label": "Follicular",
+            "id": "follicular"
           },
           {
-            "value": 1,
-            "label": "Ovulating"
+            "label": "Ovulating",
+            "id": "ovulating"
           },
           {
-            "value": 2,
-            "label": "Luteal"
+            "label": "Luteal",
+            "id": "luteal"
           },
           {
-            "value": 3,
-            "label": "Menstruating"
+            "label": "Menstruating",
+            "id": "menstruating"
           }
         ]
       }

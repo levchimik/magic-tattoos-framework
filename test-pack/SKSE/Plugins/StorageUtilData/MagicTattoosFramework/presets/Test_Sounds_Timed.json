@@ -1,121 +1,121 @@
 {
-	"displayname": "Test: Sounds (5s timed)",
-	"int": {
-		"valid": 0
-	},
-	"schemaversion": 8,
-	"transition": {
-		"duration": 0.3
-	},
-	"slot": [
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			},
-			"effect": [
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 5,
-					"param1": 8
-				},
-				{
-					"key": "mtf.base:sound.play",
-					"param2": 5,
-					"param1": 15
-				}
-			]
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		}
-	],
-	"valid": 1
+  "displayname": "Test: Sounds (5s timed)",
+  "int": {
+    "valid": 0
+  },
+  "schemaversion": 8,
+  "transition": {
+    "duration": 0.3
+  },
+  "slot": [
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 5,
+          "param1": "shock_projectile_arc"
+        },
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 5,
+          "param1": "detect_life_pulse"
+        }
+      ]
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    }
+  ],
+  "valid": 1
 }

@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.ostim",
   "pluginlabel": "OStim Standalone",
   "conditions": [
@@ -36,17 +36,15 @@
       "description": "Triggers when the actor's climax is {param1}.",
       "param": {
         "label": "Stall state",
-        "min": 0,
-        "max": 1,
-        "default": 1,
+        "default": "stalled",
         "menu": [
           {
-            "value": 0,
-            "label": "Not stalled"
+            "label": "Not stalled",
+            "id": "not_stalled"
           },
           {
-            "value": 1,
-            "label": "Stalled"
+            "label": "Stalled",
+            "id": "stalled"
           }
         ]
       }

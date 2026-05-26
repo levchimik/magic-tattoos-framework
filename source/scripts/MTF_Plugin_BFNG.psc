@@ -62,8 +62,23 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; ovulation: cycle phase == 1 (Ovulating).
         return BFController.GetFemaleState(target) == 1
     elseif cid == "cycle.phase"
-        ; cycle.phase: phase enum matches the picked option.
-        return BFController.GetFemaleState(target) == param
+        ; cycle.phase: phase id matches the picked option. v0.2.9 schema v2 —
+        ; param1 carries a string id; map to BFNG's GetFemaleState int.
+        string phaseId = _host().GetEvalParamStr()
+        int wantPhase = -1
+        if phaseId == "follicular"
+            wantPhase = 0
+        elseif phaseId == "ovulating"
+            wantPhase = 1
+        elseif phaseId == "luteal"
+            wantPhase = 2
+        elseif phaseId == "menstruating"
+            wantPhase = 3
+        endif
+        if wantPhase < 0
+            return false
+        endif
+        return BFController.GetFemaleState(target) == wantPhase
     elseif cid == "baby.health"
         ; baby.health: only meaningful while pregnant.
         if !BFController.IsPregnant(target)

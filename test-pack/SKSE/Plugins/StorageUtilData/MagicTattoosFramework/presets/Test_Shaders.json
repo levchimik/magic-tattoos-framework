@@ -1,131 +1,131 @@
 {
-	"displayname": "Test: Shaders",
-	"int": {
-		"valid": 0
-	},
-	"schemaversion": 8,
-	"transition": {
-		"duration": 0.3
-	},
-	"slot": [
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			},
-			"effect": [
-				{
-					"key": "mtf.base:shader.play",
-					"param2": 0,
-					"param1": 0
-				},
-				{
-					"key": "mtf.base:shader.play",
-					"param2": 0,
-					"param1": 9
-				},
-				{
-					"key": "mtf.base:shader.play",
-					"param2": 0,
-					"param1": 14
-				},
-				{
-					"key": "mtf.base:shader.play",
-					"param2": 0,
-					"param1": 17
-				}
-			]
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		}
-	],
-	"valid": 1
+  "displayname": "Test: Shaders",
+  "int": {
+    "valid": 0
+  },
+  "schemaversion": 8,
+  "transition": {
+    "duration": 0.3
+  },
+  "slot": [
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:shader.play",
+          "param2": 0,
+          "param1": "fire_cloak"
+        },
+        {
+          "key": "mtf.base:shader.play",
+          "param2": 0,
+          "param1": "soul_trap"
+        },
+        {
+          "key": "mtf.base:shader.play",
+          "param2": 0,
+          "param1": "ward_shield"
+        },
+        {
+          "key": "mtf.base:shader.play",
+          "param2": 0,
+          "param1": "heal"
+        }
+      ]
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    }
+  ],
+  "valid": 1
 }

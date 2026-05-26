@@ -544,8 +544,9 @@ function drawPresetEditorPage()
             string paramLabel = p.GetConditionParamLabel(itemIdx)
             if paramLabel != ""
                 if p.GetConditionParamMenuOptionCount(itemIdx) > 0
+                    ; v0.2.9: menu params read string id; sliders read int.
                     AddMenuOptionST("SLOT_COND_PARAM", paramLabel, \
-                        _menuLabelForCondParam(p, itemIdx, MainQuest.GetCondParam(idx)))
+                        _menuLabelForCondParam(p, itemIdx, MainQuest.GetCondParamStr(idx)))
                 else
                     AddSliderOptionST("SLOT_COND_PARAM", paramLabel, MainQuest.GetCondParam(idx), p.GetConditionParamFormat(itemIdx))
                 endif
@@ -556,7 +557,7 @@ function drawPresetEditorPage()
             if param2Label != ""
                 if p.GetConditionParam2MenuOptionCount(itemIdx) > 0
                     AddMenuOptionST("SLOT_COND_PARAM2", param2Label, \
-                        _menuLabelForCondParam2(p, itemIdx, MainQuest.GetCondParam2(idx)))
+                        _menuLabelForCondParam2(p, itemIdx, MainQuest.GetCondParam2Str(idx)))
                 else
                     AddSliderOptionST("SLOT_COND_PARAM2", param2Label, MainQuest.GetCondParam2(idx), p.GetConditionParam2Format(itemIdx))
                 endif
@@ -1081,10 +1082,15 @@ state SLOT_COND_PARAM
                 fmt = p.GetConditionParamFormat(itemIdx)
             endif
         endif
-        MainQuest.SetCondParam(selectedCondition, defVal)
         if menuCnt > 0 && p != None && itemIdx >= 0
-            SetMenuOptionValueST(_menuLabelForCondParam(p, itemIdx, defVal))
+            ; v0.2.9: menu default writes the id string; slider default writes int.
+            string defId = p.GetConditionParamDefaultId(itemIdx)
+            MainQuest.SetCondParamStr(selectedCondition, defId)
+            MainQuest.SetCondParam(selectedCondition, 0)
+            SetMenuOptionValueST(_menuLabelForCondParam(p, itemIdx, defId))
         else
+            MainQuest.SetCondParam(selectedCondition, defVal)
+            MainQuest.SetCondParamStr(selectedCondition, "")
             SetSliderOptionValueST(defVal, fmt)
         endif
     endEvent
@@ -1152,10 +1158,14 @@ state SLOT_COND_PARAM2
                 menuCnt = p.GetConditionParam2MenuOptionCount(itemIdx)
             endif
         endif
-        MainQuest.SetCondParam2(selectedCondition, defVal)
         if menuCnt > 0 && p != None && itemIdx >= 0
-            SetMenuOptionValueST(_menuLabelForCondParam2(p, itemIdx, defVal))
+            string defId2 = p.GetConditionParam2DefaultId(itemIdx)
+            MainQuest.SetCondParam2Str(selectedCondition, defId2)
+            MainQuest.SetCondParam2(selectedCondition, 0)
+            SetMenuOptionValueST(_menuLabelForCondParam2(p, itemIdx, defId2))
         else
+            MainQuest.SetCondParam2(selectedCondition, defVal)
+            MainQuest.SetCondParam2Str(selectedCondition, "")
             SetSliderOptionValueST(defVal, fmt)
         endif
     endEvent
@@ -1878,10 +1888,12 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string p1St
         string lbl = p.GetEffectParamLabel(itemIdx, n)
         string sid = paramIds[n - 1]
         if lbl != "" && sid != ""
-            int curVal = MainQuest.GetSlotEffectParamN(slot, effectIdx, n)
+            ; v0.2.9: menu vs slider — read string id or int per catalog.
             if p.GetEffectParamMenuOptionCount(itemIdx, n) > 0
-                AddMenuOptionST(sid, "  " + lbl, _menuLabelForParam(p, itemIdx, n, curVal))
+                string curId = MainQuest.GetSlotEffectParamNStr(slot, effectIdx, n)
+                AddMenuOptionST(sid, "  " + lbl, _menuLabelForParam(p, itemIdx, n, curId))
             else
+                int curVal = MainQuest.GetSlotEffectParamN(slot, effectIdx, n)
                 AddSliderOptionST(sid, "  " + lbl, curVal, p.GetEffectParamFormat(itemIdx, n))
             endif
         endif
@@ -1959,19 +1971,22 @@ EndFunction
 ; these and we read the right .paramN.* fields off the plugin via the
 ; unified MTF_Plugin getters.
 
-string Function _menuLabelForParam(MTF_Plugin p, int itemIdx, int n, int curVal)
-{Look up the menu label that matches `curVal` for paramN of effect `itemIdx`.
- Falls back to "Custom: <int>" when the value isn't in the curated preset
- list — supports hand-edited preset JSONs with out-of-band values.}
+string Function _menuLabelForParam(MTF_Plugin p, int itemIdx, int n, string curId)
+{v0.2.9: look up the menu label whose `id` matches `curId` for paramN of
+ effect `itemIdx`. Falls back to "Custom: <id>" when no match — supports
+ hand-edited preset JSONs with unknown ids.}
     int cnt = p.GetEffectParamMenuOptionCount(itemIdx, n)
     int i = 0
     while i < cnt
-        if p.GetEffectParamMenuOptionValue(itemIdx, n, i) == curVal
+        if p.GetEffectParamMenuOptionId(itemIdx, n, i) == curId
             return p.GetEffectParamMenuOptionLabel(itemIdx, n, i)
         endif
         i += 1
     endwhile
-    return "Custom: " + curVal
+    if curId == ""
+        return "(unset)"
+    endif
+    return "Custom: " + curId
 EndFunction
 
 Function _openEffectParam(int effectIdx, int n)
@@ -2011,22 +2026,29 @@ EndFunction
 Function _defaultEffectParam(int effectIdx, int n)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
     MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
-    int defVal = 0
     int menuCnt = 0
     int itemIdx = -1
     string fmt = "{0}"
     if p != None
         itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
         if itemIdx >= 0
-            defVal = p.GetEffectParamDefault(itemIdx, n)
             menuCnt = p.GetEffectParamMenuOptionCount(itemIdx, n)
             fmt = p.GetEffectParamFormat(itemIdx, n)
         endif
     endif
-    MainQuest.SetSlotEffectParamN(selectedCondition, effectIdx, n, defVal)
     if menuCnt > 0 && p != None && itemIdx >= 0
-        SetMenuOptionValueST(_menuLabelForParam(p, itemIdx, n, defVal))
+        ; v0.2.9: menu default is a string id.
+        string defId = p.GetEffectParamDefaultId(itemIdx, n)
+        MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, defId)
+        MainQuest.SetSlotEffectParamN(selectedCondition, effectIdx, n, 0)
+        SetMenuOptionValueST(_menuLabelForParam(p, itemIdx, n, defId))
     else
+        int defVal = 0
+        if p != None && itemIdx >= 0
+            defVal = p.GetEffectParamDefault(itemIdx, n)
+        endif
+        MainQuest.SetSlotEffectParamN(selectedCondition, effectIdx, n, defVal)
+        MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, "")
         SetSliderOptionValueST(defVal, fmt)
     endif
 EndFunction
@@ -2045,19 +2067,20 @@ Function _openEffectParamMenu(int effectIdx, int n)
     if cnt <= 0
         return
     endif
-    int curVal     = MainQuest.GetSlotEffectParamN(selectedCondition, effectIdx, n)
-    int defaultVal = p.GetEffectParamDefault(itemIdx, n)
-    string[] labels = _newOpts(cnt)
+    ; v0.2.9: menu params store id strings (was int positions).
+    string curId      = MainQuest.GetSlotEffectParamNStr(selectedCondition, effectIdx, n)
+    string defaultId  = p.GetEffectParamDefaultId(itemIdx, n)
+    string[] labels   = _newOpts(cnt)
     int curSel = 0
     int defaultSel = 0
     int i = 0
     while i < cnt
-        int    v     = p.GetEffectParamMenuOptionValue(itemIdx, n, i)
+        string optId = p.GetEffectParamMenuOptionId(itemIdx, n, i)
         labels[i]    = p.GetEffectParamMenuOptionLabel(itemIdx, n, i)
-        if v == curVal
+        if optId == curId
             curSel = i
         endif
-        if v == defaultVal
+        if optId == defaultId
             defaultSel = i
         endif
         i += 1
@@ -2084,9 +2107,10 @@ Function _acceptEffectParamMenu(int effectIdx, int n, int index)
     if index >= cnt
         return
     endif
-    int newVal = p.GetEffectParamMenuOptionValue(itemIdx, n, index)
+    string newId = p.GetEffectParamMenuOptionId(itemIdx, n, index)
     string label = p.GetEffectParamMenuOptionLabel(itemIdx, n, index)
-    MainQuest.SetSlotEffectParamN(selectedCondition, effectIdx, n, newVal)
+    MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, newId)
+    MainQuest.SetSlotEffectParamN(selectedCondition, effectIdx, n, 0)  ; clear int slot
     SetMenuOptionValueST(label)
 EndFunction
 
@@ -2108,28 +2132,34 @@ EndFunction
 ; via GetConditionParamMenuOption* and have the MCM render them as menus
 ; (matching how the SkyrimNet bridge already resolves them in descriptions).
 
-string Function _menuLabelForCondParam(MTF_Plugin p, int itemIdx, int curVal)
+string Function _menuLabelForCondParam(MTF_Plugin p, int itemIdx, string curId)
     int n = p.GetConditionParamMenuOptionCount(itemIdx)
     int i = 0
     while i < n
-        if p.GetConditionParamMenuOptionValue(itemIdx, i) == curVal
+        if p.GetConditionParamMenuOptionId(itemIdx, i) == curId
             return p.GetConditionParamMenuOptionLabel(itemIdx, i)
         endif
         i += 1
     endwhile
-    return "Custom: " + curVal
+    if curId == ""
+        return "(unset)"
+    endif
+    return "Custom: " + curId
 EndFunction
 
-string Function _menuLabelForCondParam2(MTF_Plugin p, int itemIdx, int curVal)
+string Function _menuLabelForCondParam2(MTF_Plugin p, int itemIdx, string curId)
     int n = p.GetConditionParam2MenuOptionCount(itemIdx)
     int i = 0
     while i < n
-        if p.GetConditionParam2MenuOptionValue(itemIdx, i) == curVal
+        if p.GetConditionParam2MenuOptionId(itemIdx, i) == curId
             return p.GetConditionParam2MenuOptionLabel(itemIdx, i)
         endif
         i += 1
     endwhile
-    return "Custom: " + curVal
+    if curId == ""
+        return "(unset)"
+    endif
+    return "Custom: " + curId
 EndFunction
 
 Function _openCondParamMenu()
@@ -2146,20 +2176,21 @@ Function _openCondParamMenu()
     if n <= 0
         return
     endif
-    int curVal     = MainQuest.GetCondParam(selectedCondition)
-    int defaultVal = p.GetConditionParamDefault(itemIdx)
+    ; v0.2.9: menu params store id strings.
+    string curId     = MainQuest.GetCondParamStr(selectedCondition)
+    string defaultId = p.GetConditionParamDefaultId(itemIdx)
     string[] labels = _newOpts(n)
     int curSel = 0
     int defaultSel = 0
     int i = 0
     while i < n
-        int   v = p.GetConditionParamMenuOptionValue(itemIdx, i)
+        string optId = p.GetConditionParamMenuOptionId(itemIdx, i)
         string label = p.GetConditionParamMenuOptionLabel(itemIdx, i)
         labels[i] = label
-        if v == curVal
+        if optId == curId
             curSel = i
         endif
-        if v == defaultVal
+        if optId == defaultId
             defaultSel = i
         endif
         i += 1
@@ -2186,9 +2217,10 @@ Function _acceptCondParamMenu(int index)
     if index >= n
         return
     endif
-    int newVal = p.GetConditionParamMenuOptionValue(itemIdx, index)
+    string newId = p.GetConditionParamMenuOptionId(itemIdx, index)
     string label = p.GetConditionParamMenuOptionLabel(itemIdx, index)
-    MainQuest.SetCondParam(selectedCondition, newVal)
+    MainQuest.SetCondParamStr(selectedCondition, newId)
+    MainQuest.SetCondParam(selectedCondition, 0)
     SetMenuOptionValueST(label)
 EndFunction
 
@@ -2206,20 +2238,20 @@ Function _openCondParam2Menu()
     if n <= 0
         return
     endif
-    int curVal     = MainQuest.GetCondParam2(selectedCondition)
-    int defaultVal = p.GetConditionParam2Default(itemIdx)
+    string curId     = MainQuest.GetCondParam2Str(selectedCondition)
+    string defaultId = p.GetConditionParam2DefaultId(itemIdx)
     string[] labels = _newOpts(n)
     int curSel = 0
     int defaultSel = 0
     int i = 0
     while i < n
-        int   v = p.GetConditionParam2MenuOptionValue(itemIdx, i)
+        string optId = p.GetConditionParam2MenuOptionId(itemIdx, i)
         string label = p.GetConditionParam2MenuOptionLabel(itemIdx, i)
         labels[i] = label
-        if v == curVal
+        if optId == curId
             curSel = i
         endif
-        if v == defaultVal
+        if optId == defaultId
             defaultSel = i
         endif
         i += 1
@@ -2246,9 +2278,10 @@ Function _acceptCondParam2Menu(int index)
     if index >= n
         return
     endif
-    int newVal = p.GetConditionParam2MenuOptionValue(itemIdx, index)
+    string newId = p.GetConditionParam2MenuOptionId(itemIdx, index)
     string label = p.GetConditionParam2MenuOptionLabel(itemIdx, index)
-    MainQuest.SetCondParam2(selectedCondition, newVal)
+    MainQuest.SetCondParam2Str(selectedCondition, newId)
+    MainQuest.SetCondParam2(selectedCondition, 0)
     SetMenuOptionValueST(label)
 EndFunction
 

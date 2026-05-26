@@ -250,33 +250,36 @@ Form Property _goldForm Auto Hidden
 ; in checkCondition directly — they bypass this function entirely, so
 ; we return None and let the caller treat that as "no match" (the
 ; param==6/7 branch above already returned before reaching here).
-Keyword Function _locKwByIdx(int idx)
-    if idx == 0
+; v0.2.9: dispatch on LOCATION_KW_MENU id (was int position). 'indoors' /
+; 'outdoors' are sentinels for interior/exterior cell checks (no keyword
+; lookup — checkCondition special-cases them in a separate branch).
+Keyword Function _locKwById(string id)
+    if id == "player_home"
         if _kwPlayerHouse == None
             _kwPlayerHouse = Game.GetForm(0x0FC1A3) as Keyword
         endif
         return _kwPlayerHouse
-    elseif idx == 1
+    elseif id == "dungeon"
         if _kwDungeon == None
             _kwDungeon = Game.GetForm(0x18EF1) as Keyword
         endif
         return _kwDungeon
-    elseif idx == 2
+    elseif id == "city"
         if _kwCity == None
             _kwCity = Game.GetForm(0x13167) as Keyword
         endif
         return _kwCity
-    elseif idx == 3
+    elseif id == "town"
         if _kwTown == None
             _kwTown = Game.GetForm(0x192BD) as Keyword
         endif
         return _kwTown
-    elseif idx == 4
+    elseif id == "inn"
         if _kwInn == None
             _kwInn = Game.GetForm(0x1929F) as Keyword
         endif
         return _kwInn
-    elseif idx == 5
+    elseif id == "jail"
         if _kwJail == None
             _kwJail = Game.GetForm(0x5254C) as Keyword
         endif
@@ -416,12 +419,28 @@ bool Function checkCondition(Actor target, int param, string cid)
     elseif cid == "combat.hostile"
         return _scanNearbyHostile(target, param)
     elseif cid == "combat.hit"
-        ; param1 = hit class enum (0=Any, 1=Blunt, 2=Bladed, 3=Ranged,
-        ; 4=Fire, 5=Frost, 6=Shock — values match _checkHit's classIdx
-        ; AND host-side hit-counter storage keys). param2 = chance % per
-        ; matching hit. Pre-v0.2.5 used 7 separate combat.hit.* conditions.
-        int hitClass = param
-        if hitClass < 0 || hitClass > 6
+        ; param1 = hit class menu id (v0.2.9 schema v2 — was int 0..6).
+        ; ids map 1:1 onto _checkHit's classIdx and the host-side
+        ; hit-counter storage keys. param2 = chance % per matching hit.
+        ; Pre-v0.2.5 used 7 separate combat.hit.* conditions.
+        string hitId = _host().GetEvalParamStr()
+        int hitClass = -1
+        if hitId == "any"
+            hitClass = 0
+        elseif hitId == "blunt"
+            hitClass = 1
+        elseif hitId == "bladed"
+            hitClass = 2
+        elseif hitId == "ranged"
+            hitClass = 3
+        elseif hitId == "fire"
+            hitClass = 4
+        elseif hitId == "frost"
+            hitClass = 5
+        elseif hitId == "shock"
+            hitClass = 6
+        endif
+        if hitClass < 0
             return false
         endif
         return _checkHit(hitClass, _host().GetEvalParam2())
@@ -432,18 +451,17 @@ bool Function checkCondition(Actor target, int param, string cid)
         float p = _avPercent(target, "Health")
         return p >= 0.0 && p <= param as float
     elseif cid == "location.kw"
-        ; param1 = location type enum.
-        ;   0..5 = keyword lookup (Player Home, Dungeon, City, Town, Inn, Jail)
-        ;   6    = Indoors  (engine-direct interior cell check)
-        ;   7    = Outdoors (engine-direct exterior cell check)
+        ; param1 = location type menu id (v0.2.9 schema v2 — was int 0..7).
+        ; 'indoors'/'outdoors' are engine-direct cell-check sentinels;
+        ; every other id resolves to a Location keyword via _locKwById.
         ; Pre-v0.2.5 used 6 separate location.{playerHome..jail} conditions;
-        ; v0.2.7 also folded the former location.indoors / location.outdoors
-        ; in here (param values 6 / 7) so the dropdown covers every
-        ; location-style condition uniformly.
-        if param == 6
+        ; v0.2.7 folded location.indoors / location.outdoors in here, and
+        ; v0.2.9 swapped the int positional dropdown for stable ids.
+        string locId = _host().GetEvalParamStr()
+        if locId == "indoors"
             Cell ci = target.GetParentCell()
             return ci != None && ci.IsInterior()
-        elseif param == 7
+        elseif locId == "outdoors"
             Cell co = target.GetParentCell()
             return co != None && !co.IsInterior()
         endif
@@ -451,20 +469,34 @@ bool Function checkCondition(Actor target, int param, string cid)
         if loc == None
             return false
         endif
-        Keyword kw = _locKwByIdx(param)
+        Keyword kw = _locKwById(locId)
         if kw == None
             return false
         endif
         return loc.HasKeyword(kw)
     elseif cid == "weather"
-        ; param1 = weather class (0=Pleasant, 1=Cloudy, 2=Rainy, 3=Snowy)
-        ; — matches Weather.GetClassification. Pre-v0.2.5 used 4 separate
+        ; param1 = weather class menu id (v0.2.9 schema v2 — was int 0..3).
+        ; Maps onto Weather.GetClassification. Pre-v0.2.5 used 4 separate
         ; weather.{pleasant,cloudy,rainy,snowy} conditions.
         Weather w = Weather.GetCurrentWeather()
         if w == None
             return false
         endif
-        return w.GetClassification() == param
+        string wid = _host().GetEvalParamStr()
+        int wClass = -1
+        if wid == "pleasant"
+            wClass = 0
+        elseif wid == "cloudy"
+            wClass = 1
+        elseif wid == "rainy"
+            wClass = 2
+        elseif wid == "snowy"
+            wClass = 3
+        endif
+        if wClass < 0
+            return false
+        endif
+        return w.GetClassification() == wClass
     elseif cid == "state.sprinting"
         return target.IsSprinting()
     elseif cid == "state.running"
@@ -635,7 +667,7 @@ EndFunction
 ; eid → Skyrim AV name for the eid-keyed modify.* set. The 17 skill modifies
 ; (modify.<oneHanded..pickpocket>) and 6 resist modifies (modify.resist*) are
 ; NOT here — they were consolidated into modify.skill and modify.resist
-; (v0.2.5) and route through _skillAVForIdx / _resolveResistSpellByIdx
+; (v0.2.5) and route through _skillAVForId / _resolveResistSpellById
 ; from explicit branches in onActivate.
 string Function _avNameFor(string eid)
     if eid == "modify.magickaRegen"
@@ -863,33 +895,34 @@ EndFunction
 
 ; Resist type enum → Ability Spell. Values 0..5 match RESIST_TYPE_MENU
 ; in tools/build_base_catalog.py and modify.resist's param1 dropdown.
-Spell Function _resolveResistSpellByIdx(int idx)
-    if idx == 0
+; v0.2.9: dispatch on RESIST_TYPE_MENU id (was int position).
+Spell Function _resolveResistSpellById(string id)
+    if id == "fire"
         if _resistFireSpell == None
             _resistFireSpell = Game.GetFormFromFile(0x837, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistFireSpell
-    elseif idx == 1
+    elseif id == "frost"
         if _resistFrostSpell == None
             _resistFrostSpell = Game.GetFormFromFile(0x839, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistFrostSpell
-    elseif idx == 2
+    elseif id == "shock"
         if _resistShockSpell == None
             _resistShockSpell = Game.GetFormFromFile(0x83B, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistShockSpell
-    elseif idx == 3
+    elseif id == "magic"
         if _resistMagicSpell == None
             _resistMagicSpell = Game.GetFormFromFile(0x83D, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistMagicSpell
-    elseif idx == 4
+    elseif id == "disease"
         if _resistDiseaseSpell == None
             _resistDiseaseSpell = Game.GetFormFromFile(0x851, "MagicTattoosFramework.esp") as Spell
         endif
         return _resistDiseaseSpell
-    elseif idx == 5
+    elseif id == "poison"
         if _resistPoisonSpell == None
             _resistPoisonSpell = Game.GetFormFromFile(0x853, "MagicTattoosFramework.esp") as Spell
         endif
@@ -905,42 +938,45 @@ EndFunction
 ; so the consolidated dropdown covers all 18 vanilla skills; the
 ; previously-standalone modify.sneak effect was dropped — presets must
 ; use modify.skill with param1=17 from v0.2.7 onward.
-string Function _skillAVForIdx(int idx)
-    if idx == 0
+; v0.2.9: dispatch on stable id string (was int position). Ids match
+; SKILL_AV_MENU in tools/build_base_catalog.py. AV names follow the
+; Marksman/Speechcraft Morrowind-holdover quirks (see _avNameFor docstring).
+string Function _skillAVForId(string id)
+    if id == "one_handed"
         return "OneHanded"
-    elseif idx == 1
+    elseif id == "two_handed"
         return "TwoHanded"
-    elseif idx == 2
+    elseif id == "archery"
         return "Marksman"
-    elseif idx == 3
+    elseif id == "block"
         return "Block"
-    elseif idx == 4
+    elseif id == "heavy_armor"
         return "HeavyArmor"
-    elseif idx == 5
+    elseif id == "light_armor"
         return "LightArmor"
-    elseif idx == 6
+    elseif id == "smithing"
         return "Smithing"
-    elseif idx == 7
+    elseif id == "enchanting"
         return "Enchanting"
-    elseif idx == 8
+    elseif id == "alchemy"
         return "Alchemy"
-    elseif idx == 9
+    elseif id == "destruction"
         return "Destruction"
-    elseif idx == 10
+    elseif id == "restoration"
         return "Restoration"
-    elseif idx == 11
+    elseif id == "alteration"
         return "Alteration"
-    elseif idx == 12
+    elseif id == "illusion"
         return "Illusion"
-    elseif idx == 13
+    elseif id == "conjuration"
         return "Conjuration"
-    elseif idx == 14
+    elseif id == "speech"
         return "Speechcraft"
-    elseif idx == 15
+    elseif id == "lockpicking"
         return "Lockpicking"
-    elseif idx == 16
+    elseif id == "pickpocket"
         return "Pickpocket"
-    elseif idx == 17
+    elseif id == "sneak"
         return "Sneak"
     endif
     return ""
@@ -988,12 +1024,16 @@ EndFunction
 ; Smithing→Alteration (or Fire→Frost), the old enum's stored delta is
 ; reverted before the new one is applied — otherwise the previous AV
 ; would stay buffed silently.
-Function _recomputeSkillShift(Actor target, int currentSkill, int delta)
-    ; Bounds 0..17 inclusive: v0.2.7 added Sneak at idx 17 to the consolidated
-    ; modify.skill dropdown (was 0..16). The upper bound MUST track
-    ; SKILL_AV_MENU's length — adding more skill enums requires bumping this.
-    if target == None || currentSkill < 0 || currentSkill > 17
+; v0.2.9: currentSkill / currentResist now passed as string id (was int
+; position). lastApplied tracker storage switched to string-typed key so
+; reverting an unknown-id revert is safe (returns "" not -1).
+Function _recomputeSkillShift(Actor target, string currentSkill, int delta)
+    if target == None || currentSkill == ""
         return
+    endif
+    string av = _skillAVForId(currentSkill)
+    if av == ""
+        return  ; unrecognised id — silently skip rather than apply to wrong AV
     endif
     MTF_MainQuest h = _host()
     if h == None
@@ -1005,15 +1045,14 @@ Function _recomputeSkillShift(Actor target, int currentSkill, int delta)
         return
     endif
     string lastKey = "mtf.skill.last." + slot + "." + eff
-    int prevSkill = StorageUtil.GetIntValue(target, lastKey, -1)
-    if prevSkill >= 0 && prevSkill != currentSkill
-        string prevAv = _skillAVForIdx(prevSkill)
+    string prevSkill = StorageUtil.GetStringValue(target, lastKey, "")
+    if prevSkill != "" && prevSkill != currentSkill
+        string prevAv = _skillAVForId(prevSkill)
         if prevAv != ""
             _recomputeAbsShiftAV(prevAv, "modify.skill." + prevSkill, target, 0, false)
         endif
     endif
-    StorageUtil.SetIntValue(target, lastKey, currentSkill)
-    string av = _skillAVForIdx(currentSkill)
+    StorageUtil.SetStringValue(target, lastKey, currentSkill)
     _recomputeAbsShiftAV(av, "modify.skill." + currentSkill, target, delta, false)
 EndFunction
 
@@ -1031,19 +1070,23 @@ Function _removeSkillShift(Actor target)
         return
     endif
     string lastKey = "mtf.skill.last." + slot + "." + eff
-    int prevSkill = StorageUtil.GetIntValue(target, lastKey, -1)
-    if prevSkill >= 0
-        string prevAv = _skillAVForIdx(prevSkill)
+    string prevSkill = StorageUtil.GetStringValue(target, lastKey, "")
+    if prevSkill != ""
+        string prevAv = _skillAVForId(prevSkill)
         if prevAv != ""
             _recomputeAbsShiftAV(prevAv, "modify.skill." + prevSkill, target, 0, false)
         endif
-        StorageUtil.UnsetIntValue(target, lastKey)
+        StorageUtil.UnsetStringValue(target, lastKey)
     endif
 EndFunction
 
-Function _recomputeResistShift(Actor target, int currentResist, int delta)
-    if target == None || currentResist < 0 || currentResist > 5
+Function _recomputeResistShift(Actor target, string currentResist, int delta)
+    if target == None || currentResist == ""
         return
+    endif
+    Spell s = _resolveResistSpellById(currentResist)
+    if s == None
+        return  ; unrecognised id
     endif
     MTF_MainQuest h = _host()
     if h == None
@@ -1055,18 +1098,15 @@ Function _recomputeResistShift(Actor target, int currentResist, int delta)
         return
     endif
     string lastKey = "mtf.resist.last." + slot + "." + eff
-    int prevResist = StorageUtil.GetIntValue(target, lastKey, -1)
-    if prevResist >= 0 && prevResist != currentResist
-        Spell prevSpell = _resolveResistSpellByIdx(prevResist)
+    string prevResist = StorageUtil.GetStringValue(target, lastKey, "")
+    if prevResist != "" && prevResist != currentResist
+        Spell prevSpell = _resolveResistSpellById(prevResist)
         if prevSpell != None
             _absShiftSpellByKey(prevSpell, target, 0, "modify.resist." + prevResist)
         endif
     endif
-    StorageUtil.SetIntValue(target, lastKey, currentResist)
-    Spell s = _resolveResistSpellByIdx(currentResist)
-    if s != None
-        _absShiftSpellByKey(s, target, delta, "modify.resist." + currentResist)
-    endif
+    StorageUtil.SetStringValue(target, lastKey, currentResist)
+    _absShiftSpellByKey(s, target, delta, "modify.resist." + currentResist)
 EndFunction
 
 Function _removeResistShift(Actor target)
@@ -1083,13 +1123,13 @@ Function _removeResistShift(Actor target)
         return
     endif
     string lastKey = "mtf.resist.last." + slot + "." + eff
-    int prevResist = StorageUtil.GetIntValue(target, lastKey, -1)
-    if prevResist >= 0
-        Spell prevSpell = _resolveResistSpellByIdx(prevResist)
+    string prevResist = StorageUtil.GetStringValue(target, lastKey, "")
+    if prevResist != ""
+        Spell prevSpell = _resolveResistSpellById(prevResist)
         if prevSpell != None
             _absShiftSpellByKey(prevSpell, target, 0, "modify.resist." + prevResist)
         endif
-        StorageUtil.UnsetIntValue(target, lastKey)
+        StorageUtil.UnsetStringValue(target, lastKey)
     endif
 EndFunction
 
@@ -1486,12 +1526,9 @@ EndFunction
 ; slot is allowed (no MCM block), but only one will end up in C++ — last
 ; activation wins on the same tick.
 
-Function _applyFlashOnHit(Actor target, int classMask, int peakPct)
-{`classMask` is the int param stored on the slot. v0.1.3 moved C++ flash
- dispatch from bitmask to string tags, but the MCM param stays int as a
- stable opaque preset ID — easier to author, easier to round-trip through
- JSON presets. _classMaskToTags maps the int to the tag CSV the C++ side
- wants.}
+Function _applyFlashOnHit(Actor target, string triggerId, int peakPct)
+{`triggerId` is the catalog menu id stored on the slot (schema v2). C++
+ flash dispatch wants a CSV of tags; _classMaskTagsById maps id → CSV.}
     if target == None
         return
     endif
@@ -1518,7 +1555,7 @@ Function _applyFlashOnHit(Actor target, int classMask, int peakPct)
     if retrigMs <= 0
         retrigMs = 800
     endif
-    string tags = _classMaskToTags(classMask)
+    string tags = _classMaskTagsById(triggerId)
     ; Push flash params to the actor's actual base overlay slot — for
     ; the player single-preset path this equals h.OverlaySlot, but for
     ; NPCs and stacked player presets it's the per-preset base set by
@@ -1533,59 +1570,54 @@ Function _applyFlashOnHit(Actor target, int classMask, int peakPct)
     MTFPulse.SetActorFlash(target, dispatchBase, peakPct, rampMs, decayMs, retrigMs, tags, dispatchArea)
 EndFunction
 
-string Function _classMaskToTags(int classMask)
-{Map the legacy int preset ID to the C++ string-tag CSV. Flat if/return —
- long elseIf chains in Quest-extending scripts silently return "" past
- the first branch on this VM build. Values keep the pre-v0.1.3 bit-pattern
- shape so presets authored against the old bitmask design still mean what
- they meant.}
-    if classMask == 0
+string Function _classMaskTagsById(string id)
+{Map the catalog menu id (v0.2.9 schema v2) to the C++ string-tag CSV.
+ Flat if/return — long elseIf chains in Quest-extending scripts silently
+ return "" past the first branch on this VM build. ids match the
+ FLASH_TRIGGER_MENU list in tools/build_base_catalog.py.}
+    if id == "disabled"
         return ""
     endif
-    if classMask == 1
-        return "*"
-    endif
-    if classMask == 2
+    if id == "blunt_only"
         return "blunt"
     endif
-    if classMask == 4
+    if id == "bladed_only"
         return "bladed"
     endif
-    if classMask == 8
+    if id == "ranged_only"
         return "ranged"
     endif
-    if classMask == 16
+    if id == "fire_only"
         return "fire"
     endif
-    if classMask == 32
+    if id == "frost_only"
         return "frost"
     endif
-    if classMask == 64
+    if id == "shock_only"
         return "shock"
     endif
-    if classMask == 6
+    if id == "melee_blunt_bladed"
         return "blunt,bladed"
     endif
-    if classMask == 14
+    if id == "physical_blunt_bladed_ranged"
         return "blunt,bladed,ranged"
     endif
-    if classMask == 112
+    if id == "magic_fire_frost_shock"
         return "fire,frost,shock"
     endif
-    if classMask == 126
+    if id == "all_combat_classes"
         return "blunt,bladed,ranged,fire,frost,shock"
     endif
-    if classMask == 128
-        ; v0.1.29: spell-cast trigger. Bit 7 (next free above the 0-6
-        ; combat-class bitmask). MTF_CastListener dispatches the "cast"
-        ; tag on cast start + every 0.1s while held.
+    if id == "on_spell_cast"
+        ; Spell-cast trigger. MTF_CastListener dispatches the "cast" tag on
+        ; cast start + every 0.1s while held.
         return "cast"
     endif
-    ; Any unrecognised int → wildcard fallback so hand-edited presets with
-    ; out-of-band values still flash on something rather than silently
-    ; nothing. (Stricter alternative: return "" for unknown — but the user
-    ; explicitly typed an int that meant "I want this to fire", so map to
-    ; the safest match-everything option.)
+    ; Any unrecognised id → wildcard fallback so hand-edited presets with
+    ; out-of-band ids still flash on something rather than silently nothing.
+    ; (Stricter alternative: return "" for unknown — but the user explicitly
+    ; picked an id that meant "I want this to fire", so map to the safest
+    ; match-everything option.)
     return "*"
 EndFunction
 
@@ -1623,88 +1655,91 @@ Function _alertNearby(Actor target, int paramFeet)
         i += 1
     endwhile
 EndFunction
-int Function _shaderFormId(int idx)
-    if idx == 0
-        return 0x0002acd8  ; Fire Cloak
+; v0.2.9: dispatch on shader id (was int position).
+int Function _shaderFormIdById(string id)
+    if id == "fire_cloak"
+        return 0x0002acd8
     endif
-    if idx == 1
-        return 0x0001b212  ; Fire Burst
+    if id == "fire_burst"
+        return 0x0001b212
     endif
-    if idx == 2
-        return 0x0001f03a  ; Frost
+    if id == "frost"
+        return 0x0001f03a
     endif
-    if idx == 3
-        return 0x0010a043  ; Frost Chillrend
+    if id == "frost_chillrend"
+        return 0x0010a043
     endif
-    if idx == 4
-        return 0x00057c67  ; Shock
+    if id == "shock"
+        return 0x00057c67
     endif
-    if idx == 5
-        return 0x0003bf79  ; Shock Storm
+    if id == "shock_storm"
+        return 0x0003bf79
     endif
-    if idx == 6
-        return 0x00094161  ; Stoneflesh
+    if id == "stoneflesh"
+        return 0x00094161
     endif
-    if idx == 7
-        return 0x00094162  ; Ebonyflesh
+    if id == "ebonyflesh"
+        return 0x00094162
     endif
-    if idx == 8
-        return 0x000e9ac8  ; Dragonhide
+    if id == "dragonhide"
+        return 0x000e9ac8
     endif
-    if idx == 9
-        return 0x000506d7  ; Soul Trap
+    if id == "soul_trap"
+        return 0x000506d7
     endif
-    if idx == 10
-        return 0x0003b6cb  ; Ghost (Ethereal)
+    if id == "ghost_ethereal"
+        return 0x0003b6cb
     endif
-    if idx == 11
-        return 0x000fe68c  ; Ghost Red
+    if id == "ghost_red"
+        return 0x000fe68c
     endif
-    if idx == 12
-        return 0x0002df92  ; Invisibility
+    if id == "invisibility"
+        return 0x0002df92
     endif
-    if idx == 13
-        return 0x000bcf25  ; Muffle
+    if id == "muffle"
+        return 0x000bcf25
     endif
-    if idx == 14
-        return 0x0001c858  ; Ward Shield
+    if id == "ward_shield"
+        return 0x0001c858
     endif
-    if idx == 15
-        return 0x00075272  ; Reanimate
+    if id == "reanimate"
+        return 0x00075272
     endif
-    if idx == 16
-        return 0x000e7557  ; Turn Undead Flames
+    if id == "turn_undead_flames"
+        return 0x000e7557
     endif
-    if idx == 17
-        return 0x00012fd9  ; Heal
+    if id == "heal"
+        return 0x00012fd9
     endif
-    if idx == 18
-        return 0x000abeff  ; Absorb Health
+    if id == "absorb_health"
+        return 0x000abeff
     endif
-    if idx == 19
-        return 0x000fd804  ; Vampire Change
+    if id == "vampire_change"
+        return 0x000fd804
     endif
-    if idx == 20
-        return 0x000ebec5  ; Werewolf Transform
+    if id == "werewolf_transform"
+        return 0x000ebec5
     endif
-    if idx == 21
-        return 0x00000146  ; Detect Life
+    if id == "detect_life"
+        return 0x00000146
     endif
     return 0
 EndFunction
-EffectShader Function _resolveShader(int shaderIdx)
-    int fid = _shaderFormId(shaderIdx)
+; v0.2.9: shader chain switched from int idx to string id. _shaderFormIdById
+; resolves the C++-side FormID; the rest of the chain passes the id along.
+EffectShader Function _resolveShader(string shaderId)
+    int fid = _shaderFormIdById(shaderId)
     if fid == 0
         return None
     endif
     return Game.GetFormFromFile(fid, "Skyrim.esm") as EffectShader
 EndFunction
 
-Function _playShader(Actor target, int shaderIdx, int durationSec)
+Function _playShader(Actor target, string shaderId, int durationSec)
     if target == None
         return
     endif
-    EffectShader es = _resolveShader(shaderIdx)
+    EffectShader es = _resolveShader(shaderId)
     if es == None
         return
     endif
@@ -1715,11 +1750,11 @@ Function _playShader(Actor target, int shaderIdx, int durationSec)
     es.Play(target, dur)
 EndFunction
 
-Function _stopShader(Actor target, int shaderIdx)
+Function _stopShader(Actor target, string shaderId)
     if target == None
         return
     endif
-    EffectShader es = _resolveShader(shaderIdx)
+    EffectShader es = _resolveShader(shaderId)
     if es == None
         return
     endif
@@ -1749,8 +1784,8 @@ string Function _shaderPlayKeyTime(int baseSlot, int slot, int eff)
     return "mtf.shaderFx." + baseSlot + "." + slot + "." + eff + ".time"
 EndFunction
 
-Function _activateShaderRow(Actor target, int shaderIdx, int durationSec)
-    _playShader(target, shaderIdx, durationSec)
+Function _activateShaderRow(Actor target, string shaderId, int durationSec)
+    _playShader(target, shaderId, durationSec)
     MTF_MainQuest h = _host()
     if h == None
         return
@@ -1768,8 +1803,8 @@ Function _activateShaderRow(Actor target, int shaderIdx, int durationSec)
     StorageUtil.SetFloatValue(target, _shaderPlayKeyTime(baseSlot, slot, eff), Utility.GetCurrentRealTime())
 EndFunction
 
-Function _deactivateShaderRow(Actor target, int shaderIdx)
-    _stopShader(target, shaderIdx)
+Function _deactivateShaderRow(Actor target, string shaderId)
+    _stopShader(target, shaderId)
     MTF_MainQuest h = _host()
     if h == None
         return
@@ -1783,7 +1818,7 @@ Function _deactivateShaderRow(Actor target, int shaderIdx)
     StorageUtil.UnsetFloatValue(target, _shaderPlayKeyTime(baseSlot, slot, eff))
 EndFunction
 
-Function _tickShaderRow(Actor target, int shaderIdx, int param2)
+Function _tickShaderRow(Actor target, string shaderId, int param2)
     MTF_MainQuest h = _host()
     if h == None
         return
@@ -1806,122 +1841,123 @@ Function _tickShaderRow(Actor target, int shaderIdx, int param2)
     float now = Utility.GetCurrentRealTime()
     float lastFxPlay = StorageUtil.GetFloatValue(target, _shaderPlayKeyTime(baseSlot, slot, eff), 0.0)
     if (now - lastFxPlay) < 0.0
-        _playShader(target, shaderIdx, 0)
+        _playShader(target, shaderId, 0)
         StorageUtil.SetFloatValue(target, _shaderPlayKeyTime(baseSlot, slot, eff), now)
     endif
 EndFunction
-int Function _soundFormId(int idx)
-    ; MTF_SND_* wrapper SOUN records in MagicTattoosFramework.esp. Each wraps
-    ; a Skyrim.esm SNDR via SDSC (SoundDescriptor reference). The vanilla
-    ; Papyrus `Sound` script type covers ONLY SOUN, not SNDR — SNDR records
-    ; cast to None and Sound.Play silently no-ops on them. Hence the wrapper
-    ; layer. See _resolveSound for the GetFormFromFile + cast pattern.
-    if idx == 0
+; v0.2.9: dispatch on sound id (was int position). The MTF_SND_* wrapper
+; SOUN records in MagicTattoosFramework.esp live at 0x900..0x921 in build
+; order; ids derived from SOUNDS list in tools/build_base_catalog.py.
+; SNDR records can't be played via Papyrus Sound — these wrappers are SOUN
+; that point to SNDR descriptors. See _resolveSound for the GetFormFromFile
+; + cast pattern.
+int Function _soundFormIdById(string id)
+    if id == "fire_ready_loop"
         return 0x900
     endif
-    if idx == 1
+    if id == "fire_secondary_ready"
         return 0x901
     endif
-    if idx == 2
+    if id == "fire_body_on_fire"
         return 0x902
     endif
-    if idx == 3
+    if id == "fire_medium_crackle"
         return 0x903
     endif
-    if idx == 4
+    if id == "frost_ready_loop"
         return 0x904
     endif
-    if idx == 5
+    if id == "frost_concentration"
         return 0x905
     endif
-    if idx == 6
+    if id == "frost_wall_hum"
         return 0x906
     endif
-    if idx == 7
+    if id == "shock_concentration"
         return 0x907
     endif
-    if idx == 8
+    if id == "shock_projectile_arc"
         return 0x908
     endif
-    if idx == 9
+    if id == "shock_wall_hum"
         return 0x909
     endif
-    if idx == 10
+    if id == "soul_trap_active_hum"
         return 0x90A
     endif
-    if idx == 11
+    if id == "ward_shimmer_stereo"
         return 0x90B
     endif
-    if idx == 12
+    if id == "ward_shimmer_mono"
         return 0x90C
     endif
-    if idx == 13
+    if id == "restoration_heal_beam"
         return 0x90D
     endif
-    if idx == 14
+    if id == "restoration_circle_hum"
         return 0x90E
     endif
-    if idx == 15
+    if id == "detect_life_pulse"
         return 0x90F
     endif
-    if idx == 16
+    if id == "alteration_ready_hum"
         return 0x910
     endif
-    if idx == 17
+    if id == "illusion_ready_hum"
         return 0x911
     endif
-    if idx == 18
+    if id == "ui_level_up"
         return 0x912
     endif
-    if idx == 19
+    if id == "ui_skill_up"
         return 0x913
     endif
-    if idx == 20
+    if id == "ui_new_quest"
         return 0x914
     endif
-    if idx == 21
+    if id == "ui_quest_update"
         return 0x915
     endif
-    if idx == 22
+    if id == "ui_quest_complete"
         return 0x916
     endif
-    if idx == 23
+    if id == "ui_shout_learned"
         return 0x917
     endif
-    if idx == 24
+    if id == "ui_shout_pop_big"
         return 0x918
     endif
-    if idx == 25
+    if id == "ui_perk_select"
         return 0x919
     endif
-    if idx == 26
+    if id == "ui_journal_open"
         return 0x91A
     endif
-    if idx == 27
+    if id == "dragon_flight_roar"
         return 0x91B
     endif
-    if idx == 28
+    if id == "dragon_kill_roar"
         return 0x91C
     endif
-    if idx == 29
+    if id == "hagraven_shriek"
         return 0x91D
     endif
-    if idx == 30
+    if id == "conjure_portal_open"
         return 0x91E
     endif
-    if idx == 31
+    if id == "conjure_portal_close"
         return 0x91F
     endif
-    if idx == 32
+    if id == "conjure_bound_weapon"
         return 0x920
     endif
-    if idx == 33
+    if id == "conjure_impact"
         return 0x921
     endif
     return 0
 EndFunction
-Sound Function _resolveSound(int soundIdx)
-    int fid = _soundFormId(soundIdx)
+Sound Function _resolveSound(string soundId)
+    int fid = _soundFormIdById(soundId)
     if fid == 0
         return None
     endif
@@ -1950,14 +1986,14 @@ Function _stopSound(Actor target, int baseSlot, int slot, int eff)
     StorageUtil.UnsetFloatValue(target, keyTime)
 EndFunction
 
-Function _playSoundLoop(Actor target, int baseSlot, int slot, int eff, int soundIdx)
+Function _playSoundLoop(Actor target, int baseSlot, int slot, int eff, string soundId)
     if target == None || slot < 0 || eff < 0
         return
     endif
     ; Stop any prior handle before re-Playing — overlapping handles stack
     ; on the same target and StopInstance only kills one.
     _stopSound(target, baseSlot, slot, eff)
-    Sound s = _resolveSound(soundIdx)
+    Sound s = _resolveSound(soundId)
     if s == None
         return
     endif
@@ -1987,7 +2023,7 @@ Function _playSoundLoop(Actor target, int baseSlot, int slot, int eff, int sound
     StorageUtil.SetFloatValue(target, _soundFxKeyTime(baseSlot, slot, eff), Utility.GetCurrentRealTime())
 EndFunction
 
-Function _activateSoundRow(Actor target, int soundIdx, int param2)
+Function _activateSoundRow(Actor target, string soundId, int param2)
     MTF_MainQuest h = _host()
     if h == None
         return
@@ -2005,10 +2041,10 @@ Function _activateSoundRow(Actor target, int soundIdx, int param2)
     ; concentration loops). Playing those as fire-and-forget would loop
     ; forever with no way to stop them. So we track ALL handles and stop
     ; ALL on deactivate; mode only changes session-resume behavior.
-    _playSoundLoop(target, baseSlot, slot, eff, soundIdx)
+    _playSoundLoop(target, baseSlot, slot, eff, soundId)
 EndFunction
 
-Function _deactivateSoundRow(Actor target, int soundIdx, int param2)
+Function _deactivateSoundRow(Actor target, string soundId, int param2)
     ; Always stop, regardless of mode. See _activateSoundRow comment for
     ; why one-shot still needs the cleanup path.
     MTF_MainQuest h = _host()
@@ -2024,7 +2060,7 @@ Function _deactivateSoundRow(Actor target, int soundIdx, int param2)
     _stopSound(target, baseSlot, slot, eff)
 EndFunction
 
-Function _tickSoundRow(Actor target, int soundIdx, int param2)
+Function _tickSoundRow(Actor target, string soundId, int param2)
     MTF_MainQuest h = _host()
     if h == None
         return
@@ -2053,8 +2089,23 @@ Function _tickSoundRow(Actor target, int soundIdx, int param2)
     ; (Looped SNDRs self-continue while their handle is alive, so we don't
     ; stomp every tick even in infinite mode — only on session resume.)
     if elapsed < 0.0 && param2 == 0
-        _playSoundLoop(target, baseSlot, slot, eff, soundIdx)
+        _playSoundLoop(target, baseSlot, slot, eff, soundId)
     endif
+EndFunction
+
+; v0.2.9: helper to fetch the menu-id string for the current dispatch's
+; param1. Menu effects store their type in param1 as an id (was int).
+string Function _dispP1Str()
+    MTF_MainQuest h = _host()
+    if h == None
+        return ""
+    endif
+    int slot = h._getDispatchSlot()
+    int eff  = h._getDispatchEffectIdx()
+    if slot < 0 || eff < 0
+        return ""
+    endif
+    return h.GetSlotEffectParamNStr(slot, eff, 1)
 EndFunction
 
 Function onActivate(Actor target, int param, int param2, string eid)
@@ -2062,14 +2113,14 @@ Function onActivate(Actor target, int param, int param2, string eid)
     ; (_recomputeAbsShift, _setApplied, _avNameFor, etc.) also take eid so
     ; per-actor StorageUtil keys are stable across catalog edits.
     ;
-    ; Consolidated effects come first: modify.skill / modify.resist read
-    ; the type from param1 (dropdown) and the shift from param2, so they
-    ; route through dedicated wrappers that handle per-slot lastApplied
-    ; tracking (revert old type on dropdown change).
+    ; v0.2.9: menu-typed effects (modify.skill/resist, shader.play, sound.play,
+    ; flash.onhit) read the type from param1 as a stable string id via
+    ; _dispP1Str(). param/param2 ints in this signature carry slider values
+    ; (param2 is the signed shift; param itself is 0 for menu-typed effects).
     if eid == "modify.skill"
-        _recomputeSkillShift(target, param, param2)
+        _recomputeSkillShift(target, _dispP1Str(), param2)
     elseif eid == "modify.resist"
-        _recomputeResistShift(target, param, param2)
+        _recomputeResistShift(target, _dispP1Str(), param2)
     elseif eid == "modify.criticalChance"
         ; AV not writable via ModActorValue -- route through spell magnitude
         _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, param, "modify.criticalChance")
@@ -2106,11 +2157,11 @@ Function onActivate(Actor target, int param, int param2, string eid)
     elseif eid == "spell.lightningCloak"
         _applyCloak(_resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
     elseif eid == "flash.onhit"
-        _applyFlashOnHit(target, param, param2)
+        _applyFlashOnHit(target, _dispP1Str(), param2)
     elseif eid == "shader.play"
-        _activateShaderRow(target, param, param2)
+        _activateShaderRow(target, _dispP1Str(), param2)
     elseif eid == "sound.play"
-        _activateSoundRow(target, param, param2)
+        _activateSoundRow(target, _dispP1Str(), param2)
     endif
 EndFunction
 
@@ -2142,9 +2193,9 @@ Function onDeactivate(Actor target, int param, int param2, string eid)
     elseif eid == "flash.onhit"
         _removeFlashOnHit(target)
     elseif eid == "shader.play"
-        _deactivateShaderRow(target, param)
+        _deactivateShaderRow(target, _dispP1Str())
     elseif eid == "sound.play"
-        _deactivateSoundRow(target, param, param2)
+        _deactivateSoundRow(target, _dispP1Str(), param2)
     endif
 EndFunction
 
@@ -2216,17 +2267,17 @@ Function onTick(Actor target, int param, int param2, string eid)
         ; Re-push flash params every slow tick. Cheap (one Roster lookup +
         ; field write) and means MCM slider edits on ramp/decay/retrig/peak
         ; take effect within ~2s without needing a tier rebuild.
-        _applyFlashOnHit(target, param, param2)
+        _applyFlashOnHit(target, _dispP1Str(), param2)
     elseif eid == "shader.play"
         ; Re-Play shader on slow-tick to survive save/load (the engine
         ; doesn't persist EffectShader.Play state), and re-Play the bound
         ; sound when its handle is stale (session resume) or when the
         ; user opted into re-trigger mode for short SNDRs.
-        _tickShaderRow(target, param, param2)
+        _tickShaderRow(target, _dispP1Str(), param2)
     elseif eid == "sound.play"
         ; Loop-mode SNDRs need a re-Play after session resume (same engine
         ; quirk as shaders: Sound.Play handles don't persist across save/load).
-        _tickSoundRow(target, param, param2)
+        _tickSoundRow(target, _dispP1Str(), param2)
     endif
 EndFunction
 

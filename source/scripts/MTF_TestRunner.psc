@@ -826,10 +826,9 @@ Function _runEffects(MTF_MainQuest mq, Actor pl)
     ; modify.* AV deltas
     _testFxAV(mq, pl, "modify.magickaRegen",   5, 0, "mtf.shift.modify.magickaRegen",   "MagickaRateMult",      5.0)
     _testFxAV(mq, pl, "modify.carryWeight",   10, 0, "mtf.shift.modify.carryWeight",   "CarryWeight",         10.0)
-    ; v0.2.7: modify.sneak standalone dropped; Sneak now lives at param1=17
-    ; of the consolidated modify.skill. Storage key follows the modify.skill
-    ; convention: mtf.shift.modify.skill.<idx>.
-    _testFxAV(mq, pl, "modify.skill",         17, 10, "mtf.shift.modify.skill.17",      "Sneak",               10.0)
+    ; v0.2.9: standalone Sneak probe removed -- modify.skill is now a menu-typed
+    ; effect (schema v2). All 18 skills including Sneak are exercised by the
+    ; id-driven loop below via _testFxAVStr.
     _testFxAV(mq, pl, "modify.movementSpeed",  5, 0, "mtf.shift.modify.movementSpeed", "SpeedMult",            5.0)
     _testFxAV(mq, pl, "modify.staminaRegen",   5, 0, "mtf.shift.modify.staminaRegen",  "StaminaRateMult",      5.0)
     _testFxAV(mq, pl, "modify.healthRegen",    5, 0, "mtf.shift.modify.healthRegen",   "HealRateMult",         5.0)
@@ -860,26 +859,30 @@ Function _runEffects(MTF_MainQuest mq, Actor pl)
     _testFxAV(mq, pl, "toggle.waterbreathing",  0, 0, "mtf.shift.toggle.waterbreathing", "WaterBreathing",  1.0)
     _testFxAV(mq, pl, "toggle.waterWalking",    0, 0, "mtf.shift.toggle.waterWalking",   "WaterWalking",    1.0)
 
-    ; Consolidated modify.skill -- loop ALL 17 enums
+    ; Consolidated modify.skill -- loop ALL 18 menu ids (v0.2.9 schema v2).
+    string[] skillIds = _skillIds()
     int si = 0
-    while si <= 16
-        string av = _skillAVForIdx(si)
+    while si < skillIds.Length
+        string sid = skillIds[si]
+        string av = _skillAVForId(sid)
         if av == ""
-            _skipFx("modify.skill[" + si + "]", "unknown skill enum")
+            _skipFx("modify.skill[" + sid + "]", "unknown skill id")
         else
-            _testFxAV(mq, pl, "modify.skill", si, 10, "mtf.shift.modify.skill." + si, av, 10.0)
+            _testFxAVStr(mq, pl, "modify.skill", sid, 10, "mtf.shift.modify.skill." + sid, av, 10.0)
         endif
         si += 1
     endwhile
 
-    ; Consolidated modify.resist -- 0..4 via storage+HasSpell, 5 via AV
+    ; Consolidated modify.resist -- all 6 are ability-based (the dispatch
+    ; route is _absShiftSpellByKey for every id, including Poison). The AV
+    ; reflects the ability's magnitude only after the engine re-evaluates
+    ; ability stacks, which doesn't happen in the same frame as AddSpell --
+    ; so a synchronous GetActorValue check flakes. _testFxResistAbility
+    ; verifies via storage + HasSpell instead, which is deterministic.
+    string[] resistIds = _resistIds()
     int ri = 0
-    while ri <= 5
-        if ri == 5
-            _testFxAV(mq, pl, "modify.resist", ri, 10, "mtf.shift.modify.resist." + ri, "PoisonResist", 10.0)
-        else
-            _testFxResistAbility(mq, pl, ri, 10)
-        endif
+    while ri < resistIds.Length
+        _testFxResistAbility(mq, pl, resistIds[ri], 10)
         ri += 1
     endwhile
 
@@ -965,6 +968,80 @@ Function _testFxAV(MTF_MainQuest mq, Actor pl, string eid, int p1, int p2, strin
     JsonUtil.StringListAdd(JSON_FILE, "rows", row)
 EndFunction
 
+Function _testFxAVStr(MTF_MainQuest mq, Actor pl, string eid, string p1Id, int p2, string storageKey, string av, float expectedDelta)
+{Like _testFxAV but for menu-typed effects (v0.2.9 schema v2). Param1 is a
+ string id written via SetSlotEffectParamNStr; the int param1 is ignored by
+ the dispatcher on these effects.
+
+ v0.2.9 ordering note: write the string FIRST, then call SetSlotEffectFull.
+ SetSlotEffectFull auto-activates the slot (live=true since TEST_FX_SLOT=0),
+ and the auto-activate dispatches with whatever the string is at that moment.
+ If we wrote string AFTER SetSlotEffectFull and then re-activated manually,
+ we'd get a double-activate where the first pass sees an empty string,
+ short-circuits in _recomputeSkillShift, and the second pass writes — that
+ worked most of the time but flaked unpredictably (which skill failed
+ differed every run). One activate, called with the right string, is
+ deterministic.}
+    ; ARRANGE -- assert storage starts clean (catches leaks from prior tests)
+    float baseStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
+    if !_floatNear(baseStorage, 0.0, 0.01)
+        _fail += 1
+        string arrRow = "FAIL effect " + eid + "(p1=" + p1Id + ",p2=" + p2 + ") arrange: storage leaked (was " + baseStorage + ")"
+        Debug.Trace("[MTF_TEST] " + arrRow)
+        JsonUtil.StringListAdd(JSON_FILE, "rows", arrRow)
+        ; Best-effort clean for next test
+        StorageUtil.SetFloatValue(pl, storageKey, 0.0)
+        return
+    endif
+    float beforeStorage = baseStorage
+    float beforeAV      = pl.GetActorValue(av)
+
+    ; String param FIRST — so SetSlotEffectFull's auto-activate dispatches
+    ; with the right id rather than the previous test's stale empty value.
+    mq.SetSlotEffectParamNStr(TEST_FX_SLOT, TEST_FX_IDX, 1, p1Id)
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "mtf.base:" + eid, 0, p2)
+
+    float afterStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
+    float afterAV      = pl.GetActorValue(av)
+
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "", 0, 0)
+    mq.SetSlotEffectParamNStr(TEST_FX_SLOT, TEST_FX_IDX, 1, "")
+
+    float finalStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
+    float finalAV      = pl.GetActorValue(av)
+
+    float TOL = 0.01
+    bool storageApplied  = _floatNear(afterStorage,  expectedDelta, TOL)
+    bool storageReverted = _floatNear(finalStorage,  0.0,           TOL)
+    bool avMoved         = _floatNear(afterAV - beforeAV, expectedDelta, TOL)
+    bool avReverted      = _floatNear(finalAV  - beforeAV, 0.0,          TOL)
+
+    bool pass = storageApplied && storageReverted && avMoved && avReverted
+    string row
+    if pass
+        _pass += 1
+        row = "PASS effect " + eid + "(p1=" + p1Id + ",p2=" + p2 + ") storage " + beforeStorage + "->" + afterStorage + "->" + finalStorage + " av(" + av + ") " + beforeAV + "->" + afterAV + "->" + finalAV
+    else
+        _fail += 1
+        string reasons = ""
+        if !storageApplied
+            reasons += "storage_apply(got=" + afterStorage + " want=" + expectedDelta + ") "
+        endif
+        if !storageReverted
+            reasons += "storage_revert(got=" + finalStorage + " want=0) "
+        endif
+        if !avMoved
+            reasons += "av_apply(got_delta=" + (afterAV - beforeAV) + " want=" + expectedDelta + " av=" + av + ") "
+        endif
+        if !avReverted
+            reasons += "av_revert(got_final_delta=" + (finalAV - beforeAV) + " av=" + av + ") "
+        endif
+        row = "FAIL effect " + eid + "(p1=" + p1Id + ",p2=" + p2 + ") " + reasons
+    endif
+    Debug.Trace("[MTF_TEST] " + row)
+    JsonUtil.StringListAdd(JSON_FILE, "rows", row)
+EndFunction
+
 Function _testFxStorageAndSpell(MTF_MainQuest mq, Actor pl, string eid, int p1, int p2, string storageKey, Spell verifySpell, int delta)
 {Storage + HasSpell verification for any spell-magnitude effect where
  GetActorValue doesn't reflect the modifier (engine quirk class:
@@ -1045,15 +1122,16 @@ Spell Function _resolveMuffleSpellForTest()
     return Game.GetFormFromFile(0x83F, "MagicTattoosFramework.esp") as Spell
 EndFunction
 
-Function _testFxResistAbility(MTF_MainQuest mq, Actor pl, int resistIdx, int delta)
+Function _testFxResistAbility(MTF_MainQuest mq, Actor pl, string resistId, int delta)
 {Storage + HasSpell verification for the 5 ability-based resists. Used
- for resist enums 0..4 because the engine doesn't always reflect the
- ability magnitude via GetActorValue with the targeted AV name.}
-    string storageKey = "mtf.shift.modify.resist." + resistIdx
-    Spell resistSpell = _resolveResistSpellByIdx(resistIdx)
+ for resist ids fire/frost/shock/magic/disease because the engine doesn't
+ always reflect the ability magnitude via GetActorValue with the targeted
+ AV name. v0.2.9: param keyed on string id (was int 0..4).}
+    string storageKey = "mtf.shift.modify.resist." + resistId
+    Spell resistSpell = _resolveResistSpellById(resistId)
     if resistSpell == None
         _skip += 1
-        string skipRow = "SKIP effect modify.resist[" + resistIdx + "] - resist spell form not found"
+        string skipRow = "SKIP effect modify.resist[" + resistId + "] - resist spell form not found"
         Debug.Trace("[MTF_TEST] " + skipRow)
         JsonUtil.StringListAdd(JSON_FILE, "rows", skipRow)
         return
@@ -1061,14 +1139,15 @@ Function _testFxResistAbility(MTF_MainQuest mq, Actor pl, int resistIdx, int del
 
     float beforeStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
 
-    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "mtf.base:modify.resist", resistIdx, delta)
-    mq._activateSlotEffects(TEST_FX_SLOT)
+    ; String FIRST -- see _testFxAVStr's ordering note for the rationale.
+    mq.SetSlotEffectParamNStr(TEST_FX_SLOT, TEST_FX_IDX, 1, resistId)
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "mtf.base:modify.resist", 0, delta)
 
     float afterStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
     bool afterHasSpell = pl.HasSpell(resistSpell)
 
-    mq._deactivateSlotEffects(TEST_FX_SLOT)
     mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "", 0, 0)
+    mq.SetSlotEffectParamNStr(TEST_FX_SLOT, TEST_FX_IDX, 1, "")
 
     float finalStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
     bool finalHasSpell = pl.HasSpell(resistSpell)
@@ -1083,7 +1162,7 @@ Function _testFxResistAbility(MTF_MainQuest mq, Actor pl, int resistIdx, int del
     string row
     if pass
         _pass += 1
-        row = "PASS effect modify.resist[" + resistIdx + "] storage " + beforeStorage + "->" + afterStorage + "->" + finalStorage + " hasSpell " + afterHasSpell + "->" + finalHasSpell
+        row = "PASS effect modify.resist[" + resistId + "] storage " + beforeStorage + "->" + afterStorage + "->" + finalStorage + " hasSpell " + afterHasSpell + "->" + finalHasSpell
     else
         _fail += 1
         string reasons = ""
@@ -1099,7 +1178,7 @@ Function _testFxResistAbility(MTF_MainQuest mq, Actor pl, int resistIdx, int del
         if !spellRemoved
             reasons += "spell_not_removed "
         endif
-        row = "FAIL effect modify.resist[" + resistIdx + "] " + reasons
+        row = "FAIL effect modify.resist[" + resistId + "] " + reasons
     endif
     Debug.Trace("[MTF_TEST] " + row)
     JsonUtil.StringListAdd(JSON_FILE, "rows", row)
@@ -1124,58 +1203,100 @@ EndFunction
 ; Mirror tables -- update in lockstep with MTF_Plugin_Base
 ; ====================================================================
 
-string Function _skillAVForIdx(int idx)
-    if idx == 0
+; v0.2.9: catalog schema v2 — modify.skill / modify.resist dispatch on
+; menu id strings instead of int positional values. Mirror the canonical
+; tables in MTF_Plugin_Base. Note 'archery' → "Marksman", 'speech' →
+; "Speechcraft" (Skyrim AV naming quirks, see KNOWLEDGEBASE.md).
+string Function _skillAVForId(string id)
+    if id == "one_handed"
         return "OneHanded"
-    elseif idx == 1
+    elseif id == "two_handed"
         return "TwoHanded"
-    elseif idx == 2
+    elseif id == "archery"
         return "Marksman"          ; NOT "Archery"
-    elseif idx == 3
+    elseif id == "block"
         return "Block"
-    elseif idx == 4
+    elseif id == "heavy_armor"
         return "HeavyArmor"
-    elseif idx == 5
+    elseif id == "light_armor"
         return "LightArmor"
-    elseif idx == 6
+    elseif id == "smithing"
         return "Smithing"
-    elseif idx == 7
+    elseif id == "enchanting"
         return "Enchanting"
-    elseif idx == 8
+    elseif id == "alchemy"
         return "Alchemy"
-    elseif idx == 9
+    elseif id == "destruction"
         return "Destruction"
-    elseif idx == 10
+    elseif id == "restoration"
         return "Restoration"
-    elseif idx == 11
+    elseif id == "alteration"
         return "Alteration"
-    elseif idx == 12
+    elseif id == "illusion"
         return "Illusion"
-    elseif idx == 13
+    elseif id == "conjuration"
         return "Conjuration"
-    elseif idx == 14
+    elseif id == "speech"
         return "Speechcraft"       ; NOT "Speech"
-    elseif idx == 15
+    elseif id == "lockpicking"
         return "Lockpicking"
-    elseif idx == 16
+    elseif id == "pickpocket"
         return "Pickpocket"
+    elseif id == "sneak"
+        return "Sneak"
     endif
     return ""
 EndFunction
 
-Spell Function _resolveResistSpellByIdx(int idx)
-    if idx == 0
+Spell Function _resolveResistSpellById(string id)
+    if id == "fire"
         return Game.GetFormFromFile(0x837, "MagicTattoosFramework.esp") as Spell
-    elseif idx == 1
+    elseif id == "frost"
         return Game.GetFormFromFile(0x839, "MagicTattoosFramework.esp") as Spell
-    elseif idx == 2
+    elseif id == "shock"
         return Game.GetFormFromFile(0x83B, "MagicTattoosFramework.esp") as Spell
-    elseif idx == 3
+    elseif id == "magic"
         return Game.GetFormFromFile(0x83D, "MagicTattoosFramework.esp") as Spell
-    elseif idx == 4
+    elseif id == "disease"
         return Game.GetFormFromFile(0x851, "MagicTattoosFramework.esp") as Spell
-    elseif idx == 5
+    elseif id == "poison"
         return Game.GetFormFromFile(0x853, "MagicTattoosFramework.esp") as Spell
     endif
     return None
+EndFunction
+
+; Ordered id lists matching the modify.{skill,resist} menu in
+; tools/build_base_catalog.py. Keep in sync.
+string[] Function _skillIds()
+    string[] a = new string[18]
+    a[0]  = "one_handed"
+    a[1]  = "two_handed"
+    a[2]  = "archery"
+    a[3]  = "block"
+    a[4]  = "heavy_armor"
+    a[5]  = "light_armor"
+    a[6]  = "smithing"
+    a[7]  = "enchanting"
+    a[8]  = "alchemy"
+    a[9]  = "destruction"
+    a[10] = "restoration"
+    a[11] = "alteration"
+    a[12] = "illusion"
+    a[13] = "conjuration"
+    a[14] = "speech"
+    a[15] = "lockpicking"
+    a[16] = "pickpocket"
+    a[17] = "sneak"
+    return a
+EndFunction
+
+string[] Function _resistIds()
+    string[] a = new string[6]
+    a[0] = "fire"
+    a[1] = "frost"
+    a[2] = "shock"
+    a[3] = "magic"
+    a[4] = "disease"
+    a[5] = "poison"
+    return a
 EndFunction

@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.base",
   "pluginlabel": "Base",
   "conditions": [
@@ -80,39 +80,37 @@
       "description": "Triggers with a {param2}% chance per matching incoming hit of class {param1}.",
       "param": {
         "label": "Hit class",
-        "min": 0,
-        "max": 6,
-        "default": 0,
         "menu": [
           {
-            "value": 0,
+            "id": "any",
             "label": "Any"
           },
           {
-            "value": 1,
+            "id": "blunt",
             "label": "Blunt"
           },
           {
-            "value": 2,
+            "id": "bladed",
             "label": "Bladed"
           },
           {
-            "value": 3,
+            "id": "ranged",
             "label": "Ranged"
           },
           {
-            "value": 4,
+            "id": "fire",
             "label": "Fire"
           },
           {
-            "value": 5,
+            "id": "frost",
             "label": "Frost"
           },
           {
-            "value": 6,
+            "id": "shock",
             "label": "Shock"
           }
-        ]
+        ],
+        "default": "any"
       },
       "param2": {
         "label": "Chance % per hit",
@@ -149,43 +147,41 @@
       "description": "Triggers when the actor is inside a {param1}-flagged location.",
       "param": {
         "label": "Location type",
-        "min": 0,
-        "max": 7,
-        "default": 0,
         "menu": [
           {
-            "value": 0,
+            "id": "player_home",
             "label": "Player Home"
           },
           {
-            "value": 1,
+            "id": "dungeon",
             "label": "Dungeon"
           },
           {
-            "value": 2,
+            "id": "city",
             "label": "City"
           },
           {
-            "value": 3,
+            "id": "town",
             "label": "Town"
           },
           {
-            "value": 4,
+            "id": "inn",
             "label": "Inn"
           },
           {
-            "value": 5,
+            "id": "jail",
             "label": "Jail"
           },
           {
-            "value": 6,
+            "id": "indoors",
             "label": "Indoors"
           },
           {
-            "value": 7,
+            "id": "outdoors",
             "label": "Outdoors"
           }
-        ]
+        ],
+        "default": "player_home"
       }
     },
     {
@@ -194,27 +190,25 @@
       "description": "Triggers when the current weather class is {param1}.",
       "param": {
         "label": "Weather class",
-        "min": 0,
-        "max": 3,
-        "default": 0,
         "menu": [
           {
-            "value": 0,
+            "id": "pleasant",
             "label": "Pleasant"
           },
           {
-            "value": 1,
+            "id": "cloudy",
             "label": "Cloudy"
           },
           {
-            "value": 2,
+            "id": "rainy",
             "label": "Rainy"
           },
           {
-            "value": 3,
+            "id": "snowy",
             "label": "Snowy"
           }
-        ]
+        ],
+        "default": "pleasant"
       }
     },
     {
@@ -531,35 +525,33 @@
       "description": "Shifts the actor's {param1} resistance by {param2} points.",
       "param1": {
         "label": "Resist type",
-        "min": 0,
-        "max": 5,
-        "default": 0,
         "menu": [
           {
-            "value": 0,
+            "id": "fire",
             "label": "Fire"
           },
           {
-            "value": 1,
+            "id": "frost",
             "label": "Frost"
           },
           {
-            "value": 2,
+            "id": "shock",
             "label": "Shock"
           },
           {
-            "value": 3,
+            "id": "magic",
             "label": "Magic"
           },
           {
-            "value": 4,
+            "id": "disease",
             "label": "Disease"
           },
           {
-            "value": 5,
+            "id": "poison",
             "label": "Poison"
           }
-        ]
+        ],
+        "default": "fire"
       },
       "param2": {
         "label": "Resist shift (points; + resist, - weakness)",
@@ -701,59 +693,57 @@
       "description": "Flashes the tattoo's emissive layer to {param2}% brightness on the chosen trigger event ({param1}).",
       "param1": {
         "label": "Trigger event",
-        "min": 0,
-        "max": 127,
-        "default": 126,
         "menu": [
           {
-            "value": 0,
+            "id": "disabled",
             "label": "Disabled"
           },
           {
-            "value": 2,
+            "id": "blunt_only",
             "label": "Blunt only"
           },
           {
-            "value": 4,
+            "id": "bladed_only",
             "label": "Bladed only"
           },
           {
-            "value": 8,
+            "id": "ranged_only",
             "label": "Ranged only"
           },
           {
-            "value": 16,
+            "id": "fire_only",
             "label": "Fire only"
           },
           {
-            "value": 32,
+            "id": "frost_only",
             "label": "Frost only"
           },
           {
-            "value": 64,
+            "id": "shock_only",
             "label": "Shock only"
           },
           {
-            "value": 6,
+            "id": "melee_blunt_bladed",
             "label": "Melee (Blunt + Bladed)"
           },
           {
-            "value": 14,
+            "id": "physical_blunt_bladed_ranged",
             "label": "Physical (Blunt + Bladed + Ranged)"
           },
           {
-            "value": 112,
+            "id": "magic_fire_frost_shock",
             "label": "Magic (Fire + Frost + Shock)"
           },
           {
-            "value": 126,
+            "id": "all_combat_classes",
             "label": "All combat classes"
           },
           {
-            "value": 128,
+            "id": "on_spell_cast",
             "label": "On spell cast"
           }
-        ]
+        ],
+        "default": "disabled"
       },
       "param2": {
         "label": "Peak emissive (additive, % of 1.0)",
@@ -812,83 +802,81 @@
       "description": "Shifts the actor's {param1} skill by {param2} points.",
       "param1": {
         "label": "Skill",
-        "min": 0,
-        "max": 17,
-        "default": 0,
         "menu": [
           {
-            "value": 0,
+            "id": "one_handed",
             "label": "One-Handed"
           },
           {
-            "value": 1,
+            "id": "two_handed",
             "label": "Two-Handed"
           },
           {
-            "value": 2,
+            "id": "archery",
             "label": "Archery"
           },
           {
-            "value": 3,
+            "id": "block",
             "label": "Block"
           },
           {
-            "value": 4,
+            "id": "heavy_armor",
             "label": "Heavy Armor"
           },
           {
-            "value": 5,
+            "id": "light_armor",
             "label": "Light Armor"
           },
           {
-            "value": 6,
+            "id": "smithing",
             "label": "Smithing"
           },
           {
-            "value": 7,
+            "id": "enchanting",
             "label": "Enchanting"
           },
           {
-            "value": 8,
+            "id": "alchemy",
             "label": "Alchemy"
           },
           {
-            "value": 9,
+            "id": "destruction",
             "label": "Destruction"
           },
           {
-            "value": 10,
+            "id": "restoration",
             "label": "Restoration"
           },
           {
-            "value": 11,
+            "id": "alteration",
             "label": "Alteration"
           },
           {
-            "value": 12,
+            "id": "illusion",
             "label": "Illusion"
           },
           {
-            "value": 13,
+            "id": "conjuration",
             "label": "Conjuration"
           },
           {
-            "value": 14,
+            "id": "speech",
             "label": "Speech"
           },
           {
-            "value": 15,
+            "id": "lockpicking",
             "label": "Lockpicking"
           },
           {
-            "value": 16,
+            "id": "pickpocket",
             "label": "Pickpocket"
           },
           {
-            "value": 17,
+            "id": "sneak",
             "label": "Sneak"
           }
-        ]
+        ],
+        "default": "one_handed"
       },
       "param2": {
         "label": "Skill shift (points; + buff, - drain)",
@@ -903,99 +891,97 @@
       "description": "Plays the {param1} effect shader on the actor while active (duration {param2}s; 0 = until removed).",
       "param1": {
         "label": "Shader",
-        "min": 0,
-        "max": 21,
-        "default": 0,
         "menu": [
           {
-            "value": 0,
+            "id": "fire_cloak",
             "label": "Fire Cloak"
           },
           {
-            "value": 1,
+            "id": "fire_burst",
             "label": "Fire Burst"
           },
           {
-            "value": 2,
+            "id": "frost",
             "label": "Frost"
           },
           {
-            "value": 3,
+            "id": "frost_chillrend",
             "label": "Frost Chillrend"
           },
           {
-            "value": 4,
+            "id": "shock",
             "label": "Shock"
           },
           {
-            "value": 5,
+            "id": "shock_storm",
             "label": "Shock Storm"
           },
           {
-            "value": 6,
+            "id": "stoneflesh",
             "label": "Stoneflesh"
           },
           {
-            "value": 7,
+            "id": "ebonyflesh",
             "label": "Ebonyflesh"
           },
           {
-            "value": 8,
+            "id": "dragonhide",
             "label": "Dragonhide"
           },
           {
-            "value": 9,
+            "id": "soul_trap",
             "label": "Soul Trap"
           },
           {
-            "value": 10,
+            "id": "ghost_ethereal",
             "label": "Ghost (Ethereal)"
           },
           {
-            "value": 11,
+            "id": "ghost_red",
             "label": "Ghost Red"
           },
           {
-            "value": 12,
+            "id": "invisibility",
             "label": "Invisibility"
           },
           {
-            "value": 13,
+            "id": "muffle",
             "label": "Muffle"
           },
           {
-            "value": 14,
+            "id": "ward_shield",
             "label": "Ward Shield"
           },
           {
-            "value": 15,
+            "id": "reanimate",
             "label": "Reanimate"
           },
           {
-            "value": 16,
+            "id": "turn_undead_flames",
             "label": "Turn Undead Flames"
           },
           {
-            "value": 17,
+            "id": "heal",
             "label": "Heal"
           },
           {
-            "value": 18,
+            "id": "absorb_health",
             "label": "Absorb Health"
           },
           {
-            "value": 19,
+            "id": "vampire_change",
             "label": "Vampire Change"
           },
           {
-            "value": 20,
+            "id": "werewolf_transform",
             "label": "Werewolf Transform"
           },
           {
-            "value": 21,
+            "id": "detect_life",
             "label": "Detect Life"
           }
-        ]
+        ],
+        "default": "fire_cloak"
       },
       "param2": {
         "label": "Duration (s, 0 = until removed)",
@@ -1010,147 +996,145 @@
       "description": "Plays the {param1} looping sound on the actor while active (duration {param2}s; 0 = until removed).",
       "param1": {
         "label": "Sound",
-        "min": 0,
-        "max": 33,
-        "default": 0,
         "menu": [
           {
-            "value": 0,
+            "id": "fire_ready_loop",
             "label": "Fire — ready loop"
           },
           {
-            "value": 1,
+            "id": "fire_secondary_ready",
             "label": "Fire — secondary ready"
           },
           {
-            "value": 2,
+            "id": "fire_body_on_fire",
             "label": "Fire — body on fire"
           },
           {
-            "value": 3,
+            "id": "fire_medium_crackle",
             "label": "Fire — medium crackle"
           },
           {
-            "value": 4,
+            "id": "frost_ready_loop",
             "label": "Frost — ready loop"
           },
           {
-            "value": 5,
+            "id": "frost_concentration",
             "label": "Frost — concentration"
           },
           {
-            "value": 6,
+            "id": "frost_wall_hum",
             "label": "Frost — wall hum"
           },
           {
-            "value": 7,
+            "id": "shock_concentration",
             "label": "Shock — concentration"
           },
           {
-            "value": 8,
+            "id": "shock_projectile_arc",
             "label": "Shock — projectile arc"
           },
           {
-            "value": 9,
+            "id": "shock_wall_hum",
             "label": "Shock — wall hum"
           },
           {
-            "value": 10,
+            "id": "soul_trap_active_hum",
             "label": "Soul Trap — active hum"
           },
           {
-            "value": 11,
+            "id": "ward_shimmer_stereo",
             "label": "Ward — shimmer (stereo)"
           },
           {
-            "value": 12,
+            "id": "ward_shimmer_mono",
             "label": "Ward — shimmer (mono)"
           },
           {
-            "value": 13,
+            "id": "restoration_heal_beam",
             "label": "Restoration — heal beam"
           },
           {
-            "value": 14,
+            "id": "restoration_circle_hum",
             "label": "Restoration — circle hum"
           },
           {
-            "value": 15,
+            "id": "detect_life_pulse",
             "label": "Detect Life — pulse"
           },
           {
-            "value": 16,
+            "id": "alteration_ready_hum",
             "label": "Alteration — ready hum"
           },
           {
-            "value": 17,
+            "id": "illusion_ready_hum",
             "label": "Illusion — ready hum"
           },
           {
-            "value": 18,
+            "id": "ui_level_up",
             "label": "UI — Level up"
           },
           {
-            "value": 19,
+            "id": "ui_skill_up",
             "label": "UI — Skill up"
           },
           {
-            "value": 20,
+            "id": "ui_new_quest",
             "label": "UI — New quest"
           },
           {
-            "value": 21,
+            "id": "ui_quest_update",
             "label": "UI — Quest update"
           },
           {
-            "value": 22,
+            "id": "ui_quest_complete",
             "label": "UI — Quest complete"
           },
           {
-            "value": 23,
+            "id": "ui_shout_learned",
             "label": "UI — Shout learned"
           },
           {
-            "value": 24,
+            "id": "ui_shout_pop_big",
             "label": "UI — Shout pop (big)"
           },
           {
-            "value": 25,
+            "id": "ui_perk_select",
             "label": "UI — Perk select"
           },
           {
-            "value": 26,
+            "id": "ui_journal_open",
             "label": "UI — Journal open"
           },
           {
-            "value": 27,
+            "id": "dragon_flight_roar",
             "label": "Dragon — flight roar"
           },
           {
-            "value": 28,
+            "id": "dragon_kill_roar",
             "label": "Dragon — kill roar"
           },
           {
-            "value": 29,
+            "id": "hagraven_shriek",
             "label": "Hagraven shriek"
           },
           {
-            "value": 30,
+            "id": "conjure_portal_open",
             "label": "Conjure — portal open"
           },
           {
-            "value": 31,
+            "id": "conjure_portal_close",
             "label": "Conjure — portal close"
           },
           {
-            "value": 32,
+            "id": "conjure_bound_weapon",
             "label": "Conjure — bound weapon"
           },
           {
-            "value": 33,
+            "id": "conjure_impact",
             "label": "Conjure — impact"
           }
-        ]
+        ],
+        "default": "fire_ready_loop"
       },
       "param2": {
         "label": "Duration (s, 0 = until removed)",

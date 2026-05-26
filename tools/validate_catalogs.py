@@ -8,10 +8,10 @@ to stderr, and exits non-zero on any failure.
 Hook into tools/build_scripts.sh so an invalid catalog fails the build before
 the .pex hits the deploy folder.
 
-Schema v1 (as of v0.2.6):
+Schema v2 (as of v0.2.9):
 
 Top level
-    schemaversion: int  must be 1
+    schemaversion: int  must be 2
     pluginid:      str  must be non-empty
     pluginlabel:   str  must be non-empty
     conditions:    list of condition objects (may be empty)
@@ -32,13 +32,18 @@ Effect object
     param1..param5: optional paramN sub-objects (contiguous from 1)
 
 paramN sub-object
-    label:   str    required, non-empty
-    default: number required
-    min:     number optional (required when no menu)
-    max:     number optional (required when no menu)
-    step:    number optional
-    menu:    optional list of {value: int, label: str} — when present, min/max/step ignored,
-             default must match one of the values
+    label:   str         required, non-empty
+    default: number|str  required (str id when menu present; number for sliders)
+    menu:    optional list of {id: str, label: str} — when present, min/max forbidden;
+             default must match one of the menu ids; ids must be unique within the menu
+             and match the [a-z0-9_]+ pattern.
+    min:     number      required when no menu (slider mode)
+    max:     number      required when no menu
+    step:    number      optional (slider only)
+
+v0.2.9 migration note: menu options were {value: int, label: str} in v1. The
+`value` field was dropped in favour of `id` strings so catalog reorders and
+catalog growth never silently rebind stored preset values.
 
 Cross-checks
     No duplicate condition IDs within a single catalog
@@ -57,7 +62,8 @@ from typing import Any
 
 # Where catalogs live, relative to repo root.
 CATALOG_DIR = Path("data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins")
-EXPECTED_SCHEMAVERSION = 1
+EXPECTED_SCHEMAVERSION = 2
+ID_PATTERN = __import__("re").compile(r"^[a-z0-9_]+$")
 KNOWN_KIND_VALUES = {"burst"}  # absent = continuous; extend when adding new kinds
 
 
@@ -76,39 +82,69 @@ def validate_param(p: dict, breadcrumb: str) -> list[str]:
     if not isinstance(label, str) or label == "":
         errors.append(f"{breadcrumb}.label: must be non-empty string")
 
+    has_menu = "menu" in p
     if "default" not in p:
         errors.append(f"{breadcrumb}.default: required field missing")
-    elif not _is_number(p["default"]):
-        errors.append(f"{breadcrumb}.default: must be a number")
+    elif has_menu:
+        # Menu mode: default is the id string of one of the options.
+        if not isinstance(p["default"], str) or p["default"] == "":
+            errors.append(
+                f"{breadcrumb}.default: must be a non-empty string id when menu present"
+            )
+    else:
+        # Slider mode: default is a number.
+        if not _is_number(p["default"]):
+            errors.append(f"{breadcrumb}.default: must be a number (slider param)")
 
-    has_menu = "menu" in p
     if has_menu:
         m = p["menu"]
         if not isinstance(m, list) or len(m) == 0:
-            errors.append(f"{breadcrumb}.menu: must be non-empty list of {{value, label}}")
+            errors.append(f"{breadcrumb}.menu: must be non-empty list of {{id, label}}")
         else:
-            menu_values: list[int] = []
+            menu_ids: list[str] = []
+            seen_ids: set[str] = set()
             for i, item in enumerate(m):
                 bc = f"{breadcrumb}.menu[{i}]"
                 if not isinstance(item, dict):
                     errors.append(f"{bc}: expected object")
                     continue
-                v = item.get("value")
-                lbl = item.get("label")
-                if not isinstance(v, int) or isinstance(v, bool):
-                    errors.append(f"{bc}.value: must be int")
+                opt_id = item.get("id")
+                lbl    = item.get("label")
+                if not isinstance(opt_id, str) or opt_id == "":
+                    errors.append(f"{bc}.id: must be non-empty string")
+                elif not ID_PATTERN.match(opt_id):
+                    errors.append(
+                        f"{bc}.id: {opt_id!r} must match [a-z0-9_]+"
+                    )
+                elif opt_id in seen_ids:
+                    errors.append(
+                        f"{bc}.id: duplicate {opt_id!r} within this menu"
+                    )
                 else:
-                    menu_values.append(v)
+                    seen_ids.add(opt_id)
+                    menu_ids.append(opt_id)
                 if not isinstance(lbl, str) or lbl == "":
                     errors.append(f"{bc}.label: must be non-empty string")
-            # default must match one of the values
+                # v0.2.9: legacy `value` field must not appear (migrator strips it).
+                if "value" in item:
+                    errors.append(
+                        f"{bc}: legacy `value` field present; re-run "
+                        f"tools/migrate_to_string_ids.py"
+                    )
+            # default must match one of the menu ids
             d = p.get("default")
-            if _is_number(d) and menu_values and d not in menu_values:
+            if isinstance(d, str) and menu_ids and d not in menu_ids:
                 errors.append(
-                    f"{breadcrumb}.default ({d}) is not one of the menu values {menu_values}"
+                    f"{breadcrumb}.default ({d!r}) is not one of the menu ids {menu_ids}"
+                )
+        # min/max are meaningless on menu params and must be absent.
+        for k in ("min", "max", "step"):
+            if k in p:
+                errors.append(
+                    f"{breadcrumb}.{k}: forbidden on menu params (v0.2.9 schema)"
                 )
     else:
-        # Numeric range mode — min/max recommended, default must be in range if both present.
+        # Numeric range mode — min/max required, default must be in range.
         if "min" not in p:
             errors.append(f"{breadcrumb}.min: required field missing (numeric param with no menu)")
         elif not _is_number(p["min"]):

@@ -17,7 +17,16 @@ an effect, update both this script AND the matching Papyrus helper.
 """
 
 import json
+import re
 from pathlib import Path
+
+
+def _to_id(label: str) -> str:
+    """v0.2.9: snake_case id from a display label. Must match the formula
+    in tools/migrate_to_string_ids.py so a regenerated catalog round-trips
+    with the migrated catalog files.
+    """
+    return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
 
 OUT = Path(__file__).resolve().parents[1] / "data" / "SKSE" / "Plugins" / \
     "StorageUtilData" / "MagicTattoosFramework" / "plugins" / "mtf.base.json"
@@ -43,93 +52,96 @@ def is_abs_shift(idx: int) -> bool:
 # don't put the prefix in labels here. Renumbered in v0.2.7.
 BASE_BURSTS = {2, 3, 7, 8, 21, 22}
 
-# Hit class enum for the combat.hit condition's param1 dropdown. Values
-# match _checkHit's classIdx in MTF_Plugin_Base — host-side hit counters
-# are keyed on the same int. Pre-v0.2.5 used 7 separate combat.hit.*
-# conditions; consolidated to mirror the FLASH_TRIGGER_MENU pattern.
+# v0.2.9: menu enums migrated from {value: int, label: str} to
+# {id: snake_case, label: str}. Plugin consumers in MTF_Plugin_Base.psc
+# dispatch on the id string (e.g. _skillAVForId("sneak")) rather than
+# int positions; this lets the catalog be reordered or extended without
+# silently rebinding stored preset values.
+
+# Hit class enum for the combat.hit condition's param dropdown. Ids match
+# _checkHit dispatch in MTF_Plugin_Base. Pre-v0.2.5 used 7 separate
+# combat.hit.* conditions; consolidated to mirror FLASH_TRIGGER_MENU.
 HIT_CLASS_MENU = [
-    (0, "Any"),
-    (1, "Blunt"),
-    (2, "Bladed"),
-    (3, "Ranged"),
-    (4, "Fire"),
-    (5, "Frost"),
-    (6, "Shock"),
+    ("any",     "Any"),
+    ("blunt",   "Blunt"),
+    ("bladed",  "Bladed"),
+    ("ranged",  "Ranged"),
+    ("fire",    "Fire"),
+    ("frost",   "Frost"),
+    ("shock",   "Shock"),
 ]
 assert len(HIT_CLASS_MENU) == 7
 
-# Location keyword enum for the location.kw condition's param1 dropdown.
-# Values 0..5 map to Skyrim location keyword form IDs in _locKwByIdx (Base);
-# values 6..7 are sentinels for interior/exterior cell checks (no keyword
-# lookup — the Base script special-cases them).
+# Location keyword enum for the location.kw condition's param dropdown.
+# Ids 'player_home'..'jail' map to Skyrim location keyword form IDs in
+# _locKwById (Base); 'indoors'/'outdoors' are sentinels for interior/
+# exterior cell checks (no keyword lookup — special-cased).
 # Pre-v0.2.5 used 6 separate location.{playerHome,dungeon,city,town,inn,jail};
 # v0.2.7 also folded location.indoors / location.outdoors in here.
 LOCATION_KW_MENU = [
-    (0, "Player Home"),
-    (1, "Dungeon"),
-    (2, "City"),
-    (3, "Town"),
-    (4, "Inn"),
-    (5, "Jail"),
-    (6, "Indoors"),
-    (7, "Outdoors"),
+    ("player_home", "Player Home"),
+    ("dungeon",     "Dungeon"),
+    ("city",        "City"),
+    ("town",        "Town"),
+    ("inn",         "Inn"),
+    ("jail",        "Jail"),
+    ("indoors",     "Indoors"),
+    ("outdoors",    "Outdoors"),
 ]
 assert len(LOCATION_KW_MENU) == 8
 
-# Weather class enum for the weather condition's param1 dropdown.
-# Values match Weather.GetClassification (0=pleasant, 1=cloudy, 2=rainy,
-# 3=snowy). Pre-v0.2.5 used 4 separate weather.* conditions.
+# Weather class enum for the weather condition's param dropdown.
+# Ids map to Weather.GetClassification ints (pleasant=0, cloudy=1, rainy=2,
+# snowy=3) via the inline branch in MTF_Plugin_Base.checkCondition.
+# Pre-v0.2.5 used 4 separate weather.* conditions.
 WEATHER_MENU = [
-    (0, "Pleasant"),
-    (1, "Cloudy"),
-    (2, "Rainy"),
-    (3, "Snowy"),
+    ("pleasant", "Pleasant"),
+    ("cloudy",   "Cloudy"),
+    ("rainy",    "Rainy"),
+    ("snowy",    "Snowy"),
 ]
 assert len(WEATHER_MENU) == 4
 
 # Resist type enum for the modify.resist effect's param1 dropdown.
-# Values are arbitrary stable ints; the Base script maps them to the
-# resist Ability spells in MagicTattoosFramework.esp via
-# _resolveResistSpellByIdx. Pre-v0.2.5 used 6 separate modify.resist*
-# effects keyed by element name in the eid.
+# The Base script maps each id to the resist Ability spell in
+# MagicTattoosFramework.esp via _resolveResistSpellById. Pre-v0.2.5
+# used 6 separate modify.resist* effects keyed by element name in eid.
 RESIST_TYPE_MENU = [
-    (0, "Fire"),
-    (1, "Frost"),
-    (2, "Shock"),
-    (3, "Magic"),
-    (4, "Disease"),
-    (5, "Poison"),
+    ("fire",    "Fire"),
+    ("frost",   "Frost"),
+    ("shock",   "Shock"),
+    ("magic",   "Magic"),
+    ("disease", "Disease"),
+    ("poison",  "Poison"),
 ]
 assert len(RESIST_TYPE_MENU) == 6
 
-# Skill AV enum for the modify.skill effect's param1 dropdown.
-# Values 0..17 stable; the Base script maps each to the Skyrim AV name
-# via _skillAVForIdx. Pre-v0.2.5 used 17 separate modify.<skillname>
-# effects; v0.2.7 folded the previously-standalone modify.sneak into
-# slot 17 here and dropped the standalone effect — presets from v0.2.6
-# and earlier that bound mtf.base:modify.sneak silently resolve to
-# itemIdx=-1 and no-op; re-author with modify.skill p1=17. AV names
-# follow the Marksman/Speechcraft Morrowind-holdover quirks (see
-# _avNameFor docstring).
+# Skill AV enum for the modify.skill effect's param1 dropdown. The Base
+# script maps each id to the Skyrim AV name via _skillAVForId. Pre-v0.2.5
+# used 17 separate modify.<skillname> effects; v0.2.7 folded the
+# previously-standalone modify.sneak in too. AV names follow the
+# Marksman/Speechcraft Morrowind-holdover quirks (see _avNameFor docstring) —
+# the ids stay reader-friendly (sneak / speech / archery) since the Papyrus
+# consumer does the AV-name translation internally.
 SKILL_AV_MENU = [
-    (0,  "One-Handed"),
-    (1,  "Two-Handed"),
-    (2,  "Archery"),
-    (3,  "Block"),
-    (4,  "Heavy Armor"),
-    (5,  "Light Armor"),
-    (6,  "Smithing"),
-    (7,  "Enchanting"),
-    (8,  "Alchemy"),
-    (9,  "Destruction"),
-    (10, "Restoration"),
-    (11, "Alteration"),
-    (12, "Illusion"),
-    (13, "Conjuration"),
-    (14, "Speech"),
-    (15, "Lockpicking"),
-    (16, "Pickpocket"),
-    (17, "Sneak"),
+    ("one_handed",   "One-Handed"),
+    ("two_handed",   "Two-Handed"),
+    ("archery",      "Archery"),
+    ("block",        "Block"),
+    ("heavy_armor",  "Heavy Armor"),
+    ("light_armor",  "Light Armor"),
+    ("smithing",     "Smithing"),
+    ("enchanting",   "Enchanting"),
+    ("alchemy",      "Alchemy"),
+    ("destruction",  "Destruction"),
+    ("restoration",  "Restoration"),
+    ("alteration",   "Alteration"),
+    ("illusion",     "Illusion"),
+    ("conjuration",  "Conjuration"),
+    ("speech",       "Speech"),
+    ("lockpicking",  "Lockpicking"),
+    ("pickpocket",   "Pickpocket"),
+    ("sneak",        "Sneak"),
 ]
 assert len(SKILL_AV_MENU) == 18
 
@@ -164,7 +176,7 @@ CONDITIONS = [
     ("combat.hit", "On Hit",
      "Triggers with a {param2}% chance per matching incoming hit of class {param1}.",
      {"label": "Hit class", "min": 0, "max": 6, "default": 0,
-      "menu": [{"value": v, "label": l} for v, l in HIT_CLASS_MENU],
+      "menu": HIT_CLASS_MENU,
       "_param2": {"label": "Chance % per hit", "min": 1, "max": 100, "default": 25}}),
     # Health %
     ("health",       "Above Health %",
@@ -181,12 +193,12 @@ CONDITIONS = [
      "Triggers when the actor is inside a {param1}-flagged location.",
      {"label": "Location type", "min": 0, "max": len(LOCATION_KW_MENU) - 1,
       "default": 0,
-      "menu": [{"value": v, "label": l} for v, l in LOCATION_KW_MENU]}),
+      "menu": LOCATION_KW_MENU}),
     # Weather — single entry with classification dropdown.
     ("weather", "Weather",
      "Triggers when the current weather class is {param1}.",
      {"label": "Weather class", "min": 0, "max": 3, "default": 0,
-      "menu": [{"value": v, "label": l} for v, l in WEATHER_MENU]}),
+      "menu": WEATHER_MENU}),
     # State (28-35)
     ("state.sprinting",     "Sprinting",
      "Triggers while the actor is sprinting.", None),
@@ -271,21 +283,24 @@ SOUNDS = [
 assert len(SOUNDS) == 34
 
 # ── Flash trigger preset menu (idx 33 param) ──────────────────────────────────
-# value column is the int classMask stored on the slot; _classMaskToTags
-# in Papyrus maps it to the C++ tag CSV.
+# v0.2.9: id column was a bitmask int pre-migration (2=Blunt, 6=Blunt+Bladed,
+# 126=all-combat, 128=spell-cast). Now a stable string id; _classMaskTagsById
+# in Papyrus maps each id to the C++ tag CSV. The old bitmask shape was an
+# encoding-of-convenience that didn't survive UI exposure (users picked one
+# option at a time anyway), so collapsing to enum ids is a no-op for users.
 FLASH_TRIGGER_MENU = [
-    (0,   "Disabled"),
-    (2,   "Blunt only"),
-    (4,   "Bladed only"),
-    (8,   "Ranged only"),
-    (16,  "Fire only"),
-    (32,  "Frost only"),
-    (64,  "Shock only"),
-    (6,   "Melee (Blunt + Bladed)"),
-    (14,  "Physical (Blunt + Bladed + Ranged)"),
-    (112, "Magic (Fire + Frost + Shock)"),
-    (126, "All combat classes"),
-    (128, "On spell cast"),
+    ("disabled",                     "Disabled"),
+    ("blunt_only",                   "Blunt only"),
+    ("bladed_only",                  "Bladed only"),
+    ("ranged_only",                  "Ranged only"),
+    ("fire_only",                    "Fire only"),
+    ("frost_only",                   "Frost only"),
+    ("shock_only",                   "Shock only"),
+    ("melee_blunt_bladed",           "Melee (Blunt + Bladed)"),
+    ("physical_blunt_bladed_ranged", "Physical (Blunt + Bladed + Ranged)"),
+    ("magic_fire_frost_shock",       "Magic (Fire + Frost + Shock)"),
+    ("all_combat_classes",           "All combat classes"),
+    ("on_spell_cast",                "On spell cast"),
 ]
 assert len(FLASH_TRIGGER_MENU) == 12
 
@@ -391,7 +406,7 @@ EFFECTS_RAW = [
      "Shifts the actor's {param1} resistance by {param2} points.",
      "Resist type",
      {"param":  {"label": "Resist type", "min": 0, "max": 5, "default": 0,
-                 "menu": [{"value": v, "label": l} for v, l in RESIST_TYPE_MENU]},
+                 "menu": RESIST_TYPE_MENU},
       "param2": {"label": "Resist shift (points; + resist, - weakness)",
                  "min": -100, "max": 100, "default": 0}}),
 
@@ -460,7 +475,7 @@ EFFECTS_RAW = [
      # roadmap note "flash.onhit refactor candidate" for the longer-term
      # semantic inversion concern (0 = Disabled here vs 0 = Any in combat.hit).
      {"param":  {"min": 0, "max": 127, "default": 126,
-                 "menu": [{"value": v, "label": l} for v, l in FLASH_TRIGGER_MENU]},
+                 "menu": FLASH_TRIGGER_MENU},
       "param2": {"label": "Peak emissive (additive, % of 1.0)",
                  "min": 0, "max": 1000, "default": 300, "step": 10},
       "extras": FLASH_ENVELOPE_EXTRAS_33}),
@@ -483,7 +498,7 @@ EFFECTS_RAW = [
      "Skill",
      {"param":  {"label": "Skill", "min": 0, "max": len(SKILL_AV_MENU) - 1,
                  "default": 0,
-                 "menu": [{"value": v, "label": l} for v, l in SKILL_AV_MENU]},
+                 "menu": SKILL_AV_MENU},
       "param2": {"label": "Skill shift (points; + buff, - drain)",
                  "min": -100, "max": 100, "default": 0}}),
 
@@ -492,7 +507,7 @@ EFFECTS_RAW = [
      "Plays the {param1} effect shader on the actor while active (duration {param2}s; 0 = until removed).",
      "Shader",
      {"param":  {"min": 0, "max": len(SHADERS) - 1, "default": 0,
-                 "menu": [{"value": i, "label": l} for i, l in enumerate(SHADERS)]},
+                 "menu": [(_to_id(l), l) for l in SHADERS]},
       "param2": {"label": "Duration (s, 0 = until removed)",
                  "min": 0, "max": 60, "default": 0}}),
     (34, "sound.play",
@@ -500,7 +515,7 @@ EFFECTS_RAW = [
      "Plays the {param1} looping sound on the actor while active (duration {param2}s; 0 = until removed).",
      "Sound",
      {"param":  {"min": 0, "max": len(SOUNDS) - 1, "default": 0,
-                 "menu": [{"value": i, "label": l} for i, l in enumerate(SOUNDS)]},
+                 "menu": [(_to_id(l), l) for l in SOUNDS]},
       "param2": {"label": "Duration (s, 0 = until removed)",
                  "min": 0, "max": 60, "default": 0},
       "extras": SOUND_VOLUME_EXTRAS}),
@@ -511,49 +526,60 @@ for i, t in enumerate(EFFECTS_RAW):
     assert t[0] == i, f"effect tuple {i} has idx {t[0]}"
 
 
-def build_condition(idx, t):
-    """Assemble one condition entry.
+def _build_param(p_src):
+    """Build one paramN block from a source dict. v0.2.9: menu params emit
+    {id, label} per option (drops `value`), drop `min`/`max` (no longer
+    meaningful), and default becomes the matching id string. Sliders
+    unchanged."""
+    out = {}
+    if "label" in p_src:
+        out["label"] = p_src["label"]
+    is_menu = "menu" in p_src
+    if is_menu:
+        # Menu params: emit each option as {id, label}. `menu` source may be
+        # a list of (id, label) tuples OR already-shaped dicts.
+        menu_out = []
+        for opt in p_src["menu"]:
+            if isinstance(opt, tuple):
+                opt_id, opt_label = opt
+                menu_out.append({"id": opt_id, "label": opt_label})
+            else:
+                # Already a dict; pass through (idempotent regeneration).
+                menu_out.append({"id": opt["id"], "label": opt["label"]})
+        out["menu"] = menu_out
+        # Default for menu params is an id string. If source supplies an id,
+        # use it; if it supplies an int (legacy authoring), translate.
+        if "default" in p_src:
+            dv = p_src["default"]
+            if isinstance(dv, str):
+                out["default"] = dv
+            else:
+                # Legacy int default: translate to id by position. This path
+                # only fires if the source data table still has int defaults
+                # — once converted to id strings, the lookup is a no-op.
+                out["default"] = menu_out[dv]["id"] if 0 <= dv < len(menu_out) else menu_out[0]["id"]
+        # No min/max/step on menu params (dropped in v0.2.9).
+    else:
+        # Slider: implicit defaults are 0..100 with default 0 for conditions
+        # / -100..100 default 0 for abs-shift effects (caller handles the
+        # effect-side backfill via is_abs_shift).
+        out["min"]     = p_src.get("min", 0)
+        out["max"]     = p_src.get("max", 100)
+        out["default"] = p_src.get("default", 0)
+        if "step" in p_src:
+            out["step"] = p_src["step"]
+    return out
 
-    v0.2.6: backfills implicit min=0/max=100/default=0 for numeric (non-menu)
-    params so the catalog is fully spec'd for downstream validators. The
-    base-class runtime treats missing values as these defaults — making them
-    explicit costs nothing and lets `tools/validate_catalogs.py` stay strict.
-    """
+
+def build_condition(idx, t):
+    """Assemble one condition entry. v0.2.6: implicit min/max/default backfill
+    for sliders. v0.2.9: menu params emit id-based options."""
     cid, label, desc, param = t
     out = {"id": cid, "label": label, "description": desc}
     if param is not None:
-        p = {}
-        if "label"   in param: p["label"]   = param["label"]
-        is_menu = "menu" in param
-        # Numeric (non-menu) condition params: implicit defaults are 0..100, default 0.
-        if not is_menu:
-            p["min"]     = param.get("min", 0)
-            p["max"]     = param.get("max", 100)
-            p["default"] = param.get("default", 0)
-        else:
-            if "min"     in param: p["min"]     = param["min"]
-            if "max"     in param: p["max"]     = param["max"]
-            if "default" in param: p["default"] = param["default"]
-            p["menu"] = param["menu"]
-        if "step" in param: p["step"] = param["step"]
-        out["param"] = p
+        out["param"] = _build_param(param)
         if "_param2" in param:
-            # Recursively backfill for param2 too (currently only time.range uses this).
-            p2_src = param["_param2"]
-            p2 = {}
-            if "label" in p2_src: p2["label"] = p2_src["label"]
-            p2_menu = "menu" in p2_src
-            if not p2_menu:
-                p2["min"]     = p2_src.get("min", 0)
-                p2["max"]     = p2_src.get("max", 100)
-                p2["default"] = p2_src.get("default", 0)
-            else:
-                if "min"     in p2_src: p2["min"]     = p2_src["min"]
-                if "max"     in p2_src: p2["max"]     = p2_src["max"]
-                if "default" in p2_src: p2["default"] = p2_src["default"]
-                p2["menu"] = p2_src["menu"]
-            if "step" in p2_src: p2["step"] = p2_src["step"]
-            out["param2"] = p2
+            out["param2"] = _build_param(param["_param2"])
     return out
 
 
@@ -587,30 +613,24 @@ def build_effect(idx, t):
     extras_o  = overrides.get("extras") or []
 
     # ── param1 (primary slider/menu) ───────────────────────────────────────
-    p = {}
-    if param_label:
-        p["label"] = param_label
-    # For abs-shift effects backfill min=-100, max=100, default=0 so the
-    # catalog is fully spec'd for validators. v0.2.6: previously only min
-    # was written explicitly and max/default relied on runtime defaults —
-    # making them explicit costs nothing and clears validate_catalogs.py.
-    if is_abs_shift(eidx):
-        p.setdefault("min", -100)
-        p.setdefault("max", 100)
-        p.setdefault("default", 0)
-    for k in ("min", "max", "default", "step"):
-        if k in param_o:
-            p[k] = param_o[k]
-    if "menu" in param_o:
-        p["menu"] = param_o["menu"]
-    if p:
-        out["param1"] = p
+    # Build a source dict from param_label + overrides, then route through
+    # _build_param so menu-bearing params get the id-based shape (v0.2.9).
+    src = dict(param_o)
+    if param_label and "label" not in src:
+        src["label"] = param_label
+    # Abs-shift effects (~half the catalog) get implicit -100..100/0 defaults.
+    if is_abs_shift(eidx) and "menu" not in src:
+        src.setdefault("min", -100)
+        src.setdefault("max", 100)
+        src.setdefault("default", 0)
+    if src:
+        out["param1"] = _build_param(src)
 
     # ── param2 (optional second slider/menu) ───────────────────────────────
     if param2_o is not None:
         # Strip any legacy `name` key — meaningless under positional schema.
-        p2 = {k: v for k, v in param2_o.items() if k != "name"}
-        out["param2"] = p2
+        p2_src = {k: v for k, v in param2_o.items() if k != "name"}
+        out["param2"] = _build_param(p2_src)
 
     # ── param3..param5 (former extras, now positional) ─────────────────────
     # extras were authored as [{name, label, min, max, step, default, menu}].
@@ -621,15 +641,19 @@ def build_effect(idx, t):
         n = i + 3
         if n > 5:
             raise ValueError(f"effect idx {eidx} has more than 3 extras")
-        pN = {k: v for k, v in ex.items() if k != "name"}
-        out[f"param{n}"] = pN
+        ex_src = {k: v for k, v in ex.items() if k != "name"}
+        out[f"param{n}"] = _build_param(ex_src)
 
     return out
 
 
 def main():
     catalog = {
-        "schemaversion": 1,
+        # v0.2.9: schema 2 — menu params migrated from {value:int, label}
+        # to {id:snake, label}; min/max dropped on menu params; default
+        # is now the matching id string. See tools/migrate_to_string_ids.py
+        # for the one-shot migrator that ran on the 6 sibling catalogs.
+        "schemaversion": 2,
         "pluginid": "mtf.base",
         "pluginlabel": "Base",
         "conditions": [build_condition(i, t) for i, t in enumerate(CONDITIONS)],

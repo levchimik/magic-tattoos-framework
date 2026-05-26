@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.slavetats",
   "pluginlabel": "SlaveTats Bridge",
   "conditions": [],

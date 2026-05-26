@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.sexlab",
   "pluginlabel": "SexLab Framework",
   "conditions": [
@@ -116,21 +116,19 @@
       },
       "param1": {
         "label": "Cum type",
-        "min": 0,
-        "max": 2,
-        "default": 0,
+        "default": "vaginal",
         "menu": [
           {
-            "value": 0,
-            "label": "Vaginal"
+            "label": "Vaginal",
+            "id": "vaginal"
           },
           {
-            "value": 1,
-            "label": "Oral"
+            "label": "Oral",
+            "id": "oral"
           },
           {
-            "value": 2,
-            "label": "Anal"
+            "label": "Anal",
+            "id": "anal"
           }
         ]
       }
@@ -142,25 +140,23 @@
       "kind": "burst",
       "param1": {
         "label": "Cum type to remove",
-        "min": -1,
-        "max": 2,
-        "default": -1,
+        "default": "all",
         "menu": [
           {
-            "value": -1,
-            "label": "All"
+            "label": "All",
+            "id": "all"
           },
           {
-            "value": 0,
-            "label": "Vaginal"
+            "label": "Vaginal",
+            "id": "vaginal"
           },
           {
-            "value": 1,
-            "label": "Oral"
+            "label": "Oral",
+            "id": "oral"
           },
           {
-            "value": 2,
-            "label": "Anal"
+            "label": "Anal",
+            "id": "anal"
           }
         ]
       }
@@ -172,25 +168,23 @@
       "kind": "burst",
       "param2": {
         "label": "Skill (0=vag, 1=anal, 2=oral, 3=foreplay)",
-        "min": 0,
-        "max": 3,
-        "default": 0,
+        "default": "vaginal",
         "menu": [
           {
-            "value": 0,
-            "label": "Vaginal"
+            "label": "Vaginal",
+            "id": "vaginal"
           },
           {
-            "value": 1,
-            "label": "Anal"
+            "label": "Anal",
+            "id": "anal"
           },
           {
-            "value": 2,
-            "label": "Oral"
+            "label": "Oral",
+            "id": "oral"
           },
           {
-            "value": 3,
-            "label": "Foreplay"
+            "label": "Foreplay",
+            "id": "foreplay"
           }
         ]
       },

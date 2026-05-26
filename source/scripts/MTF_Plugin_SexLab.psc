@@ -99,33 +99,73 @@ Function onActivate(Actor target, int param, int param2, string eid)
         return
     endif
     if eid == "cum.apply"
-        ; param = type (0/1/2), param2 = layers (1..5)
+        ; v0.2.9: param1 is now a menu id (vaginal/oral/anal). Map to SexLab's
+        ; int enum. param2 = layers (1..5, slider, int).
+        int cumType = _cumTypeFromId(_dispPNStr(1))
+        if cumType < 0
+            return
+        endif
         int layers = param2
         if layers <= 0
             layers = 1
         endif
         if layers == 1
-            SexLab.AddCumFx(target, param)
+            SexLab.AddCumFx(target, cumType)
         else
-            SexLab.AddCumFxLayers(target, param, layers)
+            SexLab.AddCumFxLayers(target, cumType, layers)
         endif
     elseif eid == "cum.remove"
-        ; param = type (-1 / 0 / 1 / 2)
-        SexLab.RemoveCumFx(target, param)
+        ; v0.2.9: param1 is now a menu id (all/vaginal/oral/anal). "all" maps
+        ; to SexLab's -1 sentinel; per-orifice ids map to 0/1/2.
+        string remId = _dispPNStr(1)
+        int removeType = -2
+        if remId == "all"
+            removeType = -1
+        else
+            removeType = _cumTypeFromId(remId)
+        endif
+        if removeType == -2
+            return
+        endif
+        SexLab.RemoveCumFx(target, removeType)
     elseif eid == "skill.add.xp"
-        ; param = amount, param2 = skill enum
+        ; v0.2.9: param1 = amount (slider int), param2 = menu id
+        ; (vaginal/anal/oral/foreplay). The pre-refactor enum was
+        ; 0=Vaginal, 1=Anal, 2=Oral, 3=Foreplay -- preserve that mapping
+        ; via the AddSkillXP positional args (vaginal, anal, oral, foreplay).
         if SLStats == None || param <= 0
             return
         endif
         float amt = param as float
-        if param2 == 0
+        string skillId = _dispPNStr(2)
+        ; Positional mapping preserved verbatim from the pre-v0.2.9 int-enum
+        ; dispatch: enum 0=Vaginal/1=Anal/2=Oral/3=Foreplay corresponded to
+        ; AddSkillXP arg slots (vaginal, anal, oral, foreplay). The SLStats
+        ; AddSkillXP signature is (target, foreplay, vaginal, anal, oral) --
+        ; i.e. foreplay first, then the three orifice skills.
+        if skillId == "vaginal"
             SLStats.AddSkillXP(target, 0.0, amt, 0.0, 0.0)
-        elseif param2 == 1
+        elseif skillId == "anal"
             SLStats.AddSkillXP(target, 0.0, 0.0, amt, 0.0)
-        elseif param2 == 2
+        elseif skillId == "oral"
             SLStats.AddSkillXP(target, 0.0, 0.0, 0.0, amt)
-        elseif param2 == 3
+        elseif skillId == "foreplay"
             SLStats.AddSkillXP(target, amt, 0.0, 0.0, 0.0)
         endif
     endif
+EndFunction
+
+; v0.2.9: Cum-type menu id → SexLab's AddCumFx / RemoveCumFx int enum.
+; (Vaginal = 0, Oral = 1, Anal = 2 — matches pre-refactor positional ints.)
+; Returns -2 on unknown id so callers can detect and bail; "all" is handled
+; separately in cum.remove via the -1 sentinel.
+int Function _cumTypeFromId(string id)
+    if id == "vaginal"
+        return 0
+    elseif id == "oral"
+        return 1
+    elseif id == "anal"
+        return 2
+    endif
+    return -2
 EndFunction

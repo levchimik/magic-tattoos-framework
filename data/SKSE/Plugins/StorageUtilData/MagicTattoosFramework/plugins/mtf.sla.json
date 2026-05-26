@@ -1,5 +1,5 @@
 {
-  "schemaversion": 1,
+  "schemaversion": 2,
   "pluginid": "mtf.sla",
   "pluginlabel": "SLA (SexLab Aroused)",
   "conditions": [
@@ -42,17 +42,15 @@
       "description": "Triggers when the actor's arousal is {param1}.",
       "param": {
         "label": "Lock state",
-        "min": 0,
-        "max": 1,
-        "default": 1,
+        "default": "locked",
         "menu": [
           {
-            "value": 0,
-            "label": "Unlocked"
+            "label": "Unlocked",
+            "id": "unlocked"
           },
           {
-            "value": 1,
-            "label": "Locked"
+            "label": "Locked",
+            "id": "locked"
           }
         ]
       }
