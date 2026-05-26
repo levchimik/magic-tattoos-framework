@@ -29,8 +29,10 @@ Scriptname MTF_TestRunner extends ReferenceAlias
  Attached as a SECOND script on MainQuest's PlayerAlias.}
 
 ; v0.2.11: hotkeys split — PgUp = regular F10 battery, PgDn = concurrency
-; stress test (two NPCs, two disjoint scratch presets, exercises
-; _scratchLoadedFor + dispatch-context race-fix path).
+; stress test. PgDn opens a UIListMenu (same UIExtensions widget as the
+; tattoo-apply spell) with a "Run stress now" entry at the top plus
+; preset N values; selecting Run kicks off RunStress with the stored N,
+; selecting a value just updates N for the next run.
 int   Property HOTKEY_DX_PGUP = 0xC9                                          AutoReadOnly
 int   Property HOTKEY_DX_PGDN = 0xD1                                          AutoReadOnly
 string Property JSON_FILE      = "MagicTattoosFramework/tests/last_run"        AutoReadOnly
@@ -39,9 +41,12 @@ int   Property TEST_FX_SLOT   = 8                                             Au
 int   Property TEST_FX_IDX    = 0                                             AutoReadOnly
 
 ; Stress test config — keep modest to bound wall-time.
-; Skeever base form id (vanilla). Used as the spawn target for both NPCs.
+; Skeever base form id (vanilla). Used as the spawn target for every NPC.
 ; Ghosted+restrained immediately on placeatme so the test isn't disrupted.
 int    Property STRESS_NPC_FORMID = 0x0010D13E AutoReadOnly
+; Hard cap; 30 disposable actors is roughly Skyrim's soft-cap before
+; AI/animgraph budget degrades performance. SetStressN clamps to this.
+int    Property STRESS_N_MAX = 30 AutoReadOnly
 
 ; Counters -- only valid during a single RunAll.
 int _pass
@@ -56,22 +61,16 @@ string   _snapFxKey
 int      _snapFxParam
 int      _snapFxParam2
 
-; Stress-test concurrent-fiber rendezvous. The PgDn handler kicks an
-; OnUpdate(0.0) so its handler runs on a separate fiber from the keyDown
-; fiber, then both fibers call _activateSlotEffectsForActor concurrently
-; on their respective NPCs. Without separate fibers, both calls would
-; serialize on the keyDown fiber and the test wouldn't exercise the race.
-Actor    _stressNpcB
-int      _stressDoneB
-
 Event OnInit()
     RegisterForKey(HOTKEY_DX_PGUP)
     RegisterForKey(HOTKEY_DX_PGDN)
+    RegisterForModEvent("MTF_StressKick", "OnStressKick")
 EndEvent
 
 Event OnPlayerLoadGame()
     RegisterForKey(HOTKEY_DX_PGUP)
     RegisterForKey(HOTKEY_DX_PGDN)
+    RegisterForModEvent("MTF_StressKick", "OnStressKick")
 EndEvent
 
 Event OnKeyDown(int keyCode)
@@ -81,9 +80,69 @@ Event OnKeyDown(int keyCode)
     if keyCode == HOTKEY_DX_PGUP
         RunAll()
     elseif keyCode == HOTKEY_DX_PGDN
-        RunStress()
+        _showStressNMenu()
     endif
 EndEvent
+
+Function _showStressNMenu()
+{Pop a UIListMenu (UIExtensions) — same widget the tattoo-apply spell
+ uses. Two row classes:
+   * row 3      → "Run stress now" with current N
+   * rows 5..14 → set N to one of the preset values (does NOT run; gives
+                  the user a quick reconfigure path without commitment)
+ PgDn still runs the test using the stored N if they prefer that.}
+    UIListMenu m = UIExtensions.GetMenu("UIListMenu") as UIListMenu
+    if m == None
+        Debug.Notification("MTF: UIExtensions unavailable")
+        return
+    endif
+    m.ResetMenu()
+    int current = StorageUtil.GetIntValue(None, "mtf.stress.n", 2)
+    int HEADER_COUNT      = 3
+    int RUN_ROW           = HEADER_COUNT          ; 3
+    int SEP_ROW           = HEADER_COUNT + 1      ; 4
+    int VALUES_BASE       = HEADER_COUNT + 2      ; 5
+    m.AddEntryItem("-   MTF stress: pick N (concurrent fibers)   -")
+    m.AddEntryItem("Current: N = " + current)
+    m.AddEntryItem("-----------------------")
+    m.AddEntryItem(">> Run stress now (N = " + current + ")")
+    m.AddEntryItem("-----------------------")
+    int[] values = new int[10]
+    values[0] = 1
+    values[1] = 2
+    values[2] = 3
+    values[3] = 5
+    values[4] = 8
+    values[5] = 10
+    values[6] = 15
+    values[7] = 20
+    values[8] = 25
+    values[9] = 30
+    int i = 0
+    while i < values.Length
+        m.AddEntryItem("N = " + values[i])
+        i += 1
+    endwhile
+    m.OpenMenu(Game.GetPlayer())
+    int idx = m.GetResultInt()
+    if idx < 0
+        return                ; cancel
+    elseif idx == RUN_ROW
+        Debug.Trace("[MTF_STRESS] Run-now selected (N=" + current + ")")
+        RunStress()
+        return
+    elseif idx < VALUES_BASE
+        return                ; header / separator rows
+    endif
+    int valIdx = idx - VALUES_BASE
+    if valIdx < 0 || valIdx >= values.Length
+        return
+    endif
+    int newN = values[valIdx]
+    StorageUtil.SetIntValue(None, "mtf.stress.n", newN)
+    Debug.Notification("MTF stress N = " + newN)
+    Debug.Trace("[MTF_STRESS] N set to " + newN + " via UIListMenu")
+EndFunction
 
 Function RunAll()
     Debug.Notification("MTF tests: running (AAA pipeline)...")
@@ -1236,28 +1295,37 @@ string[] Function _resistIds()
 EndFunction
 
 ; ====================================================================
-; CONCURRENCY STRESS TEST (PgDn)
+; CONCURRENCY STRESS TEST (PgDn) — N-fiber
 ;
-; Validates that the v0.2.10 dispatch-context-as-params refactor holds
-; under realistic two-actor concurrency. Two NPCs receive two disjoint
-; scratch presets — one shifts archery/smithing/alchemy, the other
-; enchanting/destruction/illusion — fired from TWO SEPARATE FIBERS so
-; the script-level `_scratchLoadedFor` can race.
+; Spawns N skeevers, assigns each MTF_Stress01..N (cycling 6 unique skill
+; groups, distinct preset NAMES so scratch namespaces don't collide),
+; fans out N AddAppliedPreset calls via SendModEvent so each call runs
+; on its OWN fresh fiber (vanilla ModEvent dispatch is one fiber per
+; handler invocation), then asserts per-NPC AV deltas + no cross-leak.
 ;
-; Without the fix, the second fiber's _loadPresetToScratch clobbers
-; _scratchLoadedFor between the first fiber's snapshot loop and any
-; subsequent string-param read inside plugin onActivate — yielding
-; cross-pollination (NPC1 ends up with NPC2's skills shifted or vice
-; versa). With the fix, each fiber's snapshot+dispatch sees its own
-; preset's data only.
+; N is read from StorageUtil int "mtf.stress.n" (default 2, clamped 1..30).
+; Set from console: cqf MTF_MainQuest SetStressN <n>
 ;
-; Wall-time budget: ~10-15s.
-; Cleanup: NPCs disabled+deleted, AVs restored, presets removed.
+; Each NPC contributes 7 rows: 3 apply + 1 no-leak + 3 revert. At N=30
+; that's 210 rows. Per-NPC baselines are stored in StorageUtil float-lists
+; keyed on the actor (Papyrus arrays are capped at 128 so a flat
+; N×18 baseline array doesn't fit for N≥8).
+;
+; The fan-out queue (mtf.stress.targets / mtf.stress.presets) and the
+; atomic done-count (mtf.stress.done via AdjustIntValue) live in the
+; global StorageUtil namespace; OnStressKick reads its slot by event idx.
 ; ====================================================================
 
 Function RunStress()
-    Debug.Notification("MTF stress: starting (concurrency)...")
-    Debug.Trace("[MTF_STRESS] === Run start ===")
+    int N = StorageUtil.GetIntValue(None, "mtf.stress.n", 2)
+    if N < 1
+        N = 1
+    elseif N > STRESS_N_MAX
+        N = STRESS_N_MAX
+    endif
+
+    Debug.Notification("MTF stress(N=" + N + "): starting...")
+    Debug.Trace("[MTF_STRESS] === Run start N=" + N + " ===")
 
     MTF_MainQuest mq = GetOwningQuest() as MTF_MainQuest
     if mq == None
@@ -1269,9 +1337,9 @@ Function RunStress()
     if pl == None
         return
     endif
-    Form skeeverBase = Game.GetForm(STRESS_NPC_FORMID)
-    if skeeverBase == None
-        Debug.Trace("[MTF_STRESS] FATAL: Skeever base form 0x" + _hex8(STRESS_NPC_FORMID) + " not found")
+    Form npcBase = Game.GetForm(STRESS_NPC_FORMID)
+    if npcBase == None
+        Debug.Trace("[MTF_STRESS] FATAL: spawn base 0x" + _hex8(STRESS_NPC_FORMID) + " not found")
         Debug.Notification("MTF stress: ABORT (no spawn base)")
         return
     endif
@@ -1282,103 +1350,142 @@ Function RunStress()
     JsonUtil.ClearAll(JSON_FILE)
     JsonUtil.SetFloatValue(JSON_FILE, "timestamp", Utility.GetCurrentRealTime())
     JsonUtil.SetStringValue(JSON_FILE, "kind", "stress")
+    JsonUtil.SetIntValue(JSON_FILE, "n", N)
 
-    ; ARRANGE — spawn 2 skeevers, ghost+restrain so they don't disrupt the test.
-    Actor npc1 = pl.PlaceAtMe(skeeverBase) as Actor
-    Actor npc2 = pl.PlaceAtMe(skeeverBase) as Actor
-    if npc1 == None || npc2 == None
-        Debug.Trace("[MTF_STRESS] FATAL: PlaceAtMe returned None")
-        Debug.Notification("MTF stress: ABORT (spawn failed)")
-        if npc1 != None
-            npc1.Disable()
-            npc1.Delete()
+    ; Reset rendezvous + work queue.
+    StorageUtil.FormListClear(None, "mtf.stress.targets")
+    StorageUtil.StringListClear(None, "mtf.stress.presets")
+    StorageUtil.SetIntValue(None, "mtf.stress.done", 0)
+    StorageUtil.SetIntValue(None, "mtf.stress.failcount", 0)
+
+    ; ARRANGE — spawn N skeevers, ghost+restrain, build the queue.
+    ; targets[] / presetNames[] are also kept locally so we can drive the
+    ; assertion phase without re-reading StorageUtil 18×N times.
+    Form[]   targets     = Utility.CreateFormArray(N, None)
+    string[] presetNames = Utility.CreateStringArray(N, "")
+    int i = 0
+    while i < N
+        Actor a = pl.PlaceAtMe(npcBase) as Actor
+        if a == None
+            Debug.Trace("[MTF_STRESS] FATAL: PlaceAtMe returned None at idx=" + i)
+            _despawnTargets(targets, i)
+            return
         endif
-        if npc2 != None
-            npc2.Disable()
-            npc2.Delete()
+        a.SetGhost(true)
+        a.SetRestrained(true)
+        a.IgnoreFriendlyHits(true)
+        targets[i]     = a
+        presetNames[i] = _stressPresetNameForIdx(i)
+        StorageUtil.FormListAdd(None,   "mtf.stress.targets", a,             false)
+        StorageUtil.StringListAdd(None, "mtf.stress.presets", presetNames[i], false)
+        i += 1
+    endwhile
+    Utility.Wait(0.5)  ; let actors settle before AV reads
+
+    ; PRE-WARM scratch cache for every distinct preset (warm-cache path is
+    ; fully atomic SKSE-native — cold loads with concurrent fibers can race
+    ; on the inner pLoad.GetEffectParam* yields). Up to 6 unique presets;
+    ; we just warm one per idx, dedup handled by mq's own cache key check.
+    i = 0
+    while i < N
+        mq._loadPresetToScratch(presetNames[i])
+        i += 1
+    endwhile
+
+    ; Snapshot ALL 18 skill AVs per NPC into per-actor float-lists so the
+    ; no-leak assertion can detect cross-pollination on any skill.
+    string[] allAVs = _allSkillAVs()
+    i = 0
+    while i < N
+        Actor t = targets[i] as Actor
+        StorageUtil.FloatListClear(t, "mtf.stress.baseline")
+        int s = 0
+        while s < allAVs.Length
+            StorageUtil.FloatListAdd(t, "mtf.stress.baseline", t.GetActorValue(allAVs[s]))
+            s += 1
+        endwhile
+        i += 1
+    endwhile
+
+    ; ACT — fan-out. Each ModEvent.Send enqueues a fresh-fiber dispatch
+    ; of OnStressKick; the loop runs N enqueues within one Papyrus tick
+    ; (SKSE ModEvent is non-latent), so all N handlers fire in the same
+    ; engine frame and race through AddAppliedPreset simultaneously.
+    ;
+    ; v0.2.13: switched from vanilla SendModEvent to SKSE ModEvent.* —
+    ; vanilla SendModEvent passes 4 args (eventName + str + num + sender)
+    ; to the handler, which mismatches our 3-arg (str, num, sender)
+    ; receiver signature and silently kills dispatch. SKSE ModEvent maps
+    ; 1:1 onto the 3-arg handler used everywhere else (_emitTierChanged
+    ; etc.) — drop-in compatible.
+    i = 0
+    while i < N
+        int h = ModEvent.Create("MTF_StressKick")
+        if h != 0
+            ModEvent.PushString(h, "")
+            ModEvent.PushFloat(h, i as float)
+            ModEvent.PushForm(h, None)
+            ModEvent.Send(h)
+        else
+            ; Dispatch failed at the SKSE side — count it as done so the
+            ; rendezvous still completes within the wait budget.
+            Debug.Trace("[MTF_STRESS] WARN: ModEvent.Create(MTF_StressKick) returned 0 at idx=" + i)
+            StorageUtil.AdjustIntValue(None, "mtf.stress.done", 1)
         endif
-        return
-    endif
-    npc1.SetGhost(true)
-    npc1.SetRestrained(true)
-    npc1.IgnoreFriendlyHits(true)
-    npc2.SetGhost(true)
-    npc2.SetRestrained(true)
-    npc2.IgnoreFriendlyHits(true)
-    Utility.Wait(0.5) ; let actors finish spawning before AV reads
+        i += 1
+    endwhile
 
-    ; Baselines for the 6 skills under test, per NPC.
-    string[] avA = _stressAvsA()
-    string[] avB = _stressAvsB()
-    float[]  base1A = _stressSnapshot(npc1, avA)
-    float[]  base1B = _stressSnapshot(npc1, avB)
-    float[]  base2A = _stressSnapshot(npc2, avA)
-    float[]  base2B = _stressSnapshot(npc2, avB)
-
-    ; v0.2.12: PRE-WARM scratch cache for both presets sequentially BEFORE
-    ; the concurrent phase. Cold load runs the inner effect loop with
-    ; cross-script yields on pLoadX.GetEffectParam* calls; two concurrent
-    ; cold loads can interleave and even with v0.2.12's ForPreset writes,
-    ; the _s* in-memory arrays still race. Cache hit (warm load) is fully
-    ; atomic — only SKSE-native StorageUtil reads, no yields. After this
-    ; pre-warm, both presets are cached and the concurrent AddAppliedPreset
-    ; calls hit the cache path, leaving only the activate-dispatch race
-    ; (which the v0.2.12 plugin-side fixes already cover).
-    mq._loadPresetToScratch("MTF_StressA")
-    mq._loadPresetToScratch("MTF_StressB")
-
-    ; ACT — kick fiber B (OnUpdate) for NPC2, run fiber A (this) for NPC1.
-    ; The OnUpdate fiber races against this one inside MainQuest's
-    ; _activateSlotEffectsForActor dispatch loop (now the only remaining
-    ; race surface after the pre-warm above).
-    _stressNpcB  = npc2
-    _stressDoneB = 0
-    RegisterForSingleUpdate(0.0)
-    int rcA = mq.AddAppliedPreset(npc1, "MTF_StressA")
-
-    ; WAIT for fiber B to complete (bounded to ~10s).
-    int waits = 0
-    while _stressDoneB == 0 && waits < 50
+    ; WAIT for done == N. Bound the wall-time to scale roughly with N.
+    int waits   = 0
+    int maxWaits = N * 25 + 50         ; ≈5s/NPC + 10s baseline; at N=30 → ~160s cap
+    int doneCount = 0
+    while doneCount < N && waits < maxWaits
         Utility.Wait(0.2)
+        doneCount = StorageUtil.GetIntValue(None, "mtf.stress.done", 0)
         waits += 1
     endwhile
-    if _stressDoneB == 0
-        Debug.Trace("[MTF_STRESS] WARN: fiber B did not signal completion within 10s")
+    if doneCount < N
+        Debug.Trace("[MTF_STRESS] WARN: " + (N - doneCount) + "/" + N + " fibers did not signal completion (timeout after " + (waits * 0.2) + "s)")
     endif
-    ; Extra settle: AddAppliedPreset's tier-change fires _activateSlotEffectsForActor
-    ; on a deferred-update path. Give the engine ~1s to actually apply the AV mods.
+    ; Extra settle for AddAppliedPreset's deferred-update activate path.
     Utility.Wait(1.0)
 
-    ; ASSERT — per-NPC AV deltas, no cross-pollination.
-    _stressAssertGroup("npc1 stressA-skills", npc1, avA, base1A, 10.0, true)
-    _stressAssertGroup("npc1 stressB-skills (must NOT leak)", npc1, avB, base1B, 0.0, false)
-    _stressAssertGroup("npc2 stressB-skills", npc2, avB, base2B, 10.0, true)
-    _stressAssertGroup("npc2 stressA-skills (must NOT leak)", npc2, avA, base2A, 0.0, false)
+    ; ASSERT (apply phase) — per NPC: 3 own-preset skill rows + 1 leak row.
+    i = 0
+    while i < N
+        Actor t = targets[i] as Actor
+        string[] presetSkills = _stressSkillsForPreset(presetNames[i])
+        _stressAssertApplied(i, t, presetSkills, allAVs, 10.0)
+        _stressAssertNoLeak(i, t, presetSkills, allAVs)
+        i += 1
+    endwhile
 
-    if rcA != 1
-        _fail += 1
-        string rowRc = "FAIL stress AddAppliedPreset(npc1, StressA) rc=" + rcA
-        Debug.Trace("[MTF_STRESS] " + rowRc)
-        JsonUtil.StringListAdd(JSON_FILE, "rows", rowRc)
-    endif
+    ; CLEANUP — RemoveAppliedPreset for all, then verify revert. The
+    ; OnStressKick handlers also log any rc != 1 from AddAppliedPreset as
+    ; FAIL rows + bump mtf.stress.failcount; surface that into _fail here.
+    int kickFails = StorageUtil.GetIntValue(None, "mtf.stress.failcount", 0)
+    _fail += kickFails
 
-    ; CLEANUP — remove both presets, give the deactivate path time to settle,
-    ; then verify AVs returned to baseline.
-    mq.RemoveAppliedPreset(npc1, "MTF_StressA")
-    mq.RemoveAppliedPreset(npc2, "MTF_StressB")
+    i = 0
+    while i < N
+        Actor t = targets[i] as Actor
+        mq.RemoveAppliedPreset(t, presetNames[i])
+        i += 1
+    endwhile
     Utility.Wait(1.0)
 
-    _stressAssertGroup("npc1 stressA-skills reverted", npc1, avA, base1A, 0.0, true)
-    _stressAssertGroup("npc2 stressB-skills reverted", npc2, avB, base2B, 0.0, true)
+    i = 0
+    while i < N
+        Actor t = targets[i] as Actor
+        string[] presetSkills = _stressSkillsForPreset(presetNames[i])
+        _stressAssertReverted(i, t, presetSkills, allAVs)
+        i += 1
+    endwhile
 
-    ; Despawn the actors. Disable first, then Delete on the next frame
-    ; so the engine flushes references cleanly.
-    npc1.Disable()
-    npc2.Disable()
-    Utility.Wait(0.3)
-    npc1.Delete()
-    npc2.Delete()
-    _stressNpcB = None
+    ; Despawn and clear queue.
+    _despawnTargets(targets, N)
+    StorageUtil.FormListClear(None, "mtf.stress.targets")
+    StorageUtil.StringListClear(None, "mtf.stress.presets")
 
     int total = _pass + _fail + _skip
     JsonUtil.SetIntValue(JSON_FILE, "total", total)
@@ -1387,7 +1494,7 @@ Function RunStress()
     JsonUtil.SetIntValue(JSON_FILE, "skipped", _skip)
     JsonUtil.Save(JSON_FILE)
 
-    string summary = "MTF stress: " + _pass + "/" + total + " pass"
+    string summary = "MTF stress(N=" + N + "): " + _pass + "/" + total + " pass"
     if _fail > 0
         summary += " (" + _fail + " FAIL)"
     endif
@@ -1395,76 +1502,252 @@ Function RunStress()
     Debug.Notification(summary)
 EndFunction
 
-Event OnUpdate()
-    ; Fiber B for the stress test. Runs on the script's update timer fiber
-    ; which is distinct from the keyDown fiber that drove RunStress() — so
-    ; the AddAppliedPreset call here interleaves with the keyDown fiber's
-    ; AddAppliedPreset call at every cross-script yield. _stressNpcB is the
-    ; rendezvous; clear it after handling to avoid stale firings.
-    if _stressNpcB == None
+Function OnStressKick(string strArg, float numArg, Form sender)
+{Worker fiber. Each ModEvent.Send fan-out invocation lands here on a
+ fresh Papyrus fiber, so N kicks → N parallel AddAppliedPreset stacks
+ all racing on plugin scratch + dispatch context state.
+
+ Function not Event: Caprica forbids non-native scripts from declaring
+ new event types. SKSE's mod-event dispatcher accepts either keyword
+ (see MTF_AliasPresetApi for the same pattern).}
+    int idx = numArg as int
+    ; v0.2.13: fork-time trace. All N kicks should land within the same
+    ; RealTime second if dispatch is parallel; staggered seconds would
+    ; indicate the SKSE dispatcher serialized them. Wall-time of the
+    ; whole test scales linearly anyway because AddAppliedPreset funnels
+    ; through MainQuest's instance lock — interleaving parallelism, not
+    ; CPU parallelism. See dispatch comment in RunStress for details.
+    Debug.Trace("[MTF_STRESS] kick idx=" + idx + " forked t=" + Utility.GetCurrentRealTime())
+    MTF_MainQuest mq = GetOwningQuest() as MTF_MainQuest
+    if mq == None
+        StorageUtil.AdjustIntValue(None, "mtf.stress.done", 1)
         return
     endif
-    MTF_MainQuest mq = GetOwningQuest() as MTF_MainQuest
-    if mq != None
-        int rcB = mq.AddAppliedPreset(_stressNpcB, "MTF_StressB")
-        if rcB != 1
-            _fail += 1
-            string rowRc = "FAIL stress AddAppliedPreset(npc2, StressB) rc=" + rcB
-            Debug.Trace("[MTF_STRESS] " + rowRc)
-            JsonUtil.StringListAdd(JSON_FILE, "rows", rowRc)
-        endif
+    int N = StorageUtil.GetIntValue(None, "mtf.stress.n", 2)
+    if idx < 0 || idx >= N
+        StorageUtil.AdjustIntValue(None, "mtf.stress.done", 1)
+        return
     endif
-    _stressDoneB = 1
-EndEvent
-
-string[] Function _stressAvsA()
-    string[] a = new string[3]
-    a[0] = "Marksman"   ; archery
-    a[1] = "Smithing"
-    a[2] = "Alchemy"
-    return a
+    Actor  t = StorageUtil.FormListGet(None,   "mtf.stress.targets", idx) as Actor
+    string p = StorageUtil.StringListGet(None, "mtf.stress.presets", idx)
+    if t == None || p == ""
+        StorageUtil.AdjustIntValue(None, "mtf.stress.done", 1)
+        return
+    endif
+    int rc = mq.AddAppliedPreset(t, p)
+    if rc != 1
+        StorageUtil.AdjustIntValue(None, "mtf.stress.failcount", 1)
+        string row = "FAIL stress kick(idx=" + idx + ", preset=" + p + ") AddAppliedPreset rc=" + rc
+        Debug.Trace("[MTF_STRESS] " + row)
+        JsonUtil.StringListAdd(JSON_FILE, "rows", row)
+    endif
+    StorageUtil.AdjustIntValue(None, "mtf.stress.done", 1)
 EndFunction
 
-string[] Function _stressAvsB()
-    string[] a = new string[3]
-    a[0] = "Enchanting"
-    a[1] = "Destruction"
-    a[2] = "Illusion"
-    return a
-EndFunction
-
-float[] Function _stressSnapshot(Actor target, string[] avs)
-    float[] out = Utility.CreateFloatArray(avs.Length, 0.0)
+Function _despawnTargets(Form[] targets, int count)
     int i = 0
-    while i < avs.Length
-        out[i] = target.GetActorValue(avs[i])
+    while i < count
+        Actor t = targets[i] as Actor
+        if t != None
+            t.Disable()
+        endif
         i += 1
     endwhile
-    return out
+    Utility.Wait(0.3)
+    i = 0
+    while i < count
+        Actor t = targets[i] as Actor
+        if t != None
+            t.Delete()
+        endif
+        i += 1
+    endwhile
 EndFunction
 
-Function _stressAssertGroup(string label, Actor target, string[] avs, float[] baselines, float expectedDelta, bool failOnMismatch)
-{Compare each AV against its baseline. expectedDelta is the per-AV change
- we expect; tol is fixed at 0.5 (skill AVs are integer-valued in practice).
- If failOnMismatch is false (cross-pollination checks), a mismatch logs as
- a CROSS_LEAK failure with explicit per-AV detail.}
-    float TOL = 0.5
+string Function _stressPresetNameForIdx(int idx)
+{Idx 0..29 → "MTF_Stress01".."MTF_Stress30". Two-digit zero-padded so
+ lexicographic ordering matches numeric ordering in StorageUtil dumps.}
+    int n = idx + 1
+    if n < 10
+        return "MTF_Stress0" + n
+    endif
+    return "MTF_Stress" + n
+EndFunction
+
+string[] Function _stressSkillsForPreset(string presetName)
+{Mirror of tools/build_stress_presets.py GROUPS. The preset NN cycles
+ through 6 skill groups of 3 each. Returned AV names are the Skyrim
+ actor-value strings (Marksman not Archery, Speechcraft not Speech).}
+    ; Tail two chars are "01".."30".
+    int len = StringUtil.GetLength(presetName)
+    string nn = StringUtil.Substring(presetName, len - 2, 2)
+    int n = nn as int
+    int g = (n - 1) % 6
+    string[] a = new string[3]
+    if g == 0
+        a[0] = "Marksman"    ; archery
+        a[1] = "Smithing"
+        a[2] = "Alchemy"
+    elseif g == 1
+        a[0] = "Enchanting"
+        a[1] = "Destruction"
+        a[2] = "Illusion"
+    elseif g == 2
+        a[0] = "OneHanded"
+        a[1] = "TwoHanded"
+        a[2] = "Block"
+    elseif g == 3
+        a[0] = "HeavyArmor"
+        a[1] = "LightArmor"
+        a[2] = "Sneak"
+    elseif g == 4
+        a[0] = "Restoration"
+        a[1] = "Alteration"
+        a[2] = "Conjuration"
+    else
+        a[0] = "Speechcraft"  ; speech
+        a[1] = "Lockpicking"
+        a[2] = "Pickpocket"
+    endif
+    return a
+EndFunction
+
+string[] Function _allSkillAVs()
+{All 18 Skyrim skill AVs in canonical order matching the baseline
+ float-list per actor (mtf.stress.baseline). Mirrors _skillAVForId
+ outputs.}
+    string[] a = new string[18]
+    a[0]  = "OneHanded"
+    a[1]  = "TwoHanded"
+    a[2]  = "Marksman"
+    a[3]  = "Block"
+    a[4]  = "HeavyArmor"
+    a[5]  = "LightArmor"
+    a[6]  = "Smithing"
+    a[7]  = "Enchanting"
+    a[8]  = "Alchemy"
+    a[9]  = "Destruction"
+    a[10] = "Restoration"
+    a[11] = "Alteration"
+    a[12] = "Illusion"
+    a[13] = "Conjuration"
+    a[14] = "Speechcraft"
+    a[15] = "Lockpicking"
+    a[16] = "Pickpocket"
+    a[17] = "Sneak"
+    return a
+EndFunction
+
+int Function _avIdxIn(string av, string[] arr)
     int i = 0
-    while i < avs.Length
-        string av = avs[i]
-        float now = target.GetActorValue(av)
-        float gotDelta = now - baselines[i]
+    while i < arr.Length
+        if arr[i] == av
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
+EndFunction
+
+bool Function _strInArray(string s, string[] arr)
+    int i = 0
+    while i < arr.Length
+        if arr[i] == s
+            return true
+        endif
+        i += 1
+    endwhile
+    return false
+EndFunction
+
+Function _stressAssertApplied(int idx, Actor t, string[] presetSkills, string[] allAVs, float expectedDelta)
+    string npcTag = _npcTag(idx)
+    float TOL = 0.5
+    int s = 0
+    while s < presetSkills.Length
+        string av = presetSkills[s]
+        int avIdx = _avIdxIn(av, allAVs)
+        float baseline = StorageUtil.FloatListGet(t, "mtf.stress.baseline", avIdx)
+        float now = t.GetActorValue(av)
+        float gotDelta = now - baseline
         bool ok = _floatNear(gotDelta, expectedDelta, TOL)
         string row
         if ok
             _pass += 1
-            row = "PASS stress " + label + " av=" + av + " delta=" + gotDelta
+            row = "PASS stress " + npcTag + " applied av=" + av + " delta=" + gotDelta
         else
             _fail += 1
-            row = "FAIL stress " + label + " av=" + av + " got_delta=" + gotDelta + " want=" + expectedDelta
+            row = "FAIL stress " + npcTag + " applied av=" + av + " got_delta=" + gotDelta + " want=" + expectedDelta
         endif
         Debug.Trace("[MTF_STRESS] " + row)
         JsonUtil.StringListAdd(JSON_FILE, "rows", row)
-        i += 1
+        s += 1
     endwhile
+EndFunction
+
+Function _stressAssertNoLeak(int idx, Actor t, string[] presetSkills, string[] allAVs)
+{For every non-preset skill, verify delta from baseline is ~0. A single
+ leak row per NPC: either PASS "no-leak" or FAIL with the list of leaked
+ AVs and their per-skill deltas.}
+    string npcTag = _npcTag(idx)
+    float TOL = 0.5
+    string leaks = ""
+    int leakCount = 0
+    int s = 0
+    while s < allAVs.Length
+        string av = allAVs[s]
+        if !_strInArray(av, presetSkills)
+            float baseline = StorageUtil.FloatListGet(t, "mtf.stress.baseline", s)
+            float now = t.GetActorValue(av)
+            float delta = now - baseline
+            if !_floatNear(delta, 0.0, TOL)
+                leaks += av + "(" + delta + ") "
+                leakCount += 1
+            endif
+        endif
+        s += 1
+    endwhile
+    string row
+    if leakCount == 0
+        _pass += 1
+        row = "PASS stress " + npcTag + " no-leak"
+    else
+        _fail += 1
+        row = "FAIL stress " + npcTag + " leaked " + leakCount + ": " + leaks
+    endif
+    Debug.Trace("[MTF_STRESS] " + row)
+    JsonUtil.StringListAdd(JSON_FILE, "rows", row)
+EndFunction
+
+Function _stressAssertReverted(int idx, Actor t, string[] presetSkills, string[] allAVs)
+    string npcTag = _npcTag(idx)
+    float TOL = 0.5
+    int s = 0
+    while s < presetSkills.Length
+        string av = presetSkills[s]
+        int avIdx = _avIdxIn(av, allAVs)
+        float baseline = StorageUtil.FloatListGet(t, "mtf.stress.baseline", avIdx)
+        float now = t.GetActorValue(av)
+        float delta = now - baseline
+        bool ok = _floatNear(delta, 0.0, TOL)
+        string row
+        if ok
+            _pass += 1
+            row = "PASS stress " + npcTag + " reverted av=" + av + " delta=" + delta
+        else
+            _fail += 1
+            row = "FAIL stress " + npcTag + " reverted av=" + av + " delta=" + delta + " want=0"
+        endif
+        Debug.Trace("[MTF_STRESS] " + row)
+        JsonUtil.StringListAdd(JSON_FILE, "rows", row)
+        s += 1
+    endwhile
+EndFunction
+
+string Function _npcTag(int idx)
+    int n = idx + 1
+    if n < 10
+        return "npc0" + n
+    endif
+    return "npc" + n
 EndFunction

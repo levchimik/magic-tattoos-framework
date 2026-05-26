@@ -642,6 +642,21 @@ Function ArmPostLoadFreeze(float seconds)
     _postLoadFreezeUntilRT = Utility.GetCurrentRealTime() + seconds
 EndFunction
 
+Function SetStressN(int n)
+{Set the concurrent-fiber count for the F10 PgDn stress test (MTF_TestRunner).
+ Call from the in-game console:
+     cqf MTF_MainQuest SetStressN 10
+ Range 1..30 (clamped). Default is 2 when never set. Persists in the save.}
+    if n < 1
+        n = 1
+    elseif n > 30
+        n = 30
+    endif
+    StorageUtil.SetIntValue(None, "mtf.stress.n", n)
+    Debug.Notification("MTF stress N = " + n)
+    Trace("[MTF_Main] SetStressN n=" + n)
+EndFunction
+
 Function EnsureArrays()
 {v0.2.8: per-slot condition/layer/cooldown Auto arrays were lifted to
  StorageUtil (see GetCondPackId / GetCondLayerTint / GetCondPersistMin
