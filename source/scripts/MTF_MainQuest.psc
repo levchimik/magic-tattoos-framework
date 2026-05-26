@@ -199,6 +199,19 @@ bool     _batchBaseSlotActive = false
 ; _areaIndex; reset on _beginBatchBaseSlotCache (same lifetime).
 bool[]   _batchAddOverlaysDone
 
+; ── Preset scratch pre-warm (PERF_TIER1_APPLY #4) ────────────────────────────
+; First _loadPresetToScratch(name) for a never-loaded preset does a cold JSON
+; parse (~1.6s for typical visuals presets). Subsequent calls hit the
+; StorageUtil-backed warm cache. Pre-warming each preset at framework-ready
+; pays the cold cost once during game-load rather than the first time the
+; player applies a preset. Loads spread across OnUpdate ticks (1 preset per
+; tick) so we don't stall the slow-tick cadence with a single multi-second
+; freeze. _prewarmIdx == -1: idle (not started). 0..N-1: next preset to warm.
+; >= N: complete. List is cached in _prewarmList at start so additions to the
+; preset folder mid-session aren't auto-warmed (rare; manual apply pays cold).
+string[] _prewarmList
+int      _prewarmIdx = -1
+
 Function SetProfileApply(bool v)
     _profileApply = v
 EndFunction
@@ -4478,6 +4491,12 @@ State checkingAroused
             ; v0.1.20: one-shot framework-ready broadcast for external
             ; integrations. Self-gated on pluginCount > 0 + _readyEmitted.
             _emitFrameworkReady()
+            ; PERF_TIER1_APPLY #4: pre-warm one preset's scratch cache per
+            ; tick. Spreads ~1.6s × N cold JSON parses across N slow-ticks
+            ; so the first-ever AddAppliedPreset for any preset hits the
+            ; warm cache instead of paying the cold cost. Self-gated; no-op
+            ; once every preset has been warmed.
+            _prewarmStep()
             ; v0.1.29 different-texture cross-blend phase advancement.
             ; If we're mid-cross-blend, check whether we've crossed the
             ; midpoint (transition Phase A → Phase B) or the end (clear
@@ -8047,6 +8066,73 @@ Function _emitFrameworkReady()
     ModEvent.PushForm(h, self as Form)
     ModEvent.Send(h)
     _readyEmitted = true
+    ; PERF_TIER1_APPLY #4: kick off preset scratch pre-warm. _prewarmStep()
+    ; runs once per OnUpdate from here on (gated on _prewarmIdx) until every
+    ; preset has been cold-loaded once. After that, AddAppliedPreset hits the
+    ; warm StorageUtil cache instead of a ~1.6s JSON parse per fresh preset.
+    _prewarmInit()
+EndFunction
+
+Function _prewarmInit()
+{PERF_TIER1_APPLY #4: capture the preset list at framework-ready. One-shot;
+ idempotent — subsequent calls before completion are no-ops. ListPresets()
+ returns a fixed-size 64 array with valid names first then empty strings;
+ we keep the empties in place and let _prewarmStep skip them.}
+    if _prewarmIdx >= 0
+        return
+    endif
+    string[] raw = ListPresets()
+    if raw == None
+        return
+    endif
+    _prewarmList = raw
+    _prewarmIdx = 0
+EndFunction
+
+Function _prewarmStep()
+{PERF_TIER1_APPLY #4: warm ONE preset's scratch cache per OnUpdate tick.
+ Called from the slow-tick block AFTER _emitFrameworkReady. Skips presets
+ whose name is empty (ListPresets pads with "") and skips already-loaded
+ ones (cache hit short-circuits inside _loadPresetToScratch).
+
+ Saves/restores `_scratchLoadedFor` so the OnUpdate work that follows in
+ the same tick (player slot eval, pulse) doesn't see the preset we just
+ warmed in the scratch buffer.
+
+ Cost-bound: at most one cold load per call (~1.6s on a fresh preset, ~16ms
+ on a warm one). Total prewarm runs over ~N slow-ticks (~N×updateInterval
+ wall seconds) but each tick is bounded.}
+    ; Bootstrap on every load: _emitFrameworkReady's _readyEmitted gate
+    ; persists across save/load, so calling _prewarmInit from there only
+    ; ever fires on the very first session. Doing it here makes prewarm
+    ; self-arming on every load. Gate on the EXACT initial sentinel (-1)
+    ; — not `< 0` — so the "complete" sentinel (-2) doesn't re-trigger
+    ; an infinite re-warm cycle every slow-tick.
+    if _prewarmIdx == -1
+        _prewarmInit()
+    endif
+    if _prewarmIdx < 0 || _prewarmList == None
+        return
+    endif
+    int n = _prewarmList.Length
+    if _prewarmIdx >= n
+        ; Drop the list ref so we don't pin 64 strings forever.
+        _prewarmList = None
+        _prewarmIdx = -2    ; sentinel: complete
+        return
+    endif
+    string nm = _prewarmList[_prewarmIdx]
+    _prewarmIdx += 1
+    if nm == ""
+        return
+    endif
+    string prev = _scratchLoadedFor
+    _loadPresetToScratch(nm)
+    ; Restore scratch state — if the previous load was for a different preset
+    ; (or empty), reload it so callers in the same tick see what they expect.
+    if prev != "" && prev != nm
+        _loadPresetToScratch(prev)
+    endif
 EndFunction
 
 Function _emitTierChanged(Actor target, string scope, string presetName, int prevTier, int newTier)
