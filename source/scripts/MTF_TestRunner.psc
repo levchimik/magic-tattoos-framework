@@ -1870,23 +1870,39 @@ Function RunVisuals()
     ; ── PHASE B — apply ALL 4 presets to each spawned NPC. Each preset
     ; reserves its own base overlay slot via _findFreeBaseSlot; 4 presets
     ; × 1 layer fits in the default 6-slot Body overlay pool.
+    ;
+    ; AddAppliedPresetsBatch collapses 4 NiOverride.ApplyNodeOverrides per
+    ; actor into 1 (the dominant per-actor cost — see findings in
+    ; MTFPulse.log: pre-batch each AddAppliedPreset cost ~1.5s, dominated
+    ; by the per-call Apply) and pins one shared transition_start across
+    ; all 4 stacked tiers so cross-fades start in lockstep.
     Debug.Notification("MTF visuals: applying " + VISUAL_PRESET_COUNT + " tattoos x N=" + N)
+    ; Test-only instrumentation: profile per-apply splits AND suppress the
+    ; MTF_TierChanged ModEvent during the batch. Suppressing the emit isolates
+    ; whether SkyrimNet's listener (HandleTierChange → _rebuildRenderedFor +
+    ; SkyrimNetApi.RegisterShortLivedEvent) is the dominant per-apply cost.
+    ; Both are reset to false immediately after the batch so the rest of the
+    ; visuals run (frenzy/death/despawn + SkyrimNet integration) is unaffected.
+    mq.SetProfileApply(true)
+    mq.SetSuppressTierEmit(true)
+    float bAll0 = Utility.GetCurrentRealTime()
     i = 0
     while i < N
         Actor a = spawned[i] as Actor
         if a != None
-            int p = 0
-            while p < VISUAL_PRESET_COUNT
-                int rc = mq.AddAppliedPreset(a, presets[p])
-                Debug.Trace("[MTF_VIS] apply i=" + i + " preset=" + presets[p] + " rc=" + rc)
-                if rc != 1
-                    Debug.Trace("[MTF_VIS] WARN: AddAppliedPreset i=" + i + " preset=" + presets[p] + " rc=" + rc)
-                endif
-                p += 1
-            endwhile
+            float bA0 = Utility.GetCurrentRealTime()
+            int ok = mq.AddAppliedPresetsBatch(a, presets)
+            float bA = Utility.GetCurrentRealTime() - bA0
+            Debug.Trace("[MTF_VIS] batch apply i=" + i + " ok=" + ok + "/" + VISUAL_PRESET_COUNT + " in " + bA + "s")
+            if ok != VISUAL_PRESET_COUNT
+                Debug.Trace("[MTF_VIS] WARN: batch apply i=" + i + " ok=" + ok + " of " + VISUAL_PRESET_COUNT)
+            endif
         endif
         i += 1
     endwhile
+    Debug.Trace("[MTF_VIS] batch apply ALL done in " + (Utility.GetCurrentRealTime() - bAll0) + "s (profile=on, tierEmit=off)")
+    mq.SetProfileApply(false)
+    mq.SetSuppressTierEmit(false)
     ; Give the SKEE post-load race + slow-tick a moment to redraw before
     ; the peace-baseline observation window opens.
     Utility.Wait(1.0)

@@ -141,6 +141,27 @@ string   _prevPackId          = ""
 string   _prevEntryId         = ""
 string   _scratchLoadedFor = ""
 
+; ── Test-only perf instrumentation toggles (no persistence, default off) ─────
+; Flipped by test scripts via SetProfileApply / SetSuppressTierEmit around the
+; window they want to measure. AddAppliedPreset emits [MTF_TIME] split traces
+; when _profileApply is true; _emitTierChanged early-returns when
+; _suppressTierEmit is true (used to A/B whether SkyrimNet's MTF_TierChanged
+; listener is the dominant per-apply cost).
+bool     _profileApply       = false
+bool     _suppressTierEmit   = false
+; _suppressSlowTick is set by AddAppliedPresetsBatch (not test-only) so the
+; tracked-NPC slow-tick round-robin doesn't interleave with the batch loop
+; and stall consecutive AddAppliedPreset calls. See the gate in OnUpdate.
+bool     _suppressSlowTick   = false
+
+Function SetProfileApply(bool v)
+    _profileApply = v
+EndFunction
+
+Function SetSuppressTierEmit(bool v)
+    _suppressTierEmit = v
+EndFunction
+
 ; ── NPC pulse roster (v0.0.33) ───────────────────────────────────────────────
 ; Cap 8 actors (hardcoded for now, MCM-tunable later). Pulse params and
 ; per-layer emissive multipliers are SNAPSHOTTED at roster-add time so the
@@ -291,7 +312,7 @@ int Function _findFirstFreeOverlaySlotNPC(Actor target, string area)
     if target == None
         return 0
     endif
-    bool isFemale = target.GetLeveledActorBase().GetSex() as bool
+    bool isFemale = _isFemaleCached(target)
     int total = _numOverlays(area)
     int i = total - 1
     while i >= 0
@@ -1895,7 +1916,7 @@ Function _resyncPulseCache(int tier)
     if layerN <= 0
         return
     endif
-    _pulseIsFemale = PlayerRef.GetLeveledActorBase().GetSex() as bool
+    _pulseIsFemale = _isFemaleCached(PlayerRef)
     _pulseLayerN = layerN
     _pulseTier = tier
     if DebugMode && _sFadeOnDeathEnabled
@@ -4155,8 +4176,16 @@ Function _notifyTierChangeForActor(Actor target, int tier, bool useScratch)
  scratch (preset loaded for `target`) so the message matches what
  actually got applied. Same format as the player notification but
  prefixed with the actor's display name so we can distinguish them
- in NotificationLog.}
+ in NotificationLog.
+
+ v0.2.11: gated on _suppressTierEmit too — during a batched apply
+ (AddAppliedPresetsBatch / test runs) these toasts spam the screen
+ and each Debug.Notification yields the VM. Mirror the same gate the
+ outbound MTF_TierChanged ModEvent uses.}
     if !DebugMode || target == None
+        return
+    endif
+    if _suppressTierEmit
         return
     endif
     string nm = target.GetDisplayName()
@@ -4610,7 +4639,18 @@ State checkingAroused
             ; Tracked NPC rotation: stagger MAX_EVALS_PER_TICK per slow tick.
             ; Each evaluated actor goes through Is3DLoaded + distance gates
             ; in _processTrackedActorOnce; out-of-range actors cost ~2 calls.
-            _processTrackedActorsSlowTick(MAX_EVALS_PER_TICK())
+            ;
+            ; v0.2.11: AddAppliedPresetsBatch flips _suppressSlowTick true for
+            ; its entire run so the slow-tick fiber doesn't interleave with
+            ; the batch and stall it. Observed under [MTF_TIME] instrumentation:
+            ; without this gate, each batched apply on a freshly-tracked NPC
+            ; spawned a same-tick _applyPresetTierChange (now==prev, _tick path)
+            ; that blocked the next AddAppliedPreset by 1-3 seconds per
+            ; interleave. Player path above still runs — only the tracked-NPC
+            ; round-robin is paused.
+            if !_suppressSlowTick
+                _processTrackedActorsSlowTick(MAX_EVALS_PER_TICK())
+            endif
         endif
 
         ; Pulse step. Player path resyncs to native at 10 Hz so MCM slider
@@ -4845,7 +4885,7 @@ function drawOverlayForActor(actor akTarget, int idx, bool useScratch, bool defe
             int lastReserved = _areaLastReservedLayers(area)
             if lastReserved > 0
                 int prevBase = _areaCurrentBaseSlot(area)
-                bool isFemaleClear = akTarget.GetLeveledActorBase().GetSex() as bool
+                bool isFemaleClear = _isFemaleCached(akTarget)
                 int ci = 0
                 while ci < lastReserved
                     _clearOverlayDeferred(akTarget, isFemaleClear, area, prevBase + ci)
@@ -4891,7 +4931,7 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
     ; inheritance in _g_resolvePackId/_g_resolveEntryId. The clear-overlay
     ; branch now only fires for truly out-of-range tiers.
     if idx < 0 || idx > MAX_CONDITIONS_CACHED()
-        bool isFemaleClear = akTarget.GetLeveledActorBase().GetSex() as bool
+        bool isFemaleClear = _isFemaleCached(akTarget)
         int ci = 0
         while ci < reservedLayers
             _clearOverlayDeferred(akTarget, isFemaleClear, area, baseSlot + ci)
@@ -4909,7 +4949,7 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
     if baseSlot + reservedLayers > total
         reservedLayers = total - baseSlot
     endif
-    bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
+    bool isFemale = _isFemaleCached(akTarget)
 
     string packId  = _g_resolvePackId(idx, useScratch)
     string entryId = _g_resolveEntryId(idx, useScratch)
@@ -5046,7 +5086,7 @@ function _clearPresetOverlayForActor(actor target, string name)
     if target == None || name == ""
         return
     endif
-    bool isFemale = target.GetLeveledActorBase().GetSex() as bool
+    bool isFemale = _isFemaleCached(target)
     string[] parts = _OVERLAY_PARTS()
     int p = 0
     while p < parts.Length
@@ -5082,7 +5122,7 @@ Function _compactAppliedPresets(Actor target)
         return
     endif
     bool isPlayer = (target == PlayerRef)
-    bool isFemale = target.GetLeveledActorBase().GetSex() as bool
+    bool isFemale = _isFemaleCached(target)
     string[] parts = _OVERLAY_PARTS()
 
     ; Step 1: clear every applied preset's stored slot range so the next
@@ -5278,7 +5318,7 @@ function removeOverlayForActor(actor akTarget)
     if akTarget == None
         return
     endif
-    bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
+    bool isFemale = _isFemaleCached(akTarget)
     if akTarget == PlayerRef
         ; v0.1.17 Phase 2 (multi-area): clear the MCM-base range per area
         ; using the Current<Area>OverlaySlot mirror (where we actually
@@ -5349,12 +5389,19 @@ bool Function IsTrackedActor(Actor target)
     return StorageUtil.FormListHas(self, "mtf.tracked", target)
 EndFunction
 
-int Function AddAppliedPreset(Actor target, string name)
+int Function AddAppliedPreset(Actor target, string name, bool deferApply = false)
 {Apply preset `name` to `target`. For NPCs, also tracks the actor.
  Computes base slot + reserved layer count per overlay area. Rejects with
  -6 / -7 if visuals can't fit cleanly (see codes below). Per-preset state
  (tier, pulse start) is initialized; _evalAndDrawPresetForActor fires the
  first eval+draw cycle synchronously.
+
+ `deferApply` skips the trailing NiOverride.ApplyNodeOverrides inside the
+ first eval+draw cycle so a caller stacking N presets onto the same actor
+ can collapse N expensive overlay-shader rebuilds into one. The caller is
+ responsible for issuing ApplyNodeOverrides(target) after the batch ends.
+ AddAppliedPresetsBatch is the canonical batched caller; external API and
+ single-shot callers leave deferApply=false.
 
  Return codes:
    1  applied
@@ -5379,11 +5426,21 @@ int Function AddAppliedPreset(Actor target, string name)
     if name == ""
         return -4
     endif
+    float _t0 = 0.0
+    float _t1 = 0.0
+    float _t2 = 0.0
+    float _t3 = 0.0
+    if _profileApply
+        _t0 = Utility.GetCurrentRealTime()
+    endif
     if !_loadPresetToScratch(name)
         return -5
     endif
     if HasActorPreset(target, name)
         return 0
+    endif
+    if _profileApply
+        _t1 = Utility.GetCurrentRealTime()
     endif
     bool isPlayer = (target == PlayerRef)
     bool isNewTracked = false
@@ -5399,52 +5456,91 @@ int Function AddAppliedPreset(Actor target, string name)
     int reservedAny = 0
     int wantAny = 0
     bool truncated = false
+    ; v0.2.12: single-pass per-area `want` computation. Old code called
+    ; _computePresetReservedLayers PER area, which itself walked all 8
+    ; scratch slots × 2 reads (pack/entry) for each area — 64 array reads
+    ; total × 4 areas. New: walk 8 slots ONCE, bucket per area using a
+    ; cheap _areaIndex lookup. Total reads drop to 16 (8 slots × 2) +
+    ; one GetEntryLayerCount per area-with-content. Observed savings:
+    ; ~150-200ms per AddAppliedPreset call under [MTF_TIME] profiling.
+    int maxLayers = MAX_LAYERS_PER_SLOT()
+    int[] wantsByArea = Utility.CreateIntArray(parts.Length, 0)
+    int s = 0
+    while s < 8
+        string spkId = _g_resolvePackId(s, true)
+        string sentId = _g_resolveEntryId(s, true)
+        if spkId != "" && spkId != "<none>" && sentId != ""
+            string slotArea = GetPackArea(spkId)
+            int L = GetEntryLayerCount(spkId, sentId)
+            ; Bucket per-area using same comparison the old per-area loop did
+            ; (raw string compare). _areaIndex defaults to 0 on unknown areas,
+            ; which would mis-bucket case-variant area strings into Body — see
+            ; the JsonUtil casing-inconsistency comment near _OVERLAY_PARTS.
+            int aj = 0
+            while aj < parts.Length
+                if parts[aj] == slotArea
+                    if L > wantsByArea[aj]
+                        wantsByArea[aj] = L
+                    endif
+                    aj = parts.Length    ; break
+                else
+                    aj += 1
+                endif
+            endwhile
+        endif
+        s += 1
+    endwhile
     int p = 0
     while p < parts.Length
         string area = parts[p]
-        int total = _numOverlays(area)
-        int base = 0
-        if isPlayer
-            ; Stack after the player's MCM-driven base layer and any presets
-            ; already applied. Each existing applied preset contributes its
-            ; stored reserved layer count for THIS area.
-            ;
-            ; v0.1.17 Phase 2 (multi-area): per-area MCM base slot via helper.
-            base = _areaBaseSlot(area) + _playerBaseLayers(area)
-            int j = 0
-            int nApplied = GetActorPresetCount(target)
-            while j < nApplied
-                string prev = GetActorPresetAt(target, j)
-                base += _getActorPresetLayers(target, prev, area)
-                j += 1
-            endwhile
-        else
-            ; NPC: scan top-down, stack above any existing overlay (ours or
-            ; another mod's).
-            base = _findFirstFreeOverlaySlotNPC(target, area)
+        int want = wantsByArea[p]
+        if want > maxLayers
+            want = maxLayers
         endif
-        int want = _computePresetReservedLayers(area, true)
         wantAny += want
-        int reserved = 0
-        int free = total - base
-        if free > 0 && want > 0
-            reserved = want
-            if reserved > free
-                reserved = free
+        if want > 0
+            int total = _numOverlays(area)
+            int base = 0
+            if isPlayer
+                ; Stack after the player's MCM-driven base layer and any presets
+                ; already applied. Each existing applied preset contributes its
+                ; stored reserved layer count for THIS area.
+                ;
+                ; v0.1.17 Phase 2 (multi-area): per-area MCM base slot via helper.
+                base = _areaBaseSlot(area) + _playerBaseLayers(area)
+                int j = 0
+                int nApplied = GetActorPresetCount(target)
+                while j < nApplied
+                    string prev = GetActorPresetAt(target, j)
+                    base += _getActorPresetLayers(target, prev, area)
+                    j += 1
+                endwhile
+            else
+                ; NPC: scan top-down, stack above any existing overlay (ours or
+                ; another mod's).
+                base = _findFirstFreeOverlaySlotNPC(target, area)
             endif
-            if reserved > 0
-                bases[p] = base
-                reservs[p] = reserved
-                reservedAny += reserved
+            int reserved = 0
+            int free = total - base
+            if free > 0
+                reserved = want
+                if reserved > free
+                    reserved = free
+                endif
+                if reserved > 0
+                    bases[p] = base
+                    reservs[p] = reserved
+                    reservedAny += reserved
+                endif
             endif
-        endif
-        ; Hard-reject visual truncation: if this area wanted N layers but
-        ; we could only reserve M < N, the largest tier's texture would
-        ; render only its first M layers (silent visual breakage). Flag it
-        ; and bail after the loop so the docstring's reservation table is
-        ; never persisted for a doomed-to-look-broken apply.
-        if want > 0 && reserved < want
-            truncated = true
+            ; Hard-reject visual truncation: if this area wanted N layers but
+            ; we could only reserve M < N, the largest tier's texture would
+            ; render only its first M layers (silent visual breakage). Flag it
+            ; and bail after the loop so the docstring's reservation table is
+            ; never persisted for a doomed-to-look-broken apply.
+            if reserved < want
+                truncated = true
+            endif
         endif
         p += 1
     endwhile
@@ -5476,8 +5572,67 @@ int Function AddAppliedPreset(Actor target, string name)
     endwhile
     _setActorPresetTier(target, name, -1)
     _setActorPresetPulseStartRT(target, name, Utility.GetCurrentRealTime())
-    _evalAndDrawPresetForActor(target, name)
+    if _profileApply
+        _t2 = Utility.GetCurrentRealTime()
+    endif
+    _evalAndDrawPresetForActor(target, name, deferApply)
+    if _profileApply
+        _t3 = Utility.GetCurrentRealTime()
+        Debug.Trace("[MTF_TIME] AddApplied " + name + ": load=" + (_t1 - _t0) + " scan+writes=" + (_t2 - _t1) + " evalDraw=" + (_t3 - _t2) + " total=" + (_t3 - _t0))
+    endif
     return 1
+EndFunction
+
+int Function AddAppliedPresetsBatch(Actor target, string[] names)
+{Batched apply of multiple presets onto one actor. Two compounding wins:
+
+   1. ONE NiOverride.ApplyNodeOverrides at the end instead of one per
+      preset (each AddAppliedPreset stamps with deferApply=true). On a
+      4-stacked actor this collapses 4 full overlay-shader rebuilds into
+      1 — the dominant per-actor cost.
+
+   2. The whole loop sits inside MTFPulse.BeginTransitionBatch /
+      EndTransitionBatch so every preset's transition_start is pinned to
+      the same moment. Stacked tiers cross-fade in lockstep instead of
+      staircasing one per tick.
+
+ Returns the count of presets that applied this call (rc == 1). A preset
+ already on the actor (rc == 0) or rejected (rc < 0) doesn't increment.
+ The final Apply is skipped when no preset actually stamped — saves a
+ wasted shader rebuild on a fully-noop batch.}
+    if target == None || names == None
+        return 0
+    endif
+    int n = names.Length
+    if n <= 0
+        return 0
+    endif
+    int ok = 0
+    ; Pause the tracked-NPC slow-tick for the duration of the batch. Without
+    ; this, every AddAppliedPreset registers the target on mtf.tracked and the
+    ; next OnUpdate slow-tick immediately processes them — running a redundant
+    ; _applyPresetTierChange (same-tier _tick path) per actor per preset that
+    ; blocks the next AddAppliedPreset by 1-3 seconds. See OnUpdate gate.
+    bool prevSuppress = _suppressSlowTick
+    _suppressSlowTick = true
+    MTFPulse.BeginTransitionBatch()
+    int i = 0
+    while i < n
+        string nm = names[i]
+        if nm != ""
+            int rc = AddAppliedPreset(target, nm, true)
+            if rc == 1
+                ok += 1
+            endif
+        endif
+        i += 1
+    endwhile
+    MTFPulse.EndTransitionBatch()
+    if ok > 0
+        NiOverride.ApplyNodeOverrides(target)
+    endif
+    _suppressSlowTick = prevSuppress
+    return ok
 EndFunction
 
 Function RemoveAppliedPreset(Actor target, string name)
@@ -5633,6 +5788,35 @@ int Function _findActorPresetIdx(Actor target, string name)
         return -1
     endif
     return StorageUtil.StringListFind(target, "mtf.presets", name)
+EndFunction
+
+bool Function _isFemaleCached(Actor target)
+{One-time cached resolution of `target.GetLeveledActorBase().GetSex()`.
+ The cross-script GetLeveledActorBase().GetSex() chain costs ~30-40ms per
+ call on profiling, vs ~3ms for a StorageUtil int read. Called multiple
+ times per _rosterAddOrUpdate / _drawOverlayForActorAt /
+ _clearPresetOverlayForActor pass, so caching saves ~150ms/actor on a
+ 4-preset batch apply.
+
+ Sentinel -1 = not yet resolved; first call populates the cache. Sex of
+ an Actor is fixed by its base form so the cache is valid for the
+ actor's lifetime in the save. SetActorBase wouldn't normally change
+ mid-game — if a mod swaps a vanilla NPC's base at runtime, our cached
+ value would stale, but that's a niche edge case.}
+    if target == None
+        return false
+    endif
+    int cached = StorageUtil.GetIntValue(target, "mtf.actor.isFemale", -1)
+    if cached >= 0
+        return cached != 0
+    endif
+    bool sex = target.GetLeveledActorBase().GetSex() as bool
+    int v = 0
+    if sex
+        v = 1
+    endif
+    StorageUtil.SetIntValue(target, "mtf.actor.isFemale", v)
+    return sex
 EndFunction
 
 ; Per (actor, preset) tier / pulse-start / cooldown.
@@ -6827,6 +7011,13 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
     if target == None || slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
+    ; v0.2.12: peek effect[0].key first — same rationale as
+    ; _tickSlotEffectsForActor. Saves 24 StorageUtil reads per call for
+    ; slots with no effects bound (the common case for peace-tier slot 0
+    ; on a purely visual preset).
+    if _readFxKeyForPreset(slot, 0, useScratch, presetName) == ""
+        return
+    endif
     int baseSlot = _resolveDispatchBaseSlot(target, presetName)
     int maxE = MAX_EFFECTS_PER_SLOT()
     ; SNAPSHOT before dispatch — see _deactivateSlotEffectsForActor for
@@ -6918,6 +7109,14 @@ EndFunction
 
 Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch, string presetName = "")
     if target == None || slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    ; v0.2.12: peek the FIRST effect key. CompactEffectsAfter keeps effect
+    ; slots filled top-down, so effect[0].key == "" means this slot has no
+    ; effects bound at all. Skip the snapshot pass + dispatch loop = saves
+    ; 24 StorageUtil reads (~100ms) per call for visual-only / peace-tier
+    ; presets. One read up-front vs. 24 reads + 8-iteration loop downstream.
+    if _readFxKeyForPreset(slot, 0, useScratch, presetName) == ""
         return
     endif
     int baseSlot = _resolveDispatchBaseSlot(target, presetName)
@@ -7042,6 +7241,15 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
  new effects, fire notification — plus the same-tier per-tick effect pulse.
  Caller is responsible for scratch load.}
     float rtNow = Utility.GetCurrentRealTime()
+    float _pt0 = 0.0
+    float _pt1 = 0.0
+    float _pt2 = 0.0
+    float _pt3 = 0.0
+    float _pt4 = 0.0
+    float _pt5 = 0.0
+    if _profileApply
+        _pt0 = rtNow
+    endif
     bool drew = false
     if now != prev
         if prev >= 0
@@ -7086,7 +7294,13 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
         else
             _rosterRemovePreset(target, name)
         endif
+        if _profileApply
+            _pt1 = Utility.GetCurrentRealTime()
+        endif
         _drawPresetOnActor(target, name, now, deferApply)
+        if _profileApply
+            _pt2 = Utility.GetCurrentRealTime()
+        endif
         drew = true
         if now >= 0
             _activateSlotEffectsForActor(target, now, true, name)
@@ -7100,9 +7314,15 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
                 endif
             endif
         endif
+        if _profileApply
+            _pt3 = Utility.GetCurrentRealTime()
+        endif
         _notifyTierChangeForActor(target, now, true)
         ; v0.1.20: external-integration broadcast for NPC preset tiers.
         _emitTierChanged(target, "preset", name, prev, now)
+        if _profileApply
+            _pt4 = Utility.GetCurrentRealTime()
+        endif
     endif
     ; Same-tier path used to re-stamp the overlay every eval to handle the
     ; "freshly applied" edge. With AddAppliedPreset initializing tier=-1,
@@ -7114,6 +7334,10 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
     ; channel between Papyrus stamps.
     if now >= 0
         _tickSlotEffectsForActor(target, now, true, name)
+    endif
+    if _profileApply
+        _pt5 = Utility.GetCurrentRealTime()
+        Debug.Trace("[MTF_TIME] applyTier " + name + ": deact+roster=" + (_pt1 - _pt0) + " draw=" + (_pt2 - _pt1) + " activate=" + (_pt3 - _pt2) + " notify+emit=" + (_pt4 - _pt3) + " tick=" + (_pt5 - _pt4))
     endif
     return drew
 EndFunction
@@ -7257,7 +7481,7 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
     Float[] lut = _waveformLUTForTier(tier, true)
     Float   tDur = _g_transitionDuration(tier, true)
     int maxL = MAX_LAYERS_PER_SLOT()
-    bool isFemale = a.GetLeveledActorBase().GetSex() as bool
+    bool isFemale = _isFemaleCached(a)
 
     string[] parts = _OVERLAY_PARTS()
     int p = 0
@@ -7311,8 +7535,13 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
                 ; scratch-loaded preset's .fadeondeath block by the caller.
                 if _sFadeOnDeathEnabled
                     MTFPulse.SetActorFade(a, baseSlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs, areaIdx)
+                    ; Demoted to Trace — was a Debug.Notification but it fires
+                    ; on every preset apply, and Notification yields the VM per
+                    ; call. Batched apply of 4 presets × 5 NPCs = 20 toasts =
+                    ; ~300-600ms wasted screen-spam time. Trace stays in the
+                    ; log for diagnostics without blocking the VM.
                     if DebugMode
-                        Debug.Notification("[MTF fade] armed " + a.GetDisplayName() + " area=" + area + " slot=" + baseSlot + " mode=" + _sFadeOnDeathMode)
+                        Debug.Trace("[MTF fade] armed " + a.GetDisplayName() + " area=" + area + " slot=" + baseSlot + " mode=" + _sFadeOnDeathMode)
                     endif
                 else
                     MTFPulse.ClearActorFade(a, baseSlot, areaIdx)
@@ -7485,6 +7714,13 @@ EndFunction
 
 Function _emitTierChanged(Actor target, string scope, string presetName, int prevTier, int newTier)
     if target == None
+        return
+    endif
+    ; Test-only: suppress emission entirely during instrumented batches so
+    ; we can A/B whether the SkyrimNet MTF_TierChanged listener
+    ; (HandleTierChange → _rebuildRenderedFor + RegisterShortLivedEvent) is
+    ; the dominant per-apply cost.
+    if _suppressTierEmit
         return
     endif
     int h = ModEvent.Create("MTF_TierChanged")
