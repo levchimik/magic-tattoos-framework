@@ -415,8 +415,8 @@ String Function _renderBasePresetMd(MTF_MainQuest host, int tier, string actorNa
     int pulseDepth = host.GetCondPulseDepth(tier)
     string layersMd = _renderBaseLayersMd(host, tier, packId, entryId)
     string effectsMd = _renderBaseEffectsMd(host, tier)
-    string condKey = host.condPluginId[tier]
-    int condP1 = host.condParam[tier]
+    string condKey = host.GetCondPluginId(tier)
+    int condP1 = host.GetCondParam(tier)
     int condP2 = host.GetCondParam2(tier)
     string conditionMd = _renderConditionMd(host, condKey, condP1, condP2)
     return _composePresetMd("", tier, packLabel, entryLabel, visualDesc, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName)

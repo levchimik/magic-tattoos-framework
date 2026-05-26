@@ -245,7 +245,11 @@ Form Property _goldForm Auto Hidden
 
 ; Location-keyword enum → Skyrim Location Keyword. Values 0..5 match
 ; LOCATION_KW_MENU in tools/build_base_catalog.py and location.kw's
-; param1 dropdown. Caches each keyword on first resolve.
+; param1 dropdown. Caches each keyword on first resolve. Values 6/7
+; (Indoors/Outdoors) are sentinels handled by the location.kw branch
+; in checkCondition directly — they bypass this function entirely, so
+; we return None and let the caller treat that as "no match" (the
+; param==6/7 branch above already returned before reaching here).
 Keyword Function _locKwByIdx(int idx)
     if idx == 0
         if _kwPlayerHouse == None
@@ -390,10 +394,9 @@ bool Function checkCondition(Actor target, int param, string cid)
     if target == None
         return false
     endif
-    ; Dispatch by catalog id (cid) — robust against JSON reorder. Group
-    ; ordering matters in one place: location.indoors/outdoors must come
-    ; BEFORE the generic "location.*" prefix branch (otherwise the prefix
-    ; branch swallows them with a kw lookup that misses).
+    ; Dispatch by catalog id (cid) — robust against JSON reorder. All
+    ; location-style checks now live under the single "location.kw" branch
+    ; below (param values 0..5 = keyword lookups, 6 = Indoors, 7 = Outdoors).
     if cid == "magicka"
         float p = _avPercent(target, "Magicka")
         return p >= 0.0 && p >= param as float
@@ -428,16 +431,22 @@ bool Function checkCondition(Actor target, int param, string cid)
     elseif cid == "health.below"
         float p = _avPercent(target, "Health")
         return p >= 0.0 && p <= param as float
-    elseif cid == "location.indoors"
-        Cell c = target.GetParentCell()
-        return c != None && c.IsInterior()
-    elseif cid == "location.outdoors"
-        Cell c = target.GetParentCell()
-        return c != None && !c.IsInterior()
     elseif cid == "location.kw"
-        ; param1 = location type enum (0=Player Home, 1=Dungeon, 2=City,
-        ; 3=Town, 4=Inn, 5=Jail). Pre-v0.2.5 used 6 separate
-        ; location.{playerHome,dungeon,city,town,inn,jail} conditions.
+        ; param1 = location type enum.
+        ;   0..5 = keyword lookup (Player Home, Dungeon, City, Town, Inn, Jail)
+        ;   6    = Indoors  (engine-direct interior cell check)
+        ;   7    = Outdoors (engine-direct exterior cell check)
+        ; Pre-v0.2.5 used 6 separate location.{playerHome..jail} conditions;
+        ; v0.2.7 also folded the former location.indoors / location.outdoors
+        ; in here (param values 6 / 7) so the dropdown covers every
+        ; location-style condition uniformly.
+        if param == 6
+            Cell ci = target.GetParentCell()
+            return ci != None && ci.IsInterior()
+        elseif param == 7
+            Cell co = target.GetParentCell()
+            return co != None && !co.IsInterior()
+        endif
         Location loc = target.GetCurrentLocation()
         if loc == None
             return false
@@ -633,8 +642,6 @@ string Function _avNameFor(string eid)
         return "MagickaRateMult"
     elseif eid == "modify.carryWeight"
         return "CarryWeight"
-    elseif eid == "modify.sneak"
-        return "Sneak"
     elseif eid == "modify.movementSpeed"
         return "SpeedMult"
     elseif eid == "modify.staminaRegen"
@@ -891,10 +898,13 @@ Spell Function _resolveResistSpellByIdx(int idx)
     return None
 EndFunction
 
-; Skill enum → Skyrim AV name. Values 0..16 match SKILL_AV_MENU in
+; Skill enum → Skyrim AV name. Values 0..17 match SKILL_AV_MENU in
 ; tools/build_base_catalog.py and modify.skill's param1 dropdown.
 ; Same AV naming quirks as _avNameFor (Marksman = Archery, Speechcraft
-; = Speech — both Morrowind holdovers).
+; = Speech — both Morrowind holdovers). Sneak added at idx 17 in v0.2.7
+; so the consolidated dropdown covers all 18 vanilla skills; the
+; previously-standalone modify.sneak effect was dropped — presets must
+; use modify.skill with param1=17 from v0.2.7 onward.
 string Function _skillAVForIdx(int idx)
     if idx == 0
         return "OneHanded"
@@ -930,6 +940,8 @@ string Function _skillAVForIdx(int idx)
         return "Lockpicking"
     elseif idx == 16
         return "Pickpocket"
+    elseif idx == 17
+        return "Sneak"
     endif
     return ""
 EndFunction
@@ -977,7 +989,10 @@ EndFunction
 ; reverted before the new one is applied — otherwise the previous AV
 ; would stay buffed silently.
 Function _recomputeSkillShift(Actor target, int currentSkill, int delta)
-    if target == None || currentSkill < 0 || currentSkill > 16
+    ; Bounds 0..17 inclusive: v0.2.7 added Sneak at idx 17 to the consolidated
+    ; modify.skill dropdown (was 0..16). The upper bound MUST track
+    ; SKILL_AV_MENU's length — adding more skill enums requires bumping this.
+    if target == None || currentSkill < 0 || currentSkill > 17
         return
     endif
     MTF_MainQuest h = _host()

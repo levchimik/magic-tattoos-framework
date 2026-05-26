@@ -30,15 +30,18 @@ def is_abs_shift(idx: int) -> bool:
     NOTE: this applies the default to param1 only. Effects that put the
     signed shift on param2 (modify.resist, modify.skill) are NOT in this
     set — they specify min/max/default on the param2 override explicitly.
+
+    Index ranges renumbered in v0.2.7 after modify.sneak removal
+    (everything past old idx 2 shifted down by 1).
     """
-    return (idx <= 2 or (5 <= idx <= 7) or (11 <= idx <= 17) or (31 <= idx <= 32))
+    return (idx <= 1 or (4 <= idx <= 6) or (10 <= idx <= 16) or (30 <= idx <= 31))
 
 
 # Idxes of burst-kind effects in Base — fires once on activate, no rolling
 # state. Continuous is the default (kind field omitted in JSON). MCM
 # prepends a "[!] " badge automatically for kind == burst at render time —
-# don't put the prefix in labels here.
-BASE_BURSTS = {3, 4, 8, 9, 22, 23}
+# don't put the prefix in labels here. Renumbered in v0.2.7.
+BASE_BURSTS = {2, 3, 7, 8, 21, 22}
 
 # Hit class enum for the combat.hit condition's param1 dropdown. Values
 # match _checkHit's classIdx in MTF_Plugin_Base — host-side hit counters
@@ -56,8 +59,11 @@ HIT_CLASS_MENU = [
 assert len(HIT_CLASS_MENU) == 7
 
 # Location keyword enum for the location.kw condition's param1 dropdown.
-# Values map to Skyrim location keyword form IDs in _locKwByIdx (Base).
-# Pre-v0.2.5 used 6 separate location.{playerHome,dungeon,city,town,inn,jail}.
+# Values 0..5 map to Skyrim location keyword form IDs in _locKwByIdx (Base);
+# values 6..7 are sentinels for interior/exterior cell checks (no keyword
+# lookup — the Base script special-cases them).
+# Pre-v0.2.5 used 6 separate location.{playerHome,dungeon,city,town,inn,jail};
+# v0.2.7 also folded location.indoors / location.outdoors in here.
 LOCATION_KW_MENU = [
     (0, "Player Home"),
     (1, "Dungeon"),
@@ -65,8 +71,10 @@ LOCATION_KW_MENU = [
     (3, "Town"),
     (4, "Inn"),
     (5, "Jail"),
+    (6, "Indoors"),
+    (7, "Outdoors"),
 ]
-assert len(LOCATION_KW_MENU) == 6
+assert len(LOCATION_KW_MENU) == 8
 
 # Weather class enum for the weather condition's param1 dropdown.
 # Values match Weather.GetClassification (0=pleasant, 1=cloudy, 2=rainy,
@@ -95,10 +103,14 @@ RESIST_TYPE_MENU = [
 assert len(RESIST_TYPE_MENU) == 6
 
 # Skill AV enum for the modify.skill effect's param1 dropdown.
-# Values 0..16 stable; the Base script maps each to the Skyrim AV name
+# Values 0..17 stable; the Base script maps each to the Skyrim AV name
 # via _skillAVForIdx. Pre-v0.2.5 used 17 separate modify.<skillname>
-# effects. AV names follow the Marksman/Speechcraft Morrowind-holdover
-# quirks (see _avNameFor docstring).
+# effects; v0.2.7 folded the previously-standalone modify.sneak into
+# slot 17 here and dropped the standalone effect — presets from v0.2.6
+# and earlier that bound mtf.base:modify.sneak silently resolve to
+# itemIdx=-1 and no-op; re-author with modify.skill p1=17. AV names
+# follow the Marksman/Speechcraft Morrowind-holdover quirks (see
+# _avNameFor docstring).
 SKILL_AV_MENU = [
     (0,  "One-Handed"),
     (1,  "Two-Handed"),
@@ -117,8 +129,9 @@ SKILL_AV_MENU = [
     (14, "Speech"),
     (15, "Lockpicking"),
     (16, "Pickpocket"),
+    (17, "Sneak"),
 ]
-assert len(SKILL_AV_MENU) == 17
+assert len(SKILL_AV_MENU) == 18
 
 # ── Conditions ────────────────────────────────────────────────────────────────
 # (idx, id, label, description, param?)
@@ -160,16 +173,14 @@ CONDITIONS = [
     ("health.below", "Below Health %",
      "Triggers when the actor's health drops below {param1}%.",
      {"label": "Health/Magicka/Stamina % threshold", "default": 30}),
-    # Location — indoors/outdoors stay separate (engine cell check, not
-    # keyword based). The 6 keyword-based location types are consolidated
-    # under location.kw with a dropdown.
-    ("location.indoors",    "Indoors",
-     "Triggers whenever the actor is inside any interior cell.", None),
-    ("location.outdoors",   "Outdoors",
-     "Triggers whenever the actor is in an exterior worldspace.", None),
+    # Location — all flavors consolidated under location.kw. Values 0..5
+    # are keyword lookups (player home, dungeon, …); values 6..7 are
+    # engine-direct interior/exterior cell checks (formerly standalone
+    # location.indoors / location.outdoors, dropped in v0.2.7).
     ("location.kw", "Location",
      "Triggers when the actor is inside a {param1}-flagged location.",
-     {"label": "Location type", "min": 0, "max": 5, "default": 0,
+     {"label": "Location type", "min": 0, "max": len(LOCATION_KW_MENU) - 1,
+      "default": 0,
       "menu": [{"value": v, "label": l} for v, l in LOCATION_KW_MENU]}),
     # Weather — single entry with classification dropdown.
     ("weather", "Weather",
@@ -226,7 +237,7 @@ CONDITIONS = [
     ("combat.casting", "While Casting Spell",
      "Triggers while the actor is charging or holding a spell mid-cast.", None),
 ]
-assert len(CONDITIONS) == 33, f"expected 33 conditions, got {len(CONDITIONS)}"
+assert len(CONDITIONS) == 31, f"expected 31 conditions, got {len(CONDITIONS)}"
 
 # ── Shader catalog (idx 55 menu) ──────────────────────────────────────────────
 # Labels match MTF_Plugin_Base._shaderLabel; ordering matches _shaderFormId.
@@ -306,71 +317,67 @@ EFFECTS_RAW = [
      "Modify Carry Weight",
      "Shifts the actor's carry-weight cap by {param1}.",
      "Carry weight shift (points; + buff, - drain)", None),
-    (2,  "modify.sneak",
-     "Modify Sneak",
-     "Shifts the actor's Sneak skill by {param1}.",
-     "Sneak skill shift (points; + buff, - drain)", None),
-    (3,  "damage.magicka",
+    (2,  "damage.magicka",
      "Damage Magicka",
      "Burst — damages or restores {param1}% of the actor's base magicka when the tier activates.",
      "Burst % of base Magicka (+ restore, - damage)",
      {"param": {"min": -100, "max": 100, "default": 0}}),
-    (4,  "damage.stamina",
+    (3,  "damage.stamina",
      "Damage Stamina",
      "Burst — damages or restores {param1}% of the actor's base stamina when the tier activates.",
      "Burst % of base Stamina (+ restore, - damage)",
      {"param": {"min": -100, "max": 100, "default": 0}}),
-    (5,  "modify.movementSpeed",
+    (4,  "modify.movementSpeed",
      "Modify Movement Speed",
      "Shifts the actor's movement-speed multiplier by {param1}%.",
      "Movement speed shift (mult points; + faster, - slower)", None),
-    (6,  "modify.staminaRegen",
+    (5,  "modify.staminaRegen",
      "Modify Stamina Regen",
      "Shifts the actor's stamina regeneration rate by {param1}%.",
      "Stamina regen rate shift (mult points; + faster, - slower)", None),
-    (7,  "modify.attackDamage",
+    (6,  "modify.attackDamage",
      "Modify Attack Damage",
      "Shifts the actor's outgoing attack damage by {param1}%.",
      "Attack damage shift (% points; + buff, - drain)", None),
-    (8,  "burst.stagger",
+    (7,  "burst.stagger",
      "Stagger",
      "Burst — staggers the actor when the tier activates.",
      "", None),
-    (9,  "burst.blowCover",
+    (8,  "burst.blowCover",
      "Blow Cover",
      "Burst — alerts every hostile NPC within {param1}ft to the actor's presence (blows stealth).",
      "Alert radius (feet)",
      {"param": {"min": 5, "max": 300, "default": 80, "step": 5}}),
-    (10, "scale.magickaCost",
+    (9,  "scale.magickaCost",
      "Scale Magicka Cost",
      "Spells cost {param1}% of their original across all schools.",
      "Spell cost (% of original)",
      {"param": {"min": 0, "max": 400, "default": 100, "step": 5}}),
-    (11, "modify.healthRegen",
+    (10, "modify.healthRegen",
      "Modify Health Regen",
      "Shifts the actor's health regeneration rate by {param1}%.",
      "Health regen rate shift (mult points; + faster, - slower)", None),
-    (12, "modify.maxMagicka",
+    (11, "modify.maxMagicka",
      "Modify Max Magicka",
      "Shifts the actor's maximum magicka by {param1}.",
      "Max magicka shift (points; + buff, - drain)", None),
-    (13, "modify.maxStamina",
+    (12, "modify.maxStamina",
      "Modify Max Stamina",
      "Shifts the actor's maximum stamina by {param1}.",
      "Max stamina shift (points; + buff, - drain)", None),
-    (14, "modify.weaponSpeed",
+    (13, "modify.weaponSpeed",
      "Modify Weapon Speed",
      "Shifts the actor's weapon-swing speed by {param1}%.",
      "Weapon speed shift (% points; + faster, - slower)", None),
-    (15, "modify.unarmedDamage",
+    (14, "modify.unarmedDamage",
      "Modify Unarmed Damage",
      "Shifts the actor's unarmed melee damage by {param1}.",
      "Unarmed damage shift (points; + buff, - drain)", None),
-    (16, "modify.criticalChance",
+    (15, "modify.criticalChance",
      "Modify Critical Chance",
      "Shifts the actor's critical-strike chance by {param1}%.",
      "Critical chance shift (points; + buff, - drain)", None),
-    (17, "modify.bowSpeed",
+    (16, "modify.bowSpeed",
      "Modify Bow Speed",
      "Shifts the actor's bow draw and release speed by {param1}.",
      "Bow speed bonus shift (units; + faster draw, - slower)", None),
@@ -379,7 +386,7 @@ EFFECTS_RAW = [
     # 18-21 + 34-35). param1 picks the resist type; param2 carries the
     # signed shift in resist points. Internal routing via
     # _resolveResistSpellByIdx in MTF_Plugin_Base.
-    (18, "modify.resist",
+    (17, "modify.resist",
      "Modify Resist",
      "Shifts the actor's {param1} resistance by {param2} points.",
      "Resist type",
@@ -389,62 +396,62 @@ EFFECTS_RAW = [
                  "min": -100, "max": 100, "default": 0}}),
 
     # Toggles (engine-managed AVs that need ability-spell routing).
-    (19, "toggle.muffle",
+    (18, "toggle.muffle",
      "Muffle",
      "Toggles silenced footsteps on the actor while active.",
      "", None),
-    (20, "toggle.waterbreathing",
+    (19, "toggle.waterbreathing",
      "Waterbreathing",
      "Toggles waterbreathing on the actor while active.",
      "", None),
-    (21, "toggle.waterWalking",
+    (20, "toggle.waterWalking",
      "Water Walking",
      "Toggles water-walking on the actor while active.",
      "", None),
-    (22, "damage.health",
+    (21, "damage.health",
      "Damage Health",
      "Burst — damages or restores {param1}% of the actor's base health when the tier activates.",
      "Burst % of base Health (+ restore, - damage)",
      {"param": {"min": -100, "max": 100, "default": 0}}),
-    (23, "burst.bounty",
+    (22, "burst.bounty",
      "Add Bounty",
      "Burst — adjusts the actor's bounty in their current hold by {param1} gold (positive adds, negative pays off).",
      "Bounty change (gold; + add, - remove)",
      {"param": {"min": -10000, "max": 10000, "default": 0, "step": 50}}),
-    (24, "spell.modifyArmor",
+    (23, "spell.modifyArmor",
      "Modify Armor",
      "Toggles a flat armor-rating bonus of {param1} while active.",
      "Armor rating points",
      {"param": {"min": 0, "max": 500, "default": 100, "step": 10}}),
-    (25, "spell.detectLife",
+    (24, "spell.detectLife",
      "Detect Life",
      "Toggles a Detect Life aura that highlights living NPCs within {param1}ft while active.",
      "Detect radius (feet)",
      {"param": {"min": 5, "max": 500, "default": 100, "step": 10}}),
-    (26, "spell.slowTime",
+    (25, "spell.slowTime",
      "Slow Time",
      "Toggles a slow-time effect that drags everything around the actor to {param1}% of normal speed while active.",
      "Time speed % (lower = slower; 100 = normal)",
      {"param": {"min": 5, "max": 100, "default": 50, "step": 5}}),
-    (27, "spell.flameCloak",
+    (26, "spell.flameCloak",
      "Flame Cloak",
      "Toggles a flame cloak that burns enemies within {param2}ft for {param1} damage/s while active.",
      "Damage per second",
      {"param":  {"min": 1, "max": 200, "default": 8},
       "param2": {"label": "Radius (feet)", "min": 3, "max": 500, "default": 5}}),
-    (28, "spell.frostCloak",
+    (27, "spell.frostCloak",
      "Frost Cloak",
      "Toggles a frost cloak that chills enemies within {param2}ft for {param1} damage/s while active.",
      "Damage per second",
      {"param":  {"min": 1, "max": 200, "default": 8},
       "param2": {"label": "Radius (feet)", "min": 3, "max": 500, "default": 5}}),
-    (29, "spell.lightningCloak",
+    (28, "spell.lightningCloak",
      "Lightning Cloak",
      "Toggles a lightning cloak that shocks enemies within {param2}ft for {param1} damage/s while active.",
      "Damage per second",
      {"param":  {"min": 1, "max": 200, "default": 8},
       "param2": {"label": "Radius (feet)", "min": 3, "max": 500, "default": 5}}),
-    (30, "flash.onhit",
+    (29, "flash.onhit",
      "Flash",
      "Flashes the tattoo's emissive layer to {param2}% brightness on the chosen trigger event ({param1}).",
      "Trigger event",
@@ -457,11 +464,11 @@ EFFECTS_RAW = [
       "param2": {"label": "Peak emissive (additive, % of 1.0)",
                  "min": 0, "max": 1000, "default": 300, "step": 10},
       "extras": FLASH_ENVELOPE_EXTRAS_33}),
-    (31, "modify.absorbChance",
+    (30, "modify.absorbChance",
      "Modify Spell Absorb",
      "Shifts the actor's chance to absorb incoming spells by {param1}%.",
      "Spell absorb chance shift (points; + absorb, - vulnerable)", None),
-    (32, "modify.reflectDamage",
+    (31, "modify.reflectDamage",
      "Modify Reflect Damage",
      "Shifts the actor's chance to reflect incoming melee damage by {param1}%.",
      "Reflect damage chance shift (points; + reflect, - vulnerable)", None),
@@ -470,16 +477,17 @@ EFFECTS_RAW = [
     # entries, idx 38-54). param1 picks the Skyrim skill; param2 carries
     # the signed shift in skill points. Internal routing via
     # _skillAVForIdx in MTF_Plugin_Base.
-    (33, "modify.skill",
+    (32, "modify.skill",
      "Modify Skill",
      "Shifts the actor's {param1} skill by {param2} points.",
      "Skill",
-     {"param":  {"label": "Skill", "min": 0, "max": 16, "default": 0,
+     {"param":  {"label": "Skill", "min": 0, "max": len(SKILL_AV_MENU) - 1,
+                 "default": 0,
                  "menu": [{"value": v, "label": l} for v, l in SKILL_AV_MENU]},
       "param2": {"label": "Skill shift (points; + buff, - drain)",
                  "min": -100, "max": 100, "default": 0}}),
 
-    (34, "shader.play",
+    (33, "shader.play",
      "Vanilla Shader",
      "Plays the {param1} effect shader on the actor while active (duration {param2}s; 0 = until removed).",
      "Shader",
@@ -487,7 +495,7 @@ EFFECTS_RAW = [
                  "menu": [{"value": i, "label": l} for i, l in enumerate(SHADERS)]},
       "param2": {"label": "Duration (s, 0 = until removed)",
                  "min": 0, "max": 60, "default": 0}}),
-    (35, "sound.play",
+    (34, "sound.play",
      "Vanilla Sound",
      "Plays the {param1} looping sound on the actor while active (duration {param2}s; 0 = until removed).",
      "Sound",
@@ -497,8 +505,8 @@ EFFECTS_RAW = [
                  "min": 0, "max": 60, "default": 0},
       "extras": SOUND_VOLUME_EXTRAS}),
 ]
-assert len(EFFECTS_RAW) == 36, f"expected 36 effects, got {len(EFFECTS_RAW)}"
-# Sanity: indices contiguous 0..35.
+assert len(EFFECTS_RAW) == 35, f"expected 35 effects, got {len(EFFECTS_RAW)}"
+# Sanity: indices contiguous 0..34.
 for i, t in enumerate(EFFECTS_RAW):
     assert t[0] == i, f"effect tuple {i} has idx {t[0]}"
 

@@ -31,9 +31,9 @@
 					"param1": 50
 				},
 				{
-					"key": "mtf.base:modify.sneak",
-					"param2": 0,
-					"param1": 20
+					"key": "mtf.base:modify.skill",
+					"param2": 20,
+					"param1": 17
 				},
 				{
 					"key": "mtf.base:modify.movementSpeed",

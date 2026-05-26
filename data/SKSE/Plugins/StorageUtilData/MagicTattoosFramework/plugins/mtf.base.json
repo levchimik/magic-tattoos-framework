@@ -144,23 +144,13 @@
       }
     },
     {
-      "id": "location.indoors",
-      "label": "Indoors",
-      "description": "Triggers whenever the actor is inside any interior cell."
-    },
-    {
-      "id": "location.outdoors",
-      "label": "Outdoors",
-      "description": "Triggers whenever the actor is in an exterior worldspace."
-    },
-    {
       "id": "location.kw",
       "label": "Location",
       "description": "Triggers when the actor is inside a {param1}-flagged location.",
       "param": {
         "label": "Location type",
         "min": 0,
-        "max": 5,
+        "max": 7,
         "default": 0,
         "menu": [
           {
@@ -186,6 +176,14 @@
           {
             "value": 5,
             "label": "Jail"
+          },
+          {
+            "value": 6,
+            "label": "Indoors"
+          },
+          {
+            "value": 7,
+            "label": "Outdoors"
           }
         ]
       }
@@ -357,17 +355,6 @@
       "description": "Shifts the actor's carry-weight cap by {param1}.",
       "param1": {
         "label": "Carry weight shift (points; + buff, - drain)",
-        "min": -100,
-        "max": 100,
-        "default": 0
-      }
-    },
-    {
-      "id": "modify.sneak",
-      "label": "Modify Sneak",
-      "description": "Shifts the actor's Sneak skill by {param1}.",
-      "param1": {
-        "label": "Sneak skill shift (points; + buff, - drain)",
         "min": -100,
         "max": 100,
         "default": 0
@@ -826,7 +813,7 @@
       "param1": {
         "label": "Skill",
         "min": 0,
-        "max": 16,
+        "max": 17,
         "default": 0,
         "menu": [
           {
@@ -896,6 +883,10 @@
           {
             "value": 16,
             "label": "Pickpocket"
+          },
+          {
+            "value": 17,
+            "label": "Sneak"
           }
         ]
       },

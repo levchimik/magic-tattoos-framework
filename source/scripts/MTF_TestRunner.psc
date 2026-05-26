@@ -128,8 +128,8 @@ Function _snapshotState(MTF_MainQuest mq)
     _snapCondParam2 = Utility.CreateIntArray(8, 0)
     int i = 1
     while i < 8
-        _snapCondKey[i]    = mq.condPluginId[i]
-        _snapCondParam[i]  = mq.condParam[i]
+        _snapCondKey[i]    = mq.GetCondPluginId(i)
+        _snapCondParam[i]  = mq.GetCondParam(i)
         _snapCondParam2[i] = mq.GetCondParam2(i)
         i += 1
     endwhile
@@ -192,8 +192,10 @@ Function _runConditions(MTF_MainQuest mq, Actor pl)
     ; the engine's cell streaming better.
     ; _aaa_locationIndoors(mq, pl)
     ; _aaa_locationOutdoors(mq, pl)
-    _skipCond("location.indoors",  "TODO: replace coc-based AAA with MoveTo (coc crashes renderer on this rig)")
-    _skipCond("location.outdoors", "TODO: replace coc-based AAA with MoveTo (coc crashes renderer on this rig)")
+    ; v0.2.7: location.indoors/outdoors folded into location.kw param1 6/7.
+    ; Once the coc-renderer-crash workaround lands, re-enable via location.kw.
+    _skipCond("location.kw(p1=6 Indoors)",  "TODO: replace coc-based AAA with MoveTo (coc crashes renderer on this rig)")
+    _skipCond("location.kw(p1=7 Outdoors)", "TODO: replace coc-based AAA with MoveTo (coc crashes renderer on this rig)")
 
     ; Pure-Papyrus state arranges
     _aaa_stateWeaponDrawn(mq, pl)
@@ -372,13 +374,14 @@ EndFunction
 ; ---------- Location (ConsoleUtil teleport) --------------------------
 
 Function _aaa_locationIndoors(MTF_MainQuest mq, Actor pl)
-    string testName = "location.indoors"
+    ; v0.2.7: location.indoors folded into location.kw with param1=6.
+    string testName = "location.kw(p1=6 Indoors)"
     string err = ""
 
     ; ARRANGE -- coc to Whiterun exterior
     ConsoleUtil.ExecuteCommand("coc Riverwood")
     Utility.Wait(3.0)
-    _configureCondSlot(mq, "location.indoors", 0, 0)
+    _configureCondSlot(mq, "location.kw", 6, 0)
     Cell c1 = pl.GetParentCell()
     if c1 == None || c1.IsInterior()
         err = "arrange: expected exterior after coc Riverwood (cell=" + _cellName(c1) + ")"
@@ -405,13 +408,14 @@ Function _aaa_locationIndoors(MTF_MainQuest mq, Actor pl)
 EndFunction
 
 Function _aaa_locationOutdoors(MTF_MainQuest mq, Actor pl)
-    string testName = "location.outdoors"
+    ; v0.2.7: location.outdoors folded into location.kw with param1=7.
+    string testName = "location.kw(p1=7 Outdoors)"
     string err = ""
 
     ; ARRANGE -- coc to Breezehome interior
     ConsoleUtil.ExecuteCommand("coc QASmoke")
     Utility.Wait(3.0)
-    _configureCondSlot(mq, "location.outdoors", 0, 0)
+    _configureCondSlot(mq, "location.kw", 7, 0)
     Cell c1 = pl.GetParentCell()
     if c1 == None || !c1.IsInterior()
         err = "arrange: expected interior after coc Breezehome (cell=" + _cellName(c1) + ")"
@@ -822,7 +826,10 @@ Function _runEffects(MTF_MainQuest mq, Actor pl)
     ; modify.* AV deltas
     _testFxAV(mq, pl, "modify.magickaRegen",   5, 0, "mtf.shift.modify.magickaRegen",   "MagickaRateMult",      5.0)
     _testFxAV(mq, pl, "modify.carryWeight",   10, 0, "mtf.shift.modify.carryWeight",   "CarryWeight",         10.0)
-    _testFxAV(mq, pl, "modify.sneak",         10, 0, "mtf.shift.modify.sneak",         "Sneak",               10.0)
+    ; v0.2.7: modify.sneak standalone dropped; Sneak now lives at param1=17
+    ; of the consolidated modify.skill. Storage key follows the modify.skill
+    ; convention: mtf.shift.modify.skill.<idx>.
+    _testFxAV(mq, pl, "modify.skill",         17, 10, "mtf.shift.modify.skill.17",      "Sneak",               10.0)
     _testFxAV(mq, pl, "modify.movementSpeed",  5, 0, "mtf.shift.modify.movementSpeed", "SpeedMult",            5.0)
     _testFxAV(mq, pl, "modify.staminaRegen",   5, 0, "mtf.shift.modify.staminaRegen",  "StaminaRateMult",      5.0)
     _testFxAV(mq, pl, "modify.healthRegen",    5, 0, "mtf.shift.modify.healthRegen",   "HealRateMult",         5.0)
