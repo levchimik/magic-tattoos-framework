@@ -13,6 +13,15 @@ int Function GetVersion()
 EndFunction
 
 string Function _slotLabel(int idx)
+    ; v0.2.9: user-authored slot names (slot 0 included). Empty fallback = the
+    ; canonical "Default" / "Condition N" labels. Defensive None-guard on
+    ; MainQuest so this is safe to call before _ensureMainQuest.
+    if MainQuest != None
+        string custom = MainQuest.GetCondName(idx)
+        if custom != ""
+            return custom
+        endif
+    endif
     if idx == 0
         return "Default"
     endif
@@ -434,48 +443,57 @@ function drawPresetEditorPage()
     AddHeaderOption("Transition")
     AddSliderOptionST("PRESET_TRANSITION_DUR", "Duration", MainQuest.GetTransitionDuration(), "{1} s")
 
-    AddHeaderOption("Visuals")
-    AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(idx))
-    AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(idx))
+    ; v0.2.9: Visuals + Layers + Pulse are only meaningful on slots 0..MCM_CAP.
+    ; Backend slots (slot > MCM_CAP) inherit pack/entry from Default and don't
+    ; have per-slot visual storage exposed in the MCM — render a single
+    ; disabled placeholder so the page layout stays stable.
+    if idx <= MTF_MainQuest.MAX_CONDITIONS_MCM()
+        AddHeaderOption("Visuals")
+        AddMenuOptionST("SLOT_PACK_PICK",     "Visual pack", _slotPackLabel(idx))
+        AddMenuOptionST("SLOT_VISUAL_ENTRY",  "Texture",     _slotEntryLabel(idx))
 
-    ; Determine layer count from the resolved (slot or inherited) entry.
-    ; When the slot's pack resolves to "(no texture)" (sentinel "<none>" or,
-    ; for Default with no packs installed, ""), hide all layer sliders —
-    ; there's nothing to tint. Otherwise default to MAX_LAYERS so the user
-    ; can pre-tweak even before an entry resolves.
-    string resPack  = MainQuest.ResolveSlotPackId(idx)
-    string resEntry = MainQuest.ResolveSlotEntryId(idx)
-    int layerN = MTF_MainQuest.MAX_LAYERS_PER_SLOT()
-    if resPack == "" || resPack == "<none>"
-        layerN = 0
-    elseif resEntry != ""
-        int lc = MainQuest.GetEntryLayerCount(resPack, resEntry)
-        if lc > 0 && lc < layerN
-            layerN = lc
+        ; Determine layer count from the resolved (slot or inherited) entry.
+        ; When the slot's pack resolves to "(no texture)" (sentinel "<none>" or,
+        ; for Default with no packs installed, ""), hide all layer sliders —
+        ; there's nothing to tint. Otherwise default to MAX_LAYERS so the user
+        ; can pre-tweak even before an entry resolves.
+        string resPack  = MainQuest.ResolveSlotPackId(idx)
+        string resEntry = MainQuest.ResolveSlotEntryId(idx)
+        int layerN = MTF_MainQuest.MAX_LAYERS_PER_SLOT()
+        if resPack == "" || resPack == "<none>"
+            layerN = 0
+        elseif resEntry != ""
+            int lc = MainQuest.GetEntryLayerCount(resPack, resEntry)
+            if lc > 0 && lc < layerN
+                layerN = lc
+            endif
         endif
-    endif
-    ; Per-layer visuals always read from the LAYOUT slot (idx), not the
-    ; inheritance target — letting a condition slot keep its own colors
-    ; even when it inherits pack+entry.
-    int L = 0
-    while L < layerN
-        AddHeaderOption("Layer " + L)
-        AddColorOptionST("SLOT_L" + L + "_TINT",      "Tint",              MainQuest.GetCondLayerTint(idx, L))
-        AddColorOptionST("SLOT_L" + L + "_EMISSIVE",  "Emission color",    MainQuest.GetCondLayerEmissive(idx, L))
-        AddSliderOptionST("SLOT_L" + L + "_EM_MULT",  "Emission strength", MainQuest.GetCondLayerEmissiveMult(idx, L), "{1}")
-        AddSliderOptionST("SLOT_L" + L + "_ALPHA",    "Opacity",           MainQuest.GetCondLayerAlpha(idx, L), "{0}%")
-        L += 1
-    endwhile
+        ; Per-layer visuals always read from the LAYOUT slot (idx), not the
+        ; inheritance target — letting a condition slot keep its own colors
+        ; even when it inherits pack+entry.
+        int L = 0
+        while L < layerN
+            AddHeaderOption("Layer " + L)
+            AddColorOptionST("SLOT_L" + L + "_TINT",      "Tint",              MainQuest.GetCondLayerTint(idx, L))
+            AddColorOptionST("SLOT_L" + L + "_EMISSIVE",  "Emission color",    MainQuest.GetCondLayerEmissive(idx, L))
+            AddSliderOptionST("SLOT_L" + L + "_EM_MULT",  "Emission strength", MainQuest.GetCondLayerEmissiveMult(idx, L), "{1}")
+            AddSliderOptionST("SLOT_L" + L + "_ALPHA",    "Opacity",           MainQuest.GetCondLayerAlpha(idx, L), "{0}%")
+            L += 1
+        endwhile
 
-    ; ── Pulse (animated emissive) ───────────────────────────────────────
-    ; Only meaningful when the slot has emissive layers to modulate.
-    ; Shown unconditionally so users can dial it in even with pack="<none>"
-    ; (effects-only mode shows no overlay, so pulse is a no-op there).
-    AddHeaderOption("Pulse")
-    AddSliderOptionST("SLOT_PULSE_RATE",  "Rate",  MainQuest.GetCondPulseRate(idx), "{2} Hz")
-    AddSliderOptionST("SLOT_PULSE_DEPTH", "Depth", MainQuest.GetCondPulseDepth(idx), "{0}%")
-    AddSliderOptionST("SLOT_PULSE_PAUSE", "Pause", MainQuest.GetCondPulsePause(idx), "{1} s")
-    AddMenuOptionST("SLOT_PULSE_WAVEFORM", "Waveform", _waveformLabel(MainQuest.GetCondWaveform(idx)))
+        ; ── Pulse (animated emissive) ───────────────────────────────────────
+        ; Only meaningful when the slot has emissive layers to modulate.
+        ; Shown unconditionally so users can dial it in even with pack="<none>"
+        ; (effects-only mode shows no overlay, so pulse is a no-op there).
+        AddHeaderOption("Pulse")
+        AddSliderOptionST("SLOT_PULSE_RATE",  "Rate",  MainQuest.GetCondPulseRate(idx), "{2} Hz")
+        AddSliderOptionST("SLOT_PULSE_DEPTH", "Depth", MainQuest.GetCondPulseDepth(idx), "{0}%")
+        AddSliderOptionST("SLOT_PULSE_PAUSE", "Pause", MainQuest.GetCondPulsePause(idx), "{1} s")
+        AddMenuOptionST("SLOT_PULSE_WAVEFORM", "Waveform", _waveformLabel(MainQuest.GetCondWaveform(idx)))
+    else
+        AddHeaderOption("Visuals")
+        AddTextOption("Inherits Default", "", OPTION_FLAG_DISABLED)
+    endif
 
     ; Per-preset fade on death (v0.1.4). One menu picks "Off" or one of the
     ; three modes; Duration is greyed out when Off. We use a single 4-entry
@@ -496,6 +514,15 @@ function drawPresetEditorPage()
     SetCursorPosition(1)
 
     AddMenuOptionST("COND_SELECTOR", "Configure slot", _slotLabel(selectedCondition))
+    ; v0.2.9 rename + swap controls. Rename available on ALL slots including
+    ; Default (the slot-0 engine role is unchanged — only its display label).
+    ; Swap available on slots 1..MAX_CONDITIONS only; the Default slot has
+    ; architectural meaning as the inheritance source so swapping it would
+    ; reassign which slot every backend slot's visuals inherit from.
+    AddInputOptionST("COND_RENAME", "Slot name", _slotLabel(idx))
+    if idx >= 1
+        AddMenuOptionST("COND_SWAP_TARGET", "Swap with slot…", "")
+    endif
 
     if idx == 0
         AddHeaderOption("Default slot")
@@ -710,15 +737,20 @@ endState
 
 state COND_SELECTOR
     event OnMenuOpenST()
-        string[] opts = new string[8]
-        opts[0] = "Default"
-        opts[1] = "Condition 1"
-        opts[2] = "Condition 2"
-        opts[3] = "Condition 3"
-        opts[4] = "Condition 4"
-        opts[5] = "Condition 5"
-        opts[6] = "Condition 6"
-        opts[7] = "Condition 7"
+        ; v0.2.9: dropdown now spans all 32 backend slots (was hardcoded 8) and
+        ; renders custom slot names from MainQuest.GetCondName. Use
+        ; CreateStringArray for the alloc — direct `new string[N]` with a
+        ; computed N would fail at compile (Papyrus allows only literal sizes).
+        ; MAX_CONDITIONS is a `global` function on MTF_MainQuest, so it's
+        ; called on the class, not the instance (mirrors MAX_LAYERS_PER_SLOT
+        ; pattern at line ~457).
+        int total = MTF_MainQuest.MAX_CONDITIONS() + 1
+        string[] opts = Utility.CreateStringArray(total, "")
+        int i = 0
+        while i < total
+            opts[i] = _slotLabel(i)
+            i += 1
+        endwhile
         SetMenuDialogStartIndex(selectedCondition)
         SetMenuDialogDefaultIndex(0)
         SetMenuDialogOptions(opts)
@@ -737,7 +769,100 @@ state COND_SELECTOR
         ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Select which slot to configure. Default is always active as the fallback. Conditions 1-7 are checked in order — first satisfied wins.")
+        SetInfoText("Select which slot to configure. Default is the fallback that always renders when no Condition's predicate matches. Slots 1-MAX are checked in order — first satisfied wins. Slot names can be customized via the 'Slot name' input below.")
+    endEvent
+endState
+
+; v0.2.9: per-slot display name. Empty input clears back to the canonical
+; "Default" / "Condition N" label. Sanitized via the same allowed-charset
+; helper as preset names ([A-Za-z0-9_-], cap 32).
+state COND_RENAME
+    event OnInputOpenST()
+        ; Pre-fill with the current label so the user can tweak rather than
+        ; retype. Empty stored name → falls back to canonical label.
+        SetInputDialogStartText(_slotLabel(selectedCondition))
+    endEvent
+    event OnInputAcceptST(string a_input)
+        ; Empty input clears the override (back to canonical label).
+        if a_input == ""
+            MainQuest.SetCondName(selectedCondition, "")
+            ForcePageReset()
+            return
+        endif
+        string sanitized = MainQuest._sanitizePresetName(a_input)
+        if sanitized == ""
+            Debug.Notification("MTF: invalid slot name (use letters/digits/_/-)")
+            return
+        endif
+        MainQuest.SetCondName(selectedCondition, sanitized)
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Rename this slot for clarity (e.g. 'Magicka draught' instead of 'Condition 3'). Letters/digits/_/-, max 32 chars. Empty input restores the default 'Condition N' label. Save the preset to persist.")
+    endEvent
+endState
+
+; v0.2.9: swap this slot's cond + effects + cooldown + name with another slot.
+; Visuals (tint/emissive/em.mult/alpha/pulse) stay tied to slot index per
+; design — see MTF_MainQuest.SwapSlots docstring. Slot 0 (Default) is omitted
+; from the picker since it's the inheritance source and not swappable.
+state COND_SWAP_TARGET
+    event OnMenuOpenST()
+        ; Build [Cancel, slot 1, slot 2, ..., slot MAX] minus the currently
+        ; selected slot. Using a single Cancel entry at index 0 (mirrors
+        ; PRESET_PICK's pattern at MCMQuest.psc:3823).
+        ; Total entries = Cancel(1) + (maxC slots) - 1 self = maxC.
+        int maxC = MTF_MainQuest.MAX_CONDITIONS()
+        int total = maxC
+        string[] opts = Utility.CreateStringArray(total, "")
+        opts[0] = "Cancel"
+        int i = 1
+        int outIdx = 1
+        while i <= maxC
+            if i != selectedCondition
+                opts[outIdx] = "Swap with " + _slotLabel(i)
+                outIdx += 1
+            endif
+            i += 1
+        endwhile
+        SetMenuDialogStartIndex(0)
+        SetMenuDialogDefaultIndex(0)
+        SetMenuDialogOptions(opts)
+    endEvent
+    event OnMenuAcceptST(int a_index)
+        if a_index <= 0
+            return   ; Cancel or invalid
+        endif
+        ; Reconstruct which slot was at output index a_index (same skip-self
+        ; iteration as OnMenuOpenST).
+        int maxC = MTF_MainQuest.MAX_CONDITIONS()
+        int i = 1
+        int outIdx = 1
+        int pickedSlot = -1
+        while i <= maxC && pickedSlot < 0
+            if i != selectedCondition
+                if outIdx == a_index
+                    pickedSlot = i
+                endif
+                outIdx += 1
+            endif
+            i += 1
+        endwhile
+        if pickedSlot < 1
+            return
+        endif
+        if MainQuest.SwapSlots(_editingPresetName, selectedCondition, pickedSlot)
+            Debug.Notification("MTF: swapped slot " + selectedCondition + " ↔ slot " + pickedSlot)
+            ; Stay on the originally-selected slot index — the user picked
+            ; THAT slot to configure, and its content is now whatever was
+            ; in the picked slot before the swap.
+            ForcePageReset()
+        else
+            Debug.Notification("MTF: swap failed (invalid slot)")
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Swap this slot's condition, effects, cooldown, and name with another slot. Visuals (tint/emissive/alpha/pulse) stay tied to slot index. Both slots' active timers are cleared; NPCs revalidate on next slow tick. Default slot is not swappable.")
     endEvent
 endState
 

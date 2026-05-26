@@ -1090,6 +1090,148 @@ Function SetCondParam2(int slot, int val)
     StorageUtil.SetIntValue(self, "mtf.cond.param2." + slot, val)
 EndFunction
 
+; ── Per-slot display name (StorageUtil-backed, v0.2.9) ──────────────────────
+; User-authored override for the bare "Default" / "Condition N" labels the MCM
+; uses by default. Slot 0 (Default) IS renameable — the engine-side meaning of
+; "slot 0 = inheritance source" is unchanged, only the displayed string. Empty
+; string = fall back to the canonical label in MCMQuest._slotLabel. Sanitized
+; via _sanitizePresetName (cap 32, [A-Za-z0-9_-]) at the MCM input site.
+string Function GetCondName(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return ""
+    endif
+    return StorageUtil.GetStringValue(self, "mtf.cond.name." + slot, "")
+EndFunction
+
+Function SetCondName(int slot, string name)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    if name == ""
+        StorageUtil.UnsetStringValue(self, "mtf.cond.name." + slot)
+    else
+        StorageUtil.SetStringValue(self, "mtf.cond.name." + slot, name)
+    endif
+EndFunction
+
+; ── Slot swap (v0.2.9) ──────────────────────────────────────────────────────
+; Permute every cond + effect field between slots a and b, leaving visuals
+; (tint/emissive/em.mult/alpha/pulse) tied to the slot index. Rationale:
+; today's architecture already decouples visuals from cond content — backend
+; slots inherit Default's visuals regardless of what cond lives in them, and
+; SavePreset/LoadPreset only write/read layer data when s ≤ mcmCap. Swap
+; semantics: cond + effects + cooldown + name move; visuals stay.
+;
+; Default slot (slot 0) is not swappable — engine code treats slot 0 as the
+; inheritance source for backend slots' visuals, so reassigning it would
+; reshuffle every backend slot's appearance.
+;
+; Cooldown timers (cool.until.gt / persist.until.gt) are cleared on the player
+; only — NPCs auto-revalidate on next slow tick once the scratch cache is
+; dropped via _invalidateScratchCache.
+bool Function SwapSlots(string preset, int a, int b)
+{Swap the cond definition + effects + cooldown setting + display name between
+ slots a and b. Visuals stay tied to slot index. Returns false on invalid
+ input (slot 0, out of range, or no preset loaded).}
+    if a < 1 || b < 1
+        return false   ; slot 0 (Default) is not swappable
+    endif
+    int maxC = MAX_CONDITIONS_CACHED()
+    if a > maxC || b > maxC
+        return false
+    endif
+    if a == b
+        return true   ; no-op success
+    endif
+
+    ; Snapshot slot a's content into locals
+    string aName     = GetCondName(a)
+    string aPid      = GetCondPluginId(a)
+    int    aPar      = GetCondParam(a)
+    int    aPar2     = GetCondParam2(a)
+    string aPack     = GetCondPackId(a)
+    string aEntry    = GetCondEntryId(a)
+    int    aPMin     = GetCondPersistMin(a)
+    int    aPOvr     = GetCondAllowOverride(a)
+    int    aCMin     = _getCoolMin(a)
+    int    maxE      = MAX_EFFECTS_PER_SLOT()
+    string[] aKeys   = Utility.CreateStringArray(maxE, "")
+    int[]    aP1     = Utility.CreateIntArray(maxE, 0)
+    int[]    aP2     = Utility.CreateIntArray(maxE, 0)
+    int[]    aP3     = Utility.CreateIntArray(maxE, 0)
+    int[]    aP4     = Utility.CreateIntArray(maxE, 0)
+    int[]    aP5     = Utility.CreateIntArray(maxE, 0)
+    int e = 0
+    while e < maxE
+        aKeys[e] = _readFxKey(a, e, false)
+        aP1[e]   = _readFxParamN(a, e, 1, false)
+        aP2[e]   = _readFxParamN(a, e, 2, false)
+        aP3[e]   = _readFxParamN(a, e, 3, false)
+        aP4[e]   = _readFxParamN(a, e, 4, false)
+        aP5[e]   = _readFxParamN(a, e, 5, false)
+        e += 1
+    endwhile
+
+    ; Copy slot b → slot a
+    SetCondName(a,             GetCondName(b))
+    SetCondPluginId(a,         GetCondPluginId(b))
+    SetCondParam(a,            GetCondParam(b))
+    SetCondParam2(a,           GetCondParam2(b))
+    SetCondPackId(a,           GetCondPackId(b))
+    SetCondEntryId(a,          GetCondEntryId(b))
+    SetCondPersistMin(a,       GetCondPersistMin(b))
+    SetCondAllowOverride(a,    GetCondAllowOverride(b))
+    _setCoolMin(a,             _getCoolMin(b))
+    e = 0
+    while e < maxE
+        _writeFxKey(a, e, false,    _readFxKey(b, e, false))
+        _writeFxParamN(a, e, 1, false, _readFxParamN(b, e, 1, false))
+        _writeFxParamN(a, e, 2, false, _readFxParamN(b, e, 2, false))
+        _writeFxParamN(a, e, 3, false, _readFxParamN(b, e, 3, false))
+        _writeFxParamN(a, e, 4, false, _readFxParamN(b, e, 4, false))
+        _writeFxParamN(a, e, 5, false, _readFxParamN(b, e, 5, false))
+        e += 1
+    endwhile
+
+    ; Restore snapshot → slot b
+    SetCondName(b,             aName)
+    SetCondPluginId(b,         aPid)
+    SetCondParam(b,            aPar)
+    SetCondParam2(b,           aPar2)
+    SetCondPackId(b,           aPack)
+    SetCondEntryId(b,          aEntry)
+    SetCondPersistMin(b,       aPMin)
+    SetCondAllowOverride(b,    aPOvr)
+    _setCoolMin(b,             aCMin)
+    e = 0
+    while e < maxE
+        _writeFxKey(b, e, false, aKeys[e])
+        _writeFxParamN(b, e, 1, false, aP1[e])
+        _writeFxParamN(b, e, 2, false, aP2[e])
+        _writeFxParamN(b, e, 3, false, aP3[e])
+        _writeFxParamN(b, e, 4, false, aP4[e])
+        _writeFxParamN(b, e, 5, false, aP5[e])
+        e += 1
+    endwhile
+
+    ; Clear player timers for both swapped slots so the next eval doesn't
+    ; honor a stale persist window from the now-different content. NPCs
+    ; revalidate on next slow tick via the dropped scratch cache below.
+    _setCoolUntilGT(a, 0.0)
+    _setCoolUntilGT(b, 0.0)
+    SetCondPersistUntilGT(a, 0.0)
+    SetCondPersistUntilGT(b, 0.0)
+
+    ; Drop the cached scratch for this preset so NPCs reload the swapped
+    ; layout on their next slow tick. Limitation: NPCs that were on cooldown
+    ; for one of the swapped slots may see one wrong-effect tick before
+    ; re-eval catches up — acceptable per design (cosmetic, not data loss).
+    if preset != ""
+        _invalidateScratchCache(preset)
+    endif
+    return true
+EndFunction
+
 ; ── Persist accessors (v0.2.8: now unified across all slots) ────────────────
 ; Pre-v0.2.8 these were dual-track wrappers around Auto array properties for
 ; slot ≤ MCM cap and a default-value early-return for backend slots. Now the
@@ -2012,7 +2154,10 @@ bool Function SavePreset(string rawName)
     ; by persist.min, persist.allowOverride, cool.min. Old keys are NOT read
     ; on load; existing presets reset to defaults (persist=0, cool=0,
     ; allowOverride=1).
-    JsonUtil.SetPathIntValue(f,    ".schemaversion", 8)
+    ; v0.2.9: schema 9 — adds optional .slot[<s>].name (user-authored display
+    ; name). v8 presets load cleanly: missing .name reads as empty string and
+    ; the MCM falls back to the canonical "Default" / "Condition N" label.
+    JsonUtil.SetPathIntValue(f,    ".schemaversion", 9)
 
     ; Preset-wide cross-fade duration (live value, edited via MCM slider).
     ; Always emit so the saved JSON reflects exactly what's in the scratch
@@ -2050,6 +2195,13 @@ bool Function SavePreset(string rawName)
         int p2 = GetCondParam2(s)
         if p2 != 0
             JsonUtil.SetPathIntValue(f, sp + ".cond.param2", p2)
+        endif
+        ; v0.2.9 per-slot display name (sidecar to cond.*). Only emit when
+        ; non-empty so untouched presets keep clean JSON. Empty fallback in
+        ; MCMQuest._slotLabel handles the missing-field case.
+        string slotName = GetCondName(s)
+        if slotName != ""
+            JsonUtil.SetPathStringValue(f, sp + ".name", slotName)
         endif
         ; v0.2.8: visual/persist serialization unified across all 32 slots
         ; via StorageUtil-backed accessors. Backend slots (> mcmCap) now
@@ -2189,6 +2341,8 @@ bool Function LoadPreset(string name)
         SetCondPluginId(s, pluginIdHere)
         SetCondParam(s,    JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0))
         SetCondParam2(s,   JsonUtil.GetPathIntValue(f,    sp + ".cond.param2",   0))
+        ; v0.2.9 per-slot display name. Empty default = use canonical label.
+        SetCondName(s,     JsonUtil.GetPathStringValue(f, sp + ".name", ""))
         _setCoolMin(s, JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
         ; Clear any active persist/cool timers when loading a preset — slots
         ; start fresh regardless of inherited timer state.
@@ -2298,6 +2452,7 @@ Function ResetEditor()
         SetCondPluginId(s, "")
         SetCondParam(s, 0)
         SetCondParam2(s, 0)
+        SetCondName(s, "")
         SetCondPackId(s, "")
         SetCondEntryId(s, "")
         SetCondPersistMin(s, 0)
@@ -5289,6 +5444,15 @@ EndFunction
 Function _setScratchCondParam(int slot, int v)
     StorageUtil.SetIntValue(None, "mtf.scratch.cond.param." + _scratchLoadedFor + "." + slot, v)
 EndFunction
+; v0.2.9 per-slot display name (scratch path). Mirrors the cond.pluginid pattern;
+; namespaced by _scratchLoadedFor so each preset keeps its own slot names. Read
+; via _g_condName below (currently MCM-only consumer); written by cold load.
+string Function _getScratchCondName(int slot)
+    return StorageUtil.GetStringValue(None, "mtf.scratch.cond.name." + _scratchLoadedFor + "." + slot, "")
+EndFunction
+Function _setScratchCondName(int slot, string v)
+    StorageUtil.SetStringValue(None, "mtf.scratch.cond.name." + _scratchLoadedFor + "." + slot, v)
+EndFunction
 
 float Function _getScratchPulsePause(int slot)
     return StorageUtil.GetFloatValue(self, "mtf.scratch.pulse.pause." + _scratchLoadedFor + "." + slot, 0.0)
@@ -5339,8 +5503,15 @@ int Function CACHED_SCRATCH_VERSION() global
  would skip the cold-load path and leave backend slots empty, so the
  apply-via-spell flow couldn't evaluate slot >= 8 conditions. Bumping
  forces a one-shot cold rebuild for every cached preset on first
- access under the new code.}
-    return 4
+ access under the new code.
+
+ v5: per-slot display name (3a slot rename + swap). Cold load now also
+ writes mtf.scratch.cond.name.<preset>.<slot> via _setScratchCondName
+ for every slot 0..maxC. v4 caches were produced WITHOUT those name
+ writes; a cache hit on a v4 entry would skip cold load and the MCM
+ slot dropdown would render canonical labels even when the preset
+ stored custom names. Bumping forces a one-shot cold rebuild.}
+    return 5
 EndFunction
 
 ; v0.1.24 scratch-namespaced cool.min accessors. Per-preset (preset name
@@ -5528,6 +5699,10 @@ bool Function _loadPresetToScratch(string name)
         localCondParam[s]    = JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0)
         localCondPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",   "")
         localCondEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid",  "")
+        ; v0.2.9 per-slot display name into the per-preset scratch keyspace.
+        ; Currently only the MCM consumes this (NPCs don't render labels), but
+        ; the scratch population keeps the read-shape uniform across all slots.
+        _setScratchCondName(s, JsonUtil.GetPathStringValue(f, sp + ".name", ""))
         ; v0.1.24 cooldown rework — read new schema 8 keys only. Defaults
         ; per the migration policy: persist=0, allowOverride=1, cool=0.
         localPersistMin[s]    = JsonUtil.GetPathIntValue(f, sp + ".persist.min", 0)
@@ -5618,6 +5793,8 @@ bool Function _loadPresetToScratch(string name)
         string pid_b = JsonUtil.GetPathStringValue(f, sp_b + ".cond.pluginid", "")
         _setScratchCondPluginId(sb, pid_b)
         _setScratchCondParam(sb,    JsonUtil.GetPathIntValue(f, sp_b + ".cond.param", 0))
+        ; v0.2.9 per-slot display name (backend slot path).
+        _setScratchCondName(sb,     JsonUtil.GetPathStringValue(f, sp_b + ".name", ""))
         ; cool.min for the backend slot (StorageUtil-keyed; safe for any slot).
         _setScratchCoolMin(sb, JsonUtil.GetPathIntValue(f, sp_b + ".cool.min", 0))
         ; Fast-skip: empty backend slot has no effects to write.
