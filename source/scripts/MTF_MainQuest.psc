@@ -177,6 +177,20 @@ bool[]   _evalCondCacheResults
 int      _evalCondCacheCount = 0
 bool     _evalCondCacheReady = false
 
+; ── Per-batch base-slot scan cache (PERF_TIER1_APPLY #1) ─────────────────────
+; AddAppliedPresetsBatch sets _batchBaseSlotActive=true so AddAppliedPreset's
+; per-area NPC base-slot loop reuses a single _findFirstFreeOverlaySlotNPC scan
+; per (area) across N stacked presets. Cache is scoped to ONE batch execution;
+; no save state. Solo (non-batch) AddAppliedPreset calls bypass the cache via
+; the _batchBaseSlotActive guard. Length-4 arrays indexed by _areaIndex
+; (0=Body, 1=Face, 2=Hands, 3=Feet). _batchBaseSlotCache[ai] = -1 means "not
+; yet scanned this batch"; >=0 means "scanned, value is the next free slot for
+; the FIRST preset". _batchBaseSlotAccum[ai] is the running reserv sum from
+; prior presets in the batch — added on top of the cached base for stacking.
+int[]    _batchBaseSlotCache
+int[]    _batchBaseSlotAccum
+bool     _batchBaseSlotActive = false
+
 Function SetProfileApply(bool v)
     _profileApply = v
 EndFunction
@@ -353,6 +367,79 @@ int Function _findFirstFreeOverlaySlotNPC(Actor target, string area)
         i -= 1
     endwhile
     return 0
+EndFunction
+
+; ── Per-batch base-slot cache (PERF_TIER1_APPLY #1) ──────────────────────────
+Function _beginBatchBaseSlotCache()
+{Initialise the per-batch NPC base-slot cache. AddAppliedPresetsBatch calls
+ this before its loop; AddAppliedPreset then consumes the cache via
+ _getNpcBaseSlotForBatch. Each subsequent preset's base slot stacks on top
+ of the prior presets' reservs without re-scanning the 8 overlay slots.}
+    if _batchBaseSlotCache == None
+        _batchBaseSlotCache = new int[4]
+        _batchBaseSlotAccum = new int[4]
+    endif
+    int i = 0
+    while i < 4
+        _batchBaseSlotCache[i] = -1
+        _batchBaseSlotAccum[i] = 0
+        i += 1
+    endwhile
+    _batchBaseSlotActive = true
+EndFunction
+
+Function _endBatchBaseSlotCache()
+    _batchBaseSlotActive = false
+EndFunction
+
+int Function _getNpcBaseSlotForBatch(Actor target, string area)
+{Replaces direct _findFirstFreeOverlaySlotNPC call inside AddAppliedPreset's
+ NPC branch when a batch is active. On the first preset (per area) within
+ the batch, populates the cache via a real scan; on subsequent presets,
+ returns scan_result + sum_of_prior_reservs. Caller is responsible for
+ bumping the accumulator after `reserved` is finalised (see
+ _accumBatchBaseReserv). Solo path (no active batch) falls through to the
+ legacy scan so external callers see no behavior change. Cache assumes no
+ other actor paints overlay slots on `target` mid-batch — safe today
+ because the batch holds the VM during its run (no Papyrus interleaving).
+ Writes via local-array build + whole-array reference assignment per the
+ Papyrus indexed-write quirk on script-level/Auto arrays.}
+    int ai = _areaIndex(area)
+    if !_batchBaseSlotActive || ai < 0 || ai >= 4
+        return _findFirstFreeOverlaySlotNPC(target, area)
+    endif
+    int cached = _batchBaseSlotCache[ai]
+    if cached < 0
+        cached = _findFirstFreeOverlaySlotNPC(target, area)
+        int[] tmpC = new int[4]
+        tmpC[0] = _batchBaseSlotCache[0]
+        tmpC[1] = _batchBaseSlotCache[1]
+        tmpC[2] = _batchBaseSlotCache[2]
+        tmpC[3] = _batchBaseSlotCache[3]
+        tmpC[ai] = cached
+        _batchBaseSlotCache = tmpC
+    endif
+    return cached + _batchBaseSlotAccum[ai]
+EndFunction
+
+Function _accumBatchBaseReserv(string area, int reserved)
+{Bump the per-area accumulator after a preset's clamped reservation is
+ known. Called from AddAppliedPreset's NPC branch when the batch cache is
+ active and the preset actually consumes layers in this area.}
+    if !_batchBaseSlotActive || reserved <= 0
+        return
+    endif
+    int ai = _areaIndex(area)
+    if ai < 0 || ai >= 4
+        return
+    endif
+    int[] tmpA = new int[4]
+    tmpA[0] = _batchBaseSlotAccum[0]
+    tmpA[1] = _batchBaseSlotAccum[1]
+    tmpA[2] = _batchBaseSlotAccum[2]
+    tmpA[3] = _batchBaseSlotAccum[3]
+    tmpA[ai] = tmpA[ai] + reserved
+    _batchBaseSlotAccum = tmpA
 EndFunction
 
 ; ── Per-slot effect lists ────────────────────────────────────────────────────
@@ -5549,8 +5636,11 @@ int Function AddAppliedPreset(Actor target, string name, bool deferApply = false
                 endwhile
             else
                 ; NPC: scan top-down, stack above any existing overlay (ours or
-                ; another mod's).
-                base = _findFirstFreeOverlaySlotNPC(target, area)
+                ; another mod's). PERF_TIER1_APPLY #1: when a batch is active,
+                ; the per-(actor,area) scan happens ONCE; each subsequent preset
+                ; in the batch stacks atop accumulated reservs without
+                ; re-scanning all 8 overlay slots. Cache lifetime = batch only.
+                base = _getNpcBaseSlotForBatch(target, area)
             endif
             int reserved = 0
             int free = total - base
@@ -5564,6 +5654,12 @@ int Function AddAppliedPreset(Actor target, string name, bool deferApply = false
                     reservs[p] = reserved
                     reservedAny += reserved
                 endif
+            endif
+            ; PERF_TIER1_APPLY #1: track per-area accumulator so the next preset
+            ; in the same batch sees the correct stacked floor. NPC-only; the
+            ; player path already stacks via _getActorPresetLayers above.
+            if !isPlayer
+                _accumBatchBaseReserv(area, reserved)
             endif
             ; Hard-reject visual truncation: if this area wanted N layers but
             ; we could only reserve M < N, the largest tier's texture would
@@ -5647,6 +5743,10 @@ int Function AddAppliedPresetsBatch(Actor target, string[] names)
     ; blocks the next AddAppliedPreset by 1-3 seconds. See OnUpdate gate.
     bool prevSuppress = _suppressSlowTick
     _suppressSlowTick = true
+    ; PERF_TIER1_APPLY #1: cache the per-(actor, area) overlay-slot scan for
+    ; the duration of the batch. The first preset pays the ~120ms scan; every
+    ; subsequent preset stacks atop the accumulated reservs without re-scanning.
+    _beginBatchBaseSlotCache()
     MTFPulse.BeginTransitionBatch()
     int i = 0
     while i < n
@@ -5663,6 +5763,7 @@ int Function AddAppliedPresetsBatch(Actor target, string[] names)
     if ok > 0
         NiOverride.ApplyNodeOverrides(target)
     endif
+    _endBatchBaseSlotCache()
     _suppressSlowTick = prevSuppress
     return ok
 EndFunction
