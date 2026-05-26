@@ -73,7 +73,15 @@ REQUIRED=(
     "$SRC_SCRIPTS/MTF_Plugin_BFNG.pex"
     "$SRC_SCRIPTS/MTF_Plugin_SlaveTats.pex"
     "$SRC_SCRIPTS/MTF_Plugin_SkyrimNet.pex"
+    "$SRC_SCRIPTS/MTF_TestRunner.pex"
     "$DATA/SKSE/Plugins/MagicTattoosFramework.ini"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.base.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.fmr.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.sla.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.sexlab.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.ostim.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.bfng.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.slavetats.json"
     "$TEMPLATES/info.xml"
     "$TEMPLATES/ModuleConfig.xml"
 )
@@ -125,7 +133,9 @@ mkdir -p "$STAGE/fomod"
 # 00_base: core mod (ESP + base scripts + DLL + INI + waveforms)
 # -----------------------------------------------------------------------------
 BASE="$STAGE/00_base"
-mkdir -p "$BASE/scripts" "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/waveforms"
+mkdir -p "$BASE/scripts" \
+         "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/waveforms" \
+         "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins"
 
 cp "$ESP_OUT/MagicTattoosFramework.esp" "$BASE/"
 
@@ -150,6 +160,12 @@ cp "$DATA/SKSE/Plugins/MagicTattoosFramework.ini" "$BASE/SKSE/Plugins/"
 cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/waveforms/"*.json \
    "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/waveforms/"
 
+# Base plugin catalog (mtf.base.json). Drives MCM rendering for all
+# built-in conditions/effects. Without this, GetConditionCount() returns
+# -1 and MCM renders "(-1c, -1e)" on the Plugins page.
+cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.base.json" \
+   "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/"
+
 # skee64.ini override (bPlayerOnly=0). Shipped by default so MTF can apply
 # overlays to tracked NPCs out of the box. MO2 must load the MTF mod folder
 # AFTER RaceMenu so this file wins the loose-file conflict against SKEE's
@@ -161,22 +177,31 @@ echo "  staged 00_base ($(find "$BASE" -type f | wc -l) files)"
 # -----------------------------------------------------------------------------
 # Integration plugin folders (10_plugin_*): ESP + matching .pex
 # -----------------------------------------------------------------------------
+# Stage one integration plugin folder. The 4th arg is the plugin catalog
+# basename (e.g. "mtf.fmr.json"); pass "" to skip when a plugin overrides
+# GetConditionCount/GetEffectCount in Papyrus and ships no JSON catalog
+# (SkyrimNet bridge does this — its counts return 0 directly).
 stage_plugin() {
-    local folder="$1" esp="$2" pex="$3"
+    local folder="$1" esp="$2" pex="$3" catalog="${4:-}"
     local out="$STAGE/$folder"
     mkdir -p "$out/scripts"
     cp "$ESP_OUT/$esp" "$out/"
     cp "$SRC_SCRIPTS/$pex" "$out/scripts/"
+    if [[ -n "$catalog" ]]; then
+        mkdir -p "$out/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins"
+        cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/$catalog" \
+           "$out/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/"
+    fi
     echo "  staged $folder ($(find "$out" -type f | wc -l) files)"
 }
 
-stage_plugin "10_plugin_fmr"    "MTF_Plugin_FMR.esp"    "MTF_Plugin_FMR.pex"
-stage_plugin "11_plugin_sla"    "MTF_Plugin_SLA.esp"    "MTF_Plugin_SLA.pex"
-stage_plugin "12_plugin_sexlab" "MTF_Plugin_SexLab.esp" "MTF_Plugin_SexLab.pex"
-stage_plugin "13_plugin_ostim"  "MTF_Plugin_OStim.esp"  "MTF_Plugin_OStim.pex"
-stage_plugin "14_plugin_bfng"      "MTF_Plugin_BFNG.esp"      "MTF_Plugin_BFNG.pex"
-stage_plugin "15_plugin_slavetats" "MTF_Plugin_SlaveTats.esp" "MTF_Plugin_SlaveTats.pex"
-stage_plugin "16_plugin_skyrimnet" "MTF_Plugin_SkyrimNet.esp" "MTF_Plugin_SkyrimNet.pex"
+stage_plugin "10_plugin_fmr"       "MTF_Plugin_FMR.esp"       "MTF_Plugin_FMR.pex"       "mtf.fmr.json"
+stage_plugin "11_plugin_sla"       "MTF_Plugin_SLA.esp"       "MTF_Plugin_SLA.pex"       "mtf.sla.json"
+stage_plugin "12_plugin_sexlab"    "MTF_Plugin_SexLab.esp"    "MTF_Plugin_SexLab.pex"    "mtf.sexlab.json"
+stage_plugin "13_plugin_ostim"     "MTF_Plugin_OStim.esp"     "MTF_Plugin_OStim.pex"     "mtf.ostim.json"
+stage_plugin "14_plugin_bfng"      "MTF_Plugin_BFNG.esp"      "MTF_Plugin_BFNG.pex"      "mtf.bfng.json"
+stage_plugin "15_plugin_slavetats" "MTF_Plugin_SlaveTats.esp" "MTF_Plugin_SlaveTats.pex" "mtf.slavetats.json"
+stage_plugin "16_plugin_skyrimnet" "MTF_Plugin_SkyrimNet.esp" "MTF_Plugin_SkyrimNet.pex" ""
 # SkyrimNet bridge also ships an Inja prompt submodule that surfaces
 # MTF active tattoos in the LLM's character_bio context. Layered on top of
 # the bare ESP+PEX stage so a single FOMOD step delivers code AND prompt.
@@ -202,11 +227,19 @@ stage_content "23_content_bardle"    "bardle-nail-polish"
 stage_content "24_content_co1_face"  "community-overlays-1-face"
 
 # -----------------------------------------------------------------------------
-# 31_test_pack: smoke-test presets (from test-pack/)
+# 31_test_pack: smoke-test presets (from test-pack/) + F10 console-runner
+#
+# MTF_TestRunner.pex is a ReferenceAlias script already declared in MTF's
+# ESP (alias name "MTF_TestRunner" on MTF_MainQuest). When the .pex lands
+# on disk the alias binds automatically — no ESP changes needed. The
+# runner depends on ConsoleUtilSSE NG (for coc teleport); description
+# warns users about this.
 # -----------------------------------------------------------------------------
-mkdir -p "$STAGE/31_test_pack/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets"
+mkdir -p "$STAGE/31_test_pack/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets" \
+         "$STAGE/31_test_pack/scripts"
 cp "$TESTPACK/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets/"*.json \
    "$STAGE/31_test_pack/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets/"
+cp "$SRC_SCRIPTS/MTF_TestRunner.pex" "$STAGE/31_test_pack/scripts/"
 [[ -f "$TESTPACK/README.md" ]] && cp "$TESTPACK/README.md" "$STAGE/31_test_pack/"
 echo "  staged 31_test_pack ($(find "$STAGE/31_test_pack" -type f | wc -l) files)"
 

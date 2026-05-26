@@ -390,12 +390,24 @@ Area: Face.]]></description>
         <group name="Extras" type="SelectAny">
           <plugins order="Explicit">
 
-          <plugin name="Test Pack (smoke-test presets)">
-            <description><![CDATA[JSON-only mod folder bundling MTF's smoke-test presets. Drives the
-framework into specific code paths from the MCM Presets dropdown.
+          <plugin name="Test Pack (smoke-test presets + F10 console runner)">
+            <description><![CDATA[Bundles MTF's smoke-test infrastructure:
+
+  - 33 smoke-test preset JSONs (Test_*.json). Drive the framework into
+    specific code paths from the MCM Presets dropdown.
+
+  - MTF_TestRunner.pex — ReferenceAlias script that binds to the
+    MTF_TestRunner alias already declared on MTF_MainQuest. Exposes
+    a console-callable test suite (e.g. F10 in-game macro running
+    `cqf MTF_MainQuest RunTests`) covering the base plugin's
+    conditions / effects under an AAA pattern.
+
+Hard requirement for the runner: ConsoleUtilSSE NG (for coc teleport
+in location-based tests). The presets work without it; only the
+console-callable suite needs it.
 
 For development / verification use. Safe to skip if you don't intend
-to run the test scenarios documented in SMOKE_TESTS.md.]]></description>
+to run the test scenarios documented in TEST_METHODOLOGY.md.]]></description>
             <files>
               <folder source="31_test_pack" destination="" priority="0"/>
             </files>
