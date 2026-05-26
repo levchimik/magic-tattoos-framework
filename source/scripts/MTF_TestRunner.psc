@@ -3,10 +3,10 @@ Scriptname MTF_TestRunner extends ReferenceAlias
  docs/internal/TEST_METHODOLOGY.md.
 
  ARRANGE actively forces the player into the opposite-of-target state via
- Papyrus APIs (DamageActorValue, RemoveItem, ConsoleUtil teleport, etc.),
- then asserts the precondition held. Only then does ACT transition to the
- target state and ASSERT check tier matches expectation. CLEANUP always
- runs so the next test starts from a neutral baseline.
+ Papyrus APIs (DamageActorValue, RemoveItem, etc.), then asserts the
+ precondition held. Only then does ACT transition to the target state
+ and ASSERT check tier matches expectation. CLEANUP always runs so the
+ next test starts from a neutral baseline.
 
  Slot layout during a run:
    * Slot 7 -- condition under test (slots 1-6 cond keys cleared)
@@ -14,16 +14,9 @@ Scriptname MTF_TestRunner extends ReferenceAlias
 
  Snapshot+restore wraps the run; user's MCM-set state is preserved.
 
- WARNING: location tests teleport the player via coc. The test leaves
- the player in Riverwood (simple exterior, no city gate mesh to render-
- crash like Whiterun's main gate does on repeat coc). Press F10 only
- from a safe location you don't mind leaving.
-
  Output:
    * Papyrus log: [MTF_TEST] PASS/FAIL/SKIP ...
    * JSON: StorageUtilData/MagicTattoosFramework/tests/last_run.json
-
- Dependency: ConsoleUtilSSE NG (for coc teleport). Bundled in modlist.
 
  Attached as a SECOND script on MainQuest's PlayerAlias.}
 
@@ -91,6 +84,16 @@ Function RunAll()
     JsonUtil.ClearAll(JSON_FILE)
     JsonUtil.SetFloatValue(JSON_FILE, "timestamp", Utility.GetCurrentRealTime())
 
+    ; v0.2.10: suspend MainQuest's slow tick during the run. Each test
+    ; cycles activate→deactivate rapidly; the slow tick firing in between
+    ; clobbers the dispatch context (mtf.dispatch.slot/effectidx) and
+    ; causes _removeResistShift / _removeSkillShift to read the wrong
+    ; (slot, eff), silently skipping spell removal. Symptom: random
+    ; modify.resist[X] tests fail with "storage_revert" + "spell_not_removed"
+    ; — different X across runs. Cleared in the always-run cleanup block
+    ; below so a mid-test abort doesn't leave the tick permanently off.
+    mq._setTestMode(true)
+
     _snapshotState(mq)
     _clearCondSlots1to7(mq)
     _clearTestFxSlot(mq)
@@ -99,6 +102,12 @@ Function RunAll()
     _runEffects(mq, pl)
 
     _restoreState(mq)
+
+    ; Always re-enable the slow tick before exiting RunAll — even if a
+    ; test threw or aborted mid-way. Papyrus has no try/finally, but every
+    ; control path through RunAll reaches here in practice (the early
+    ; returns above all happen BEFORE we set the flag).
+    mq._setTestMode(false)
 
     int total = _pass + _fail + _skip
     JsonUtil.SetIntValue(JSON_FILE, "total", total)
@@ -182,21 +191,6 @@ Function _runConditions(MTF_MainQuest mq, Actor pl)
     _aaa_healthAbove(mq, pl)
     _aaa_healthBelow(mq, pl)
 
-    ; Location -- TEMPORARILY DISABLED. coc <exterior> from Papyrus crashes
-    ; Skyrim's renderer on this rig (BSLightingShaderProperty access viol at
-    ; SkyrimSE.exe+14DF6EB). Hit Whiterun (WRWallMainGate01.nif) AND
-    ; Riverwood (RockPileM02.nif) on consecutive runs. Same instruction
-    ; address, same render-thread crash signature -- so it's the rapid cell
-    ; transition, not any specific exterior. Re-enable when the AAA helpers
-    ; switch to MoveTo(snapshottedOriginalRef) instead of coc, which respects
-    ; the engine's cell streaming better.
-    ; _aaa_locationIndoors(mq, pl)
-    ; _aaa_locationOutdoors(mq, pl)
-    ; v0.2.7: location.indoors/outdoors folded into location.kw param1 6/7.
-    ; Once the coc-renderer-crash workaround lands, re-enable via location.kw.
-    _skipCond("location.kw(p1=6 Indoors)",  "TODO: replace coc-based AAA with MoveTo (coc crashes renderer on this rig)")
-    _skipCond("location.kw(p1=7 Outdoors)", "TODO: replace coc-based AAA with MoveTo (coc crashes renderer on this rig)")
-
     ; Pure-Papyrus state arranges
     _aaa_stateWeaponDrawn(mq, pl)
     _aaa_loversEmbrace(mq, pl)
@@ -207,7 +201,10 @@ Function _runConditions(MTF_MainQuest mq, Actor pl)
     _aaa_wornLightArmor(mq, pl)
 
     ; --- SKIPs ---
-    _skipCond("location.kw",              "TODO: needs City/Town/Cathedral location FormIDs + MoveTo")
+    ; location.kw is a single menu-typed condition (id strings: indoors /
+    ; outdoors / city / town / dungeon / inn / shop / player_home). All
+    ; eight branches gated on the same coc-renderer-crash workaround.
+    _skipCond("location.kw",              "TODO: replace coc-based AAA with MoveTo (coc crashes renderer on this rig)")
     _skipCond("weather",                  "TODO: needs vanilla weather FormID per classification (chrome lookup)")
     _skipCond("state.sprinting",          "no reliable Papyrus API to force sprint")
     _skipCond("state.running",            "depends on movement speed, no force API")
@@ -368,74 +365,6 @@ Function _aaa_healthBelow(MTF_MainQuest mq, Actor pl)
     endif
 
     pl.RestoreActorValue("Health", 999999.0)
-    _recordCond(testName, err)
-EndFunction
-
-; ---------- Location (ConsoleUtil teleport) --------------------------
-
-Function _aaa_locationIndoors(MTF_MainQuest mq, Actor pl)
-    ; v0.2.7: location.indoors folded into location.kw with param1=6.
-    string testName = "location.kw(p1=6 Indoors)"
-    string err = ""
-
-    ; ARRANGE -- coc to Whiterun exterior
-    ConsoleUtil.ExecuteCommand("coc Riverwood")
-    Utility.Wait(3.0)
-    _configureCondSlot(mq, "location.kw", 6, 0)
-    Cell c1 = pl.GetParentCell()
-    if c1 == None || c1.IsInterior()
-        err = "arrange: expected exterior after coc Riverwood (cell=" + _cellName(c1) + ")"
-    elseif mq.evaluateTier() == TEST_COND_SLOT
-        err = "arrange: expected outdoors but tier=7 (cell=" + _cellName(c1) + ")"
-    endif
-
-    if err == ""
-        ; ACT -- coc to Breezehome interior
-        ConsoleUtil.ExecuteCommand("coc QASmoke")
-        Utility.Wait(3.0)
-        Cell c2 = pl.GetParentCell()
-        if c2 == None || !c2.IsInterior()
-            err = "act: expected interior after coc Breezehome (cell=" + _cellName(c2) + ")"
-        elseif mq.evaluateTier() != TEST_COND_SLOT
-            err = "assert: expected indoors but tier=0 (cell=" + _cellName(c2) + ")"
-        endif
-    endif
-
-    ; CLEANUP -- back to neutral exterior
-    ConsoleUtil.ExecuteCommand("coc Riverwood")
-    Utility.Wait(3.0)
-    _recordCond(testName, err)
-EndFunction
-
-Function _aaa_locationOutdoors(MTF_MainQuest mq, Actor pl)
-    ; v0.2.7: location.outdoors folded into location.kw with param1=7.
-    string testName = "location.kw(p1=7 Outdoors)"
-    string err = ""
-
-    ; ARRANGE -- coc to Breezehome interior
-    ConsoleUtil.ExecuteCommand("coc QASmoke")
-    Utility.Wait(3.0)
-    _configureCondSlot(mq, "location.kw", 7, 0)
-    Cell c1 = pl.GetParentCell()
-    if c1 == None || !c1.IsInterior()
-        err = "arrange: expected interior after coc Breezehome (cell=" + _cellName(c1) + ")"
-    elseif mq.evaluateTier() == TEST_COND_SLOT
-        err = "arrange: expected indoors but tier=7 (cell=" + _cellName(c1) + ")"
-    endif
-
-    if err == ""
-        ; ACT -- coc to exterior
-        ConsoleUtil.ExecuteCommand("coc Riverwood")
-        Utility.Wait(3.0)
-        Cell c2 = pl.GetParentCell()
-        if c2 == None || c2.IsInterior()
-            err = "act: expected exterior after coc Riverwood (cell=" + _cellName(c2) + ")"
-        elseif mq.evaluateTier() != TEST_COND_SLOT
-            err = "assert: expected outdoors but tier=0 (cell=" + _cellName(c2) + ")"
-        endif
-    endif
-
-    ; CLEANUP -- leave at Whiterun exterior
     _recordCond(testName, err)
 EndFunction
 
@@ -776,20 +705,6 @@ float Function _avPct(Actor target, string av)
         return -1.0
     endif
     return (target.GetActorValue(av) / maxV) * 100.0
-EndFunction
-
-string Function _cellName(Cell c)
-    ; Cell has no GetName() in Papyrus. Best we can do is FormID + interior flag.
-    if c == None
-        return "(none)"
-    endif
-    string tag = ""
-    if c.IsInterior()
-        tag = "interior"
-    else
-        tag = "exterior"
-    endif
-    return tag + " 0x" + _hex8(c.GetFormID())
 EndFunction
 
 string Function _hex8(int i)

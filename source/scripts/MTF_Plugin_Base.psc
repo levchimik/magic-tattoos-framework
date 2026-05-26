@@ -2093,21 +2093,6 @@ Function _tickSoundRow(Actor target, string soundId, int param2)
     endif
 EndFunction
 
-; v0.2.9: helper to fetch the menu-id string for the current dispatch's
-; param1. Menu effects store their type in param1 as an id (was int).
-string Function _dispP1Str()
-    MTF_MainQuest h = _host()
-    if h == None
-        return ""
-    endif
-    int slot = h._getDispatchSlot()
-    int eff  = h._getDispatchEffectIdx()
-    if slot < 0 || eff < 0
-        return ""
-    endif
-    return h.GetSlotEffectParamNStr(slot, eff, 1)
-EndFunction
-
 Function onActivate(Actor target, int param, int param2, string eid)
     ; Outer dispatch by `eid` — robust against JSON reorder. Inner helpers
     ; (_recomputeAbsShift, _setApplied, _avNameFor, etc.) also take eid so
@@ -2115,12 +2100,12 @@ Function onActivate(Actor target, int param, int param2, string eid)
     ;
     ; v0.2.9: menu-typed effects (modify.skill/resist, shader.play, sound.play,
     ; flash.onhit) read the type from param1 as a stable string id via
-    ; _dispP1Str(). param/param2 ints in this signature carry slider values
+    ; _dispPNStr(1). param/param2 ints in this signature carry slider values
     ; (param2 is the signed shift; param itself is 0 for menu-typed effects).
     if eid == "modify.skill"
-        _recomputeSkillShift(target, _dispP1Str(), param2)
+        _recomputeSkillShift(target, _dispPNStr(1), param2)
     elseif eid == "modify.resist"
-        _recomputeResistShift(target, _dispP1Str(), param2)
+        _recomputeResistShift(target, _dispPNStr(1), param2)
     elseif eid == "modify.criticalChance"
         ; AV not writable via ModActorValue -- route through spell magnitude
         _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, param, "modify.criticalChance")
@@ -2157,11 +2142,11 @@ Function onActivate(Actor target, int param, int param2, string eid)
     elseif eid == "spell.lightningCloak"
         _applyCloak(_resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
     elseif eid == "flash.onhit"
-        _applyFlashOnHit(target, _dispP1Str(), param2)
+        _applyFlashOnHit(target, _dispPNStr(1), param2)
     elseif eid == "shader.play"
-        _activateShaderRow(target, _dispP1Str(), param2)
+        _activateShaderRow(target, _dispPNStr(1), param2)
     elseif eid == "sound.play"
-        _activateSoundRow(target, _dispP1Str(), param2)
+        _activateSoundRow(target, _dispPNStr(1), param2)
     endif
 EndFunction
 
@@ -2193,17 +2178,22 @@ Function onDeactivate(Actor target, int param, int param2, string eid)
     elseif eid == "flash.onhit"
         _removeFlashOnHit(target)
     elseif eid == "shader.play"
-        _deactivateShaderRow(target, _dispP1Str())
+        _deactivateShaderRow(target, _dispPNStr(1))
     elseif eid == "sound.play"
-        _deactivateSoundRow(target, _dispP1Str(), param2)
+        _deactivateSoundRow(target, _dispPNStr(1), param2)
     endif
 EndFunction
 
 Function onTick(Actor target, int param, int param2, string eid)
+    ; v0.2.9: modify.skill / modify.resist are menu-typed. The skill/resist
+    ; id lives in param1.s (string), NOT the int `param` arg — passing
+    ; `param` here was a refactor miss: Papyrus implicit int→string cast
+    ; turns it into "0" / "10" which never matches a valid id, so the tick
+    ; re-apply silently no-ops. Use _dispPNStr(1) to fetch the real id.
     if eid == "modify.skill"
-        _recomputeSkillShift(target, param, param2)
+        _recomputeSkillShift(target, _dispPNStr(1), param2)
     elseif eid == "modify.resist"
-        _recomputeResistShift(target, param, param2)
+        _recomputeResistShift(target, _dispPNStr(1), param2)
     elseif eid == "modify.criticalChance"
         _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, param, "modify.criticalChance")
     elseif _isAbsShift(eid)
@@ -2267,17 +2257,17 @@ Function onTick(Actor target, int param, int param2, string eid)
         ; Re-push flash params every slow tick. Cheap (one Roster lookup +
         ; field write) and means MCM slider edits on ramp/decay/retrig/peak
         ; take effect within ~2s without needing a tier rebuild.
-        _applyFlashOnHit(target, _dispP1Str(), param2)
+        _applyFlashOnHit(target, _dispPNStr(1), param2)
     elseif eid == "shader.play"
         ; Re-Play shader on slow-tick to survive save/load (the engine
         ; doesn't persist EffectShader.Play state), and re-Play the bound
         ; sound when its handle is stale (session resume) or when the
         ; user opted into re-trigger mode for short SNDRs.
-        _tickShaderRow(target, _dispP1Str(), param2)
+        _tickShaderRow(target, _dispPNStr(1), param2)
     elseif eid == "sound.play"
         ; Loop-mode SNDRs need a re-Play after session resume (same engine
         ; quirk as shaders: Sound.Play handles don't persist across save/load).
-        _tickSoundRow(target, _dispP1Str(), param2)
+        _tickSoundRow(target, _dispPNStr(1), param2)
     endif
 EndFunction
 

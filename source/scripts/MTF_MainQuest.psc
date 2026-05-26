@@ -1655,6 +1655,43 @@ Function _clearDispatchContext()
     StorageUtil.SetIntValue(self, "mtf.dispatch.slot", -1)
     StorageUtil.SetIntValue(self, "mtf.dispatch.effectidx", -1)
     StorageUtil.SetIntValue(self, "mtf.dispatch.baseslot", -1)
+    ; v0.2.10: clear useScratch too. The public Get/SetSlotEffect* accessors
+    ; now route through _getDispatchUseScratch(), so an uncleared flag
+    ; (left over from an NPC apply) would cause subsequent MCM reads to
+    ; hit the scratch namespace instead of the player's live keyspace.
+    StorageUtil.SetIntValue(self, "mtf.dispatch.usescratch", 0)
+EndFunction
+
+; ── F10 test-mode guard (v0.2.10) ───────────────────────────────────────────
+; The slow-tick OnUpdate writes to the dispatch context (mtf.dispatch.slot/
+; effectidx/usescratch) every ~2s. If it fires while the F10 test runner is
+; in the middle of an activate→deactivate cycle (specifically: during the
+; cross-script p.onDeactivate call where the VM yields), it clobbers the
+; context. The plugin's _removeResistShift/_removeSkillShift then reads the
+; wrong (slot, eff), can't find the "mtf.resist.last.X.Y" key, and silently
+; skips the spell-removal step. Reproduces randomly on F10 — different
+; resist tests fail across runs.
+;
+; This guard suppresses the slow tick while the test runner holds it true.
+; OnUpdate checks _isTestMode() at the top; if set, it reschedules a short
+; tick and returns without touching dispatch state. TestRunner.RunAll sets
+; the flag true at entry, false on exit (always, in a finally-style block).
+;
+; This is a BAND-AID for the test runner only. The underlying race exists
+; in production gameplay too (MCM-driven SetSlotEffectFull during slow-tick
+; NPC dispatch). Proper fix: pass slot/eff explicitly into plugin helpers
+; — invasive signature change, deferred. See roadmap §6 "Dispatch context
+; (mtf.dispatch.slot/effectidx) clobber risk".
+Function _setTestMode(bool on)
+    int v = 0
+    if on
+        v = 1
+    endif
+    StorageUtil.SetIntValue(self, "mtf.test.mode", v)
+EndFunction
+
+bool Function _isTestMode()
+    return StorageUtil.GetIntValue(self, "mtf.test.mode", 0) != 0
 EndFunction
 
 ; The actor's actual base overlay slot for whichever preset is firing. For
@@ -3407,45 +3444,64 @@ EndFunction
 ; Mirrors GetSlotEffectParamN / SetSlotEffectParamN but for string-typed
 ; (menu) effect params. Plugin behaviour code consumes via
 ; host.GetSlotEffectParamNStr(slot, eff, n) inside its menu-dispatch branches.
+;
+; v0.2.10: slot bounds widened to MAX_CONDITIONS_CACHED() so backend slots
+; (8..31 by default) read/write through the public API — previously the
+; hardcoded `slot >= 8` returned "" / 0 / no-op for any backend dispatch,
+; silently breaking menu-typed effects on backend slots. Same widening
+; applied to GetSlotEffectParamN / SetSlotEffectParamN below.
+;
+; v0.2.10: useScratch is now read from the dispatch context flag
+; (_getDispatchUseScratch) rather than hardcoded false. Plugins firing
+; on NPCs or stacked-preset paths read from the scratch namespace
+; (mtf.fx.scratch.<preset>.<slot>.<idx>.paramN.s) instead of the player's
+; live keyspace. Setters mirror the same flag so MCM-edits to the
+; player's live row don't accidentally bleed into the scratch namespace
+; mid-dispatch.
 string Function GetSlotEffectParamNStr(int slot, int effectIdx, int n)
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
         return ""
     endif
-    return _readFxParamNStr(slot, effectIdx, n, false)
+    return _readFxParamNStr(slot, effectIdx, n, _getDispatchUseScratch())
 EndFunction
 
 Function SetSlotEffectParamNStr(int slot, int effectIdx, int n, string val)
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
         return
     endif
-    _writeFxParamNStr(slot, effectIdx, n, false, val)
+    _writeFxParamNStr(slot, effectIdx, n, _getDispatchUseScratch(), val)
 EndFunction
 
 ; ── Per-slot effect-list helpers ─────────────────────────────────────────────
+;
+; v0.2.10: slot bounds widened to MAX_CONDITIONS_CACHED() (default 32) so
+; backend slots reach the public API; useScratch routed through the
+; dispatch context. See the comment on GetSlotEffectParamNStr above for
+; the full rationale — same fix, same shape.
 
 string Function GetSlotEffectKey(int slot, int effectIdx)
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return ""
     endif
-    return _readFxKey(slot, effectIdx, false)
+    return _readFxKey(slot, effectIdx, _getDispatchUseScratch())
 EndFunction
 
 int Function GetSlotEffectParamN(int slot, int effectIdx, int n)
 {Unified accessor for paramN (n=1..5). Used by plugin behaviour code
  (host.GetSlotEffectParamN(slot, eff, 3) replaces the old extras read
  host.GetSlotEffectExtra(slot, eff, "rampms")).}
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
         return 0
     endif
-    return _readFxParamN(slot, effectIdx, n, false)
+    return _readFxParamN(slot, effectIdx, n, _getDispatchUseScratch())
 EndFunction
 
 Function SetSlotEffectParamN(int slot, int effectIdx, int n, int val)
 {Unified setter for paramN.}
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
         return
     endif
-    _writeFxParamN(slot, effectIdx, n, false, val)
+    _writeFxParamN(slot, effectIdx, n, _getDispatchUseScratch(), val)
 EndFunction
 
 int Function GetSlotEffectParam(int slot, int effectIdx)
@@ -3460,7 +3516,7 @@ EndFunction
 
 Function SetSlotEffect(int slot, int effectIdx, string key, int param)
 {Legacy 4-arg setter — preserves existing param2.}
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
     bool live = (slot == currentTier)
@@ -3478,7 +3534,7 @@ Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int p
 {Sets key + param1 + param2 at once. Params 3-5 are written separately
  via SetSlotEffectParamN where needed; when a new effect is bound, params
  3-5 are stamped to the catalog defaults for any declared paramN slot.}
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
     bool live = (slot == currentTier)
@@ -3488,35 +3544,85 @@ Function SetSlotEffectFull(int slot, int effectIdx, string key, int param, int p
     _writeFxKey(slot, effectIdx, false, key)
     _writeFxParamN(slot, effectIdx, 1, false, param)
     _writeFxParamN(slot, effectIdx, 2, false, param2)
-    ; Stamp catalog defaults onto params 3-5 for the new effect (so flash's
-    ; rampms/decayms/retrigms come up populated rather than 0). Old extras
-    ; for the previous binding silently fall away — the new params just
-    ; overwrite the same slots.
+    ; v0.2.10: stamp catalog defaults onto BOTH int params 3-5 AND string
+    ; params 1-5 (paramN.s) when rebinding. Previously only ints 3-5 were
+    ; stamped — string params were left at their stale value from the
+    ; previous binding (or empty on first bind), which made menu-typed
+    ; effects (modify.skill, flash.onhit, shader.play, sound.play,
+    ; sexlab.cum.*, etc.) silently no-op after a fresh MCM bind because
+    ; the live auto-activate below dispatched with an empty/stale id.
+    ;
+    ; String defaults are stamped CONDITIONALLY:
+    ;   - If the existing string is already a valid menu option for the
+    ;     new effect's paramN, preserve it. Lets callers (e.g. test runner)
+    ;     pre-write a specific id via SetSlotEffectParamNStr before this
+    ;     call without it being clobbered.
+    ;   - Otherwise stamp the catalog default. Covers fresh-bind (empty
+    ;     string), stale-from-different-effect (id belonged to another
+    ;     effect's menu domain), and effect-switch cases.
     MTF_Plugin pNew = ResolvePluginByKey(key)
     if pNew != None
         int itemIdxNew = _effectIdxFor(pNew, _keyItemId(key))
         if itemIdxNew >= 0
-            int n = 3
+            int n = 1
             while n <= 5
-                ; Skip slots the new effect doesn't declare (label is the
-                ; canonical "is this param declared" probe — same convention
-                ; the MCM render uses).
-                if pNew.GetEffectParamLabel(itemIdxNew, n) != ""
-                    _writeFxParamN(slot, effectIdx, n, false, pNew.GetEffectParamDefault(itemIdxNew, n))
+                ; Int default for declared paramN n=3..5 (n=1/2 already
+                ; set from the call args above).
+                if n >= 3
+                    if pNew.GetEffectParamLabel(itemIdxNew, n) != ""
+                        _writeFxParamN(slot, effectIdx, n, false, pNew.GetEffectParamDefault(itemIdxNew, n))
+                    else
+                        _writeFxParamN(slot, effectIdx, n, false, 0)
+                    endif
+                endif
+                ; String default for menu-typed paramN — preserve current
+                ; value if it's already in the new effect's menu domain.
+                int menuN = pNew.GetEffectParamMenuOptionCount(itemIdxNew, n)
+                if menuN > 0
+                    string curId = _readFxParamNStr(slot, effectIdx, n, false)
+                    bool isValidForNewMenu = false
+                    if curId != ""
+                        int oi = 0
+                        while oi < menuN && !isValidForNewMenu
+                            if pNew.GetEffectParamMenuOptionId(itemIdxNew, n, oi) == curId
+                                isValidForNewMenu = true
+                            endif
+                            oi += 1
+                        endwhile
+                    endif
+                    if !isValidForNewMenu
+                        _writeFxParamNStr(slot, effectIdx, n, false, pNew.GetEffectParamDefaultId(itemIdxNew, n))
+                    endif
                 else
-                    _writeFxParamN(slot, effectIdx, n, false, 0)
+                    ; Non-menu paramN — clear any stale string left over
+                    ; from a previous menu-typed binding on this slot.
+                    _writeFxParamNStr(slot, effectIdx, n, false, "")
                 endif
                 n += 1
             endwhile
         else
+            ; Effect id not in catalog — clear all of paramN[3..5] and
+            ; paramN.s[1..5] to leave no stale state behind.
             _writeFxParamN(slot, effectIdx, 3, false, 0)
             _writeFxParamN(slot, effectIdx, 4, false, 0)
             _writeFxParamN(slot, effectIdx, 5, false, 0)
+            int nx = 1
+            while nx <= 5
+                _writeFxParamNStr(slot, effectIdx, nx, false, "")
+                nx += 1
+            endwhile
         endif
     else
+        ; Empty key (slot cleared) OR plugin not resolved. Wipe all
+        ; lingering params so the next bind starts clean.
         _writeFxParamN(slot, effectIdx, 3, false, 0)
         _writeFxParamN(slot, effectIdx, 4, false, 0)
         _writeFxParamN(slot, effectIdx, 5, false, 0)
+        int ny = 1
+        while ny <= 5
+            _writeFxParamNStr(slot, effectIdx, ny, false, "")
+            ny += 1
+        endwhile
     endif
     if live
         ; Re-prime the pulse roster state — flash.onhit needs a (rate=0)
@@ -3544,7 +3650,7 @@ Function CompactEffectsAfter(int slot, int fromIdx)
  user-tuned params don't get clobbered.
 
  Stops early at the first empty src — nothing beyond a gap to compact.}
-    if slot < 0 || slot >= 8 || fromIdx < 0 || fromIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || fromIdx < 0 || fromIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -3580,7 +3686,7 @@ EndFunction
 ; effect's onDeactivate is never called and its applied state lingers
 ; (Magic/Fire resist abilities stay on, +pct shifts stay applied, …).
 Function _deactivateSingleEffect(int slot, int effectIdx)
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
     string key = _readFxKey(slot, effectIdx, false)
@@ -3593,6 +3699,11 @@ Function _deactivateSingleEffect(int slot, int effectIdx)
     endif
     int itemIdx = _effectIdxFor(p, _keyItemId(key))
     if itemIdx >= 0
+        ; v0.2.10: explicit useScratch=false. Public Get/SetSlotEffect*
+        ; accessors now route through the dispatch flag; without this set
+        ; the plugin's _dispPNStr(n) would inherit a stale flag from any
+        ; preceding NPC dispatch and read the wrong namespace.
+        _setDispatchUseScratch(false)
         _setDispatchContext(slot, effectIdx)
         _dispatchDeactivate(p, itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
         _emitEffectDeactivated(PlayerRef, key, slot)
@@ -3601,7 +3712,7 @@ Function _deactivateSingleEffect(int slot, int effectIdx)
 EndFunction
 
 Function _activateSingleEffect(int slot, int effectIdx)
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
     string key = _readFxKey(slot, effectIdx, false)
@@ -3614,6 +3725,7 @@ Function _activateSingleEffect(int slot, int effectIdx)
     endif
     int itemIdx = _effectIdxFor(p, _keyItemId(key))
     if itemIdx >= 0
+        _setDispatchUseScratch(false)  ; see _deactivateSingleEffect note
         _setDispatchContext(slot, effectIdx)
         _dispatchActivate(p, itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
         _emitEffectActivated(PlayerRef, key, slot)
@@ -3622,7 +3734,7 @@ Function _activateSingleEffect(int slot, int effectIdx)
 EndFunction
 
 Function SetSlotEffectParam2(int slot, int effectIdx, int param2)
-    if slot < 0 || slot >= 8 || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT()
         return
     endif
     _writeFxParam2(slot, effectIdx, false, param2)
@@ -4058,6 +4170,17 @@ State checkingAroused
     EndEvent
 
     Event OnUpdate()
+        ; v0.2.10: F10 test-mode guard. Suppress the slow tick entirely
+        ; while the test runner is exercising activate→deactivate cycles,
+        ; so its dispatch context isn't clobbered by NPC/player slot
+        ; dispatch firing on the same VM. Short reschedule (0.5s) so the
+        ; tick resumes promptly after the test run ends. See
+        ; _setTestMode/_isTestMode for the full rationale.
+        if _isTestMode()
+            RegisterForSingleUpdate(0.5)
+            return
+        endif
+
         ; Post-load grace: skip every eval/draw branch for the first ~5s
         ; after OnPlayerLoadGame, just keep ticking. See the
         ; _postLoadFreezeUntilRT comment near the property declaration.

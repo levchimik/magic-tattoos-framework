@@ -167,7 +167,7 @@
       "description": "Burst — gives the actor {param1} experience in her {param2} skill.",
       "kind": "burst",
       "param2": {
-        "label": "Skill (0=vag, 1=anal, 2=oral, 3=foreplay)",
+        "label": "Skill",
         "default": "vaginal",
         "menu": [
           {
