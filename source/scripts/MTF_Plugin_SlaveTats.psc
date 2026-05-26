@@ -187,7 +187,10 @@ Function _ensureSlaveTatsVersion(Actor target)
 EndFunction
 
 ; ── Lifecycle ───────────────────────────────────────────────────────────────
-Function onActivate(Actor target, int param, int param2, string eid)
+; v0.2.10: dispatch context (slot/effectIdx/useScratch/baseSlot/area) comes
+; in as explicit params — see MTF_Plugin.psc entry-point docstring for the
+; race rationale.
+Function onActivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     if eid != "slavetats.mirror" || target == None
         return
     endif
@@ -195,11 +198,7 @@ Function onActivate(Actor target, int param, int param2, string eid)
         return
     endif
     MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot = h._getDispatchSlot()
-    if slot < 0
+    if h == None || slot < 0
         return
     endif
     string packId = h.ResolveSlotPackId(slot)
@@ -209,18 +208,16 @@ Function onActivate(Actor target, int param, int param2, string eid)
         ; No texture bound to this slot (effects-only slot). Nothing to mirror.
         return
     endif
-    int areaIdx = h._getDispatchArea()
-    int baseSlot = h._getDispatchBaseSlot()
-    string area = _areaToString(areaIdx)
+    string areaStr = _areaToString(area)
     int layerN = h.GetEntryLayerCount(packId, entryId)
     int sweepSpan = MTF_MainQuest.MAX_LAYERS_PER_SLOT()
 
-    Debug.Trace("MTF.STB onActivate: slot=" + slot + " area=" + area + " baseSlot=" + baseSlot + " packId=" + packId + " entryId=" + entryId + " layerN=" + layerN)
+    Debug.Trace("MTF.STB onActivate: slot=" + slot + " area=" + areaStr + " baseSlot=" + baseSlot + " packId=" + packId + " entryId=" + entryId + " layerN=" + layerN)
 
     ; Pre-clean: evict any prior MTF entries across the full possible layer
     ; range. Wider than this activation's layerN so we also catch stale
     ; ghosts from a previously bound larger-layer-count pack.
-    _ghostSweepRange(target, area, baseSlot, sweepSpan)
+    _ghostSweepRange(target, areaStr, baseSlot, sweepSpan)
 
     ; Block upgrade_tattoos from wiping .SlaveTats.applied on first
     ; consumer touch. Must run BEFORE the JArray.addObj below — otherwise
@@ -256,7 +253,7 @@ Function onActivate(Actor target, int param, int param2, string eid)
             int tattoo = JValue.addToPool(JMap.object(), "MTFSlaveTatsBridge")
             JMap.setStr(tattoo, "section", "MTF")
             JMap.setStr(tattoo, "name", name)
-            JMap.setStr(tattoo, "area", area)
+            JMap.setStr(tattoo, "area", areaStr)
             JMap.setStr(tattoo, "texture", storedTexture)
             JMap.setInt(tattoo, "slot", targetSlot)
             JMap.setInt(tattoo, "color", 0xFFFFFF)
@@ -267,7 +264,7 @@ Function onActivate(Actor target, int param, int param2, string eid)
 
             JArray.addObj(applied, tattoo)
 
-            Debug.Trace("MTF.STB GHOSTED: name=" + name + " area=" + area + " slot=" + targetSlot + " layer=" + layer + " texture=" + storedTexture + " isST=" + isST)
+            Debug.Trace("MTF.STB GHOSTED: name=" + name + " area=" + areaStr + " slot=" + targetSlot + " layer=" + layer + " texture=" + storedTexture + " isST=" + isST)
         endif
         layer += 1
     endwhile
@@ -275,27 +272,20 @@ Function onActivate(Actor target, int param, int param2, string eid)
     JValue.cleanPool("MTFSlaveTatsBridge")
 EndFunction
 
-Function onDeactivate(Actor target, int param, int param2, string eid)
+Function onDeactivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     if eid != "slavetats.mirror" || target == None
         return
     endif
     if !_resolveDeps()
         return
     endif
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot = h._getDispatchSlot()
     if slot < 0
         return
     endif
-    int areaIdx = h._getDispatchArea()
-    int baseSlot = h._getDispatchBaseSlot()
-    string area = _areaToString(areaIdx)
+    string areaStr = _areaToString(area)
     int sweepSpan = MTF_MainQuest.MAX_LAYERS_PER_SLOT()
-    Debug.Trace("MTF.STB onDeactivate: slot=" + slot + " area=" + area + " baseSlot=" + baseSlot + " span=" + sweepSpan)
+    Debug.Trace("MTF.STB onDeactivate: slot=" + slot + " area=" + areaStr + " baseSlot=" + baseSlot + " span=" + sweepSpan)
     ; Sweep the full layer span — covers every per-layer ghost onActivate
     ; wrote regardless of the current pack's layer count.
-    _ghostSweepRange(target, area, baseSlot, sweepSpan)
+    _ghostSweepRange(target, areaStr, baseSlot, sweepSpan)
 EndFunction

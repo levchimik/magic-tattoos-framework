@@ -45,21 +45,29 @@ MTF_MainQuest Function _host()
     return Game.GetFormFromFile(0x803, "MagicTattoosFramework.esp") as MTF_MainQuest
 EndFunction
 
-; v0.2.9: helper to fetch the menu-id string for the current dispatch's
-; paramN (1..5). Menu-typed effects store their selection in paramN as a
-; stable string id (catalog schema v2). Returns "" outside a dispatch
-; context (e.g. direct invocation, missing host).
-string Function _dispPNStr(int n)
-    MTF_MainQuest h = _host()
-    if h == None
-        return ""
-    endif
-    int slot = h._getDispatchSlot()
-    int eff  = h._getDispatchEffectIdx()
+; v0.2.10: read a menu-id string for paramN (1..5) using EXPLICIT dispatch
+; context passed as params, not via the shared StorageUtil dispatch context.
+;
+; v0.2.12: presetName is now also part of the explicit context. The previous
+; signature relied on _scratchLoadedFor inside _readFxParamNStr, which a
+; concurrent fiber's _loadPresetToScratch can rebind during the cross-script
+; yield this helper makes back to the host. Plugins MUST pass the presetName
+; their entry-point received — the dispatcher carries the right value through.
+string Function _paramNStrEx(int slot, int eff, bool useScratch, string presetName, int n)
     if slot < 0 || eff < 0
         return ""
     endif
-    return h.GetSlotEffectParamNStr(slot, eff, n)
+    return _host().GetSlotEffectParamNStrExForPreset(slot, eff, n, useScratch, presetName)
+EndFunction
+
+; v0.2.12: matching int reader for params 3..5. Same race-free contract as
+; _paramNStrEx above. Plugins reading ints inside onActivate/onDeactivate/
+; onTick/onGameTime should call this helper rather than _host().GetSlotEffectParamNEx.
+int Function _paramNEx(int slot, int eff, bool useScratch, string presetName, int n)
+    if slot < 0 || eff < 0
+        return 0
+    endif
+    return _host().GetSlotEffectParamNExForPreset(slot, eff, n, useScratch, presetName)
 EndFunction
 
 ; Lifted registration loop. Every integration plugin used to repeat this
@@ -308,12 +316,15 @@ EndFunction
 ;
 ; Plugin behaviour code reads param1 + param2 from the onActivate signature
 ; (positional, by convention — most effects need just 1-2 controls). For
-; param3-5 use the MainQuest dispatch-context accessor:
+; param3-5 use the explicit-context accessor with the (slot, eff, useScratch)
+; locals from the entry-point signature:
 ;
-;   int v = host.GetSlotEffectParam(slot, eff, n)  ; n in {3, 4, 5}
+;   int v = host.GetSlotEffectParamNEx(slot, eff, n, useScratch)  ; n in {3..5}
 ;
-; (slot + eff are available via host._getDispatchSlot/_getDispatchEffectIdx
-; while a dispatch is in flight.)
+; v0.2.10: do NOT read dispatch context via _host()._getDispatchSlot/EffectIdx
+; — those are global StorageUtil values and race against concurrent fibers
+; during the VM yield on the cross-script onActivate call. Use the (slot,
+; eff, useScratch, baseSlot, area) locals delivered through the signature.
 
 string Function GetEffectParamLabel(int idx, int n)
 {Slider/menu label for param `n` (1..5). Empty when not declared.}
@@ -368,12 +379,29 @@ EndFunction
 ; identical to what the save data stores. If your branch needs to read
 ; other catalog metadata (param defaults, kind, etc.), resolve the array
 ; index lazily with `_host()._effectIdxFor(self, eid)`.
+;
+; v0.2.10 — dispatch context as explicit params:
+; The trailing (slot, effectIdx, useScratch, baseSlot, area) are delivered
+; by the framework so the plugin can address its own storage / push C++
+; roster params / read paramN strings WITHOUT consulting the shared
+; StorageUtil dispatch context. The shared context is RACY: the cross-
+; script call into onActivate yields the VM, and concurrent fibers (slow-
+; tick OnUpdate on another fiber, MCM rebind, NPC dispatch) can rewrite
+; it during the yield. Function parameters are stack-local — immune to
+; clobbering. Read everything dispatch-related from these params, never
+; from _host()._getDispatch*(). Helper functions you call from here
+; should accept (slot, eff, ...) as explicit params too — see
+; MTF_Plugin_Base for the pattern.
 
-Function onActivate(Actor target, int param, int param2, string eid)
-{Called when effect `eid` becomes active (slot just became the winning tier).}
+Function onActivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
+{Called when effect `eid` becomes active (slot just became the winning tier).
+
+ v0.2.12: presetName is the explicit scratch namespace identifier — pass it
+ through to _paramNStrEx / _paramNEx for any mid-dispatch read so the read
+ doesn't race against a concurrent fiber's _loadPresetToScratch.}
 EndFunction
 
-Function onDeactivate(Actor target, int param, int param2, string eid)
+Function onDeactivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
 {Called when effect `eid` stops being active. Must restore any persistent
  changes (AV mods, applied magic effects, etc.). Safe to call even if
  onActivate was never called.
@@ -403,13 +431,13 @@ Function onDeactivate(Actor target, int param, int param2, string eid)
  (project_papyrus_storage_before_suspend).}
 EndFunction
 
-Function onTick(Actor target, int param, int param2, string eid)
+Function onTick(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
 {Called every MainQuest update tick (typically every 2s) while effect `eid`
  is active. Use for stateful effects that need to recompute (e.g. %-of-
  current AV drains shifting with gear changes). No-op by default.}
 EndFunction
 
-Function onGameTime(Actor target, int param, int param2, string eid)
+Function onGameTime(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
 {Called once per in-game hour while effect `eid` is active. Use for
  cumulative effects (e.g. SLA exposure deltas). No-op by default.}
 EndFunction

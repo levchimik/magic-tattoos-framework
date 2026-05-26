@@ -10,7 +10,15 @@ Scriptname MTF_TestRunner extends ReferenceAlias
 
  Slot layout during a run:
    * Slot 7 -- condition under test (slots 1-6 cond keys cleared)
-   * Slot 0 -- effect under test (default tier, cond-independent)
+   * Slot 8 -- effect under test (BACKEND slot, never the active tier)
+
+ v0.2.11: TEST_FX_SLOT moved from 0 (default tier — always active, slow-tick
+ onTick re-applied test effects after deactivate and broke assertions) to 8
+ (backend slot — evaluateTier scans slots 1..MAX_CONDITIONS_CACHED but only
+ returns a slot when its cond key is non-empty; we never set a cond key on 8,
+ so 8 is never the active tier, so slow-tick never ticks 8's effects). This
+ dropped the _setTestMode quiesce — any future F10 failure is a real bug,
+ not a slow-tick methodology artifact.
 
  Snapshot+restore wraps the run; user's MCM-set state is preserved.
 
@@ -20,11 +28,20 @@ Scriptname MTF_TestRunner extends ReferenceAlias
 
  Attached as a SECOND script on MainQuest's PlayerAlias.}
 
-int   Property HOTKEY_DX_F10  = 0x44                                          AutoReadOnly
+; v0.2.11: hotkeys split — PgUp = regular F10 battery, PgDn = concurrency
+; stress test (two NPCs, two disjoint scratch presets, exercises
+; _scratchLoadedFor + dispatch-context race-fix path).
+int   Property HOTKEY_DX_PGUP = 0xC9                                          AutoReadOnly
+int   Property HOTKEY_DX_PGDN = 0xD1                                          AutoReadOnly
 string Property JSON_FILE      = "MagicTattoosFramework/tests/last_run"        AutoReadOnly
 int   Property TEST_COND_SLOT = 7                                             AutoReadOnly
-int   Property TEST_FX_SLOT   = 0                                             AutoReadOnly
+int   Property TEST_FX_SLOT   = 8                                             AutoReadOnly
 int   Property TEST_FX_IDX    = 0                                             AutoReadOnly
+
+; Stress test config — keep modest to bound wall-time.
+; Skeever base form id (vanilla). Used as the spawn target for both NPCs.
+; Ghosted+restrained immediately on placeatme so the test isn't disrupted.
+int    Property STRESS_NPC_FORMID = 0x0010D13E AutoReadOnly
 
 ; Counters -- only valid during a single RunAll.
 int _pass
@@ -39,22 +56,33 @@ string   _snapFxKey
 int      _snapFxParam
 int      _snapFxParam2
 
+; Stress-test concurrent-fiber rendezvous. The PgDn handler kicks an
+; OnUpdate(0.0) so its handler runs on a separate fiber from the keyDown
+; fiber, then both fibers call _activateSlotEffectsForActor concurrently
+; on their respective NPCs. Without separate fibers, both calls would
+; serialize on the keyDown fiber and the test wouldn't exercise the race.
+Actor    _stressNpcB
+int      _stressDoneB
+
 Event OnInit()
-    RegisterForKey(HOTKEY_DX_F10)
+    RegisterForKey(HOTKEY_DX_PGUP)
+    RegisterForKey(HOTKEY_DX_PGDN)
 EndEvent
 
 Event OnPlayerLoadGame()
-    RegisterForKey(HOTKEY_DX_F10)
+    RegisterForKey(HOTKEY_DX_PGUP)
+    RegisterForKey(HOTKEY_DX_PGDN)
 EndEvent
 
 Event OnKeyDown(int keyCode)
-    if keyCode != HOTKEY_DX_F10
-        return
-    endif
     if Utility.IsInMenuMode()
         return
     endif
-    RunAll()
+    if keyCode == HOTKEY_DX_PGUP
+        RunAll()
+    elseif keyCode == HOTKEY_DX_PGDN
+        RunStress()
+    endif
 EndEvent
 
 Function RunAll()
@@ -84,15 +112,8 @@ Function RunAll()
     JsonUtil.ClearAll(JSON_FILE)
     JsonUtil.SetFloatValue(JSON_FILE, "timestamp", Utility.GetCurrentRealTime())
 
-    ; v0.2.10: suspend MainQuest's slow tick during the run. Each test
-    ; cycles activate→deactivate rapidly; the slow tick firing in between
-    ; clobbers the dispatch context (mtf.dispatch.slot/effectidx) and
-    ; causes _removeResistShift / _removeSkillShift to read the wrong
-    ; (slot, eff), silently skipping spell removal. Symptom: random
-    ; modify.resist[X] tests fail with "storage_revert" + "spell_not_removed"
-    ; — different X across runs. Cleared in the always-run cleanup block
-    ; below so a mid-test abort doesn't leave the tick permanently off.
-    mq._setTestMode(true)
+    ; v0.2.11: no slow-tick quiesce needed. TEST_FX_SLOT=8 (backend) is never
+    ; the active tier, so slow-tick never ticks the test's effects.
 
     _snapshotState(mq)
     _clearCondSlots1to7(mq)
@@ -102,12 +123,6 @@ Function RunAll()
     _runEffects(mq, pl)
 
     _restoreState(mq)
-
-    ; Always re-enable the slow tick before exiting RunAll — even if a
-    ; test threw or aborted mid-way. Papyrus has no try/finally, but every
-    ; control path through RunAll reaches here in practice (the early
-    ; returns above all happen BEFORE we set the flag).
-    mq._setTestMode(false)
 
     int total = _pass + _fail + _skip
     JsonUtil.SetIntValue(JSON_FILE, "total", total)
@@ -888,15 +903,14 @@ Function _testFxAVStr(MTF_MainQuest mq, Actor pl, string eid, string p1Id, int p
  string id written via SetSlotEffectParamNStr; the int param1 is ignored by
  the dispatcher on these effects.
 
- v0.2.9 ordering note: write the string FIRST, then call SetSlotEffectFull.
- SetSlotEffectFull auto-activates the slot (live=true since TEST_FX_SLOT=0),
- and the auto-activate dispatches with whatever the string is at that moment.
- If we wrote string AFTER SetSlotEffectFull and then re-activated manually,
- we'd get a double-activate where the first pass sees an empty string,
- short-circuits in _recomputeSkillShift, and the second pass writes — that
- worked most of the time but flaked unpredictably (which skill failed
- differed every run). One activate, called with the right string, is
- deterministic.}
+ v0.2.11: explicit activate/deactivate pattern (was relying on
+ SetSlotEffectFull's auto-activate, which only fires when slot==currentTier;
+ TEST_FX_SLOT is now 8 — a backend slot, never the active tier — so the
+ auto-activate path is dead). Mirror _testFxAV's flow: SetSlotEffectFull,
+ then _activateSlotEffects; on cleanup _deactivateSlotEffects, then clear.
+
+ String param is still written FIRST so that the activate dispatch reads
+ the right id rather than the previous test's stale value.}
     ; ARRANGE -- assert storage starts clean (catches leaks from prior tests)
     float baseStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
     if !_floatNear(baseStorage, 0.0, 0.01)
@@ -911,14 +925,16 @@ Function _testFxAVStr(MTF_MainQuest mq, Actor pl, string eid, string p1Id, int p
     float beforeStorage = baseStorage
     float beforeAV      = pl.GetActorValue(av)
 
-    ; String param FIRST — so SetSlotEffectFull's auto-activate dispatches
-    ; with the right id rather than the previous test's stale empty value.
+    ; String param FIRST so the explicit activate below dispatches with the
+    ; right id rather than a previous test's stale empty value.
     mq.SetSlotEffectParamNStr(TEST_FX_SLOT, TEST_FX_IDX, 1, p1Id)
     mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "mtf.base:" + eid, 0, p2)
+    mq._activateSlotEffects(TEST_FX_SLOT)
 
     float afterStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
     float afterAV      = pl.GetActorValue(av)
 
+    mq._deactivateSlotEffects(TEST_FX_SLOT)
     mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "", 0, 0)
     mq.SetSlotEffectParamNStr(TEST_FX_SLOT, TEST_FX_IDX, 1, "")
 
@@ -1054,13 +1070,16 @@ Function _testFxResistAbility(MTF_MainQuest mq, Actor pl, string resistId, int d
 
     float beforeStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
 
-    ; String FIRST -- see _testFxAVStr's ordering note for the rationale.
+    ; v0.2.11: explicit activate/deactivate — see _testFxAVStr docstring.
+    ; String FIRST so the activate dispatch reads the right id.
     mq.SetSlotEffectParamNStr(TEST_FX_SLOT, TEST_FX_IDX, 1, resistId)
     mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "mtf.base:modify.resist", 0, delta)
+    mq._activateSlotEffects(TEST_FX_SLOT)
 
     float afterStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
     bool afterHasSpell = pl.HasSpell(resistSpell)
 
+    mq._deactivateSlotEffects(TEST_FX_SLOT)
     mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "", 0, 0)
     mq.SetSlotEffectParamNStr(TEST_FX_SLOT, TEST_FX_IDX, 1, "")
 
@@ -1214,4 +1233,238 @@ string[] Function _resistIds()
     a[4] = "disease"
     a[5] = "poison"
     return a
+EndFunction
+
+; ====================================================================
+; CONCURRENCY STRESS TEST (PgDn)
+;
+; Validates that the v0.2.10 dispatch-context-as-params refactor holds
+; under realistic two-actor concurrency. Two NPCs receive two disjoint
+; scratch presets — one shifts archery/smithing/alchemy, the other
+; enchanting/destruction/illusion — fired from TWO SEPARATE FIBERS so
+; the script-level `_scratchLoadedFor` can race.
+;
+; Without the fix, the second fiber's _loadPresetToScratch clobbers
+; _scratchLoadedFor between the first fiber's snapshot loop and any
+; subsequent string-param read inside plugin onActivate — yielding
+; cross-pollination (NPC1 ends up with NPC2's skills shifted or vice
+; versa). With the fix, each fiber's snapshot+dispatch sees its own
+; preset's data only.
+;
+; Wall-time budget: ~10-15s.
+; Cleanup: NPCs disabled+deleted, AVs restored, presets removed.
+; ====================================================================
+
+Function RunStress()
+    Debug.Notification("MTF stress: starting (concurrency)...")
+    Debug.Trace("[MTF_STRESS] === Run start ===")
+
+    MTF_MainQuest mq = GetOwningQuest() as MTF_MainQuest
+    if mq == None
+        Debug.Trace("[MTF_STRESS] FATAL: owning quest != MTF_MainQuest")
+        Debug.Notification("MTF stress: ABORT (no MainQuest)")
+        return
+    endif
+    Actor pl = Game.GetPlayer()
+    if pl == None
+        return
+    endif
+    Form skeeverBase = Game.GetForm(STRESS_NPC_FORMID)
+    if skeeverBase == None
+        Debug.Trace("[MTF_STRESS] FATAL: Skeever base form 0x" + _hex8(STRESS_NPC_FORMID) + " not found")
+        Debug.Notification("MTF stress: ABORT (no spawn base)")
+        return
+    endif
+
+    _pass = 0
+    _fail = 0
+    _skip = 0
+    JsonUtil.ClearAll(JSON_FILE)
+    JsonUtil.SetFloatValue(JSON_FILE, "timestamp", Utility.GetCurrentRealTime())
+    JsonUtil.SetStringValue(JSON_FILE, "kind", "stress")
+
+    ; ARRANGE — spawn 2 skeevers, ghost+restrain so they don't disrupt the test.
+    Actor npc1 = pl.PlaceAtMe(skeeverBase) as Actor
+    Actor npc2 = pl.PlaceAtMe(skeeverBase) as Actor
+    if npc1 == None || npc2 == None
+        Debug.Trace("[MTF_STRESS] FATAL: PlaceAtMe returned None")
+        Debug.Notification("MTF stress: ABORT (spawn failed)")
+        if npc1 != None
+            npc1.Disable()
+            npc1.Delete()
+        endif
+        if npc2 != None
+            npc2.Disable()
+            npc2.Delete()
+        endif
+        return
+    endif
+    npc1.SetGhost(true)
+    npc1.SetRestrained(true)
+    npc1.IgnoreFriendlyHits(true)
+    npc2.SetGhost(true)
+    npc2.SetRestrained(true)
+    npc2.IgnoreFriendlyHits(true)
+    Utility.Wait(0.5) ; let actors finish spawning before AV reads
+
+    ; Baselines for the 6 skills under test, per NPC.
+    string[] avA = _stressAvsA()
+    string[] avB = _stressAvsB()
+    float[]  base1A = _stressSnapshot(npc1, avA)
+    float[]  base1B = _stressSnapshot(npc1, avB)
+    float[]  base2A = _stressSnapshot(npc2, avA)
+    float[]  base2B = _stressSnapshot(npc2, avB)
+
+    ; v0.2.12: PRE-WARM scratch cache for both presets sequentially BEFORE
+    ; the concurrent phase. Cold load runs the inner effect loop with
+    ; cross-script yields on pLoadX.GetEffectParam* calls; two concurrent
+    ; cold loads can interleave and even with v0.2.12's ForPreset writes,
+    ; the _s* in-memory arrays still race. Cache hit (warm load) is fully
+    ; atomic — only SKSE-native StorageUtil reads, no yields. After this
+    ; pre-warm, both presets are cached and the concurrent AddAppliedPreset
+    ; calls hit the cache path, leaving only the activate-dispatch race
+    ; (which the v0.2.12 plugin-side fixes already cover).
+    mq._loadPresetToScratch("MTF_StressA")
+    mq._loadPresetToScratch("MTF_StressB")
+
+    ; ACT — kick fiber B (OnUpdate) for NPC2, run fiber A (this) for NPC1.
+    ; The OnUpdate fiber races against this one inside MainQuest's
+    ; _activateSlotEffectsForActor dispatch loop (now the only remaining
+    ; race surface after the pre-warm above).
+    _stressNpcB  = npc2
+    _stressDoneB = 0
+    RegisterForSingleUpdate(0.0)
+    int rcA = mq.AddAppliedPreset(npc1, "MTF_StressA")
+
+    ; WAIT for fiber B to complete (bounded to ~10s).
+    int waits = 0
+    while _stressDoneB == 0 && waits < 50
+        Utility.Wait(0.2)
+        waits += 1
+    endwhile
+    if _stressDoneB == 0
+        Debug.Trace("[MTF_STRESS] WARN: fiber B did not signal completion within 10s")
+    endif
+    ; Extra settle: AddAppliedPreset's tier-change fires _activateSlotEffectsForActor
+    ; on a deferred-update path. Give the engine ~1s to actually apply the AV mods.
+    Utility.Wait(1.0)
+
+    ; ASSERT — per-NPC AV deltas, no cross-pollination.
+    _stressAssertGroup("npc1 stressA-skills", npc1, avA, base1A, 10.0, true)
+    _stressAssertGroup("npc1 stressB-skills (must NOT leak)", npc1, avB, base1B, 0.0, false)
+    _stressAssertGroup("npc2 stressB-skills", npc2, avB, base2B, 10.0, true)
+    _stressAssertGroup("npc2 stressA-skills (must NOT leak)", npc2, avA, base2A, 0.0, false)
+
+    if rcA != 1
+        _fail += 1
+        string rowRc = "FAIL stress AddAppliedPreset(npc1, StressA) rc=" + rcA
+        Debug.Trace("[MTF_STRESS] " + rowRc)
+        JsonUtil.StringListAdd(JSON_FILE, "rows", rowRc)
+    endif
+
+    ; CLEANUP — remove both presets, give the deactivate path time to settle,
+    ; then verify AVs returned to baseline.
+    mq.RemoveAppliedPreset(npc1, "MTF_StressA")
+    mq.RemoveAppliedPreset(npc2, "MTF_StressB")
+    Utility.Wait(1.0)
+
+    _stressAssertGroup("npc1 stressA-skills reverted", npc1, avA, base1A, 0.0, true)
+    _stressAssertGroup("npc2 stressB-skills reverted", npc2, avB, base2B, 0.0, true)
+
+    ; Despawn the actors. Disable first, then Delete on the next frame
+    ; so the engine flushes references cleanly.
+    npc1.Disable()
+    npc2.Disable()
+    Utility.Wait(0.3)
+    npc1.Delete()
+    npc2.Delete()
+    _stressNpcB = None
+
+    int total = _pass + _fail + _skip
+    JsonUtil.SetIntValue(JSON_FILE, "total", total)
+    JsonUtil.SetIntValue(JSON_FILE, "passed", _pass)
+    JsonUtil.SetIntValue(JSON_FILE, "failed", _fail)
+    JsonUtil.SetIntValue(JSON_FILE, "skipped", _skip)
+    JsonUtil.Save(JSON_FILE)
+
+    string summary = "MTF stress: " + _pass + "/" + total + " pass"
+    if _fail > 0
+        summary += " (" + _fail + " FAIL)"
+    endif
+    Debug.Trace("[MTF_STRESS] === " + summary + " ===")
+    Debug.Notification(summary)
+EndFunction
+
+Event OnUpdate()
+    ; Fiber B for the stress test. Runs on the script's update timer fiber
+    ; which is distinct from the keyDown fiber that drove RunStress() — so
+    ; the AddAppliedPreset call here interleaves with the keyDown fiber's
+    ; AddAppliedPreset call at every cross-script yield. _stressNpcB is the
+    ; rendezvous; clear it after handling to avoid stale firings.
+    if _stressNpcB == None
+        return
+    endif
+    MTF_MainQuest mq = GetOwningQuest() as MTF_MainQuest
+    if mq != None
+        int rcB = mq.AddAppliedPreset(_stressNpcB, "MTF_StressB")
+        if rcB != 1
+            _fail += 1
+            string rowRc = "FAIL stress AddAppliedPreset(npc2, StressB) rc=" + rcB
+            Debug.Trace("[MTF_STRESS] " + rowRc)
+            JsonUtil.StringListAdd(JSON_FILE, "rows", rowRc)
+        endif
+    endif
+    _stressDoneB = 1
+EndEvent
+
+string[] Function _stressAvsA()
+    string[] a = new string[3]
+    a[0] = "Marksman"   ; archery
+    a[1] = "Smithing"
+    a[2] = "Alchemy"
+    return a
+EndFunction
+
+string[] Function _stressAvsB()
+    string[] a = new string[3]
+    a[0] = "Enchanting"
+    a[1] = "Destruction"
+    a[2] = "Illusion"
+    return a
+EndFunction
+
+float[] Function _stressSnapshot(Actor target, string[] avs)
+    float[] out = Utility.CreateFloatArray(avs.Length, 0.0)
+    int i = 0
+    while i < avs.Length
+        out[i] = target.GetActorValue(avs[i])
+        i += 1
+    endwhile
+    return out
+EndFunction
+
+Function _stressAssertGroup(string label, Actor target, string[] avs, float[] baselines, float expectedDelta, bool failOnMismatch)
+{Compare each AV against its baseline. expectedDelta is the per-AV change
+ we expect; tol is fixed at 0.5 (skill AVs are integer-valued in practice).
+ If failOnMismatch is false (cross-pollination checks), a mismatch logs as
+ a CROSS_LEAK failure with explicit per-AV detail.}
+    float TOL = 0.5
+    int i = 0
+    while i < avs.Length
+        string av = avs[i]
+        float now = target.GetActorValue(av)
+        float gotDelta = now - baselines[i]
+        bool ok = _floatNear(gotDelta, expectedDelta, TOL)
+        string row
+        if ok
+            _pass += 1
+            row = "PASS stress " + label + " av=" + av + " delta=" + gotDelta
+        else
+            _fail += 1
+            row = "FAIL stress " + label + " av=" + av + " got_delta=" + gotDelta + " want=" + expectedDelta
+        endif
+        Debug.Trace("[MTF_STRESS] " + row)
+        JsonUtil.StringListAdd(JSON_FILE, "rows", row)
+        i += 1
+    endwhile
 EndFunction

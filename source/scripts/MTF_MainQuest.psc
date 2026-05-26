@@ -1627,16 +1627,25 @@ int Function _maxParamN() global
     return 5
 EndFunction
 
-; ── Effect dispatch context (v0.1.3) ────────────────────────────────────────
-; Set by the effect-iteration loops in _activateSlotEffects /
-; _deactivateSlotEffects / _dispatchTickEffects right before each
-; plugin.onActivate/.onDeactivate/.onTick call, so the plugin can read back
-; which (slot, effectIdx) it is currently servicing — needed for any plugin
-; that uses extras storage.
+; ── Effect dispatch context (v0.1.3 → v0.2.10) ─────────────────────────────
+; v0.2.10: dispatch context now flows as explicit FUNCTION PARAMETERS
+; (slot/effectIdx/useScratch/baseSlot/area) down through _dispatchActivate /
+; plugin.onActivate / its helpers. The earlier StorageUtil-backed
+; mtf.dispatch.* keys were race-prone: each cross-script call into a
+; plugin function yields the VM, and during that yield a concurrent fiber
+; (slow-tick OnUpdate, MCM-driven rebind, NPC dispatch) could rewrite the
+; shared keys before the plugin's first read. The plugin would then read
+; the WRONG effect's slot/eff/useScratch and silently mis-dispatch
+; (skill/resist tests failed at random across F10 runs because of this).
 ;
-; Backed by StorageUtil ints (not Auto properties) — the v0.0.32+ "Auto
-; property attach trap" makes adding new Auto-Hidden vars to a long-lived
-; script unsafe.
+; The getters below are kept for ONE remaining caller path: the public
+; accessors GetSlotEffectParamN / GetSlotEffectKey / etc. route useScratch
+; through _getDispatchUseScratch() for backward-compat with MCM / test
+; callers. Since nothing writes the keys anymore, the getters return
+; their safe defaults (slot=-1, useScratch=false, baseSlot fallback =
+; OverlaySlot, area=0) — exactly what those callers expect from the
+; player keyspace. The setter functions are gone (delete-bait if no
+; external script restores them).
 
 int Function _getDispatchSlot()
     return StorageUtil.GetIntValue(self, "mtf.dispatch.slot", -1)
@@ -1646,73 +1655,11 @@ int Function _getDispatchEffectIdx()
     return StorageUtil.GetIntValue(self, "mtf.dispatch.effectidx", -1)
 EndFunction
 
-Function _setDispatchContext(int slot, int effectIdx)
-    StorageUtil.SetIntValue(self, "mtf.dispatch.slot", slot)
-    StorageUtil.SetIntValue(self, "mtf.dispatch.effectidx", effectIdx)
-EndFunction
-
-Function _clearDispatchContext()
-    StorageUtil.SetIntValue(self, "mtf.dispatch.slot", -1)
-    StorageUtil.SetIntValue(self, "mtf.dispatch.effectidx", -1)
-    StorageUtil.SetIntValue(self, "mtf.dispatch.baseslot", -1)
-    ; v0.2.10: clear useScratch too. The public Get/SetSlotEffect* accessors
-    ; now route through _getDispatchUseScratch(), so an uncleared flag
-    ; (left over from an NPC apply) would cause subsequent MCM reads to
-    ; hit the scratch namespace instead of the player's live keyspace.
-    StorageUtil.SetIntValue(self, "mtf.dispatch.usescratch", 0)
-EndFunction
-
-; ── F10 test-mode guard (v0.2.10) ───────────────────────────────────────────
-; The slow-tick OnUpdate writes to the dispatch context (mtf.dispatch.slot/
-; effectidx/usescratch) every ~2s. If it fires while the F10 test runner is
-; in the middle of an activate→deactivate cycle (specifically: during the
-; cross-script p.onDeactivate call where the VM yields), it clobbers the
-; context. The plugin's _removeResistShift/_removeSkillShift then reads the
-; wrong (slot, eff), can't find the "mtf.resist.last.X.Y" key, and silently
-; skips the spell-removal step. Reproduces randomly on F10 — different
-; resist tests fail across runs.
-;
-; This guard suppresses the slow tick while the test runner holds it true.
-; OnUpdate checks _isTestMode() at the top; if set, it reschedules a short
-; tick and returns without touching dispatch state. TestRunner.RunAll sets
-; the flag true at entry, false on exit (always, in a finally-style block).
-;
-; This is a BAND-AID for the test runner only. The underlying race exists
-; in production gameplay too (MCM-driven SetSlotEffectFull during slow-tick
-; NPC dispatch). Proper fix: pass slot/eff explicitly into plugin helpers
-; — invasive signature change, deferred. See roadmap §6 "Dispatch context
-; (mtf.dispatch.slot/effectidx) clobber risk".
-Function _setTestMode(bool on)
-    int v = 0
-    if on
-        v = 1
-    endif
-    StorageUtil.SetIntValue(self, "mtf.test.mode", v)
-EndFunction
-
-bool Function _isTestMode()
-    return StorageUtil.GetIntValue(self, "mtf.test.mode", 0) != 0
-EndFunction
-
-; The actor's actual base overlay slot for whichever preset is firing. For
-; the player, this is currently h.OverlaySlot (the MCM-managed slot). For
-; NPCs (and stacked player presets), it's the per-preset
-; _getActorPresetBase(target, presetName, "Body") value.
-;
-; Set by the per-actor activation paths right before each onActivate so
-; plugins (specifically _applyFlashOnHit) can push C++ flash params to
-; the same roster entry the overlay actually lives on. Without this the
-; flash params land at h.OverlaySlot for everyone — fine for the player,
-; wrong for NPCs whose preset base is dynamically chosen by
-; _findFirstFreeOverlaySlotNPC.
-Function _setDispatchBaseSlot(int baseSlot)
-    StorageUtil.SetIntValue(self, "mtf.dispatch.baseslot", baseSlot)
-EndFunction
-
 int Function _getDispatchBaseSlot()
-{Returns the preset's actual base overlay slot for the currently-firing
- effect, or h.OverlaySlot as a safe fallback when not set (covers older
- call sites that haven't been updated yet).}
+{Legacy getter (v0.1.3..v0.2.9). Post-v0.2.10 nothing writes the backing
+ StorageUtil key, so this always falls back to OverlaySlot — correct for
+ the MCM / test read paths that survived the dispatch-context-as-params
+ refactor.}
     int v = StorageUtil.GetIntValue(self, "mtf.dispatch.baseslot", -1)
     if v < 0
         return OverlaySlot
@@ -1720,34 +1667,16 @@ int Function _getDispatchBaseSlot()
     return v
 EndFunction
 
-; v0.1.17 Phase 3 (multi-area): companion to _setDispatchBaseSlot — stores
-; the area integer (0=Body, 1=Face, 2=Hand, 3=Feet) for the currently-firing
-; preset. Effects that push C++ roster params (flash.onhit, ondeath.fade)
-; read this so they target the same roster entry _drawPresetOnActor wrote.
-Function _setDispatchArea(int areaIdx)
-    StorageUtil.SetIntValue(self, "mtf.dispatch.area", areaIdx)
-EndFunction
-
 int Function _getDispatchArea()
-{Returns 0..3; defaults to 0 (Body) when unset. Mirrors _getDispatchBaseSlot's
- fallback so the player single-preset legacy path lands on the body roster
- entry without needing per-call setup.}
+{Legacy getter — see _getDispatchBaseSlot. Always returns 0 (Body) now
+ that nothing writes the backing key.}
     return StorageUtil.GetIntValue(self, "mtf.dispatch.area", 0)
 EndFunction
 
-; Scratch dispatch flag — when 1, GetSlotEffectExtra reads from the
-; "mtf.scratch.fx.*" key family (populated by _loadPresetToScratch) instead
-; of the player's "mtf.fx.*" persistent storage. Set by the ForActor
-; dispatch wrappers; the player single-preset path leaves it 0.
-Function _setDispatchUseScratch(bool useScratch)
-    int v = 0
-    if useScratch
-        v = 1
-    endif
-    StorageUtil.SetIntValue(self, "mtf.dispatch.usescratch", v)
-EndFunction
-
 bool Function _getDispatchUseScratch()
+{Legacy getter — see _getDispatchBaseSlot. Always returns false (player
+ keyspace) now that nothing writes the backing key. Public accessors
+ (GetSlotEffectParamN/etc.) lean on this; MCM and test callers want false.}
     return StorageUtil.GetIntValue(self, "mtf.dispatch.usescratch", 0) != 0
 EndFunction
 
@@ -3367,6 +3296,19 @@ string Function _readFxKey(int slot, int idx, bool useScratch)
     return StorageUtil.GetStringValue(None, "mtf.fx." + slot + "." + idx + ".key", "")
 EndFunction
 
+; v0.2.12: race-free key reader. The NPC snapshot loops in
+; _activateSlotEffectsForActor etc. used to read via _readFxKey which goes
+; through _scratchLoadedFor. The snapshot loop itself is atomic (SKSE
+; natives don't yield), but threading presetName explicitly makes the
+; data flow auditable end-to-end — caller passes the preset name it
+; intends to read from, no implicit dependency on script-level state.
+string Function _readFxKeyForPreset(int slot, int idx, bool useScratch, string presetName)
+    if useScratch && presetName != ""
+        return StorageUtil.GetStringValue(None, "mtf.fx.scratch." + presetName + "." + slot + "." + idx + ".key", "")
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.fx." + slot + "." + idx + ".key", "")
+EndFunction
+
 ; ── Param storage (v0.2.1 uniform paramN) ──────────────────────────────────
 ; One internal helper family for params 1..5. The legacy _readFxParam /
 ; _readFxParam2 / _writeFxParam / _writeFxParam2 are now thin n=1/n=2
@@ -3383,9 +3325,36 @@ int Function _readFxParamN(int slot, int idx, int n, bool useScratch)
     return StorageUtil.GetIntValue(None, "mtf.fx." + slot + "." + idx + ".param" + n, 0)
 EndFunction
 
+; v0.2.12: race-free reader. Path uses the supplied `presetName` directly
+; instead of `_scratchLoadedFor` — so a concurrent fiber's _loadPresetToScratch
+; can't redirect this read mid-dispatch. The dispatch path passes presetName
+; as a stack-local function param through every layer. presetName="" + useScratch=true
+; falls back to the live keyspace because empty scratch namespace is never valid.
+int Function _readFxParamNForPreset(int slot, int idx, int n, bool useScratch, string presetName)
+    if useScratch && presetName != ""
+        return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + presetName + "." + slot + "." + idx + ".param" + n, 0)
+    endif
+    return StorageUtil.GetIntValue(None, "mtf.fx." + slot + "." + idx + ".param" + n, 0)
+EndFunction
+
 Function _writeFxParamN(int slot, int idx, int n, bool useScratch, int val)
     if useScratch
         StorageUtil.SetIntValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param" + n, val)
+        return
+    endif
+    StorageUtil.SetIntValue(None, "mtf.fx." + slot + "." + idx + ".param" + n, val)
+EndFunction
+
+; v0.2.12: race-free writer for _loadPresetToScratch's cold-load loop. The
+; loop crosses into plugin scripts (pLoadX.GetEffectParamMenuOptionCount)
+; which YIELDS the Papyrus VM; a concurrent fiber's _loadPresetToScratch
+; can run during the yield and rebind _scratchLoadedFor, redirecting our
+; subsequent _writeFxParamN writes to its namespace. Route every write
+; inside _loadPresetToScratch's loops through ForPreset variants so writes
+; always land under the preset name the load was called with.
+Function _writeFxParamNForPreset(int slot, int idx, int n, bool useScratch, string presetName, int val)
+    if useScratch && presetName != ""
+        StorageUtil.SetIntValue(None, "mtf.fx.scratch." + presetName + "." + slot + "." + idx + ".param" + n, val)
         return
     endif
     StorageUtil.SetIntValue(None, "mtf.fx." + slot + "." + idx + ".param" + n, val)
@@ -3404,6 +3373,17 @@ EndFunction
 Function _writeFxKey(int slot, int idx, bool useScratch, string val)
     if useScratch
         StorageUtil.SetStringValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".key", val)
+        return
+    endif
+    StorageUtil.SetStringValue(None, "mtf.fx." + slot + "." + idx + ".key", val)
+EndFunction
+
+; v0.2.12: race-free writer counterpart to _readFxKeyForPreset. Same
+; rationale as _writeFxParamNForPreset — used inside _loadPresetToScratch's
+; cold-load loop so its writes survive a concurrent fiber's load.
+Function _writeFxKeyForPreset(int slot, int idx, bool useScratch, string presetName, string val)
+    if useScratch && presetName != ""
+        StorageUtil.SetStringValue(None, "mtf.fx.scratch." + presetName + "." + slot + "." + idx + ".key", val)
         return
     endif
     StorageUtil.SetStringValue(None, "mtf.fx." + slot + "." + idx + ".key", val)
@@ -3432,9 +3412,33 @@ string Function _readFxParamNStr(int slot, int idx, int n, bool useScratch)
     return StorageUtil.GetStringValue(None, "mtf.fx." + slot + "." + idx + ".param" + n + ".s", "")
 EndFunction
 
+; v0.2.12: race-free string reader. See _readFxParamNForPreset for the
+; rationale. The previous _readFxParamNStr — used by every plugin's
+; modify.skill/resist/flash/shader/sound string-param read — traversed
+; _scratchLoadedFor, which is script-level state any concurrent fiber's
+; _loadPresetToScratch can rebind. Read uses the supplied presetName,
+; sourced from the plugin entry-point's stack-local `presetName` param.
+string Function _readFxParamNStrForPreset(int slot, int idx, int n, bool useScratch, string presetName)
+    if useScratch && presetName != ""
+        return StorageUtil.GetStringValue(None, "mtf.fx.scratch." + presetName + "." + slot + "." + idx + ".param" + n + ".s", "")
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.fx." + slot + "." + idx + ".param" + n + ".s", "")
+EndFunction
+
 Function _writeFxParamNStr(int slot, int idx, int n, bool useScratch, string val)
     if useScratch
         StorageUtil.SetStringValue(None, "mtf.fx.scratch." + _scratchLoadedFor + "." + slot + "." + idx + ".param" + n + ".s", val)
+        return
+    endif
+    StorageUtil.SetStringValue(None, "mtf.fx." + slot + "." + idx + ".param" + n + ".s", val)
+EndFunction
+
+; v0.2.12: race-free string writer. Used in _loadPresetToScratch's cold-load
+; loop. Counterpart to _readFxParamNStrForPreset — see that docstring for
+; the full race rationale.
+Function _writeFxParamNStrForPreset(int slot, int idx, int n, bool useScratch, string presetName, string val)
+    if useScratch && presetName != ""
+        StorageUtil.SetStringValue(None, "mtf.fx.scratch." + presetName + "." + slot + "." + idx + ".param" + n + ".s", val)
         return
     endif
     StorageUtil.SetStringValue(None, "mtf.fx." + slot + "." + idx + ".param" + n + ".s", val)
@@ -3465,6 +3469,32 @@ string Function GetSlotEffectParamNStr(int slot, int effectIdx, int n)
     return _readFxParamNStr(slot, effectIdx, n, _getDispatchUseScratch())
 EndFunction
 
+; v0.2.10: explicit-useScratch overload. Dispatch hot paths now receive the
+; flag as a stack-local function param and pass it through here, so the
+; read is immune to the shared-StorageUtil dispatch-context clobber the
+; non-Ex variant suffers when a concurrent fiber rewrites usescratch during
+; the cross-script yield. Non-Ex accessor still works for MCM / test
+; callers — they read with dispatch context unset (= useScratch=false),
+; which is correct because they target the player's persistent keyspace.
+string Function GetSlotEffectParamNStrEx(int slot, int effectIdx, int n, bool useScratch)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+        return ""
+    endif
+    return _readFxParamNStr(slot, effectIdx, n, useScratch)
+EndFunction
+
+; v0.2.12: race-free overload for string-typed paramN reads. See
+; GetSlotEffectParamNExForPreset for the full rationale — same race, same
+; fix. Plugins MUST use this variant inside onActivate/onDeactivate/onTick/
+; onGameTime; the Ex variant traverses _scratchLoadedFor and is no longer
+; safe for mid-dispatch reads when a concurrent fiber might rebind it.
+string Function GetSlotEffectParamNStrExForPreset(int slot, int effectIdx, int n, bool useScratch, string presetName)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+        return ""
+    endif
+    return _readFxParamNStrForPreset(slot, effectIdx, n, useScratch, presetName)
+EndFunction
+
 Function SetSlotEffectParamNStr(int slot, int effectIdx, int n, string val)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
         return
@@ -3487,13 +3517,40 @@ string Function GetSlotEffectKey(int slot, int effectIdx)
 EndFunction
 
 int Function GetSlotEffectParamN(int slot, int effectIdx, int n)
-{Unified accessor for paramN (n=1..5). Used by plugin behaviour code
- (host.GetSlotEffectParamN(slot, eff, 3) replaces the old extras read
- host.GetSlotEffectExtra(slot, eff, "rampms")).}
+{Unified accessor for paramN (n=1..5). Used by MCM / test callers — they
+ read outside of dispatch, where _getDispatchUseScratch() = false (the
+ player's persistent keyspace). Plugin behaviour code should call
+ GetSlotEffectParamNEx with the explicit useScratch from its entry-point
+ params instead — see the Ex variant's docstring for the race rationale.}
     if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
         return 0
     endif
     return _readFxParamN(slot, effectIdx, n, _getDispatchUseScratch())
+EndFunction
+
+; v0.2.10: explicit-useScratch overload — see GetSlotEffectParamNStrEx for
+; the full rationale.
+int Function GetSlotEffectParamNEx(int slot, int effectIdx, int n, bool useScratch)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+        return 0
+    endif
+    return _readFxParamN(slot, effectIdx, n, useScratch)
+EndFunction
+
+; v0.2.12: race-free overload. The Ex variant (above) still depends on
+; _scratchLoadedFor inside _readFxParamN — a concurrent fiber's
+; _loadPresetToScratch will rebind it during the cross-script yield from
+; plugin onActivate back to this host call, redirecting the read to the
+; wrong preset's scratch namespace. The ForPreset variant takes presetName
+; as a stack-local param threaded from the dispatcher and bypasses
+; _scratchLoadedFor entirely. Plugins MUST use this variant for any
+; mid-dispatch read; the Ex variant is kept only for the MCM / test
+; callers that read outside of dispatch.
+int Function GetSlotEffectParamNExForPreset(int slot, int effectIdx, int n, bool useScratch, string presetName)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || effectIdx < 0 || effectIdx >= MAX_EFFECTS_PER_SLOT() || n < 1 || n > 5
+        return 0
+    endif
+    return _readFxParamNForPreset(slot, effectIdx, n, useScratch, presetName)
 EndFunction
 
 Function SetSlotEffectParamN(int slot, int effectIdx, int n, int val)
@@ -3699,15 +3756,11 @@ Function _deactivateSingleEffect(int slot, int effectIdx)
     endif
     int itemIdx = _effectIdxFor(p, _keyItemId(key))
     if itemIdx >= 0
-        ; v0.2.10: explicit useScratch=false. Public Get/SetSlotEffect*
-        ; accessors now route through the dispatch flag; without this set
-        ; the plugin's _dispPNStr(n) would inherit a stale flag from any
-        ; preceding NPC dispatch and read the wrong namespace.
-        _setDispatchUseScratch(false)
-        _setDispatchContext(slot, effectIdx)
-        _dispatchDeactivate(p, itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
+        ; v0.2.10: dispatch context is passed as explicit params — see
+        ; _dispatchDeactivate's docstring for the race rationale. Player
+        ; single-preset path: useScratch=false, baseSlot=OverlaySlot, area=0.
+        _dispatchDeactivate(p, itemIdx, PlayerRef, slot, effectIdx, false, OverlaySlot, 0, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false), "")
         _emitEffectDeactivated(PlayerRef, key, slot)
-        _clearDispatchContext()
     endif
 EndFunction
 
@@ -3725,11 +3778,8 @@ Function _activateSingleEffect(int slot, int effectIdx)
     endif
     int itemIdx = _effectIdxFor(p, _keyItemId(key))
     if itemIdx >= 0
-        _setDispatchUseScratch(false)  ; see _deactivateSingleEffect note
-        _setDispatchContext(slot, effectIdx)
-        _dispatchActivate(p, itemIdx, PlayerRef, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false))
+        _dispatchActivate(p, itemIdx, PlayerRef, slot, effectIdx, false, OverlaySlot, 0, _readFxParam(slot, effectIdx, false), _readFxParam2(slot, effectIdx, false), "")
         _emitEffectActivated(PlayerRef, key, slot)
-        _clearDispatchContext()
     endif
 EndFunction
 
@@ -3859,9 +3909,14 @@ EndFunction
 ; To reset: call ResetLifecycleAudit() to clear all counters (or just
 ; toggle DebugMode off to stop incrementing).
 
-Function _dispatchActivate(MTF_Plugin p, int itemIdx, Actor target, int param, int param2)
+; v0.2.10: dispatch context (slot/effectIdx/useScratch/baseSlot/area) is
+; passed as stack-local params now, not via the shared StorageUtil dispatch
+; context. The shared context races against concurrent fibers during the
+; cross-script yield on p.onActivate. See the plugin entry-point docstring
+; in MTF_Plugin.psc for the full story.
+Function _dispatchActivate(MTF_Plugin p, int itemIdx, Actor target, int slot, int eff, bool useScratch, int baseSlot, int area, int param, int param2, string presetName)
     string eid = p.GetEffectId(itemIdx)
-    p.onActivate(target, param, param2, eid)
+    p.onActivate(target, param, param2, eid, slot, eff, useScratch, baseSlot, area, presetName)
     if !DebugMode
         return
     endif
@@ -3871,9 +3926,9 @@ Function _dispatchActivate(MTF_Plugin p, int itemIdx, Actor target, int param, i
     StorageUtil.AdjustIntValue(target, "mtf.audit." + p.GetPluginId() + "." + eid, 1)
 EndFunction
 
-Function _dispatchDeactivate(MTF_Plugin p, int itemIdx, Actor target, int param, int param2)
+Function _dispatchDeactivate(MTF_Plugin p, int itemIdx, Actor target, int slot, int eff, bool useScratch, int baseSlot, int area, int param, int param2, string presetName)
     string eid = p.GetEffectId(itemIdx)
-    p.onDeactivate(target, param, param2, eid)
+    p.onDeactivate(target, param, param2, eid, slot, eff, useScratch, baseSlot, area, presetName)
     if !DebugMode
         return
     endif
@@ -3967,8 +4022,14 @@ EndFunction
 
 ; ── Effect lifecycle dispatch ────────────────────────────────────────────────
 ; Player single-preset path. The base overlay slot is the MCM-managed
-; OverlaySlot — for NPCs and stacked player presets, the parallel
-; ForActor variants do their own _setDispatchBaseSlot per preset.
+; OverlaySlot — for NPCs and stacked player presets, the parallel ForActor
+; variants pass a per-preset base.
+;
+; v0.2.10: dispatch context (slot/effectIdx/useScratch/baseSlot/area) is
+; passed as stack-local params straight into _dispatchActivate / onTick / …
+; rather than stashed in StorageUtil. The shared StorageUtil context races
+; against concurrent fibers during the cross-script yield on the plugin
+; call — see _dispatchActivate / plugin entry-point docstrings.
 Function _activateSlotEffects(int slot)
     ; v0.2.7: widened from slot < 8 to MAX_CONDITIONS() so backend-only
     ; slots (8..MAX_CONDITIONS) dispatch their effects when evaluateTier
@@ -3977,8 +4038,6 @@ Function _activateSlotEffects(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
-    _setDispatchBaseSlot(OverlaySlot)
-    _setDispatchUseScratch(false)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
@@ -3988,23 +4047,19 @@ Function _activateSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    _setDispatchContext(slot, e)
-                    _dispatchActivate(p, itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
+                    _dispatchActivate(p, itemIdx, PlayerRef, slot, e, false, OverlaySlot, 0, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), "")
                     _emitEffectActivated(PlayerRef, key, slot)
                 endif
             endif
         endif
         e += 1
     endwhile
-    _clearDispatchContext()
 EndFunction
 
 Function _deactivateSlotEffects(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
-    _setDispatchBaseSlot(OverlaySlot)
-    _setDispatchUseScratch(false)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
@@ -4014,23 +4069,19 @@ Function _deactivateSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    _setDispatchContext(slot, e)
-                    _dispatchDeactivate(p, itemIdx, PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false))
+                    _dispatchDeactivate(p, itemIdx, PlayerRef, slot, e, false, OverlaySlot, 0, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), "")
                     _emitEffectDeactivated(PlayerRef, key, slot)
                 endif
             endif
         endif
         e += 1
     endwhile
-    _clearDispatchContext()
 EndFunction
 
 Function _tickSlotEffects(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
-    _setDispatchBaseSlot(OverlaySlot)
-    _setDispatchUseScratch(false)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
@@ -4040,21 +4091,18 @@ Function _tickSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    _setDispatchContext(slot, e)
-                    p.onTick(PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), p.GetEffectId(itemIdx))
+                    p.onTick(PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), p.GetEffectId(itemIdx), slot, e, false, OverlaySlot, 0, "")
                 endif
             endif
         endif
         e += 1
     endwhile
-    _clearDispatchContext()
 EndFunction
 
 Function _gameTickSlotEffects(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
-    _setDispatchBaseSlot(OverlaySlot)
     int e = 0
     int maxE = MAX_EFFECTS_PER_SLOT()
     while e < maxE
@@ -4064,14 +4112,12 @@ Function _gameTickSlotEffects(int slot)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    _setDispatchContext(slot, e)
-                    p.onGameTime(PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), p.GetEffectId(itemIdx))
+                    p.onGameTime(PlayerRef, _readFxParam(slot, e, false), _readFxParam2(slot, e, false), p.GetEffectId(itemIdx), slot, e, false, OverlaySlot, 0, "")
                 endif
             endif
         endif
         e += 1
     endwhile
-    _clearDispatchContext()
 EndFunction
 
 bool Function _slotHasEffects(int slot)
@@ -4170,17 +4216,6 @@ State checkingAroused
     EndEvent
 
     Event OnUpdate()
-        ; v0.2.10: F10 test-mode guard. Suppress the slow tick entirely
-        ; while the test runner is exercising activate→deactivate cycles,
-        ; so its dispatch context isn't clobbered by NPC/player slot
-        ; dispatch firing on the same VM. Short reschedule (0.5s) so the
-        ; tick resumes promptly after the test run ends. See
-        ; _setTestMode/_isTestMode for the full rationale.
-        if _isTestMode()
-            RegisterForSingleUpdate(0.5)
-            return
-        endif
-
         ; Post-load grace: skip every eval/draw branch for the first ~5s
         ; after OnPlayerLoadGame, just keep ticking. See the
         ; _postLoadFreezeUntilRT comment near the property declaration.
@@ -6119,7 +6154,17 @@ bool Function _loadPresetToScratch(string name)
             ; across swaps under its own key segment. Missing entries
             ; default to "" / 0.
             string effKey = JsonUtil.GetPathStringValue(f, ep + ".key", "")
-            _writeFxKey(s, e, true, effKey)
+            ; v0.2.12: writes go through ForPreset variants — the inner sn
+            ; loop calls pLoadX.GetEffectParamMenuOptionCount which is a
+            ; cross-script call and yields the VM. A concurrent fiber's
+            ; _loadPresetToScratch can run during that yield and rebind
+            ; _scratchLoadedFor; legacy _writeFxKey / _writeFxParamN[Str]
+            ; would then redirect our subsequent writes to its namespace,
+            ; leaving OUR preset's scratch storage partially-written and
+            ; the subsequent dispatch reading empty effect keys. Threading
+            ; `name` explicitly through every write keeps them pinned to
+            ; THIS preset's namespace regardless of fiber interleaving.
+            _writeFxKeyForPreset(s, e, true, name, effKey)
             ; v0.2.1: uniform paramN scratch load. Walk 1..5, fall back to
             ; the bound effect's declared default when the preset omits a
             ; paramN key. Missing-entry sentinel = -999999 (cleaner than the
@@ -6143,8 +6188,8 @@ bool Function _loadPresetToScratch(string name)
                     if snStr == "" && itemIdxX >= 0
                         snStr = pLoadX.GetEffectParamDefaultId(itemIdxX, sn)
                     endif
-                    _writeFxParamNStr(s, e, sn, true, snStr)
-                    _writeFxParamN(s, e, sn, true, 0)
+                    _writeFxParamNStrForPreset(s, e, sn, true, name, snStr)
+                    _writeFxParamNForPreset(s, e, sn, true, name, 0)
                 else
                     int sentinel = -999999
                     int v = JsonUtil.GetPathIntValue(f, ep + ".param" + sn, sentinel)
@@ -6155,8 +6200,8 @@ bool Function _loadPresetToScratch(string name)
                             v = 0
                         endif
                     endif
-                    _writeFxParamN(s, e, sn, true, v)
-                    _writeFxParamNStr(s, e, sn, true, "")
+                    _writeFxParamNForPreset(s, e, sn, true, name, v)
+                    _writeFxParamNStrForPreset(s, e, sn, true, name, "")
                 endif
                 sn += 1
             endwhile
@@ -6758,14 +6803,16 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
 {`presetName` lets the dispatch resolve the actor's actual base overlay
  slot via _getActorPresetBase. NPCs (and stacked player presets) need
  this — h.OverlaySlot is the player's MCM-managed primary slot, wrong for
- every other case. Optional / empty string falls back to OverlaySlot via
- _getDispatchBaseSlot's fallback, preserving the player single-preset
- behaviour for callers that haven't been updated.}
+ every other case. Empty string falls back to OverlaySlot.
+
+ v0.2.10: dispatch context (slot/eff/useScratch/baseSlot/area) is passed
+ as explicit params straight into _dispatchActivate, not stashed in the
+ shared StorageUtil dispatch context. See _dispatchActivate / plugin
+ entry-point docstrings for the full race rationale.}
     if target == None || slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
-    _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
-    _setDispatchUseScratch(useScratch)
+    int baseSlot = _resolveDispatchBaseSlot(target, presetName)
     int maxE = MAX_EFFECTS_PER_SLOT()
     ; SNAPSHOT before dispatch — see _deactivateSlotEffectsForActor for
     ; the full race-rationale comment. Short version: each p.onActivate is
@@ -6780,9 +6827,9 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
     int[]    params2 = Utility.CreateIntArray(maxE, 0)
     int e = 0
     while e < maxE
-        keys[e]    = _readFxKey(slot, e, useScratch)
-        params[e]  = _readFxParam(slot, e, useScratch)
-        params2[e] = _readFxParam2(slot, e, useScratch)
+        keys[e]    = _readFxKeyForPreset(slot, e, useScratch, presetName)
+        params[e]  = _readFxParamNForPreset(slot, e, 1, useScratch, presetName)
+        params2[e] = _readFxParamNForPreset(slot, e, 2, useScratch, presetName)
         e += 1
     endwhile
     e = 0
@@ -6793,23 +6840,20 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    _setDispatchContext(slot, e)
-                    _dispatchActivate(p, itemIdx, target, params[e], params2[e])
+                    _dispatchActivate(p, itemIdx, target, slot, e, useScratch, baseSlot, 0, params[e], params2[e], presetName)
                     _emitEffectActivated(target, key, slot)
                 endif
             endif
         endif
         e += 1
     endwhile
-    _clearDispatchContext()
 EndFunction
 
 Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch, string presetName = "")
     if target == None || slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
-    _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
-    _setDispatchUseScratch(useScratch)
+    int baseSlot = _resolveDispatchBaseSlot(target, presetName)
     int maxE = MAX_EFFECTS_PER_SLOT()
     ; SNAPSHOT effect bindings into locals BEFORE the dispatch loop. Each
     ; p.onDeactivate is a cross-script call that suspends our VM thread.
@@ -6835,9 +6879,9 @@ Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch,
     int[]    params2 = Utility.CreateIntArray(maxE, 0)
     int e = 0
     while e < maxE
-        keys[e]    = _readFxKey(slot, e, useScratch)
-        params[e]  = _readFxParam(slot, e, useScratch)
-        params2[e] = _readFxParam2(slot, e, useScratch)
+        keys[e]    = _readFxKeyForPreset(slot, e, useScratch, presetName)
+        params[e]  = _readFxParamNForPreset(slot, e, 1, useScratch, presetName)
+        params2[e] = _readFxParamNForPreset(slot, e, 2, useScratch, presetName)
         e += 1
     endwhile
     e = 0
@@ -6848,23 +6892,20 @@ Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch,
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    _setDispatchContext(slot, e)
-                    _dispatchDeactivate(p, itemIdx, target, params[e], params2[e])
+                    _dispatchDeactivate(p, itemIdx, target, slot, e, useScratch, baseSlot, 0, params[e], params2[e], presetName)
                     _emitEffectDeactivated(target, key, slot)
                 endif
             endif
         endif
         e += 1
     endwhile
-    _clearDispatchContext()
 EndFunction
 
 Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch, string presetName = "")
     if target == None || slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
-    _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
-    _setDispatchUseScratch(useScratch)
+    int baseSlot = _resolveDispatchBaseSlot(target, presetName)
     int maxE = MAX_EFFECTS_PER_SLOT()
     ; SNAPSHOT before dispatch — see _deactivateSlotEffectsForActor for
     ; the race-rationale. _scratchLoadedFor gets clobbered by interleaved
@@ -6874,27 +6915,45 @@ Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch, strin
     int[]    params2 = Utility.CreateIntArray(maxE, 0)
     int e = 0
     while e < maxE
-        keys[e]    = _readFxKey(slot, e, useScratch)
-        params[e]  = _readFxParam(slot, e, useScratch)
-        params2[e] = _readFxParam2(slot, e, useScratch)
+        keys[e]    = _readFxKeyForPreset(slot, e, useScratch, presetName)
+        params[e]  = _readFxParamNForPreset(slot, e, 1, useScratch, presetName)
+        params2[e] = _readFxParamNForPreset(slot, e, 2, useScratch, presetName)
         e += 1
     endwhile
     e = 0
     while e < maxE
+        ; v0.2.13 race fix: re-verify the preset is still tracked on this
+        ; actor BEFORE each yielding p.onTick. The slow-tick snapshot of
+        ; mtf.presets happens once at the top of OnUpdate; by the time we
+        ; reach effect e, a concurrent RemoveAppliedPreset on another fiber
+        ; could have already dropped the preset from mtf.presets and run
+        ; its deactivate loop (which UnsetFloatValue'd `mtf.shift.modify.*`
+        ; and ModActorValue'd back to baseline). If we then call p.onTick
+        ; here, _recomputeSkillShift reads prev=0 (the just-unset tracker)
+        ; → sees prev != amt → ModActorValue's the buff BACK ON. AV stays
+        ; stuck at +delta after the apparent revert.
+        ;
+        ; The membership re-check is a single StorageUtil read (atomic SKSE
+        ; native, no yield) — costs nothing per iteration and closes the
+        ; in-flight stale-snapshot race that prior `drop from mtf.presets
+        ; FIRST` ordering can't address (it stops NEW tick snapshots from
+        ; including the preset, but in-flight ticks already past the
+        ; snapshot read continue iterating).
+        if useScratch && presetName != "" && _findActorPresetIdx(target, presetName) < 0
+            return
+        endif
         string key = keys[e]
         if key != ""
             MTF_Plugin p = ResolvePluginByKey(key)
             if p != None
                 int itemIdx = _effectIdxFor(p, _keyItemId(key))
                 if itemIdx >= 0
-                    _setDispatchContext(slot, e)
-                    p.onTick(target, params[e], params2[e], p.GetEffectId(itemIdx))
+                    p.onTick(target, params[e], params2[e], p.GetEffectId(itemIdx), slot, e, useScratch, baseSlot, 0, presetName)
                 endif
             endif
         endif
         e += 1
     endwhile
-    _clearDispatchContext()
 EndFunction
 
 int Function _resolveDispatchBaseSlot(Actor target, string presetName)

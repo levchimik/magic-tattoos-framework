@@ -83,7 +83,7 @@ string Function _rateStashKey(Actor target, int slot, int eff) global
     return "mtf.sla.rate.prev." + slot + "." + eff
 EndFunction
 
-Function onActivate(Actor target, int param, int param2, string eid)
+Function onActivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     if SLAFramework == None || target == None
         return
     endif
@@ -97,16 +97,10 @@ Function onActivate(Actor target, int param, int param2, string eid)
         endif
         SLAFramework.SetActorExposure(target, cur + param)
     elseif eid == "set.exposure.rate"
-        MTF_MainQuest h = _host()
-        if h == None
+        if slot < 0 || effectIdx < 0
             return
         endif
-        int slot = h._getDispatchSlot()
-        int eff  = h._getDispatchEffectIdx()
-        if slot < 0 || eff < 0
-            return
-        endif
-        string key = _rateStashKey(target, slot, eff)
+        string key = _rateStashKey(target, slot, effectIdx)
         ; Stash current rate so onDeactivate can restore it. Write BEFORE
         ; the suspending SetActorExposureRate to avoid a double-apply race.
         float prev = SLAFramework.GetActorExposureRate(target)
@@ -118,21 +112,15 @@ Function onActivate(Actor target, int param, int param2, string eid)
     endif
 EndFunction
 
-Function onDeactivate(Actor target, int param, int param2, string eid)
+Function onDeactivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     if SLAFramework == None || target == None
         return
     endif
     if eid == "set.exposure.rate"
-        MTF_MainQuest h = _host()
-        if h == None
+        if slot < 0 || effectIdx < 0
             return
         endif
-        int slot = h._getDispatchSlot()
-        int eff  = h._getDispatchEffectIdx()
-        if slot < 0 || eff < 0
-            return
-        endif
-        string key = _rateStashKey(target, slot, eff)
+        string key = _rateStashKey(target, slot, effectIdx)
         if !StorageUtil.HasFloatValue(target, key)
             return
         endif
@@ -142,7 +130,7 @@ Function onDeactivate(Actor target, int param, int param2, string eid)
     endif
 EndFunction
 
-Function onGameTime(Actor target, int param, int param2, string eid)
+Function onGameTime(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     if SLAFramework == None || target == None || param <= 0
         return
     endif

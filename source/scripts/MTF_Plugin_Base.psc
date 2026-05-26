@@ -1027,22 +1027,17 @@ EndFunction
 ; v0.2.9: currentSkill / currentResist now passed as string id (was int
 ; position). lastApplied tracker storage switched to string-typed key so
 ; reverting an unknown-id revert is safe (returns "" not -1).
-Function _recomputeSkillShift(Actor target, string currentSkill, int delta)
-    if target == None || currentSkill == ""
+; v0.2.10: (slot, eff) come in as explicit params from the plugin entry
+; point — see MTF_Plugin's onActivate docstring for the race rationale.
+; Helpers no longer reach into _host()._getDispatch*() (which races against
+; concurrent fibers during the cross-script yield).
+Function _recomputeSkillShift(Actor target, int slot, int eff, string currentSkill, int delta)
+    if target == None || currentSkill == "" || slot < 0 || eff < 0
         return
     endif
     string av = _skillAVForId(currentSkill)
     if av == ""
         return  ; unrecognised id — silently skip rather than apply to wrong AV
-    endif
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot = h._getDispatchSlot()
-    int eff  = h._getDispatchEffectIdx()
-    if slot < 0 || eff < 0
-        return
     endif
     string lastKey = "mtf.skill.last." + slot + "." + eff
     string prevSkill = StorageUtil.GetStringValue(target, lastKey, "")
@@ -1056,17 +1051,8 @@ Function _recomputeSkillShift(Actor target, string currentSkill, int delta)
     _recomputeAbsShiftAV(av, "modify.skill." + currentSkill, target, delta, false)
 EndFunction
 
-Function _removeSkillShift(Actor target)
-    if target == None
-        return
-    endif
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot = h._getDispatchSlot()
-    int eff  = h._getDispatchEffectIdx()
-    if slot < 0 || eff < 0
+Function _removeSkillShift(Actor target, int slot, int eff)
+    if target == None || slot < 0 || eff < 0
         return
     endif
     string lastKey = "mtf.skill.last." + slot + "." + eff
@@ -1080,22 +1066,13 @@ Function _removeSkillShift(Actor target)
     endif
 EndFunction
 
-Function _recomputeResistShift(Actor target, string currentResist, int delta)
-    if target == None || currentResist == ""
+Function _recomputeResistShift(Actor target, int slot, int eff, string currentResist, int delta)
+    if target == None || currentResist == "" || slot < 0 || eff < 0
         return
     endif
     Spell s = _resolveResistSpellById(currentResist)
     if s == None
         return  ; unrecognised id
-    endif
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot = h._getDispatchSlot()
-    int eff  = h._getDispatchEffectIdx()
-    if slot < 0 || eff < 0
-        return
     endif
     string lastKey = "mtf.resist.last." + slot + "." + eff
     string prevResist = StorageUtil.GetStringValue(target, lastKey, "")
@@ -1109,17 +1086,8 @@ Function _recomputeResistShift(Actor target, string currentResist, int delta)
     _absShiftSpellByKey(s, target, delta, "modify.resist." + currentResist)
 EndFunction
 
-Function _removeResistShift(Actor target)
-    if target == None
-        return
-    endif
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot = h._getDispatchSlot()
-    int eff  = h._getDispatchEffectIdx()
-    if slot < 0 || eff < 0
+Function _removeResistShift(Actor target, int slot, int eff)
+    if target == None || slot < 0 || eff < 0
         return
     endif
     string lastKey = "mtf.resist.last." + slot + "." + eff
@@ -1526,26 +1494,23 @@ EndFunction
 ; slot is allowed (no MCM block), but only one will end up in C++ — last
 ; activation wins on the same tick.
 
-Function _applyFlashOnHit(Actor target, string triggerId, int peakPct)
+Function _applyFlashOnHit(Actor target, int slot, int eff, bool useScratch, string presetName, int baseSlot, int area, string triggerId, int peakPct)
 {`triggerId` is the catalog menu id stored on the slot (schema v2). C++
- flash dispatch wants a CSV of tags; _classMaskTagsById maps id → CSV.}
-    if target == None
-        return
-    endif
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot      = h._getDispatchSlot()
-    int effectIdx = h._getDispatchEffectIdx()
-    if slot < 0 || effectIdx < 0
-        ; Called outside a dispatch (e.g. direct invocation). Nothing to do.
+ flash dispatch wants a CSV of tags; _classMaskTagsById maps id → CSV.
+
+ v0.2.10: dispatch context comes in as explicit params (was racy reads
+ of _host()._getDispatch*).
+ v0.2.12: presetName threaded so int param reads use ForPreset accessors
+ — Ex variant still traverses _scratchLoadedFor and races against
+ concurrent _loadPresetToScratch.}
+    if target == None || slot < 0 || eff < 0
         return
     endif
     ; param3/4/5 — flash.onhit envelope timings (was extras rampms/decayms/retrigms).
-    int rampMs   = h.GetSlotEffectParamN(slot, effectIdx, 3)
-    int decayMs  = h.GetSlotEffectParamN(slot, effectIdx, 4)
-    int retrigMs = h.GetSlotEffectParamN(slot, effectIdx, 5)
+    MTF_MainQuest h = _host()
+    int rampMs   = h.GetSlotEffectParamNExForPreset(slot, eff, 3, useScratch, presetName)
+    int decayMs  = h.GetSlotEffectParamNExForPreset(slot, eff, 4, useScratch, presetName)
+    int retrigMs = h.GetSlotEffectParamNExForPreset(slot, eff, 5, useScratch, presetName)
     if rampMs   <= 0
         rampMs = 150
     endif
@@ -1558,16 +1523,12 @@ Function _applyFlashOnHit(Actor target, string triggerId, int peakPct)
     string tags = _classMaskTagsById(triggerId)
     ; Push flash params to the actor's actual base overlay slot — for
     ; the player single-preset path this equals h.OverlaySlot, but for
-    ; NPCs and stacked player presets it's the per-preset base set by
-    ; _evalAndDrawPresetForActor via _setDispatchBaseSlot. Using
-    ; h.OverlaySlot blindly here was the v0.1.3 NPC-flash bug —
-    ; SetActorFlash wrote to the wrong roster slot, the right slot's
-    ; tags stayed empty, hits silently no-op'd.
-    int dispatchBase = h._getDispatchBaseSlot()
-    ; v0.1.17 Phase 3 (multi-area): area mirrors dispatch base — set in
-    ; lockstep by the per-area iteration in _evalAndDrawPresetForActor.
-    int dispatchArea = h._getDispatchArea()
-    MTFPulse.SetActorFlash(target, dispatchBase, peakPct, rampMs, decayMs, retrigMs, tags, dispatchArea)
+    ; NPCs and stacked player presets it's the per-preset base resolved
+    ; by _evalAndDrawPresetForActor and passed in here. Using
+    ; h.OverlaySlot blindly was the v0.1.3 NPC-flash bug — SetActorFlash
+    ; wrote to the wrong roster slot, the right slot's tags stayed empty,
+    ; hits silently no-op'd.
+    MTFPulse.SetActorFlash(target, baseSlot, peakPct, rampMs, decayMs, retrigMs, tags, area)
 EndFunction
 
 string Function _classMaskTagsById(string id)
@@ -1621,15 +1582,11 @@ string Function _classMaskTagsById(string id)
     return "*"
 EndFunction
 
-Function _removeFlashOnHit(Actor target)
+Function _removeFlashOnHit(Actor target, int baseSlot, int area)
     if target == None
         return
     endif
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    MTFPulse.ClearActorFlash(target, h._getDispatchBaseSlot(), h._getDispatchArea())
+    MTFPulse.ClearActorFlash(target, baseSlot, area)
 EndFunction
 
 Function _alertNearby(Actor target, int paramFeet)
@@ -1784,15 +1741,8 @@ string Function _shaderPlayKeyTime(int baseSlot, int slot, int eff)
     return "mtf.shaderFx." + baseSlot + "." + slot + "." + eff + ".time"
 EndFunction
 
-Function _activateShaderRow(Actor target, string shaderId, int durationSec)
+Function _activateShaderRow(Actor target, int slot, int eff, int baseSlot, string shaderId, int durationSec)
     _playShader(target, shaderId, durationSec)
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot      = h._getDispatchSlot()
-    int eff       = h._getDispatchEffectIdx()
-    int baseSlot  = h._getDispatchBaseSlot()
     if slot < 0 || eff < 0
         return
     endif
@@ -1803,29 +1753,15 @@ Function _activateShaderRow(Actor target, string shaderId, int durationSec)
     StorageUtil.SetFloatValue(target, _shaderPlayKeyTime(baseSlot, slot, eff), Utility.GetCurrentRealTime())
 EndFunction
 
-Function _deactivateShaderRow(Actor target, string shaderId)
+Function _deactivateShaderRow(Actor target, int slot, int eff, int baseSlot, string shaderId)
     _stopShader(target, shaderId)
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot      = h._getDispatchSlot()
-    int eff       = h._getDispatchEffectIdx()
-    int baseSlot  = h._getDispatchBaseSlot()
     if slot < 0 || eff < 0
         return
     endif
     StorageUtil.UnsetFloatValue(target, _shaderPlayKeyTime(baseSlot, slot, eff))
 EndFunction
 
-Function _tickShaderRow(Actor target, string shaderId, int param2)
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot      = h._getDispatchSlot()
-    int eff       = h._getDispatchEffectIdx()
-    int baseSlot  = h._getDispatchBaseSlot()
+Function _tickShaderRow(Actor target, int slot, int eff, int baseSlot, string shaderId, int param2)
     if slot < 0 || eff < 0
         return
     endif
@@ -1986,7 +1922,7 @@ Function _stopSound(Actor target, int baseSlot, int slot, int eff)
     StorageUtil.UnsetFloatValue(target, keyTime)
 EndFunction
 
-Function _playSoundLoop(Actor target, int baseSlot, int slot, int eff, string soundId)
+Function _playSoundLoop(Actor target, int baseSlot, int slot, int eff, bool useScratch, string presetName, string soundId)
     if target == None || slot < 0 || eff < 0
         return
     endif
@@ -2005,32 +1941,22 @@ Function _playSoundLoop(Actor target, int baseSlot, int slot, int eff, string so
     ; "volume" extra). sound.play's params: 1 = sound idx, 2 = duration,
     ; 3 = volume %.
     ; Default to 100 if missing so unconfigured rows still play at full volume.
-    MTF_MainQuest h = _host()
-    if h != None
-        int volPct = h.GetSlotEffectParamN(slot, eff, 3)
-        if volPct <= 0
-            ; Either explicit 0 (mute) or unset (treat as 100 unless the user
-            ; wrote 0). We can't tell unset apart from 0 cleanly via GetIntValue,
-            ; but the populated default is 100, so any ≤0 here means either
-            ; fresh-default-not-stamped or explicit mute. Either way, skip
-            ; SetInstanceVolume — Play() already runs at the SNDR's intrinsic
-            ; volume.
-        else
-            Sound.SetInstanceVolume(handle, (volPct as float) / 100.0)
-        endif
+    int volPct = _host().GetSlotEffectParamNExForPreset(slot, eff, 3, useScratch, presetName)
+    if volPct <= 0
+        ; Either explicit 0 (mute) or unset (treat as 100 unless the user
+        ; wrote 0). We can't tell unset apart from 0 cleanly via GetIntValue,
+        ; but the populated default is 100, so any ≤0 here means either
+        ; fresh-default-not-stamped or explicit mute. Either way, skip
+        ; SetInstanceVolume — Play() already runs at the SNDR's intrinsic
+        ; volume.
+    else
+        Sound.SetInstanceVolume(handle, (volPct as float) / 100.0)
     endif
     StorageUtil.SetIntValue(target,   _soundFxKeyId(baseSlot, slot, eff),   handle)
     StorageUtil.SetFloatValue(target, _soundFxKeyTime(baseSlot, slot, eff), Utility.GetCurrentRealTime())
 EndFunction
 
-Function _activateSoundRow(Actor target, string soundId, int param2)
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot      = h._getDispatchSlot()
-    int eff       = h._getDispatchEffectIdx()
-    int baseSlot  = h._getDispatchBaseSlot()
+Function _activateSoundRow(Actor target, int slot, int eff, bool useScratch, string presetName, int baseSlot, string soundId, int param2)
     if slot < 0 || eff < 0
         return
     endif
@@ -2041,33 +1967,19 @@ Function _activateSoundRow(Actor target, string soundId, int param2)
     ; concentration loops). Playing those as fire-and-forget would loop
     ; forever with no way to stop them. So we track ALL handles and stop
     ; ALL on deactivate; mode only changes session-resume behavior.
-    _playSoundLoop(target, baseSlot, slot, eff, soundId)
+    _playSoundLoop(target, baseSlot, slot, eff, useScratch, presetName, soundId)
 EndFunction
 
-Function _deactivateSoundRow(Actor target, string soundId, int param2)
+Function _deactivateSoundRow(Actor target, int slot, int eff, int baseSlot, string soundId, int param2)
     ; Always stop, regardless of mode. See _activateSoundRow comment for
     ; why one-shot still needs the cleanup path.
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot      = h._getDispatchSlot()
-    int eff       = h._getDispatchEffectIdx()
-    int baseSlot  = h._getDispatchBaseSlot()
     if slot < 0 || eff < 0
         return
     endif
     _stopSound(target, baseSlot, slot, eff)
 EndFunction
 
-Function _tickSoundRow(Actor target, string soundId, int param2)
-    MTF_MainQuest h = _host()
-    if h == None
-        return
-    endif
-    int slot      = h._getDispatchSlot()
-    int eff       = h._getDispatchEffectIdx()
-    int baseSlot  = h._getDispatchBaseSlot()
+Function _tickSoundRow(Actor target, int slot, int eff, bool useScratch, string presetName, int baseSlot, string soundId, int param2)
     if slot < 0 || eff < 0
         return
     endif
@@ -2089,23 +2001,31 @@ Function _tickSoundRow(Actor target, string soundId, int param2)
     ; (Looped SNDRs self-continue while their handle is alive, so we don't
     ; stomp every tick even in infinite mode — only on session resume.)
     if elapsed < 0.0 && param2 == 0
-        _playSoundLoop(target, baseSlot, slot, eff, soundId)
+        _playSoundLoop(target, baseSlot, slot, eff, useScratch, presetName, soundId)
     endif
 EndFunction
 
-Function onActivate(Actor target, int param, int param2, string eid)
+Function onActivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     ; Outer dispatch by `eid` — robust against JSON reorder. Inner helpers
     ; (_recomputeAbsShift, _setApplied, _avNameFor, etc.) also take eid so
     ; per-actor StorageUtil keys are stable across catalog edits.
     ;
     ; v0.2.9: menu-typed effects (modify.skill/resist, shader.play, sound.play,
-    ; flash.onhit) read the type from param1 as a stable string id via
-    ; _dispPNStr(1). param/param2 ints in this signature carry slider values
-    ; (param2 is the signed shift; param itself is 0 for menu-typed effects).
+    ; flash.onhit) read the type from param1 as a stable string id. param/
+    ; param2 ints in this signature carry slider values (param2 is the signed
+    ; shift; param itself is 0 for menu-typed effects).
+    ;
+    ; v0.2.10: dispatch context (slot, effectIdx, useScratch, baseSlot, area)
+    ; flows in as explicit function params — stack-local, immune to clobber.
+    ;
+    ; v0.2.12: presetName joins the explicit context. Plugins MUST pass it
+    ; through to _paramNStrEx / _paramNEx for race-free reads — the previous
+    ; revision still routed through _scratchLoadedFor, which a concurrent
+    ; fiber's _loadPresetToScratch could rebind mid-dispatch.
     if eid == "modify.skill"
-        _recomputeSkillShift(target, _dispPNStr(1), param2)
+        _recomputeSkillShift(target, slot, effectIdx, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     elseif eid == "modify.resist"
-        _recomputeResistShift(target, _dispPNStr(1), param2)
+        _recomputeResistShift(target, slot, effectIdx, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     elseif eid == "modify.criticalChance"
         ; AV not writable via ModActorValue -- route through spell magnitude
         _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, param, "modify.criticalChance")
@@ -2142,19 +2062,19 @@ Function onActivate(Actor target, int param, int param2, string eid)
     elseif eid == "spell.lightningCloak"
         _applyCloak(_resolveLightningCloakSpell(), _resolveLightningCloakDmgSpell(), target, param, param2, "mtf.shift.lightningCloak")
     elseif eid == "flash.onhit"
-        _applyFlashOnHit(target, _dispPNStr(1), param2)
+        _applyFlashOnHit(target, slot, effectIdx, useScratch, presetName, baseSlot, area, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     elseif eid == "shader.play"
-        _activateShaderRow(target, _dispPNStr(1), param2)
+        _activateShaderRow(target, slot, effectIdx, baseSlot, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     elseif eid == "sound.play"
-        _activateSoundRow(target, _dispPNStr(1), param2)
+        _activateSoundRow(target, slot, effectIdx, useScratch, presetName, baseSlot, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     endif
 EndFunction
 
-Function onDeactivate(Actor target, int param, int param2, string eid)
+Function onDeactivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     if eid == "modify.skill"
-        _removeSkillShift(target)
+        _removeSkillShift(target, slot, effectIdx)
     elseif eid == "modify.resist"
-        _removeResistShift(target)
+        _removeResistShift(target, slot, effectIdx)
     elseif eid == "modify.criticalChance"
         _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, 0, "modify.criticalChance")
     elseif _isAbsShift(eid)
@@ -2176,24 +2096,25 @@ Function onDeactivate(Actor target, int param, int param2, string eid)
     elseif eid == "spell.lightningCloak"
         _removeCloak(_resolveLightningCloakSpell(), target, "mtf.shift.lightningCloak")
     elseif eid == "flash.onhit"
-        _removeFlashOnHit(target)
+        _removeFlashOnHit(target, baseSlot, area)
     elseif eid == "shader.play"
-        _deactivateShaderRow(target, _dispPNStr(1))
+        _deactivateShaderRow(target, slot, effectIdx, baseSlot, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1))
     elseif eid == "sound.play"
-        _deactivateSoundRow(target, _dispPNStr(1), param2)
+        _deactivateSoundRow(target, slot, effectIdx, baseSlot, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     endif
 EndFunction
 
-Function onTick(Actor target, int param, int param2, string eid)
+Function onTick(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     ; v0.2.9: modify.skill / modify.resist are menu-typed. The skill/resist
     ; id lives in param1.s (string), NOT the int `param` arg — passing
     ; `param` here was a refactor miss: Papyrus implicit int→string cast
     ; turns it into "0" / "10" which never matches a valid id, so the tick
-    ; re-apply silently no-ops. Use _dispPNStr(1) to fetch the real id.
+    ; re-apply silently no-ops. Use _paramNStrEx to fetch the real id from
+    ; the explicit-context locals.
     if eid == "modify.skill"
-        _recomputeSkillShift(target, _dispPNStr(1), param2)
+        _recomputeSkillShift(target, slot, effectIdx, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     elseif eid == "modify.resist"
-        _recomputeResistShift(target, _dispPNStr(1), param2)
+        _recomputeResistShift(target, slot, effectIdx, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     elseif eid == "modify.criticalChance"
         _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, param, "modify.criticalChance")
     elseif _isAbsShift(eid)
@@ -2257,17 +2178,17 @@ Function onTick(Actor target, int param, int param2, string eid)
         ; Re-push flash params every slow tick. Cheap (one Roster lookup +
         ; field write) and means MCM slider edits on ramp/decay/retrig/peak
         ; take effect within ~2s without needing a tier rebuild.
-        _applyFlashOnHit(target, _dispPNStr(1), param2)
+        _applyFlashOnHit(target, slot, effectIdx, useScratch, presetName, baseSlot, area, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     elseif eid == "shader.play"
         ; Re-Play shader on slow-tick to survive save/load (the engine
         ; doesn't persist EffectShader.Play state), and re-Play the bound
         ; sound when its handle is stale (session resume) or when the
         ; user opted into re-trigger mode for short SNDRs.
-        _tickShaderRow(target, _dispPNStr(1), param2)
+        _tickShaderRow(target, slot, effectIdx, baseSlot, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     elseif eid == "sound.play"
         ; Loop-mode SNDRs need a re-Play after session resume (same engine
         ; quirk as shaders: Sound.Play handles don't persist across save/load).
-        _tickSoundRow(target, _dispPNStr(1), param2)
+        _tickSoundRow(target, slot, effectIdx, useScratch, presetName, baseSlot, _paramNStrEx(slot, effectIdx, useScratch, presetName, 1), param2)
     endif
 EndFunction
 

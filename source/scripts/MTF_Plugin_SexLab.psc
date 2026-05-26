@@ -94,14 +94,14 @@ bool Function checkCondition(Actor target, int param, string cid)
     return false
 EndFunction
 
-Function onActivate(Actor target, int param, int param2, string eid)
+Function onActivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     if SexLab == None || target == None
         return
     endif
     if eid == "cum.apply"
         ; v0.2.9: param1 is now a menu id (vaginal/oral/anal). Map to SexLab's
         ; int enum. param2 = layers (1..5, slider, int).
-        int cumType = _cumTypeFromId(_dispPNStr(1))
+        int cumType = _cumTypeFromId(_paramNStrEx(slot, effectIdx, useScratch, presetName, 1))
         if cumType < 0
             return
         endif
@@ -117,7 +117,7 @@ Function onActivate(Actor target, int param, int param2, string eid)
     elseif eid == "cum.remove"
         ; v0.2.9: param1 is now a menu id (all/vaginal/oral/anal). "all" maps
         ; to SexLab's -1 sentinel; per-orifice ids map to 0/1/2.
-        string remId = _dispPNStr(1)
+        string remId = _paramNStrEx(slot, effectIdx, useScratch, presetName, 1)
         int removeType = -2
         if remId == "all"
             removeType = -1
@@ -137,7 +137,7 @@ Function onActivate(Actor target, int param, int param2, string eid)
             return
         endif
         float amt = param as float
-        string skillId = _dispPNStr(2)
+        string skillId = _paramNStrEx(slot, effectIdx, useScratch, presetName, 2)
         ; Positional mapping preserved verbatim from the pre-v0.2.9 int-enum
         ; dispatch: enum 0=Vaginal/1=Anal/2=Oral/3=Foreplay corresponded to
         ; AddSkillXP arg slots (vaginal, anal, oral, foreplay). The SLStats

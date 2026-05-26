@@ -84,7 +84,7 @@ EndFunction
 ; permits, so two overlapping MTF stall effects would race; document the
 ; limitation, don't try to manage refcount.
 
-Function onActivate(Actor target, int param, int param2, string eid)
+Function onActivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     if target == None
         return
     endif
@@ -117,7 +117,7 @@ Function onActivate(Actor target, int param, int param2, string eid)
     endif
 EndFunction
 
-Function onDeactivate(Actor target, int param, int param2, string eid)
+Function onDeactivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     if target == None
         return
     endif

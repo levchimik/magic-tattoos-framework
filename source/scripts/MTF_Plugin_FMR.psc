@@ -105,7 +105,7 @@ bool Function checkCondition(Actor target, int param, string cid)
     return false
 EndFunction
 
-Function onActivate(Actor target, int param, int param2, string eid)
+Function onActivate(Actor target, int param, int param2, string eid, int slot, int effectIdx, bool useScratch, int baseSlot, int area, string presetName)
     if eid != "trigger.ovulation" || target == None || FMR_Storage == None
         return
     endif
