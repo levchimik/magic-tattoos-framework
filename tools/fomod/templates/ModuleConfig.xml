@@ -29,7 +29,17 @@ Hard requirements (you must have these installed first):
   - Skyrim SE 1.5.97 or Skyrim AE 1.6.x (CommonLibSSE-NG covers both)
 
 This installer cannot auto-detect those because FOMOD only checks ESP/ESM
-files, not DLLs. If you don't have them, abort, install them, retry.]]></description>
+files, not DLLs. If you don't have them, abort, install them, retry.
+
+Also ships a skee64.ini override that sets [Overlays] bPlayerOnly=0 so MTF
+can apply overlays to tracked NPCs. NiOverride only pre-allocates overlay
+slots on the player by default; flipping this allocates them on every
+humanoid actor. RAM use grows roughly proportional to the active NPC
+population — RaceMenu's stock ini warns "NOT RECOMMENDED" for this reason,
+but every NPC-tattoo mod (SlaveTats, etc.) requires it.
+
+IMPORTANT MO2 ORDERING: place this mod AFTER "RaceMenu Anniversary Edition"
+in the left pane so MTF's skee64.ini wins the loose-file conflict.]]></description>
               <files>
                 <folder source="00_base" destination="" priority="0"/>
               </files>
@@ -64,12 +74,6 @@ Effects exposed: trigger.ovulation (one-shot force ovulation).]]></description>
                       </dependencies>
                       <type name="Recommended"/>
                     </pattern>
-                    <pattern>
-                      <dependencies>
-                        <fileDependency file="Fertility Mode.esm" state="Missing"/>
-                      </dependencies>
-                      <type name="NotUsable"/>
-                    </pattern>
                   </patterns>
                 </dependencyType>
               </typeDescriptor>
@@ -95,12 +99,6 @@ Effects: arousal lock, exposure modifiers, trigger orgasm.]]></description>
                         <fileDependency file="SexLabAroused.esm" state="Active"/>
                       </dependencies>
                       <type name="Recommended"/>
-                    </pattern>
-                    <pattern>
-                      <dependencies>
-                        <fileDependency file="SexLabAroused.esm" state="Missing"/>
-                      </dependencies>
-                      <type name="NotUsable"/>
                     </pattern>
                   </patterns>
                 </dependencyType>
@@ -128,12 +126,6 @@ Effects: skill XP grants, cum layer add/clear.]]></description>
                       </dependencies>
                       <type name="Recommended"/>
                     </pattern>
-                    <pattern>
-                      <dependencies>
-                        <fileDependency file="SexLab.esm" state="Missing"/>
-                      </dependencies>
-                      <type name="NotUsable"/>
-                    </pattern>
                   </patterns>
                 </dependencyType>
               </typeDescriptor>
@@ -158,12 +150,6 @@ Effects: excitement.mult.set (scale excitement while preset active).]]></descrip
                         <fileDependency file="OStim.esp" state="Active"/>
                       </dependencies>
                       <type name="Recommended"/>
-                    </pattern>
-                    <pattern>
-                      <dependencies>
-                        <fileDependency file="OStim.esp" state="Missing"/>
-                      </dependencies>
-                      <type name="NotUsable"/>
                     </pattern>
                   </patterns>
                 </dependencyType>
@@ -193,12 +179,6 @@ active in your load order.]]></description>
                         <fileDependency file="BeeingFemale.esm" state="Active"/>
                       </dependencies>
                       <type name="Recommended"/>
-                    </pattern>
-                    <pattern>
-                      <dependencies>
-                        <fileDependency file="BeeingFemale.esm" state="Missing"/>
-                      </dependencies>
-                      <type name="NotUsable"/>
                     </pattern>
                   </patterns>
                 </dependencyType>
@@ -250,12 +230,6 @@ treat tattoos as semantic state, without depending on those mods directly.]]></d
                       </dependencies>
                       <type name="Recommended"/>
                     </pattern>
-                    <pattern>
-                      <dependencies>
-                        <fileDependency file="SlaveTats.esp" state="Missing"/>
-                      </dependencies>
-                      <type name="NotUsable"/>
-                    </pattern>
                   </patterns>
                 </dependencyType>
               </typeDescriptor>
@@ -303,12 +277,6 @@ per-mod glue or YAML triggers.]]></description>
                         <fileDependency file="SkyrimNet.esp" state="Active"/>
                       </dependencies>
                       <type name="Recommended"/>
-                    </pattern>
-                    <pattern>
-                      <dependencies>
-                        <fileDependency file="SkyrimNet.esp" state="Missing"/>
-                      </dependencies>
-                      <type name="NotUsable"/>
                     </pattern>
                   </patterns>
                 </dependencyType>
@@ -421,27 +389,6 @@ Area: Face.]]></description>
       <optionalFileGroups order="Explicit">
         <group name="Extras" type="SelectAny">
           <plugins order="Explicit">
-
-          <plugin name="NPC Overlays helper (bPlayerOnly=0)">
-            <description><![CDATA[Ships a skee64.ini override that sets:
-
-    [Overlays]
-    bPlayerOnly=0
-
-Required if you want MTF to apply overlays to NPCs (NiOverride only
-pre-allocates overlay slots on the player by default).
-
-After install: in MO2, place this mod AFTER RaceMenu Anniversary Edition
-so its skee64.ini wins the loose-file conflict. RAM use grows roughly
-proportional to active NPC population; RaceMenu's stock ini warns "NOT
-RECOMMENDED" for this reason but every NPC-tattoo mod requires it.]]></description>
-            <files>
-              <folder source="30_npc_overlays" destination="" priority="0"/>
-            </files>
-            <typeDescriptor>
-              <type name="Optional"/>
-            </typeDescriptor>
-          </plugin>
 
           <plugin name="Test Pack (smoke-test presets)">
             <description><![CDATA[JSON-only mod folder bundling MTF's smoke-test presets. Drives the

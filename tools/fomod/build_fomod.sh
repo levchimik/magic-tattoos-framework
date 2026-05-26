@@ -150,6 +150,12 @@ cp "$DATA/SKSE/Plugins/MagicTattoosFramework.ini" "$BASE/SKSE/Plugins/"
 cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/waveforms/"*.json \
    "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/waveforms/"
 
+# skee64.ini override (bPlayerOnly=0). Shipped by default so MTF can apply
+# overlays to tracked NPCs out of the box. MO2 must load the MTF mod folder
+# AFTER RaceMenu so this file wins the loose-file conflict against SKEE's
+# stock ini.
+cp "$STATIC/00_base/SKSE/Plugins/skee64.ini" "$BASE/SKSE/Plugins/skee64.ini"
+
 echo "  staged 00_base ($(find "$BASE" -type f | wc -l) files)"
 
 # -----------------------------------------------------------------------------
@@ -194,13 +200,6 @@ stage_content "20_content_lewdmarks" "lewdmarks"
 stage_content "22_content_rx"        "rx-overlays"
 stage_content "23_content_bardle"    "bardle-nail-polish"
 stage_content "24_content_co1_face"  "community-overlays-1-face"
-
-# -----------------------------------------------------------------------------
-# 30_npc_overlays: skee64.ini override (from tools/fomod/static/)
-# -----------------------------------------------------------------------------
-mkdir -p "$STAGE/30_npc_overlays"
-cp -r "$STATIC/30_npc_overlays/." "$STAGE/30_npc_overlays/"
-echo "  staged 30_npc_overlays ($(find "$STAGE/30_npc_overlays" -type f | wc -l) files)"
 
 # -----------------------------------------------------------------------------
 # 31_test_pack: smoke-test presets (from test-pack/)

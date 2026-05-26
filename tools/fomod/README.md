@@ -1,8 +1,9 @@
 # MTF FOMOD installer
 
-Generates a Nexus-ready FOMOD archive that bundles base MTF, all 5
-integration plugins, the JSON-only texture pack adapters, and the NPC
-overlays helper + test pack as optional extras.
+Generates a Nexus-ready FOMOD archive that bundles base MTF (which now
+ships the `bPlayerOnly=0` skee64.ini override by default), all integration
+plugins, the JSON-only texture pack adapters, and the test pack as an
+optional extra.
 
 ## Quick rebuild
 
@@ -35,7 +36,8 @@ tools/fomod/
 │   ├── info.xml            ← FOMOD metadata; @MTF_VERSION@ substituted at build
 │   └── ModuleConfig.xml    ← FOMOD installer logic (validated against ModConfig5.0.xsd)
 ├── static/
-│   └── 30_npc_overlays/    ← skee64.ini override + README (no other source for these)
+│   ├── 00_base/            ← skee64.ini override (bPlayerOnly=0); layered into 00_base stage
+│   └── _diagnostics/       ← loose-file probe marker (installed by <conditionalFileInstalls>)
 └── images/                 ← optional header / per-option images (auto-copied if present)
 ```
 
@@ -47,7 +49,7 @@ All ESPs below come from `_build/esps/*.esp` (deserialized from
 
 | Folder in stage | Source in repo | Always installed? |
 |---|---|---|
-| `00_base/` | `MagicTattoosFramework.esp` + base `*.pex` + `data/SKSE/Plugins/{MagicTattoosFramework.ini,MTFPulse.dll,StorageUtilData/.../waveforms/*.json}` | Yes (Required) |
+| `00_base/` | `MagicTattoosFramework.esp` + base `*.pex` + `data/SKSE/Plugins/{MagicTattoosFramework.ini,MTFPulse.dll,StorageUtilData/.../waveforms/*.json}` + `tools/fomod/static/00_base/SKSE/Plugins/skee64.ini` (bPlayerOnly=0 override) | Yes (Required) |
 | `10_plugin_fmr/` | `MTF_Plugin_FMR.esp` + `MTF_Plugin_FMR.pex` | Auto-recommend if `Fertility Mode.esm` active |
 | `11_plugin_sla/` | `MTF_Plugin_SLA.esp` + `MTF_Plugin_SLA.pex` | Auto-recommend if `SexLabAroused.esm` active |
 | `12_plugin_sexlab/` | `MTF_Plugin_SexLab.esp` + `.pex` | Auto-recommend if `SexLab.esm` active |
@@ -56,11 +58,15 @@ All ESPs below come from `_build/esps/*.esp` (deserialized from
 | `15_plugin_slavetats/` | `MTF_Plugin_SlaveTats.esp` + `.pex` | Auto-recommend if `SlaveTats.esp` active. Universal bridge — works for all pack roots, not just slavetats-prefixed ones (see `source/scripts/MTF_Plugin_SlaveTats.psc` docstring). |
 | `16_plugin_skyrimnet/` | `MTF_Plugin_SkyrimNet.esp` + `.pex` + `SKSE/Plugins/SkyrimNet/prompts/submodules/character_bio/0350_mtf_tattoos.prompt` | Auto-recommend if `SkyrimNet.esp` active. Registers `mtf_active_tattoos` decorator + listens for `MTF_TierChanged`; surfaces visible tattoos in LLM character_bio context. |
 | `20_content_lewdmarks/` … `24_content_co1_face/` | `content-packs/<pack>/` | Optional, manual checkbox |
-| `30_npc_overlays/` | `tools/fomod/static/30_npc_overlays/` | Optional, manual checkbox |
 | `31_test_pack/` | `test-pack/SKSE/...` | Optional, manual checkbox |
 
-Integrations whose master plugin isn't active are greyed out (NotUsable)
-via FOMOD `dependencyType` patterns.
+Integration plugins are always installable. When the master plugin is
+active they're auto-checked (Recommended via `dependencyType` pattern);
+when it's missing they fall back to the default `Optional` type, so the
+user can still install them (handy if you plan to add the integration
+mod later without re-running FOMOD). The BFNG ESP carries a hard
+`BeeingFemale.esm` master, so installing without it will produce a
+Skyrim load-time error — the option description warns about this.
 
 Texture pack adapter auto-detection: adapters whose source mod ships an
 ESP get pre-recommended too — LewdMarks (`LewdMarks.esp` OR
@@ -122,8 +128,9 @@ the `sed` line patches them before xmllint loads the schema.
 2. In MO2: **+ → Install a new mod from an archive**, point at `_build/MagicTattoosFramework-FOMOD-vX.Y.Z.7z`.
 3. Step through the installer pages, verify:
    - Integrations whose master is active are pre-ticked
-   - Integrations whose master is missing are greyed out
+   - Integrations whose master is missing are unticked but still installable
    - Texture pack adapters whose source ESP is active are pre-ticked
    - Texture pack adapters with no detectable source mod (Bardle, CommOv1 Face) are unticked
    - Extras are all unticked by default
-4. Confirm the resulting MO2 mod folder contains only the files you ticked.
+4. Confirm the resulting MO2 mod folder contains only the files you ticked,
+   and that `SKSE/Plugins/skee64.ini` is present in the base install.
