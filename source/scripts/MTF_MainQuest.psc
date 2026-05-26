@@ -191,6 +191,14 @@ int[]    _batchBaseSlotCache
 int[]    _batchBaseSlotAccum
 bool     _batchBaseSlotActive = false
 
+; ── Per-batch AddOverlays cache (PERF_TIER1_APPLY #2) ────────────────────────
+; NiOverride.AddOverlays(actor) is idempotent on attached actors but each call
+; is ~30-50ms. Within one batch we hold the VM, so no body 3D rebuild can
+; interleave — once the first draw on a given (target, area) has added the
+; overlays, subsequent draws can skip the call. Length-4 bool array keyed by
+; _areaIndex; reset on _beginBatchBaseSlotCache (same lifetime).
+bool[]   _batchAddOverlaysDone
+
 Function SetProfileApply(bool v)
     _profileApply = v
 EndFunction
@@ -374,18 +382,21 @@ Function _beginBatchBaseSlotCache()
 {Initialise the per-batch NPC base-slot cache. AddAppliedPresetsBatch calls
  this before its loop; AddAppliedPreset then consumes the cache via
  _getNpcBaseSlotForBatch. Each subsequent preset's base slot stacks on top
- of the prior presets' reservs without re-scanning the 8 overlay slots.}
-    if _batchBaseSlotCache == None
-        _batchBaseSlotCache = new int[4]
-        _batchBaseSlotAccum = new int[4]
-    endif
-    int i = 0
-    while i < 4
-        _batchBaseSlotCache[i] = -1
-        _batchBaseSlotAccum[i] = 0
-        i += 1
-    endwhile
-    _batchBaseSlotActive = true
+ of the prior presets' reservs without re-scanning the 8 overlay slots.
+ Also resets the AddOverlays-done flag array (PERF_TIER1_APPLY #2) so the
+ first per-area draw within the batch pays the AddOverlays call and the
+ rest skip it. Uses local-array build + whole-array reference assignment
+ per the Papyrus indexed-write quirk on script-level arrays (see cold-load
+ comment at _loadPresetToScratch ~line 6395).}
+    int[] localCache = new int[4]
+    localCache[0] = -1
+    localCache[1] = -1
+    localCache[2] = -1
+    localCache[3] = -1
+    _batchBaseSlotCache   = localCache
+    _batchBaseSlotAccum   = new int[4]      ; default-init 0 is correct
+    _batchAddOverlaysDone = new bool[4]     ; default-init false is correct
+    _batchBaseSlotActive  = true
 EndFunction
 
 Function _endBatchBaseSlotCache()
@@ -440,6 +451,36 @@ Function _accumBatchBaseReserv(string area, int reserved)
     tmpA[3] = _batchBaseSlotAccum[3]
     tmpA[ai] = tmpA[ai] + reserved
     _batchBaseSlotAccum = tmpA
+EndFunction
+
+bool Function _claimAddOverlaysForBatch(string area)
+{PERF_TIER1_APPLY #2: returns true on the FIRST call per (area) within a
+ batch (caller must do the NiOverride.AddOverlays call); returns false on
+ subsequent calls for the same area within the same batch (caller can
+ skip — overlays already added, idempotent). Returns true unconditionally
+ when no batch is active (solo path keeps the always-AddOverlays behavior
+ that protects against SKEE HasOverlays-flag-vs-3D-graph desync; see comment
+ above the AddOverlays call in _drawOverlayForActorAt). Safe within batch
+ only because the VM is held — no body 3D rebuild can interleave between
+ presets.}
+    if !_batchBaseSlotActive
+        return true
+    endif
+    int ai = _areaIndex(area)
+    if ai < 0 || ai >= 4
+        return true
+    endif
+    if _batchAddOverlaysDone[ai]
+        return false
+    endif
+    bool[] tmpD = new bool[4]
+    tmpD[0] = _batchAddOverlaysDone[0]
+    tmpD[1] = _batchAddOverlaysDone[1]
+    tmpD[2] = _batchAddOverlaysDone[2]
+    tmpD[3] = _batchAddOverlaysDone[3]
+    tmpD[ai] = true
+    _batchAddOverlaysDone = tmpD
+    return true
 EndFunction
 
 ; ── Per-slot effect lists ────────────────────────────────────────────────────
@@ -5101,7 +5142,15 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
     ; calls then look up missing nodes and silently no-op on the live shader,
     ; even though the override store gets updated. AddOverlays is idempotent
     ; on attached actors and re-creates the sub-nodes if missing.
-    NiOverride.AddOverlays(akTarget)
+    ;
+    ; PERF_TIER1_APPLY #2: within a batch (AddAppliedPresetsBatch holds the VM
+    ; for its duration; no body rebuild can interleave), only the FIRST draw
+    ; per (target, area) needs the AddOverlays call. _claimAddOverlaysForBatch
+    ; returns true on first call per area + true always when no batch is
+    ; active, preserving the solo-path "always call" safety net.
+    if _claimAddOverlaysForBatch(area)
+        NiOverride.AddOverlays(akTarget)
+    endif
 
     int i = 0
     while i < layerN
