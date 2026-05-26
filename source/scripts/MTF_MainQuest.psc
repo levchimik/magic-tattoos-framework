@@ -7690,7 +7690,16 @@ Function _processTrackedActorOnce(Actor target)
  Out-of-range actors that have an active pulse roster slot stay on the
  roster — the pulse hot path issues NiOverride writes regardless of
  visibility and the cost per slot is trivial. They get evicted on tier
- transition or by the farthest-from-player eviction rule.}
+ transition or by the farthest-from-player eviction rule.
+
+ PERF_REEVAL #3: Is3DLoaded and GetDistance are each ~10ms cross-script
+ calls. At 16 tracked actors per tick that's ~320ms of gate overhead even
+ when every actor early-returns. We memoize both with short TTLs (1s for
+ Is3DLoaded, 0.5s for GetDistance) via StorageUtil — refreshes happen
+ within latency tolerable for cell-teleport / actor-departure detection,
+ and saves ~3 cross-script calls per actor per tick once the cache warms.
+ Stale Is3DLoaded after a teleport: brief window where _tickSlotEffectsForActor
+ attempts writes that silently no-op. No correctness issue.}
     if target == None
         return
     endif
@@ -7700,7 +7709,24 @@ Function _processTrackedActorOnce(Actor target)
     if _getActorKilled(target)
         return
     endif
-    if !target.Is3DLoaded()
+    float gateNow = Utility.GetCurrentRealTime()
+    ; --- Is3DLoaded memoization (5s TTL) ---
+    ; TTL must exceed the typical updateInterval (default 2s) for the cache
+    ; to ever hit across slow-ticks. 5s lets every actor get a fresh check
+    ; ~once every 2-3 ticks while saving the ~10ms cross-script call on
+    ; intervening ticks. Cell-load transitions detected within 5s, which is
+    ; well inside the OnObjectLoaded/Unloaded event lag tolerance we already
+    ; accept (the events themselves race against slow-tick timing).
+    bool is3D
+    float last3DRT = StorageUtil.GetFloatValue(target, "mtf.actor.last3DCheckRT", 0.0)
+    if last3DRT > 0.0 && (gateNow - last3DRT) < 5.0
+        is3D = (StorageUtil.GetIntValue(target, "mtf.actor.last3DLoaded", 0) == 1)
+    else
+        is3D = target.Is3DLoaded()
+        StorageUtil.SetFloatValue(target, "mtf.actor.last3DCheckRT", gateNow)
+        StorageUtil.SetIntValue(target, "mtf.actor.last3DLoaded", is3D as int)
+    endif
+    if !is3D
         ; Treat unloaded actors as suspended even if we missed the
         ; OnObjectUnloaded event (e.g. registration was set up after
         ; the actor already unloaded).
@@ -7708,8 +7734,25 @@ Function _processTrackedActorOnce(Actor target)
         _rosterRemoveActor(target)
         return
     endif
-    if PlayerRef != None && target.GetDistance(PlayerRef) > SUBJECT_EVAL_RADIUS()
-        return
+    ; --- GetDistance memoization (3s TTL) ---
+    ; Player movement at 600 units/s × 3s drift = 1800u vs SUBJECT_EVAL_RADIUS
+    ; (4096): ~44% of the radius. That's a lot of slop — but the worst-case
+    ; outcome is: actor moves into range during the cached-far window, gets
+    ; one tick of skipped eval, then on TTL expiry resumes. Tier transitions
+    ; on the next tick. Acceptable; far better than the 10ms-per-actor cost.
+    if PlayerRef != None
+        float dist
+        float lastDistRT = StorageUtil.GetFloatValue(target, "mtf.actor.lastDistRT", 0.0)
+        if lastDistRT > 0.0 && (gateNow - lastDistRT) < 3.0
+            dist = StorageUtil.GetFloatValue(target, "mtf.actor.lastDistance", 0.0)
+        else
+            dist = target.GetDistance(PlayerRef)
+            StorageUtil.SetFloatValue(target, "mtf.actor.lastDistRT", gateNow)
+            StorageUtil.SetFloatValue(target, "mtf.actor.lastDistance", dist)
+        endif
+        if dist > SUBJECT_EVAL_RADIUS()
+            return
+        endif
     endif
     int n = GetActorPresetCount(target)
     if n <= 0
