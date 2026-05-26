@@ -148,6 +148,14 @@ string   _scratchLoadedFor = ""
 ; _suppressTierEmit is true (used to A/B whether SkyrimNet's MTF_TierChanged
 ; listener is the dominant per-apply cost).
 bool     _profileApply       = false
+; PERF_REEVAL #6 instrumentation. Mirrors _profileApply but tagged
+; "[MTF_TIME] slowTick" so traces from the slow-tick path are
+; distinguishable from batch-apply traces. Flipped via SetProfileSlowTick
+; from the test runner around the scenario being measured. Gates the same
+; trace pattern in _applyPresetTierChange + adds a trace in
+; evaluateTierForActor / _processTrackedActorOnce so the per-preset cost
+; breakdown is visible without rebuilding _profileApply's batch semantics.
+bool     _profileSlowTick    = false
 bool     _suppressTierEmit   = false
 ; _suppressSlowTick is set by AddAppliedPresetsBatch (not test-only) so the
 ; tracked-NPC slow-tick round-robin doesn't interleave with the batch loop
@@ -156,6 +164,13 @@ bool     _suppressSlowTick   = false
 
 Function SetProfileApply(bool v)
     _profileApply = v
+EndFunction
+
+Function SetProfileSlowTick(bool v)
+{PERF_REEVAL #6: enable [MTF_TIME] slowTick traces for the duration the
+ test runner needs them. Independent of _profileApply so a measurement
+ run can isolate slow-tick vs. batch-apply costs.}
+    _profileSlowTick = v
 EndFunction
 
 Function SetSuppressTierEmit(bool v)
@@ -7247,7 +7262,8 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
     float _pt3 = 0.0
     float _pt4 = 0.0
     float _pt5 = 0.0
-    if _profileApply
+    bool _profAny = _profileApply || _profileSlowTick
+    if _profAny
         _pt0 = rtNow
     endif
     bool drew = false
@@ -7294,11 +7310,11 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
         else
             _rosterRemovePreset(target, name)
         endif
-        if _profileApply
+        if _profAny
             _pt1 = Utility.GetCurrentRealTime()
         endif
         _drawPresetOnActor(target, name, now, deferApply)
-        if _profileApply
+        if _profAny
             _pt2 = Utility.GetCurrentRealTime()
         endif
         drew = true
@@ -7314,13 +7330,13 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
                 endif
             endif
         endif
-        if _profileApply
+        if _profAny
             _pt3 = Utility.GetCurrentRealTime()
         endif
         _notifyTierChangeForActor(target, now, true)
         ; v0.1.20: external-integration broadcast for NPC preset tiers.
         _emitTierChanged(target, "preset", name, prev, now)
-        if _profileApply
+        if _profAny
             _pt4 = Utility.GetCurrentRealTime()
         endif
     endif
@@ -7335,9 +7351,17 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
     if now >= 0
         _tickSlotEffectsForActor(target, now, true, name)
     endif
-    if _profileApply
+    if _profAny
         _pt5 = Utility.GetCurrentRealTime()
-        Debug.Trace("[MTF_TIME] applyTier " + name + ": deact+roster=" + (_pt1 - _pt0) + " draw=" + (_pt2 - _pt1) + " activate=" + (_pt3 - _pt2) + " notify+emit=" + (_pt4 - _pt3) + " tick=" + (_pt5 - _pt4))
+        ; PERF_REEVAL #6: tag the trace so apply-batch vs slow-tick scenarios
+        ; are distinguishable in logs. _profileApply takes precedence when
+        ; both flags are set (the test runner uses _profileApply for batched
+        ; apply scenarios that briefly disable the slow-tick).
+        string tag = "applyTier"
+        if _profileSlowTick && !_profileApply
+            tag = "slowTick"
+        endif
+        Debug.Trace("[MTF_TIME] " + tag + " " + name + ": deact+roster=" + (_pt1 - _pt0) + " draw=" + (_pt2 - _pt1) + " activate=" + (_pt3 - _pt2) + " notify+emit=" + (_pt4 - _pt3) + " tick=" + (_pt5 - _pt4))
     endif
     return drew
 EndFunction
@@ -7589,6 +7613,13 @@ Function _processTrackedActorOnce(Actor target)
     endif
     int i = 0
     bool needApply = false
+    int didDrawCount = 0
+    ; PERF_REEVAL #6: per-actor slow-tick wall clock. Includes scratch loads,
+    ; eval calls, and any apply branches taken during this actor's pass.
+    float _stT0 = 0.0
+    if _profileSlowTick
+        _stT0 = Utility.GetCurrentRealTime()
+    endif
     ; Roster batch — see slow-tick player loop comment for the why.
     MTFPulse.BeginTransitionBatch()
     while i < n
@@ -7596,6 +7627,7 @@ Function _processTrackedActorOnce(Actor target)
         if nm != "" && _loadPresetToScratch(nm)
             if _evalAndDrawPresetForActor(target, nm, true)
                 needApply = true
+                didDrawCount += 1
             endif
         endif
         i += 1
@@ -7603,6 +7635,10 @@ Function _processTrackedActorOnce(Actor target)
     MTFPulse.EndTransitionBatch()
     if needApply
         NiOverride.ApplyNodeOverrides(target)
+    endif
+    if _profileSlowTick
+        float _stT1 = Utility.GetCurrentRealTime()
+        Debug.Trace("[MTF_TIME] slowTick actor=" + target.GetDisplayName() + " presets=" + n + " transitions=" + didDrawCount + " total=" + (_stT1 - _stT0))
     endif
 EndFunction
 
