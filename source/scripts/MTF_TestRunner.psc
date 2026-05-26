@@ -48,6 +48,25 @@ int    Property STRESS_NPC_FORMID = 0x0010D13E AutoReadOnly
 ; AI/animgraph budget degrades performance. SetStressN clamps to this.
 int    Property STRESS_N_MAX = 30 AutoReadOnly
 
+; v0.2.14 visuals stress (End key). Spawns N HUMANOID actors in a ring
+; (default base is a vanilla female bandit), round-robin-applies the 5
+; MTF_Vis* presets, peace tier renders for T_BASELINE, frenzies them so
+; combat.in fires (combat tier = hot color + fast pulse), kills all for
+; the fade-on-death pipeline, then despawns. Shares mtf.stress.n with
+; the PgDn picker — set N once via PgDn, drive both tests from there.
+int    Property HOTKEY_DX_END     = 0xCF        AutoReadOnly
+; LvlForswornMeleeFemale — NPC_ template (not LVLN). PlaceAtMe on a
+; concrete NPC base is reliable in tight loops; the LVLN form 0x000442C8
+; only spawned one of N=3 in practice (suspected leveled-resolution race).
+; Non-essential + non-protected so KillSilent actually kills (Lydia
+; 0x000A2C8E is Protected and only bleeds out).
+int    Property VISUAL_NPC_FORMID = 0x000442CA  AutoReadOnly
+int    Property VISUAL_PRESET_COUNT = 4         AutoReadOnly
+float  Property VISUAL_RING_R     = 220.0       AutoReadOnly
+float  Property VISUAL_T_BASELINE = 10.0        AutoReadOnly
+float  Property VISUAL_T_COMBAT   = 10.0        AutoReadOnly
+float  Property VISUAL_T_FADE     = 10.0        AutoReadOnly
+
 ; Counters -- only valid during a single RunAll.
 int _pass
 int _fail
@@ -64,12 +83,14 @@ int      _snapFxParam2
 Event OnInit()
     RegisterForKey(HOTKEY_DX_PGUP)
     RegisterForKey(HOTKEY_DX_PGDN)
+    RegisterForKey(HOTKEY_DX_END)
     RegisterForModEvent("MTF_StressKick", "OnStressKick")
 EndEvent
 
 Event OnPlayerLoadGame()
     RegisterForKey(HOTKEY_DX_PGUP)
     RegisterForKey(HOTKEY_DX_PGDN)
+    RegisterForKey(HOTKEY_DX_END)
     RegisterForModEvent("MTF_StressKick", "OnStressKick")
 EndEvent
 
@@ -81,16 +102,20 @@ Event OnKeyDown(int keyCode)
         RunAll()
     elseif keyCode == HOTKEY_DX_PGDN
         _showStressNMenu()
+    elseif keyCode == HOTKEY_DX_END
+        ; Same picker — it has a "Run VISUALS" row alongside "Run stress".
+        ; Either hotkey opens it; user picks which run to fire.
+        _showStressNMenu()
     endif
 EndEvent
 
 Function _showStressNMenu()
-{Pop a UIListMenu (UIExtensions) — same widget the tattoo-apply spell
- uses. Two row classes:
-   * row 3      → "Run stress now" with current N
-   * rows 5..14 → set N to one of the preset values (does NOT run; gives
-                  the user a quick reconfigure path without commitment)
- PgDn still runs the test using the stored N if they prefer that.}
+{Pop a UIListMenu (UIExtensions). Three row classes:
+   * row RUN_STRESS_ROW → "Run stress now" with current N
+   * row RUN_VIS_ROW    → "Run VISUALS now" with current N
+   * value rows         → set N to one of the preset values (does NOT run;
+                          gives the user a quick reconfigure path)
+ PgDn and End both pop this same picker.}
     UIListMenu m = UIExtensions.GetMenu("UIListMenu") as UIListMenu
     if m == None
         Debug.Notification("MTF: UIExtensions unavailable")
@@ -99,13 +124,15 @@ Function _showStressNMenu()
     m.ResetMenu()
     int current = StorageUtil.GetIntValue(None, "mtf.stress.n", 2)
     int HEADER_COUNT      = 3
-    int RUN_ROW           = HEADER_COUNT          ; 3
-    int SEP_ROW           = HEADER_COUNT + 1      ; 4
-    int VALUES_BASE       = HEADER_COUNT + 2      ; 5
-    m.AddEntryItem("-   MTF stress: pick N (concurrent fibers)   -")
+    int RUN_STRESS_ROW    = HEADER_COUNT          ; 3
+    int RUN_VIS_ROW       = HEADER_COUNT + 1      ; 4
+    int SEP_ROW           = HEADER_COUNT + 2      ; 5
+    int VALUES_BASE       = HEADER_COUNT + 3      ; 6
+    m.AddEntryItem("-   MTF: pick N (concurrent fibers / NPCs)   -")
     m.AddEntryItem("Current: N = " + current)
     m.AddEntryItem("-----------------------")
-    m.AddEntryItem(">> Run stress now (N = " + current + ")")
+    m.AddEntryItem(">> Run STRESS now (skills, N = " + current + ")")
+    m.AddEntryItem(">> Run VISUALS now (tattoos, N = " + current + ")")
     m.AddEntryItem("-----------------------")
     int[] values = new int[10]
     values[0] = 1
@@ -127,9 +154,13 @@ Function _showStressNMenu()
     int idx = m.GetResultInt()
     if idx < 0
         return                ; cancel
-    elseif idx == RUN_ROW
-        Debug.Trace("[MTF_STRESS] Run-now selected (N=" + current + ")")
+    elseif idx == RUN_STRESS_ROW
+        Debug.Trace("[MTF_STRESS] Run-stress selected (N=" + current + ")")
         RunStress()
+        return
+    elseif idx == RUN_VIS_ROW
+        Debug.Trace("[MTF_VIS] Run-visuals selected (N=" + current + ")")
+        RunVisuals()
         return
     elseif idx < VALUES_BASE
         return                ; header / separator rows
@@ -140,7 +171,7 @@ Function _showStressNMenu()
     endif
     int newN = values[valIdx]
     StorageUtil.SetIntValue(None, "mtf.stress.n", newN)
-    Debug.Notification("MTF stress N = " + newN)
+    Debug.Notification("MTF N = " + newN)
     Debug.Trace("[MTF_STRESS] N set to " + newN + " via UIListMenu")
 EndFunction
 
@@ -1750,4 +1781,186 @@ string Function _npcTag(int idx)
         return "npc0" + n
     endif
     return "npc" + n
+EndFunction
+
+; ── Visuals stress (End key) ────────────────────────────────────────────────
+; Separate from the PgDn skill-effect stress: this one drives the VISUAL
+; pipeline. Spawns N humanoids in a ring around the player, applies the
+; 5 MTF_Vis* presets round-robin, lets the peace tier render, force-frenzies
+; them to drive combat.in transitions, kills them to fire fade-on-death,
+; then despawns. Shares mtf.stress.n with the PgDn picker.
+;
+; Visual contract per preset (see tools/build_visual_presets.py):
+;   slot 0 (no cond)         → peace tier, cool color, slow pulse
+;   slot 1 (mtf.base:combat.in) → combat tier, hot color, fast pulse
+;   transition.duration = 3s  → 3s cross-fade on every tier switch
+;   fadeondeath.enabled  = 1  → overlay fades over 2s on death
+Function RunVisuals()
+    int N = StorageUtil.GetIntValue(None, "mtf.stress.n", 4)
+    if N < 1
+        N = 1
+    elseif N > STRESS_N_MAX
+        N = STRESS_N_MAX
+    endif
+
+    MTF_MainQuest mq = GetOwningQuest() as MTF_MainQuest
+    if mq == None
+        Debug.Trace("[MTF_VIS] FATAL: owning quest != MTF_MainQuest")
+        Debug.Notification("MTF visuals: ABORT (no MainQuest)")
+        return
+    endif
+    Actor pl = Game.GetPlayer()
+    if pl == None
+        return
+    endif
+    Form npcBase = Game.GetForm(VISUAL_NPC_FORMID)
+    if npcBase == None
+        Debug.Trace("[MTF_VIS] FATAL: spawn base 0x" + _hex8(VISUAL_NPC_FORMID) + " not found")
+        Debug.Notification("MTF visuals: ABORT (spawn base 0x" + _hex8(VISUAL_NPC_FORMID) + " missing)")
+        return
+    endif
+
+    Debug.Notification("MTF visuals: N=" + N + " — consider tgm before frenzy")
+    Debug.Trace("[MTF_VIS] === Visual stress start, N=" + N + " ===")
+
+    ; ARRANGE — spawn N in a ring, position each at angDeg from player,
+    ; strip armor, round-robin-apply visual presets.
+    Form[] spawned = Utility.CreateFormArray(N, None)
+    string[] presets = Utility.CreateStringArray(VISUAL_PRESET_COUNT, "")
+    presets[0] = "MTF_Vis01"
+    presets[1] = "MTF_Vis02"
+    presets[2] = "MTF_Vis03"
+    presets[3] = "MTF_Vis04"
+
+    ; ── PHASE A — spawn all N. Each iteration: PlaceAtMe → neutralize
+    ; hostility → ring-position → strip armor. NO preset application
+    ; here so the spawn loop stays tight and we don't interleave the
+    ; heavier AddAppliedPreset work with PlaceAtMe back-to-back.
+    Debug.Notification("MTF visuals: spawning " + N + " ...")
+    int i = 0
+    while i < N
+        Actor a = pl.PlaceAtMe(npcBase) as Actor
+        if a == None
+            Debug.Trace("[MTF_VIS] WARN: PlaceAtMe None at i=" + i)
+        else
+            spawned[i] = a
+            ; Forsworn faction is auto-hostile to player; SetRelationshipRank
+            ; (player, 4=Lover) + Aggression=0 overrides the faction enmity
+            ; for the peace phase. The frenzy phase below flips this back.
+            a.SetRelationshipRank(pl, 4)
+            a.SetActorValue("Aggression", 0.0)
+            a.SetActorValue("Confidence", 4.0)
+            a.IgnoreFriendlyHits(true)
+            ; Ring placement around the player. Math.cos/sin take degrees.
+            float angDeg = (i as float) * (360.0 / (N as float))
+            float dx = VISUAL_RING_R * Math.cos(angDeg)
+            float dy = VISUAL_RING_R * Math.sin(angDeg)
+            a.MoveTo(pl, dx, dy, 0.0)
+            ; Strip armor — visual contract is naked. Keep weapons so the
+            ; frenzy phase actually animates combat.
+            a.UnequipAll()
+            Debug.Trace("[MTF_VIS] spawn i=" + i + " ok")
+        endif
+        i += 1
+    endwhile
+    ; Let placements settle (havok + leveled-actor resolution) before we
+    ; start firing the heavier preset apply path.
+    Utility.Wait(1.0)
+
+    ; ── PHASE B — apply ALL 4 presets to each spawned NPC. Each preset
+    ; reserves its own base overlay slot via _findFreeBaseSlot; 4 presets
+    ; × 1 layer fits in the default 6-slot Body overlay pool.
+    Debug.Notification("MTF visuals: applying " + VISUAL_PRESET_COUNT + " tattoos x N=" + N)
+    i = 0
+    while i < N
+        Actor a = spawned[i] as Actor
+        if a != None
+            int p = 0
+            while p < VISUAL_PRESET_COUNT
+                int rc = mq.AddAppliedPreset(a, presets[p])
+                Debug.Trace("[MTF_VIS] apply i=" + i + " preset=" + presets[p] + " rc=" + rc)
+                if rc != 1
+                    Debug.Trace("[MTF_VIS] WARN: AddAppliedPreset i=" + i + " preset=" + presets[p] + " rc=" + rc)
+                endif
+                p += 1
+            endwhile
+        endif
+        i += 1
+    endwhile
+    ; Give the SKEE post-load race + slow-tick a moment to redraw before
+    ; the peace-baseline observation window opens.
+    Utility.Wait(1.0)
+
+    ; ACT phase 1 — peace baseline renders (slot 0 tier 0). The slow-tick
+    ; condition eval needs a few seconds to settle; T_BASELINE covers that
+    ; plus user observation time.
+    Debug.Notification("MTF visuals: peace (" + (VISUAL_T_BASELINE as int) + "s)")
+    Utility.Wait(VISUAL_T_BASELINE)
+
+    ; ACT phase 2 — frenzy + pairwise StartCombat. Aggression=3 (Frenzied)
+    ; + Confidence=4 (Foolhardy) ensures they keep fighting; StartCombat
+    ; against the next-index NPC bootstraps the combat target so they
+    ; don't all default to attacking the player. They MAY still aggro
+    ; the player if player is closer — hence the tgm notification.
+    Debug.Notification("MTF visuals: frenzy combat (" + (VISUAL_T_COMBAT as int) + "s)")
+    i = 0
+    while i < N
+        Actor a = spawned[i] as Actor
+        if a != None
+            a.SetActorValue("Aggression", 3.0)
+            a.SetActorValue("Confidence", 4.0)
+            a.SetActorValue("Assistance", 0.0)
+            a.IgnoreFriendlyHits(false)
+            int nxt = i + 1
+            if nxt >= N
+                nxt = 0
+            endif
+            Actor other = spawned[nxt] as Actor
+            if other != None && other != a
+                a.StartCombat(other)
+            endif
+            a.EvaluatePackage()
+        endif
+        i += 1
+    endwhile
+    Utility.Wait(VISUAL_T_COMBAT)
+
+    ; ACT phase 3 — kill all. KillSilent skips the death sound/animation
+    ; flourish so the fade-on-death window is more uniform across N actors.
+    ; Each preset's fadeondeath.enabled=1 fires the C++ fade pipeline.
+    Debug.Notification("MTF visuals: kill + fade (" + (VISUAL_T_FADE as int) + "s)")
+    i = 0
+    while i < N
+        Actor a = spawned[i] as Actor
+        if a != None
+            a.KillSilent()
+        endif
+        i += 1
+    endwhile
+    Utility.Wait(VISUAL_T_FADE)
+
+    ; CLEANUP — Disable, settle, Delete. Mirrors _despawnTargets pattern
+    ; from the PgDn stress: two-pass with a short wait lets the engine
+    ; tear down attached scripts (incl. our preset tracking) before delete.
+    Debug.Notification("MTF visuals: despawn")
+    i = 0
+    while i < N
+        Actor a = spawned[i] as Actor
+        if a != None
+            a.Disable()
+        endif
+        i += 1
+    endwhile
+    Utility.Wait(0.5)
+    i = 0
+    while i < N
+        Actor a = spawned[i] as Actor
+        if a != None
+            a.Delete()
+        endif
+        i += 1
+    endwhile
+
+    Debug.Trace("[MTF_VIS] === Visual stress end ===")
+    Debug.Notification("MTF visuals: done")
 EndFunction

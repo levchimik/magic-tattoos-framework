@@ -1,0 +1,189 @@
+{
+  "valid": 1,
+  "displayname": "Vis 03 Chest DragonMoon (green/red)",
+  "schemaversion": 9,
+  "transition": {
+    "duration": 3.0
+  },
+  "fadeondeath": {
+    "enabled": 1,
+    "mode": 0,
+    "durationms": 2000
+  },
+  "slot": [
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "mtf.rx-overlays",
+        "entryid": "Chest DragonMoon"
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      },
+      "pulse": {
+        "rate": 0.4,
+        "depth": 55,
+        "waveform": "triplehump"
+      },
+      "layer": [
+        {
+          "tint": "40FF60",
+          "emissive": "40FF60",
+          "emissivemult": 0.6,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:combat.in",
+        "packid": "mtf.rx-overlays",
+        "entryid": "Chest DragonMoon"
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      },
+      "pulse": {
+        "rate": 3.0,
+        "depth": 90,
+        "waveform": "square"
+      },
+      "layer": [
+        {
+          "tint": "FF4040",
+          "emissive": "FF4040",
+          "emissivemult": 0.6,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    }
+  ]
+}
