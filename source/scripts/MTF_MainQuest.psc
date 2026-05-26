@@ -7491,12 +7491,27 @@ bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferAp
  EndTransitionBatch — that pins ONE shared transition_start across every
  roster Set queued during the batch so all stacked transitions lerp in
  lockstep regardless of how long the per-preset Papyrus work between
- Sets takes. See slow-tick player loop for the canonical pattern.}
+ Sets takes. See slow-tick player loop for the canonical pattern.
+
+ PERF_TIER1_APPLY #3 first-apply fast path: when prev == -1 the preset was
+ just registered (AddAppliedPreset stamps tier=-1). The actor is about to
+ enter the slow-tick rotation; we let the rotation's next pass settle the
+ real combat tier (≤ updateInterval seconds, default 2s). Skipping the
+ ~110ms evaluateTierForActor call on first apply saves the bulk of the
+ apply-path cost per stacked preset. Visible trade-off: if the actor is
+ already in combat at apply time, tier 0 (peace) shows briefly before
+ promoting on the next slow-tick. Acceptable for the typical "register
+ preset on actor spawn" flow.}
     if target == None || name == ""
         return false
     endif
     int prev = _getActorPresetTier(target, name)
-    int now  = evaluateTierForActor(target, name, true)
+    int now
+    if prev == -1
+        now = 0
+    else
+        now = evaluateTierForActor(target, name, true)
+    endif
     return _applyPresetTierChange(target, name, prev, now, deferApply)
 EndFunction
 
