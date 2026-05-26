@@ -178,7 +178,11 @@ event OnVersionUpdate(int Version)
     ; migrate 32 → 128 inside one VM tick and the loop never settled.
     MainQuest.EnsureArrays()
 
-    MainQuest.ModActive          = false
+    ; v0.2.8: enabled by default on fresh install. Mirrors the explicit
+    ; MainQuest.OnInit `ModActive = true` test-branch convenience — keeping
+    ; both in lockstep so neither location overwrites the other on first
+    ; save load.
+    MainQuest.ModActive          = true
     MainQuest.updateInterval     = 0.1
     MainQuest.OverlaySlot        = 2
     MainQuest.CurrentOverlaySlot = 2
@@ -187,8 +191,8 @@ event OnVersionUpdate(int Version)
     ; they explicitly pick one in MCM. Loading visual catalogs is still
     ; required so the per-slot pickers can populate when opened.
     MainQuest.LoadVisualCatalogs()
-    MainQuest.condPackId[0]  = ""
-    MainQuest.condEntryId[0] = ""
+    MainQuest.SetCondPackId(0,  "")
+    MainQuest.SetCondEntryId(0, "")
 
     ; Per-layer defaults: layer 0 = opaque white mark, no glow.
     ;                     layer 1 = warm glow (off by default — emissiveMult=0
@@ -197,35 +201,33 @@ event OnVersionUpdate(int Version)
     while s < 8
         if s > 0
             ; slots 1-7 inherit Default's pack+entry until user overrides
-            MainQuest.condPackId[s]  = ""
-            MainQuest.condEntryId[s] = ""
+            MainQuest.SetCondPackId(s,  "")
+            MainQuest.SetCondEntryId(s, "")
         endif
 
         ; Layer 0 (base mark)
-        int li0 = s * 4 + 0
-        MainQuest.condLayerTint[li0]         = 16777215   ; white
-        MainQuest.condLayerEmissive[li0]     = 16777215
-        MainQuest.condLayerEmissiveMult[li0] = 0.0
-        MainQuest.condLayerAlpha[li0]        = 100
+        MainQuest.SetCondLayerTint(s, 0, 16777215)
+        MainQuest.SetCondLayerEmissive(s, 0, 16777215)
+        MainQuest.SetCondLayerEmissiveMult(s, 0, 0.0)
+        MainQuest.SetCondLayerAlpha(s, 0, 100)
 
         ; Layer 1 (glow halo)
-        int li1 = s * 4 + 1
-        MainQuest.condLayerTint[li1]         = 16777215
-        MainQuest.condLayerEmissive[li1]     = 11337843   ; warm amber
-        MainQuest.condLayerEmissiveMult[li1] = 0.0
-        MainQuest.condLayerAlpha[li1]        = 80
+        MainQuest.SetCondLayerTint(s, 1, 16777215)
+        MainQuest.SetCondLayerEmissive(s, 1, 11337843)   ; warm amber
+        MainQuest.SetCondLayerAlpha(s, 1, 80)
         if s > 0
-            MainQuest.condLayerEmissiveMult[li1] = 2.5
+            MainQuest.SetCondLayerEmissiveMult(s, 1, 2.5)
+        else
+            MainQuest.SetCondLayerEmissiveMult(s, 1, 0.0)
         endif
 
         ; Layers 2-3 fully opaque-transparent so trailing-slot clear is moot
         int Li = 2
         while Li < 4
-            int liN = s * 4 + Li
-            MainQuest.condLayerTint[liN]         = 16777215
-            MainQuest.condLayerEmissive[liN]     = 16777215
-            MainQuest.condLayerEmissiveMult[liN] = 0.0
-            MainQuest.condLayerAlpha[liN]        = 100
+            MainQuest.SetCondLayerTint(s, Li, 16777215)
+            MainQuest.SetCondLayerEmissive(s, Li, 16777215)
+            MainQuest.SetCondLayerEmissiveMult(s, Li, 0.0)
+            MainQuest.SetCondLayerAlpha(s, Li, 100)
             Li += 1
         endwhile
 
@@ -457,12 +459,11 @@ function drawPresetEditorPage()
     ; even when it inherits pack+entry.
     int L = 0
     while L < layerN
-        int li = idx * MTF_MainQuest.MAX_LAYERS_PER_SLOT() + L
         AddHeaderOption("Layer " + L)
-        AddColorOptionST("SLOT_L" + L + "_TINT",      "Tint",              MainQuest.condLayerTint[li])
-        AddColorOptionST("SLOT_L" + L + "_EMISSIVE",  "Emission color",    MainQuest.condLayerEmissive[li])
-        AddSliderOptionST("SLOT_L" + L + "_EM_MULT",  "Emission strength", MainQuest.condLayerEmissiveMult[li], "{1}")
-        AddSliderOptionST("SLOT_L" + L + "_ALPHA",    "Opacity",           MainQuest.condLayerAlpha[li], "{0}%")
+        AddColorOptionST("SLOT_L" + L + "_TINT",      "Tint",              MainQuest.GetCondLayerTint(idx, L))
+        AddColorOptionST("SLOT_L" + L + "_EMISSIVE",  "Emission color",    MainQuest.GetCondLayerEmissive(idx, L))
+        AddSliderOptionST("SLOT_L" + L + "_EM_MULT",  "Emission strength", MainQuest.GetCondLayerEmissiveMult(idx, L), "{1}")
+        AddSliderOptionST("SLOT_L" + L + "_ALPHA",    "Opacity",           MainQuest.GetCondLayerAlpha(idx, L), "{0}%")
         L += 1
     endwhile
 
@@ -544,20 +545,20 @@ function drawPresetEditorPage()
         ;                 solid until persist + cool both expire.
         ;   Cool h/m    — after persist ends (or after a normal deactivation
         ;                 when persist=0), slot can't re-arm for hours:minutes.
-        ; Storage: persistMin reuses cooldownMin (rename was avoided to
-        ; preserve Auto-property save attachment); single int holds the
-        ; combined total. allowOverride reuses cooldownMode. coolMin lives
-        ; in StorageUtil via _getCoolMin. Hours capped at 168 (1 week);
-        ; max total = 168*60+59 = 10139 minutes.
+        ; v0.2.8: persistMin / allowOverride / persistUntilGT are now
+        ; StorageUtil-backed via GetCondPersistMin / GetCondAllowOverride /
+        ; GetCondPersistUntilGT. coolMin still lives at mtf.cool.min.<slot>
+        ; via _getCoolMin. Hours capped at 168 (1 week); max total =
+        ; 168*60+59 = 10139 minutes.
         ; State budget: this 5-state cooldown block lands the MCM script
         ; AT the 127-named-state ceiling. Adding more here means freeing
         ; something elsewhere first.
-        int persistTotal = MainQuest.cooldownMin[idx]
+        int persistTotal = MainQuest.GetCondPersistMin(idx)
         int coolTotal    = MainQuest._getCoolMin(idx)
         AddHeaderOption("Cooldown")
         AddSliderOptionST("SLOT_PERSIST_HOURS", "Persist hours",   persistTotal / 60, "{0} h")
         AddSliderOptionST("SLOT_PERSIST_MIN",   "Persist minutes", persistTotal % 60, "{0} m")
-        AddTextOptionST("SLOT_OVERRIDE",        "Allow override",  _allowOverrideLabel(MainQuest.cooldownMode[idx]))
+        AddTextOptionST("SLOT_OVERRIDE",        "Allow override",  _allowOverrideLabel(MainQuest.GetCondAllowOverride(idx)))
         AddSliderOptionST("SLOT_COOL_HOURS",    "Cool hours",      coolTotal / 60,    "{0} h")
         AddSliderOptionST("SLOT_COOL_MIN",      "Cool minutes",    coolTotal % 60,    "{0} m")
     endif
@@ -1055,7 +1056,7 @@ string Function _slotEntryLabel(int slot)
     if resPack == "<none>" || resPack == ""
         return "—"
     endif
-    string entryId = MainQuest.condEntryId[slot]
+    string entryId = MainQuest.GetCondEntryId(slot)
     if entryId == ""
         if slot == 0
             return "(not set)"
@@ -1084,7 +1085,7 @@ string Function _slotEntryLabel(int slot)
 EndFunction
 
 string Function _slotPackLabel(int slot)
-    string pid = MainQuest.condPackId[slot]
+    string pid = MainQuest.GetCondPackId(slot)
     if pid == "<none>"
         return "(no texture)"
     endif
@@ -1116,7 +1117,7 @@ state SLOT_PACK_PICK
         string[] opts = _newOpts(total)
         int sel = 0
         int writeIdx = 0
-        string curPack = MainQuest.condPackId[selectedCondition]
+        string curPack = MainQuest.GetCondPackId(selectedCondition)
         if allowInherit
             opts[writeIdx] = "(inherit Default)"
             if curPack == ""
@@ -1176,14 +1177,14 @@ state SLOT_PACK_PICK
         endif
         ; Switching packs invalidates the entry pick — reset to first entry
         ; of the new pack (or clear if inheriting / no-texture).
-        if newPack != MainQuest.condPackId[selectedCondition]
-            MainQuest.condPackId[selectedCondition] = newPack
+        if newPack != MainQuest.GetCondPackId(selectedCondition)
+            MainQuest.SetCondPackId(selectedCondition, newPack)
             if newPack == "" || newPack == "<none>"
-                MainQuest.condEntryId[selectedCondition] = ""
+                MainQuest.SetCondEntryId(selectedCondition, "")
             elseif MainQuest.GetPackEntryCount(newPack) > 0
-                MainQuest.condEntryId[selectedCondition] = MainQuest.GetPackEntryIdAt(newPack, 0)
+                MainQuest.SetCondEntryId(selectedCondition, MainQuest.GetPackEntryIdAt(newPack, 0))
             else
-                MainQuest.condEntryId[selectedCondition] = ""
+                MainQuest.SetCondEntryId(selectedCondition, "")
             endif
         endif
         SetMenuOptionValueST(_slotPackLabel(selectedCondition))
@@ -1193,8 +1194,8 @@ state SLOT_PACK_PICK
     event OnDefaultST()
         ; Default for every slot is "no tattoo" — leave pack + entry empty.
         ; User must pick a pack explicitly to enable a visual.
-        MainQuest.condPackId[selectedCondition]  = ""
-        MainQuest.condEntryId[selectedCondition] = ""
+        MainQuest.SetCondPackId(selectedCondition, "")
+        MainQuest.SetCondEntryId(selectedCondition, "")
         SetMenuOptionValueST(_slotPackLabel(selectedCondition))
         MainQuest.setRedraw()
         ForcePageReset()
@@ -1225,7 +1226,7 @@ state SLOT_VISUAL_ENTRY
         ; Condition slots get a leading "(inherit Default)" option at index 0
         ; ONLY when they also inherit the pack — picking a different pack means
         ; the slot has its own (pack, entry) and entry inheritance is moot.
-        bool allowInherit = (selectedCondition > 0) && (MainQuest.condPackId[selectedCondition] == "")
+        bool allowInherit = (selectedCondition > 0) && (MainQuest.GetCondPackId(selectedCondition) == "")
         int total = n
         if allowInherit
             total += 1
@@ -1243,7 +1244,7 @@ state SLOT_VISUAL_ENTRY
         int writeIdx = 0
         if allowInherit
             opts[0] = "(inherit Default)"
-            if MainQuest.condEntryId[selectedCondition] == ""
+            if MainQuest.GetCondEntryId(selectedCondition) == ""
                 sel = 0
             endif
             writeIdx = 1
@@ -1251,7 +1252,7 @@ state SLOT_VISUAL_ENTRY
         int i = 0
         while i < n
             opts[writeIdx] = MainQuest.GetPackEntryLabelAt(pid, i)
-            if MainQuest.GetPackEntryIdAt(pid, i) == MainQuest.condEntryId[selectedCondition]
+            if MainQuest.GetPackEntryIdAt(pid, i) == MainQuest.GetCondEntryId(selectedCondition)
                 sel = writeIdx
             endif
             writeIdx += 1
@@ -1267,19 +1268,19 @@ state SLOT_VISUAL_ENTRY
             ; No-pack mode — picker is informational; ignore selection.
             return
         endif
-        bool allowInherit = (selectedCondition > 0) && (MainQuest.condPackId[selectedCondition] == "")
+        bool allowInherit = (selectedCondition > 0) && (MainQuest.GetCondPackId(selectedCondition) == "")
         if index < 0
             return
         endif
         if allowInherit && index == 0
-            MainQuest.condEntryId[selectedCondition] = ""
+            MainQuest.SetCondEntryId(selectedCondition, "")
         else
             int entryIdx = index
             if allowInherit
                 entryIdx -= 1
             endif
             if entryIdx >= 0 && entryIdx < MainQuest.GetPackEntryCount(pid)
-                MainQuest.condEntryId[selectedCondition] = MainQuest.GetPackEntryIdAt(pid, entryIdx)
+                MainQuest.SetCondEntryId(selectedCondition, MainQuest.GetPackEntryIdAt(pid, entryIdx))
             endif
         endif
         SetMenuOptionValueST(_slotEntryLabel(selectedCondition))
@@ -1289,7 +1290,7 @@ state SLOT_VISUAL_ENTRY
     event OnDefaultST()
         ; Default for every slot is "no entry" — same as the pack picker;
         ; user picks explicitly. Slot 0 was the odd one out previously.
-        MainQuest.condEntryId[selectedCondition] = ""
+        MainQuest.SetCondEntryId(selectedCondition, "")
         SetMenuOptionValueST(_slotEntryLabel(selectedCondition))
         MainQuest.setRedraw()
         ForcePageReset()
@@ -1343,9 +1344,7 @@ Function _setPersistComponents(int hours, int minutes)
     if total > PERSIST_COOL_MAX_TOTAL_MIN()
         total = PERSIST_COOL_MAX_TOTAL_MIN()
     endif
-    int[] arr = MainQuest.cooldownMin
-    arr[selectedCondition] = total
-    MainQuest.cooldownMin = arr
+    MainQuest.SetCondPersistMin(selectedCondition, total)
 EndFunction
 
 Function _setCoolComponents(int hours, int minutes)
@@ -1368,19 +1367,19 @@ EndFunction
 
 state SLOT_PERSIST_HOURS
     event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.cooldownMin[selectedCondition] / 60)
+        SetSliderDialogStartValue(MainQuest.GetCondPersistMin(selectedCondition) / 60)
         SetSliderDialogDefaultValue(0)
         SetSliderDialogRange(0, PERSIST_COOL_MAX_HOURS())
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
-        int minutes = MainQuest.cooldownMin[selectedCondition] % 60
+        int minutes = MainQuest.GetCondPersistMin(selectedCondition) % 60
         _setPersistComponents(value as int, minutes)
-        SetSliderOptionValueST(MainQuest.cooldownMin[selectedCondition] / 60, "{0} h")
+        SetSliderOptionValueST(MainQuest.GetCondPersistMin(selectedCondition) / 60, "{0} h")
         ForcePageReset()
     endEvent
     event OnDefaultST()
-        _setPersistComponents(0, MainQuest.cooldownMin[selectedCondition] % 60)
+        _setPersistComponents(0, MainQuest.GetCondPersistMin(selectedCondition) % 60)
         SetSliderOptionValueST(0, "{0} h")
         ForcePageReset()
     endEvent
@@ -1391,19 +1390,19 @@ endState
 
 state SLOT_PERSIST_MIN
     event OnSliderOpenST()
-        SetSliderDialogStartValue(MainQuest.cooldownMin[selectedCondition] % 60)
+        SetSliderDialogStartValue(MainQuest.GetCondPersistMin(selectedCondition) % 60)
         SetSliderDialogDefaultValue(0)
         SetSliderDialogRange(0, 59)
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
-        int hours = MainQuest.cooldownMin[selectedCondition] / 60
+        int hours = MainQuest.GetCondPersistMin(selectedCondition) / 60
         _setPersistComponents(hours, value as int)
-        SetSliderOptionValueST(MainQuest.cooldownMin[selectedCondition] % 60, "{0} m")
+        SetSliderOptionValueST(MainQuest.GetCondPersistMin(selectedCondition) % 60, "{0} m")
         ForcePageReset()
     endEvent
     event OnDefaultST()
-        _setPersistComponents(MainQuest.cooldownMin[selectedCondition] / 60, 0)
+        _setPersistComponents(MainQuest.GetCondPersistMin(selectedCondition) / 60, 0)
         SetSliderOptionValueST(0, "{0} m")
         ForcePageReset()
     endEvent
@@ -1414,21 +1413,17 @@ endState
 
 state SLOT_OVERRIDE
     event OnSelectST()
-        ; Storage: cooldownMode[] reused as allowOverride (1=allow, 0=block).
-        int cur = MainQuest.cooldownMode[selectedCondition]
+        ; v0.2.8: allowOverride is StorageUtil-backed via GetCondAllowOverride.
+        int cur = MainQuest.GetCondAllowOverride(selectedCondition)
         int newV = 1
         if cur != 0
             newV = 0
         endif
-        int[] arr = MainQuest.cooldownMode
-        arr[selectedCondition] = newV
-        MainQuest.cooldownMode = arr
+        MainQuest.SetCondAllowOverride(selectedCondition, newV)
         SetTextOptionValueST(_allowOverrideLabel(newV))
     endEvent
     event OnDefaultST()
-        int[] arr = MainQuest.cooldownMode
-        arr[selectedCondition] = 1
-        MainQuest.cooldownMode = arr
+        MainQuest.SetCondAllowOverride(selectedCondition, 1)
         SetTextOptionValueST(_allowOverrideLabel(1))
     endEvent
     event OnHighlightST()
@@ -3138,73 +3133,69 @@ endState
 ; ── Per-layer visual states (slot * MAX_LAYERS + layer indexing) ─────────────
 ; Each layer of the picked entry gets its own Tint/Emissive/EmissiveMult/Alpha.
 ; State blocks below are mechanical wrappers around 4 helper functions that
-; compute the backing-array index from selectedCondition and the layer
-; constant baked into each state.
-
-int Function _layerArrIdx(int L)
-    return selectedCondition * MTF_MainQuest.MAX_LAYERS_PER_SLOT() + L
-EndFunction
+; route through the StorageUtil-backed (slot, L) accessors on MainQuest
+; (v0.2.8 — the legacy _layerArrIdx flat-index helper was retired).
 
 Function _openLayerTint(int L)
-    SetColorDialogStartColor(MainQuest.condLayerTint[_layerArrIdx(L)])
+    SetColorDialogStartColor(MainQuest.GetCondLayerTint(selectedCondition, L))
     SetColorDialogDefaultColor(16777215)
 EndFunction
 Function _acceptLayerTint(int L, int color)
-    MainQuest.condLayerTint[_layerArrIdx(L)] = color
+    MainQuest.SetCondLayerTint(selectedCondition, L, color)
     SetColorOptionValueST(color)
     MainQuest.setRedraw()
 EndFunction
 Function _defaultLayerTint(int L)
-    MainQuest.condLayerTint[_layerArrIdx(L)] = 16777215
+    MainQuest.SetCondLayerTint(selectedCondition, L, 16777215)
     SetColorOptionValueST(16777215)
     MainQuest.setRedraw()
 EndFunction
 
 Function _openLayerEmissive(int L)
-    SetColorDialogStartColor(MainQuest.condLayerEmissive[_layerArrIdx(L)])
+    SetColorDialogStartColor(MainQuest.GetCondLayerEmissive(selectedCondition, L))
     SetColorDialogDefaultColor(16777215)
 EndFunction
 Function _acceptLayerEmissive(int L, int color)
-    MainQuest.condLayerEmissive[_layerArrIdx(L)] = color
+    MainQuest.SetCondLayerEmissive(selectedCondition, L, color)
     SetColorOptionValueST(color)
     MainQuest.setRedraw()
 EndFunction
 Function _defaultLayerEmissive(int L)
-    MainQuest.condLayerEmissive[_layerArrIdx(L)] = 16777215
+    MainQuest.SetCondLayerEmissive(selectedCondition, L, 16777215)
     SetColorOptionValueST(16777215)
     MainQuest.setRedraw()
 EndFunction
 
 Function _openLayerEmMult(int L)
-    SetSliderDialogStartValue(MainQuest.condLayerEmissiveMult[_layerArrIdx(L)])
+    SetSliderDialogStartValue(MainQuest.GetCondLayerEmissiveMult(selectedCondition, L))
     SetSliderDialogDefaultValue(0.0)
     SetSliderDialogRange(0.0, 25.0)
     SetSliderDialogInterval(0.5)
 EndFunction
 Function _acceptLayerEmMult(int L, float value)
-    MainQuest.condLayerEmissiveMult[_layerArrIdx(L)] = value
+    MainQuest.SetCondLayerEmissiveMult(selectedCondition, L, value)
     SetSliderOptionValueST(value, "{1}")
     MainQuest.setRedraw()
 EndFunction
 Function _defaultLayerEmMult(int L)
-    MainQuest.condLayerEmissiveMult[_layerArrIdx(L)] = 0.0
+    MainQuest.SetCondLayerEmissiveMult(selectedCondition, L, 0.0)
     SetSliderOptionValueST(0.0, "{1}")
     MainQuest.setRedraw()
 EndFunction
 
 Function _openLayerAlpha(int L)
-    SetSliderDialogStartValue(MainQuest.condLayerAlpha[_layerArrIdx(L)])
+    SetSliderDialogStartValue(MainQuest.GetCondLayerAlpha(selectedCondition, L))
     SetSliderDialogDefaultValue(100)
     SetSliderDialogRange(0, 100)
     SetSliderDialogInterval(1)
 EndFunction
 Function _acceptLayerAlpha(int L, float value)
-    MainQuest.condLayerAlpha[_layerArrIdx(L)] = value as int
+    MainQuest.SetCondLayerAlpha(selectedCondition, L, value as int)
     SetSliderOptionValueST(value, "{0}%")
     MainQuest.setRedraw()
 EndFunction
 Function _defaultLayerAlpha(int L)
-    MainQuest.condLayerAlpha[_layerArrIdx(L)] = 100
+    MainQuest.SetCondLayerAlpha(selectedCondition, L, 100)
     SetSliderOptionValueST(100, "{0}%")
     MainQuest.setRedraw()
 EndFunction

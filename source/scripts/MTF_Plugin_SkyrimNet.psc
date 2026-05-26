@@ -527,11 +527,11 @@ String Function _renderBaseLayersMd(MTF_MainQuest host, int slot, string packId,
     string acc = ""
     int i = 0
     while i < layerN
-        int lidx = slot * maxL + i
-        int tint = host.condLayerTint[lidx]
-        int emissive = host.condLayerEmissive[lidx]
-        float emMult = host.condLayerEmissiveMult[lidx]
-        int alpha = host.condLayerAlpha[lidx]
+        ; v0.2.8: route through unified (slot, L) accessors instead of flat lidx.
+        int tint = host.GetCondLayerTint(slot, i)
+        int emissive = host.GetCondLayerEmissive(slot, i)
+        float emMult = host.GetCondLayerEmissiveMult(slot, i)
+        int alpha = host.GetCondLayerAlpha(slot, i)
         acc = acc + "- Layer " + (i + 1) + ": tint " + host._intToHex(tint) \
             + ", emissive " + host._intToHex(emissive) + " (intensity " + emMult \
             + "), alpha " + alpha + "%\n"

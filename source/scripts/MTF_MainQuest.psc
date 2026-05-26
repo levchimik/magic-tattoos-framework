@@ -44,17 +44,14 @@ bool _visualsLoaded = false
 ; 32) from MCM cap (MAX_CONDITIONS_MCM, 7). Same escape from Auto-property
 ; attachment hell as the v0.1.5 effect refactor. Access via the
 ; Get/SetCondPluginId / Get/SetCondParam wrappers below.
-; condPackId / condEntryId: stable pack + entry id (e.g. "mtf.lewdmarks-racemenu", "001").
-; For slots 1-7, condPackId == "" means "inherit Default's pack+entry".
-; For slot 0, condPackId must be non-empty when a visual pack is desired.
-string[] Property condPackId Auto
-string[] Property condEntryId Auto
-; Per-layer visual params. Indexed by [slot * MAX_LAYERS_PER_SLOT() + layer].
-; Each entry's picked layers consume layer indices 0..layerCount-1.
-int[] Property condLayerTint Auto
-int[] Property condLayerEmissive Auto
-float[] Property condLayerEmissiveMult Auto
-int[] Property condLayerAlpha Auto
+; v0.2.8: condPackId, condEntryId, condLayerTint/Emissive/EmissiveMult/Alpha
+; lifted off Auto array properties to StorageUtil. Access via GetCondPackId /
+; SetCondPackId / GetCondLayerTint(slot, L) / SetCondLayerTint(slot, L, v) etc.
+; (see the unified per-slot block below the pulse accessors). Same motivation
+; as the v0.2.7 cond.pluginid migration — every backend slot (1..MAX_CONDITIONS)
+; gets the same access path as the MCM-cap 8, no dual-track. VMAD inspection
+; confirmed these props weren't CK-exposed, so deleting the declarations
+; doesn't trigger project_vmad_stale_property_reattach.
 ; Per-slot pulse (animated emissive). Rate=0 disables. Modulates each
 ; layer's effective emissive intensity as base * (1 + depth% * sin(2π·rate·t))
 ; on a dedicated fast tick (PULSE_INTERVAL()). Pause is an optional
@@ -337,18 +334,15 @@ EndFunction
 ;                                                    EnsureArrays + v124 migration)
 ;   cooldownUntilGT  → semantically "persistUntilGT" (GameTime end of persist)
 ;
-; New fields (live in StorageUtil to sidestep post-release Auto-property
-; attach issues per project_papyrus_property_attach):
-;   coolMin per slot       → StorageUtil(self, "mtf.cool.min.<slot>", int)
-;   coolUntilGT per slot   → StorageUtil(self, "mtf.cool.until.<slot>", float)
-;
-; Migration: old saves had cooldownMode=0 default ("after deactivate"). Under
-; the new semantics that means "block override" which is the wrong default.
-; EnsureArrays sets a one-shot flag (mtf.v124.cooldownReset) and force-flips
-; allowOverride to 1 + clears persistUntilGT on first run of the new code.
-int[] Property cooldownMin Auto       ; semantic: persistMin
-int[] Property cooldownMode Auto      ; semantic: allowOverride (1=allow, 0=block)
-float[] Property cooldownUntilGT Auto Hidden  ; semantic: persistUntilGT
+; v0.2.8: cooldownMin/cooldownMode/cooldownUntilGT (semantic: persistMin /
+; allowOverride / persistUntilGT) lifted off Auto array properties to
+; StorageUtil. Access via GetCondPersistMin/Set, GetCondAllowOverride/Set,
+; GetCondPersistUntilGT/Set (defined alongside the visual accessors below the
+; pulse block). The v0.1.24 one-shot allowOverride migration was deleted —
+; "ignore old saves" was the directive for the v0.2.8 unification; fresh
+; saves start with allowOverride defaulting to 1 from the accessor.
+; Cool-phase (post-persist re-arm lockout) storage at mtf.cool.min.<slot> /
+; mtf.cool.until.<slot> stays — see _getCoolMin/_setCoolMin etc.
 
 ; ── Plugin registry (single unified registry — both conditions and effects) ──
 Form[] Property registeredPlugins Auto
@@ -433,6 +427,25 @@ int Function MAX_EFFECTS_PER_SLOT() global
         return 32
     endif
     return v
+EndFunction
+
+; v0.2.8 perf cache: MAX_CONDITIONS() is read once at quest start (via
+; EnsureArrays → _cachedMaxConditions) and re-used by every per-slot
+; accessor's bounds check. Without this, each evaluateTier did ~64
+; calls to MTFPulse.GetConfigInt (the INI lookup), and the trace
+; revealed eval at 670 ms — the C++ native appears to task-queue,
+; pinning the VM to 60 fps × 40+ frames per call. Reading the cached
+; int keeps the bounds check at one in-script comparison.
+int _cachedMaxConditions = 32
+
+int Function MAX_CONDITIONS_CACHED()
+{Returns the cached iMaxConditions value populated by EnsureArrays.
+ Defaults to 32 if the cache is somehow stale, matching the same
+ fallback MAX_CONDITIONS() uses for out-of-range INI values.}
+    if _cachedMaxConditions < 1 || _cachedMaxConditions > 256
+        return 32
+    endif
+    return _cachedMaxConditions
 EndFunction
 
 int Function MAX_CONDITIONS() global
@@ -630,81 +643,34 @@ Function ArmPostLoadFreeze(float seconds)
 EndFunction
 
 Function EnsureArrays()
-{One-shot allocation for per-slot Auto arrays. Effect bindings (key,
- param, param2) live in StorageUtil under mtf.fx.<slot>.<idx>.* (v0.1.5+);
- pulse rate/depth/waveform already lived there. This only allocates the
- 8-element per-slot condition/layer/cooldown arrays. Calling repeatedly
- is cheap (early-return on the _arraysReady flag).
-
- v0.1.24: also runs the cooldown-semantics migration even when arrays are
- already allocated — see _migrateV124CooldownIfNeeded. Old saves had
- cooldownMode=0 default which under the new semantics means "block higher-
- priority override"; the migration force-flips to allowOverride=1 and
- clears any stale persistUntilGT once.}
-    if _arraysReady && condPackId != None && condPackId.Length == 8
-        _migrateV124CooldownIfNeeded()
+{v0.2.8: per-slot condition/layer/cooldown Auto arrays were lifted to
+ StorageUtil (see GetCondPackId / GetCondLayerTint / GetCondPersistMin
+ etc.). This now just allocates the plugin registry once and sets the
+ _arraysReady sentinel for callers that still gate on it. Effect bindings
+ (key, param, param2) live in StorageUtil under mtf.fx.<slot>.<idx>.*
+ (v0.1.5+); cond.pluginid/param under mtf.cond.* (v0.2.7+); visual /
+ persist fields under mtf.cond.layer.* / mtf.cond.packid / mtf.cond.entryid
+ / mtf.cond.persistmin / .allowoverride / .persistgt (v0.2.8+).}
+    if _arraysReady
         return
     endif
 
-    Trace("[MTF_Main] EnsureArrays: allocating per-slot arrays (cond pluginid/param now in StorageUtil, see GetCondPluginId)")
-    condPackId            = new string[8]
-    condEntryId           = new string[8]
-    condLayerTint         = new int[32]   ; 8 slots × 4 layers
-    condLayerEmissive     = new int[32]
-    condLayerEmissiveMult = new float[32]
-    condLayerAlpha        = new int[32]
-    cooldownMin           = new int[8]    ; semantic: persistMin
-    cooldownMode          = new int[8]    ; semantic: allowOverride (default 1 — set below)
-    cooldownUntilGT       = new float[8]  ; semantic: persistUntilGT
+    Trace("[MTF_Main] EnsureArrays: allocating plugin registry (per-slot cond/layer/cooldown now in StorageUtil)")
     registeredPlugins     = new Form[32]
     pluginCount           = 0
     _arraysReady          = true
-
-    ; New allowOverride[] defaults to 1 (allow higher-priority override)
-    ; rather than 0 (the old "after-deactivate" default). Whole-array
-    ; reassign per the Papyrus quirk that indexed writes to Auto array
-    ; properties silently no-op.
-    int[] aOverride = cooldownMode
-    int i = 0
-    while i < 8
-        aOverride[i] = 1
-        i += 1
-    endwhile
-    cooldownMode = aOverride
-
-    ; Fresh allocation is already "post-migration" by construction.
-    StorageUtil.SetIntValue(self, "mtf.v124.cooldownReset", 1)
+    ; v0.2.8 perf: cache iMaxConditions once so the per-accessor bounds
+    ; check doesn't re-cross into MTFPulse.GetConfigInt 64+ times per
+    ; evaluateTier (~670 ms regression vs in-script Int compare).
+    _cachedMaxConditions = MAX_CONDITIONS()
 EndFunction
 
 Function _migrateV124CooldownIfNeeded()
-{One-shot v0.1.24 cooldown-semantics migration for existing saves. Old
- saves had cooldownMode=0 default ("after-deactivate"); under new semantics
- that means "block higher-priority override" which is the wrong default.
- Force-flips allowOverride to 1 across all slots and clears any stale
- persistUntilGT (which would otherwise force slots into "in persist" state
- on the first eval after upgrade).}
-    if StorageUtil.GetIntValue(self, "mtf.v124.cooldownReset", 0) == 1
-        return
-    endif
-    int[]   aOverride = cooldownMode
-    float[] aPersist  = cooldownUntilGT
-    int i = 0
-    while i < 8
-        aOverride[i] = 1
-        aPersist[i]  = 0.0
-        i += 1
-    endwhile
-    cooldownMode    = aOverride
-    cooldownUntilGT = aPersist
-    ; Also wipe the new cool-phase StorageUtil keys to be sure.
-    i = 0
-    while i < 8
-        StorageUtil.UnsetIntValue(self,   "mtf.cool.min."   + i)
-        StorageUtil.UnsetFloatValue(self, "mtf.cool.until." + i)
-        i += 1
-    endwhile
-    StorageUtil.SetIntValue(self, "mtf.v124.cooldownReset", 1)
-    Trace("[MTF_Main] v0.1.24 cooldown migration: flipped allowOverride to 1, cleared persistUntilGT and cool keys")
+{v0.2.8: the v0.1.24 cooldown-semantics migration was deleted along with
+ the cooldownMode/cooldownUntilGT Auto array properties. Fresh saves get
+ allowOverride=1 from the GetCondAllowOverride default; persistUntilGT
+ defaults to 0.0 from GetCondPersistUntilGT. Kept as an empty function so
+ any stale callsites compile (will be cleaned up in a follow-up sweep).}
 EndFunction
 
 ; ── Cooldown-phase StorageUtil-backed accessors (v0.1.24) ────────────────────
@@ -729,37 +695,30 @@ Function _setCoolUntilGT(int slot, float t)
     StorageUtil.SetFloatValue(self, "mtf.cool.until." + slot, t)
 EndFunction
 
-; Inheritance helpers — slots 1-MCMcap with empty condPackId fall back to slot 0.
-; Backend-only slots (> MCMcap) always inherit Default's pack/entry since
-; the per-slot visual Auto arrays are MCMcap-sized. The "<none>" sentinel
-; means "explicit no-texture / effects-only" and never inherits;
-; drawOverlay skips drawing when it sees that value.
+; Inheritance helpers — any slot 1..MAX_CONDITIONS with empty packid inherits
+; slot 0 (Default). v0.2.8: all slots are first-class now (StorageUtil-backed),
+; no MCM-cap special case. The "<none>" sentinel means "explicit no-texture /
+; effects-only" and never inherits; drawOverlay skips drawing when it sees
+; that value.
 string Function ResolveSlotPackId(int slot)
-    if !_arraysReady
+    if slot < 0
         return ""
     endif
-    if slot < 0 || slot >= condPackId.Length
-        ; Backend-only slot — inherit Default unconditionally.
-        return condPackId[0]
-    endif
-    string pid = condPackId[slot]
+    string pid = GetCondPackId(slot)
     if pid == "" && slot > 0
-        return condPackId[0]
+        return GetCondPackId(0)
     endif
     return pid
 EndFunction
 
 string Function ResolveSlotEntryId(int slot)
-    if !_arraysReady
+    if slot < 0
         return ""
     endif
-    if slot < 0 || slot >= condPackId.Length
-        return condEntryId[0]
+    if slot > 0 && GetCondPackId(slot) == ""
+        return GetCondEntryId(0)
     endif
-    if slot > 0 && condPackId[slot] == ""
-        return condEntryId[0]
-    endif
-    return condEntryId[slot]
+    return GetCondEntryId(slot)
 EndFunction
 
 ; ─────────────────────────────────────────────────────────────────────────────
@@ -1079,14 +1038,14 @@ EndFunction
 ; in v0.1.5 (see _readFxKey/_writeFxKey). Decouples backend slot count
 ; (MAX_CONDITIONS = 32) from MCM display cap (MAX_CONDITIONS_MCM = 7).
 string Function GetCondPluginId(int slot)
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return ""
     endif
     return StorageUtil.GetStringValue(self, "mtf.cond.pluginid." + slot, "")
 EndFunction
 
 Function SetCondPluginId(int slot, string key)
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     if key == ""
@@ -1097,14 +1056,14 @@ Function SetCondPluginId(int slot, string key)
 EndFunction
 
 int Function GetCondParam(int slot)
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return 0
     endif
     return StorageUtil.GetIntValue(self, "mtf.cond.param." + slot, 0)
 EndFunction
 
 Function SetCondParam(int slot, int val)
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     if val == 0
@@ -1118,36 +1077,31 @@ EndFunction
 ; Optional 2nd knob for conditions that need two values (e.g. time.range
 ; from/till). StorageUtil-backed to dodge the Auto-property attachment trap.
 int Function GetCondParam2(int slot)
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return 0
     endif
     return StorageUtil.GetIntValue(self, "mtf.cond.param2." + slot, 0)
 EndFunction
 
 Function SetCondParam2(int slot, int val)
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     StorageUtil.SetIntValue(self, "mtf.cond.param2." + slot, val)
 EndFunction
 
-; ── Bounds-safe persist/cooldown reads for backend slots > MAX_CONDITIONS_MCM ─
-; Slots 1..MAX_CONDITIONS_MCM have full Auto-array per-slot persist state;
-; backend-only slots (MCM+1..MAX_CONDITIONS) silently inherit defaults
-; (allowOverride=1, no persist timer). _getCoolUntilGT/_getCoolMin are
-; already StorageUtil-backed so they work for all slots without help.
+; ── Persist accessors (v0.2.8: now unified across all slots) ────────────────
+; Pre-v0.2.8 these were dual-track wrappers around Auto array properties for
+; slot ≤ MCM cap and a default-value early-return for backend slots. Now the
+; underlying GetCondAllowOverride / GetCondPersistUntilGT accessors are
+; StorageUtil-backed and slot-agnostic, so the wrappers are thin delegators
+; preserved for backward compatibility with existing callsites.
 int Function _getPersistMode(int slot)
-    if slot >= 0 && slot <= MAX_CONDITIONS_MCM() && cooldownMode != None && slot < cooldownMode.Length
-        return cooldownMode[slot]
-    endif
-    return 1  ; allowOverride default for backend-only slots
+    return GetCondAllowOverride(slot)
 EndFunction
 
 float Function _getPersistUntilGT(int slot)
-    if slot >= 0 && slot <= MAX_CONDITIONS_MCM() && cooldownUntilGT != None && slot < cooldownUntilGT.Length
-        return cooldownUntilGT[slot]
-    endif
-    return 0.0  ; no persist timer for backend-only slots
+    return GetCondPersistUntilGT(slot)
 EndFunction
 
 ; ── Evaluation-time scratch for current slot's param2 ────────────────────────
@@ -1220,6 +1174,149 @@ Function SetCondWaveform(int slot, string name)
     else
         StorageUtil.SetStringValue(self, "mtf.cond.pulse.waveform." + slot, name)
     endif
+EndFunction
+
+; ── Per-slot pack/entry/layer/persist (StorageUtil-backed, v0.2.8) ───────────
+; Moved off Auto array properties (condPackId/condEntryId/condLayerTint/
+; condLayerEmissive/condLayerEmissiveMult/condLayerAlpha/cooldownMin/
+; cooldownMode/cooldownUntilGT) to StorageUtil so all 32 backend slots get
+; the same access path as the MCM-cap 8. Old saves are intentionally not
+; migrated — fresh saves only. The Auto array property declarations were
+; deleted in v0.2.8 after VMAD inspection confirmed they were never CK-
+; exposed (no reattach risk per project_vmad_stale_property_reattach).
+
+string Function GetCondPackId(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return ""
+    endif
+    return StorageUtil.GetStringValue(self, "mtf.cond.packid." + slot, "")
+EndFunction
+
+Function SetCondPackId(int slot, string val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    if val == ""
+        StorageUtil.UnsetStringValue(self, "mtf.cond.packid." + slot)
+    else
+        StorageUtil.SetStringValue(self, "mtf.cond.packid." + slot, val)
+    endif
+EndFunction
+
+string Function GetCondEntryId(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return ""
+    endif
+    return StorageUtil.GetStringValue(self, "mtf.cond.entryid." + slot, "")
+EndFunction
+
+Function SetCondEntryId(int slot, string val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    if val == ""
+        StorageUtil.UnsetStringValue(self, "mtf.cond.entryid." + slot)
+    else
+        StorageUtil.SetStringValue(self, "mtf.cond.entryid." + slot, val)
+    endif
+EndFunction
+
+int Function GetCondLayerTint(int slot, int L)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || L < 0 || L >= MAX_LAYERS_PER_SLOT()
+        return 16777215
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.layer.tint." + slot + "." + L, 16777215)
+EndFunction
+
+Function SetCondLayerTint(int slot, int L, int val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || L < 0 || L >= MAX_LAYERS_PER_SLOT()
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.cond.layer.tint." + slot + "." + L, val)
+EndFunction
+
+int Function GetCondLayerEmissive(int slot, int L)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || L < 0 || L >= MAX_LAYERS_PER_SLOT()
+        return 16777215
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.layer.emissive." + slot + "." + L, 16777215)
+EndFunction
+
+Function SetCondLayerEmissive(int slot, int L, int val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || L < 0 || L >= MAX_LAYERS_PER_SLOT()
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.cond.layer.emissive." + slot + "." + L, val)
+EndFunction
+
+float Function GetCondLayerEmissiveMult(int slot, int L)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || L < 0 || L >= MAX_LAYERS_PER_SLOT()
+        return 0.0
+    endif
+    return StorageUtil.GetFloatValue(self, "mtf.cond.layer.emult." + slot + "." + L, 0.0)
+EndFunction
+
+Function SetCondLayerEmissiveMult(int slot, int L, float val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || L < 0 || L >= MAX_LAYERS_PER_SLOT()
+        return
+    endif
+    StorageUtil.SetFloatValue(self, "mtf.cond.layer.emult." + slot + "." + L, val)
+EndFunction
+
+int Function GetCondLayerAlpha(int slot, int L)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || L < 0 || L >= MAX_LAYERS_PER_SLOT()
+        return 100
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.layer.alpha." + slot + "." + L, 100)
+EndFunction
+
+Function SetCondLayerAlpha(int slot, int L, int val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED() || L < 0 || L >= MAX_LAYERS_PER_SLOT()
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.cond.layer.alpha." + slot + "." + L, val)
+EndFunction
+
+int Function GetCondPersistMin(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return 0
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.persistmin." + slot, 0)
+EndFunction
+
+Function SetCondPersistMin(int slot, int val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.cond.persistmin." + slot, val)
+EndFunction
+
+int Function GetCondAllowOverride(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return 1
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.allowoverride." + slot, 1)
+EndFunction
+
+Function SetCondAllowOverride(int slot, int val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.cond.allowoverride." + slot, val)
+EndFunction
+
+float Function GetCondPersistUntilGT(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return 0.0
+    endif
+    return StorageUtil.GetFloatValue(self, "mtf.cond.persistgt." + slot, 0.0)
+EndFunction
+
+Function SetCondPersistUntilGT(int slot, float val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    StorageUtil.SetFloatValue(self, "mtf.cond.persistgt." + slot, val)
 EndFunction
 
 ; ── Per-effect extras storage (v0.1.3) ──────────────────────────────────────
@@ -1606,11 +1703,14 @@ Function _applyPulse(float forcedTDur = -1.0)
     Int[]   emissives = Utility.CreateIntArray(_pulseLayerN)
     int i = 0
     while i < _pulseLayerN
-        int lidx = _pulseTier * 4 + i
-        emMults[i]   = condLayerEmissiveMult[lidx]
-        tints[i]     = condLayerTint[lidx]
-        alphas[i]    = condLayerAlpha[lidx]
-        emissives[i] = condLayerEmissive[lidx]
+        ; v0.2.8: route through unified (slot, L) accessors. Per-call cost is
+        ; one StorageUtil read (~10 µs) now that MAX_CONDITIONS_CACHED bypasses
+        ; the INI lookup that used to dominate this loop. ~0.4-1.6 ms/sec total
+        ; at 10 Hz × 2-4 layers — imperceptible.
+        emMults[i]   = GetCondLayerEmissiveMult(_pulseTier, i)
+        tints[i]     = GetCondLayerTint(_pulseTier, i)
+        alphas[i]    = GetCondLayerAlpha(_pulseTier, i)
+        emissives[i] = GetCondLayerEmissive(_pulseTier, i)
         i += 1
     endwhile
 
@@ -1951,18 +2051,15 @@ bool Function SavePreset(string rawName)
         if p2 != 0
             JsonUtil.SetPathIntValue(f, sp + ".cond.param2", p2)
         endif
-        ; Visual/persist Auto arrays are MCM-cap sized; backend-only slots
-        ; (s > mcmCap) inherit Default visual and skip the persist keys.
-        if s <= mcmCap
-            JsonUtil.SetPathStringValue(f, sp + ".cond.packid",   condPackId[s])
-            JsonUtil.SetPathStringValue(f, sp + ".cond.entryid",  condEntryId[s])
-            ; v0.1.24 cooldown rework — persistMin reuses cooldownMin storage;
-            ; allowOverride reuses cooldownMode storage; coolMin is a new
-            ; StorageUtil-backed per-slot int. See cooldown property block at
-            ; top of file for the full semantic mapping.
-            JsonUtil.SetPathIntValue(f,    sp + ".persist.min",            cooldownMin[s])
-            JsonUtil.SetPathIntValue(f,    sp + ".persist.allowOverride",  cooldownMode[s])
-        endif
+        ; v0.2.8: visual/persist serialization unified across all 32 slots
+        ; via StorageUtil-backed accessors. Backend slots (> mcmCap) now
+        ; round-trip their own pack/entry/persist values; empty backend
+        ; slots were already fast-skipped above so default-value emit for
+        ; "configured backend slot with no custom visual" is harmless.
+        JsonUtil.SetPathStringValue(f, sp + ".cond.packid",            GetCondPackId(s))
+        JsonUtil.SetPathStringValue(f, sp + ".cond.entryid",           GetCondEntryId(s))
+        JsonUtil.SetPathIntValue(f,    sp + ".persist.min",            GetCondPersistMin(s))
+        JsonUtil.SetPathIntValue(f,    sp + ".persist.allowOverride",  GetCondAllowOverride(s))
         JsonUtil.SetPathIntValue(f,    sp + ".cool.min",               _getCoolMin(s))
         ; Skip pulse rows when disabled — keeps the file readable.
         float rateS  = GetCondPulseRate(s)
@@ -1979,20 +2076,19 @@ bool Function SavePreset(string rawName)
                 JsonUtil.SetPathStringValue(f, sp + ".pulse.waveform", waveName)
             endif
         endif
-        ; Layer arrays are MCM-cap sized (8 slots × MAX_LAYERS) so backend
-        ; slots skip layer serialization entirely; they inherit Default visual.
-        if s <= mcmCap
-            int L = 0
-            while L < maxL
-                int li = _layerIdx(s, L)
-                string lp = sp + ".layer[" + L + "]"
-                JsonUtil.SetPathStringValue(f, lp + ".tint",         _intToHex(condLayerTint[li]))
-                JsonUtil.SetPathStringValue(f, lp + ".emissive",     _intToHex(condLayerEmissive[li]))
-                JsonUtil.SetPathFloatValue(f,  lp + ".emissivemult", condLayerEmissiveMult[li])
-                JsonUtil.SetPathIntValue(f,    lp + ".alpha",        condLayerAlpha[li])
-                L += 1
-            endwhile
-        endif
+        ; v0.2.8: layer serialization unified across all 32 slots via accessors.
+        ; Empty backend slots were fast-skipped above; configured backend slots
+        ; emit their per-slot layer values (defaults are fine — white tint /
+        ; 100% alpha / 0 emissive mult round-trip cleanly).
+        int L = 0
+        while L < maxL
+            string lp = sp + ".layer[" + L + "]"
+            JsonUtil.SetPathStringValue(f, lp + ".tint",         _intToHex(GetCondLayerTint(s, L)))
+            JsonUtil.SetPathStringValue(f, lp + ".emissive",     _intToHex(GetCondLayerEmissive(s, L)))
+            JsonUtil.SetPathFloatValue(f,  lp + ".emissivemult", GetCondLayerEmissiveMult(s, L))
+            JsonUtil.SetPathIntValue(f,    lp + ".alpha",        GetCondLayerAlpha(s, L))
+            L += 1
+        endwhile
         int e = 0
         while e < maxE
             ; Skip serializing effect rows with empty key — load uses defaults.
@@ -2079,25 +2175,11 @@ bool Function LoadPreset(string name)
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
 
-    ; All indexed writes happen on local copies — direct `prop[i] = v` on Auto
-    ; array properties silently no-ops (writes hit a transient copy). At the
-    ; end of the function we write the whole locals back through the property
-    ; setters. The SetCond* helpers already do this correctly for the per-slot
-    ; scalars, but the multi-index arrays (layer/effect/packId/etc.) need the
-    ; same workaround applied explicitly here.
-    string[] aPackId   = condPackId
-    string[] aEntryId  = condEntryId
-    int[]    aPersistMin     = cooldownMin    ; semantic: persistMin
-    int[]    aAllowOverride  = cooldownMode   ; semantic: allowOverride (default 1)
-    int[]    aLTint    = condLayerTint
-    int[]    aLEmiss   = condLayerEmissive
-    float[]  aLEmult   = condLayerEmissiveMult
-    int[]    aLAlpha   = condLayerAlpha
-
-    ; Widened to MAX_CONDITIONS() in v0.2.7. Slots 0..MAX_CONDITIONS_MCM
-    ; get the full visual/persist/pulse Auto-array writes; slots beyond
-    ; MCM cap only get the StorageUtil-backed bits (cond.*/cool.*). Backend-
-    ; only slots inherit Default's visual and have no per-slot persist.
+    ; v0.2.8: all per-slot fields (cond/persist/layer/pulse) lifted to
+    ; StorageUtil-backed accessors. No more local-array workaround for
+    ; indexed-write-to-property quirks. Loop is uniform across slots
+    ; 0..MAX_CONDITIONS(); empty backend slots get cheap default values
+    ; from JSON-missing reads.
     int s = 0
     int maxC = MAX_CONDITIONS()
     int mcmCap = MAX_CONDITIONS_MCM()
@@ -2107,38 +2189,31 @@ bool Function LoadPreset(string name)
         SetCondPluginId(s, pluginIdHere)
         SetCondParam(s,    JsonUtil.GetPathIntValue(f,    sp + ".cond.param",    0))
         SetCondParam2(s,   JsonUtil.GetPathIntValue(f,    sp + ".cond.param2",   0))
-        ; Cooldown is StorageUtil per-slot — works for all slots.
         _setCoolMin(s, JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
-        ; Clear any active persist/cool timers when loading a preset — the
-        ; new preset's slots start fresh, regardless of inherited timer state.
+        ; Clear any active persist/cool timers when loading a preset — slots
+        ; start fresh regardless of inherited timer state.
         _setCoolUntilGT(s, 0.0)
-        ; Pulse/waveform setters internally bounds-check slot<8 (silent no-op
-        ; beyond MCM cap), so safe to call unconditionally.
+        SetCondPersistUntilGT(s, 0.0)
         SetCondPulseRate(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.rate",  0.0))
         SetCondPulseDepth(s, JsonUtil.GetPathIntValue(f,   sp + ".pulse.depth", 0))
         SetCondPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
         SetCondWaveform(s, JsonUtil.GetPathStringValue(f, sp + ".pulse.waveform", ""))
-        ; Auto-array writes (visual/persist) only for MCM-cap slots; backend
-        ; slots inherit Default visual and get persist defaults from _getPersistMode.
-        if s <= mcmCap
-            aPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",  "")
-            aEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid", "")
-            ; v0.1.24 cooldown rework — read new schema 8 keys only. Old
-            ; cooldown.min/cooldown.mode are ignored (reset-to-defaults
-            ; migration: persist=0, cool=0, allowOverride=1).
-            aPersistMin[s]    = JsonUtil.GetPathIntValue(f, sp + ".persist.min", 0)
-            aAllowOverride[s] = JsonUtil.GetPathIntValue(f, sp + ".persist.allowOverride", 1)
-            int L = 0
-            while L < maxL
-                int li = _layerIdx(s, L)
-                string lp = sp + ".layer[" + L + "]"
-                aLTint[li]   = _readColor(f, lp + ".tint",         16777215)
-                aLEmiss[li]  = _readColor(f, lp + ".emissive",     16777215)
-                aLEmult[li]  = JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 0.0)
-                aLAlpha[li]  = JsonUtil.GetPathIntValue(f,   lp + ".alpha",        100)
-                L += 1
-            endwhile
-        endif
+        SetCondPackId(s,   JsonUtil.GetPathStringValue(f, sp + ".cond.packid",  ""))
+        SetCondEntryId(s,  JsonUtil.GetPathStringValue(f, sp + ".cond.entryid", ""))
+        ; v0.1.24 cooldown semantics: persist.min, persist.allowOverride.
+        ; Default allowOverride=1 (allow higher-priority slot to take over
+        ; during persist phase).
+        SetCondPersistMin(s,      JsonUtil.GetPathIntValue(f, sp + ".persist.min", 0))
+        SetCondAllowOverride(s,   JsonUtil.GetPathIntValue(f, sp + ".persist.allowOverride", 1))
+        int L = 0
+        while L < maxL
+            string lp = sp + ".layer[" + L + "]"
+            SetCondLayerTint(s, L,         _readColor(f, lp + ".tint",         16777215))
+            SetCondLayerEmissive(s, L,     _readColor(f, lp + ".emissive",     16777215))
+            SetCondLayerEmissiveMult(s, L, JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 0.0))
+            SetCondLayerAlpha(s, L,        JsonUtil.GetPathIntValue(f,   lp + ".alpha",        100))
+            L += 1
+        endwhile
         ; v0.2.7 perf fast-path: backend slots (> mcmCap) with empty
         ; pluginId have no condition to evaluate, so any effect bindings
         ; would be dead anyway. Skip the inner 32-iteration effect loop —
@@ -2184,26 +2259,9 @@ bool Function LoadPreset(string name)
         s += 1
     endwhile
 
-    ; Write the whole arrays back through the property setters so the
-    ; per-index mutations actually persist. (Effect arrays moved to
-    ; StorageUtil in v0.1.5 and are written directly above, no bulk
-    ; assign needed for fx.)
-    condPackId            = aPackId
-    condEntryId           = aEntryId
-    cooldownMin           = aPersistMin     ; semantic: persistMin
-    cooldownMode          = aAllowOverride  ; semantic: allowOverride
-    condLayerTint         = aLTint
-    condLayerEmissive     = aLEmiss
-    condLayerEmissiveMult = aLEmult
-    condLayerAlpha        = aLAlpha
-    ; Persist timer cleared via cooldownUntilGT reassign — slots start cool.
-    float[] aPersistUntil = cooldownUntilGT
-    int pi = 0
-    while pi < 8
-        aPersistUntil[pi] = 0.0
-        pi += 1
-    endwhile
-    cooldownUntilGT = aPersistUntil
+    ; v0.2.8: no more bulk array reassign — per-slot accessors wrote directly
+    ; to StorageUtil inside the loop. persist timer cleared per-slot via
+    ; SetCondPersistUntilGT(s, 0.0) above.
 
     ; (v0.2.1: per-plugin settings load removed — see save site for context.)
 
@@ -2231,26 +2289,20 @@ Function ResetEditor()
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
 
-    ; Local copies — direct indexed writes to Auto array properties silently
-    ; no-op (see LoadPreset for the same workaround).
-    string[] aPackId   = condPackId
-    string[] aEntryId  = condEntryId
-    int[]    aPersistMin    = cooldownMin    ; semantic: persistMin
-    int[]    aAllowOverride = cooldownMode   ; semantic: allowOverride
-    int[]    aLTint    = condLayerTint
-    int[]    aLEmiss   = condLayerEmissive
-    float[]  aLEmult   = condLayerEmissiveMult
-    int[]    aLAlpha   = condLayerAlpha
-
+    ; v0.2.8: all per-slot fields are StorageUtil-backed now — direct accessor
+    ; calls inside the loop, no local-array workaround. Widened to
+    ; MAX_CONDITIONS() so backend slots also clear cleanly on "New preset".
+    int maxC = MAX_CONDITIONS()
     int s = 0
-    while s < 8
+    while s <= maxC
         SetCondPluginId(s, "")
         SetCondParam(s, 0)
         SetCondParam2(s, 0)
-        aPackId[s]   = ""
-        aEntryId[s]  = ""
-        aPersistMin[s]    = 0
-        aAllowOverride[s] = 1   ; default: allow higher-priority override during persist
+        SetCondPackId(s, "")
+        SetCondEntryId(s, "")
+        SetCondPersistMin(s, 0)
+        SetCondAllowOverride(s, 1)   ; default: allow higher-priority override during persist
+        SetCondPersistUntilGT(s, 0.0)
         _setCoolMin(s, 0)
         _setCoolUntilGT(s, 0.0)
         SetCondPulseRate(s, 0.0)
@@ -2259,11 +2311,10 @@ Function ResetEditor()
         SetCondWaveform(s, "")
         int L = 0
         while L < maxL
-            int li = _layerIdx(s, L)
-            aLTint[li]  = 16777215
-            aLEmiss[li] = 16777215
-            aLEmult[li] = 0.0
-            aLAlpha[li] = 100
+            SetCondLayerTint(s, L, 16777215)
+            SetCondLayerEmissive(s, L, 16777215)
+            SetCondLayerEmissiveMult(s, L, 0.0)
+            SetCondLayerAlpha(s, L, 100)
             L += 1
         endwhile
         int e = 0
@@ -2278,23 +2329,6 @@ Function ResetEditor()
         endwhile
         s += 1
     endwhile
-
-    condPackId            = aPackId
-    condEntryId           = aEntryId
-    cooldownMin           = aPersistMin      ; semantic: persistMin
-    cooldownMode          = aAllowOverride   ; semantic: allowOverride
-    condLayerTint         = aLTint
-    condLayerEmissive     = aLEmiss
-    condLayerEmissiveMult = aLEmult
-    condLayerAlpha        = aLAlpha
-    ; Clear all persist timers — fresh preset starts cool.
-    float[] aPersistUntil = cooldownUntilGT
-    int ri = 0
-    while ri < 8
-        aPersistUntil[ri] = 0.0
-        ri += 1
-    endwhile
-    cooldownUntilGT = aPersistUntil
 
     forceRedraw = true
 EndFunction
@@ -3228,7 +3262,7 @@ int Function evaluateTier()
     endif
     float now = Utility.GetCurrentGameTime()
 
-    int maxC = MAX_CONDITIONS()
+    int maxC = MAX_CONDITIONS_CACHED()
 
     ; Pre-scan: lowest-index slot in PERSIST with !allowOverride wins outright.
     int i = 1
@@ -3278,13 +3312,11 @@ Function _armPersistTimer(int slot)
     if slot <= 0 || slot >= 8 || !_arraysReady
         return
     endif
-    int mins = cooldownMin[slot]   ; semantic: persistMin
+    int mins = GetCondPersistMin(slot)
     if mins <= 0
         return
     endif
-    float[] aP = cooldownUntilGT
-    aP[slot] = Utility.GetCurrentGameTime() + (mins as float) / 1440.0
-    cooldownUntilGT = aP
+    SetCondPersistUntilGT(slot, Utility.GetCurrentGameTime() + (mins as float) / 1440.0)
 EndFunction
 
 Function _armCoolTimer(int slot)
@@ -3442,7 +3474,7 @@ Function _activateSlotEffects(int slot)
     ; slots (8..MAX_CONDITIONS) dispatch their effects when evaluateTier
     ; picks them. Storage is in StorageUtil (mtf.fx.<slot>.<e>.*) which has
     ; no inherent per-slot cap.
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     _setDispatchBaseSlot(OverlaySlot)
@@ -3468,7 +3500,7 @@ Function _activateSlotEffects(int slot)
 EndFunction
 
 Function _deactivateSlotEffects(int slot)
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     _setDispatchBaseSlot(OverlaySlot)
@@ -3494,7 +3526,7 @@ Function _deactivateSlotEffects(int slot)
 EndFunction
 
 Function _tickSlotEffects(int slot)
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     _setDispatchBaseSlot(OverlaySlot)
@@ -3519,7 +3551,7 @@ Function _tickSlotEffects(int slot)
 EndFunction
 
 Function _gameTickSlotEffects(int slot)
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     _setDispatchBaseSlot(OverlaySlot)
@@ -3543,7 +3575,7 @@ Function _gameTickSlotEffects(int slot)
 EndFunction
 
 bool Function _slotHasEffects(int slot)
-    if slot < 0 || slot > MAX_CONDITIONS()
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return false
     endif
     int e = 0
@@ -3772,16 +3804,10 @@ State checkingAroused
                     ; treating the slot as locked-in-persist on the next tick.
                     if currentTier > 0 && _arraysReady
                         ; Whole-array reassign — indexed writes to Auto
-                        ; array properties silently no-op
-                        ; (project_papyrus_property_array_writes).
-                        ; Bounds-check for backend-only slots (> MCM cap):
-                        ; cooldownUntilGT is MCM-sized so we skip the write
-                        ; and the slot has no persist timer anyway.
-                        if cooldownUntilGT != None && currentTier < cooldownUntilGT.Length
-                            float[] aP = cooldownUntilGT
-                            aP[currentTier] = 0.0
-                            cooldownUntilGT = aP
-                        endif
+                        ; v0.2.8: persistUntilGT is now StorageUtil-backed per
+                        ; slot, slot-agnostic — single setter call, no bounds
+                        ; check needed (accessor early-returns on bad index).
+                        SetCondPersistUntilGT(currentTier, 0.0)
                         _armCoolTimer(currentTier)
                     endif
                 endif
@@ -4303,7 +4329,7 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
     ; (8..MAX_CONDITIONS) can still resolve their visual via Default-
     ; inheritance in _g_resolvePackId/_g_resolveEntryId. The clear-overlay
     ; branch now only fires for truly out-of-range tiers.
-    if idx < 0 || idx > MAX_CONDITIONS()
+    if idx < 0 || idx > MAX_CONDITIONS_CACHED()
         bool isFemaleClear = akTarget.GetLeveledActorBase().GetSex() as bool
         int ci = 0
         while ci < reservedLayers
@@ -4637,28 +4663,6 @@ Function postLoadRedrawNow()
 EndFunction
 
 ; ── NiOverride wrappers ───────────────────────────────────────────────────────
-; applyOverlay: stamps Texture into ovlSlot with per-layer effective emissive
-; intensity (caller pre-multiplies condEmissiveMult by the layer's bias).
-; Falloff (param 2) is set to 5.0 when intensity > 0 ("glow on"), else 0.0
-; — same convention as before.
-
-Function applyOverlay(actor Target, bool isFemale, string Area, int Slot, string Texture, int Tint, int Emissive, float Intensity, float Alpha)
-    string Node = Area + " [ovl" + Slot + "]"
-    ; See _drawOverlayForActorAt for why we don't gate on HasOverlays.
-    NiOverride.AddOverlays(Target)
-    NiOverride.AddNodeOverrideString(Target, isFemale, Node, 9, 0, Texture, true)
-    NiOverride.AddNodeOverrideInt(Target, isFemale, Node, 7, -1, Tint, true)
-    NiOverride.AddNodeOverrideInt(Target, isFemale, Node, 0, -1, Emissive, true)
-    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 1, -1, Intensity, true)
-    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 8, -1, Alpha, true)
-    if Intensity > 0.0
-        NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 5.0, true)
-    else
-        NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 0.0, true)
-        NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 3, -1, 0.0, true)
-    endif
-    NiOverride.ApplyNodeOverrides(Target)
-EndFunction
 
 Function clearOverlay(actor Target, bool isFemale, string Area, int Slot)
     string Node = Area + " [ovl" + Slot + "]"
@@ -5721,10 +5725,7 @@ int Function _g_allowOverride(int slot, bool useScratch)
         endif
         return _sCooldownMode[slot]
     endif
-    if !_arraysReady
-        return 1
-    endif
-    return cooldownMode[slot]
+    return GetCondAllowOverride(slot)
 EndFunction
 
 int Function _g_persistMin(int slot, bool useScratch)
@@ -5738,10 +5739,7 @@ int Function _g_persistMin(int slot, bool useScratch)
         endif
         return _sCooldownMin[slot]
     endif
-    if !_arraysReady
-        return 0
-    endif
-    return cooldownMin[slot]
+    return GetCondPersistMin(slot)
 EndFunction
 
 int Function _g_coolMin(int slot, bool useScratch)
@@ -5940,56 +5938,50 @@ string Function _g_resolveEntryId(int slot, bool useScratch)
     return _sCondEntryId[slot]
 EndFunction
 
-; Backend-only slots (slot > MAX_CONDITIONS_MCM) compute lidx beyond the
-; MCM-sized layer arrays. Wrap to slot 0's matching layer so they inherit
-; Default's per-layer visual config -- same semantic as condPackId
-; inheritance in Resolve*. Without this, drawOverlay crashes with
-; "Array index N out of range" and the effect dispatch never runs.
-int Function _safeLayerIdx(int lidx)
-    if condLayerTint == None || lidx < 0
-        return 0
-    endif
-    if lidx >= condLayerTint.Length
-        return lidx % MAX_LAYERS_PER_SLOT()
-    endif
-    return lidx
-EndFunction
-
+; v0.2.8: _safeLayerIdx retired — the StorageUtil-backed accessors return
+; sensible defaults for any (slot, L) pair, no wrap-around needed. Player-
+; side _g_layer* functions decompose flat lidx → (slot, L) and call the
+; unified accessors. Scratch path still reads the NPC _s* arrays directly
+; (slot 0..7 only; backend NPC slots have no per-slot visuals).
 int Function _g_layerTint(int lidx, bool useScratch)
     if useScratch
-        if !_sArraysReady
+        if !_sArraysReady || lidx < 0 || lidx >= _sCondLayerTint.Length
             return 16777215
         endif
         return _sCondLayerTint[lidx]
     endif
-    return condLayerTint[_safeLayerIdx(lidx)]
+    int maxL = MAX_LAYERS_PER_SLOT()
+    return GetCondLayerTint(lidx / maxL, lidx % maxL)
 EndFunction
 int Function _g_layerEmissive(int lidx, bool useScratch)
     if useScratch
-        if !_sArraysReady
+        if !_sArraysReady || lidx < 0 || lidx >= _sCondLayerEmissive.Length
             return 16777215
         endif
         return _sCondLayerEmissive[lidx]
     endif
-    return condLayerEmissive[_safeLayerIdx(lidx)]
+    int maxL = MAX_LAYERS_PER_SLOT()
+    return GetCondLayerEmissive(lidx / maxL, lidx % maxL)
 EndFunction
 float Function _g_layerEmissiveMult(int lidx, bool useScratch)
     if useScratch
-        if !_sArraysReady
+        if !_sArraysReady || lidx < 0 || lidx >= _sCondLayerEmissiveMult.Length
             return 0.0
         endif
         return _sCondLayerEmissiveMult[lidx]
     endif
-    return condLayerEmissiveMult[_safeLayerIdx(lidx)]
+    int maxL = MAX_LAYERS_PER_SLOT()
+    return GetCondLayerEmissiveMult(lidx / maxL, lidx % maxL)
 EndFunction
 int Function _g_layerAlpha(int lidx, bool useScratch)
     if useScratch
-        if !_sArraysReady
+        if !_sArraysReady || lidx < 0 || lidx >= _sCondLayerAlpha.Length
             return 100
         endif
         return _sCondLayerAlpha[lidx]
     endif
-    return condLayerAlpha[_safeLayerIdx(lidx)]
+    int maxL = MAX_LAYERS_PER_SLOT()
+    return GetCondLayerAlpha(lidx / maxL, lidx % maxL)
 EndFunction
 
 ; _g_effectKey/Param/Param2 removed in v0.1.5 — effect storage moved to
@@ -6034,7 +6026,7 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
     ; reverts the apply path's tier transition within the same tick. Symptom:
     ; "applied" → "Tier N - <effect>" (apply dispatch) → "condition cleared"
     ; (slow-tick reversion), all within ~1 second.
-    int maxC = MAX_CONDITIONS()
+    int maxC = MAX_CONDITIONS_CACHED()
 
     ; Pre-scan: lowest-i slot in persist with !allowOverride wins outright.
     int i = 1
@@ -6101,7 +6093,7 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
     ; Scratch _s* cond arrays widened to 33 in _ensureScratchArrays so
     ; the apply-via-spell flow can dispatch slot 9+ effects. Clamp to
     ; array bounds for safety if user bumps iMaxConditions past 32.
-    int maxC = MAX_CONDITIONS()
+    int maxC = MAX_CONDITIONS_CACHED()
     if useScratch && maxC > 32
         maxC = 32
     endif
@@ -6172,7 +6164,7 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
  every other case. Optional / empty string falls back to OverlaySlot via
  _getDispatchBaseSlot's fallback, preserving the player single-preset
  behaviour for callers that haven't been updated.}
-    if target == None || slot < 0 || slot > MAX_CONDITIONS()
+    if target == None || slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
@@ -6216,7 +6208,7 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
 EndFunction
 
 Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch, string presetName = "")
-    if target == None || slot < 0 || slot > MAX_CONDITIONS()
+    if target == None || slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
@@ -6271,7 +6263,7 @@ Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch,
 EndFunction
 
 Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch, string presetName = "")
-    if target == None || slot < 0 || slot > MAX_CONDITIONS()
+    if target == None || slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     _setDispatchBaseSlot(_resolveDispatchBaseSlot(target, presetName))
