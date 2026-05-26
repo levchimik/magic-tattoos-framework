@@ -189,6 +189,22 @@ bool[]   _batchAddOverlaysDone
 string[] _prewarmList
 int      _prewarmIdx = -1
 
+; ── Per-actor cond-result cache (PERF_TIER1_APPLY #6 / PERF_REEVAL #1) ───────
+; Within one (actor, eval-pass) scope, many stacked presets often share the
+; same condition (e.g. all bind `mtf.base:combat.in` to slot 1). Each
+; p.checkCondition is a ~50ms cross-script call. Cache keyed by
+; key|param|paramStr|param2Str so distinct configurations bucket separately.
+; Reset by callers between actors via _resetEvalCondCache(). The cache is
+; deliberately bounded at 16 entries — typical preset has <8 unique conds, so
+; saturation is rare. Cache MISSES for any cid containing "hit" so the
+; stateful _checkHit (advances roll counter via RandomInt) keeps its
+; per-call dice-roll semantics. Audit any new stateful cid before relying on
+; this cache; safe-default is to add to the bypass list.
+string[] _evalCondCacheKeys
+bool[]   _evalCondCacheResults
+int      _evalCondCacheCount = 0
+bool     _evalCondCacheReady = false
+
 Function SetProfileApply(bool v)
     _profileApply = v
 EndFunction
@@ -4743,6 +4759,10 @@ State checkingAroused
             if playerPresetN > 0
                 presetNames  = Utility.CreateStringArray(playerPresetN, "")
                 preEvalTiers = Utility.CreateIntArray(playerPresetN, 0)
+                ; PERF_TIER1_APPLY #6: per-actor cond-result cache for the
+                ; player pre-eval pass. Stacked player presets sharing the
+                ; same cond+param collapse to 1 cross-script call + N-1 hits.
+                _resetEvalCondCache()
                 int ppe = 0
                 while ppe < playerPresetN
                     string ppNameE = GetActorPresetAt(PlayerRef, ppe)
@@ -5783,6 +5803,10 @@ int Function AddAppliedPresetsBatch(Actor target, string[] names)
     ; the duration of the batch. The first preset pays the ~120ms scan; every
     ; subsequent preset stacks atop the accumulated reservs without re-scanning.
     _beginBatchBaseSlotCache()
+    ; PERF_TIER1_APPLY #6: cond-result cache across the batch's N presets.
+    ; All 4 Vis presets in the stress test bind the same cond (mtf.base:combat.in)
+    ; to slot 1; this collapses 4 × 50ms cross-script calls into 1 + 3 hits.
+    _resetEvalCondCache()
     MTFPulse.BeginTransitionBatch()
     int i = 0
     while i < n
@@ -6991,6 +7015,84 @@ EndFunction
 ; directly with the natural (slot, idx) shape instead of a flat fxIdx.
 
 ; ── Generalized eval + effect dispatch ──────────────────────────────────────
+; ── Cond-result cache helpers (PERF_TIER1_APPLY #6) ─────────────────────────
+Function _resetEvalCondCache()
+{Clear the per-(actor, eval-pass) cond-result cache. Callers wrap each
+ actor's preset-eval loop with this; cache hits then accrue across the
+ actor's presets and reset between actors. Lazily allocates the backing
+ arrays on first use.}
+    if !_evalCondCacheReady
+        _evalCondCacheKeys    = new string[16]
+        _evalCondCacheResults = new bool[16]
+        _evalCondCacheReady   = true
+    endif
+    _evalCondCacheCount = 0
+EndFunction
+
+bool Function _condCacheable(string key)
+{Returns true if the given catalog key produces a deterministic, pure-read
+ result (safe to cache across presets within one actor pass). Excludes
+ cids that mutate state — currently only `combat.hit` (advances per-actor
+ roll counter via RandomInt inside _checkHit in MTF_Plugin_Base.psc).
+ Conservative match: any key ending in ".hit" is bypassed.}
+    if key == ""
+        return false
+    endif
+    int sLen = StringUtil.GetLength(key)
+    if sLen < 4
+        return true
+    endif
+    if StringUtil.Substring(key, sLen - 4, 4) == ".hit"
+        return false
+    endif
+    return true
+EndFunction
+
+bool Function _checkCondCached(Actor target, MTF_Plugin p, int condParam, string condId, string key, string paramStr, string param2Str)
+{Cached wrapper around p.checkCondition(target, condParam, condId). Cache
+ key = key|condParam|paramStr|param2Str so distinct configurations bucket
+ separately and stateful cids (.hit) skip the cache entirely via
+ _condCacheable. Bounded at 16 entries; overflow falls back to direct call.
+ Caller is responsible for having set _setEvalParamStr/_setEvalParam2Str
+ BEFORE calling (the cache key includes them but the plugin reads them via
+ GetEvalParamStr() during the underlying call).}
+    if p == None
+        return false
+    endif
+    if !_condCacheable(key)
+        return p.checkCondition(target, condParam, condId)
+    endif
+    string cacheKey = key + "|" + condParam + "|" + paramStr + "|" + param2Str
+    int i = 0
+    while i < _evalCondCacheCount
+        if _evalCondCacheKeys[i] == cacheKey
+            return _evalCondCacheResults[i]
+        endif
+        i += 1
+    endwhile
+    bool r = p.checkCondition(target, condParam, condId)
+    if _evalCondCacheCount < 16
+        ; Whole-array build-then-assign per the Papyrus indexed-write quirk
+        ; on script-level arrays. Rebuild locals from the current cache
+        ; values, set the new slot, then assign back as references.
+        int slot = _evalCondCacheCount
+        string[] tmpK = new string[16]
+        bool[]   tmpR = new bool[16]
+        int j = 0
+        while j < _evalCondCacheCount
+            tmpK[j] = _evalCondCacheKeys[j]
+            tmpR[j] = _evalCondCacheResults[j]
+            j += 1
+        endwhile
+        tmpK[slot] = cacheKey
+        tmpR[slot] = r
+        _evalCondCacheKeys    = tmpK
+        _evalCondCacheResults = tmpR
+        _evalCondCacheCount += 1
+    endif
+    return r
+EndFunction
+
 int Function _quickEvalCondsFromJson(Actor target, string presetName)
 {Fast scratch-free tier evaluator. Reads cond.pluginid / cond.param /
  persist.* / cool.* directly from the preset JSON, dispatches
@@ -7067,7 +7169,10 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
                         _setEvalParam2(0)
                         _setEvalParamStr(paramStr)
                         _setEvalParam2Str(param2Str)
-                        if p.checkCondition(target, param, p.GetConditionId(itemIdx))
+                        ; PERF_TIER1_APPLY #6: per-(actor pass) cache. Stacked
+                        ; presets sharing the same cond+param hit cache after
+                        ; the first one runs the cross-script call.
+                        if _checkCondCached(target, p, param, p.GetConditionId(itemIdx), key, paramStr, param2Str)
                             return i
                         endif
                     endif
@@ -7146,16 +7251,24 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
                         ; Param2: only wired for the player path (non-scratch).
                         ; NPC tracked-subject scratch presets don't carry
                         ; param2 yet — reset to 0 so a stale value can't leak.
+                        string evParamStr
+                        string evParam2Str
                         if useScratch
                             _setEvalParam2(0)
-                            _setEvalParamStr(_getScratchCondParamStr(i))
-                            _setEvalParam2Str("")
+                            evParamStr  = _getScratchCondParamStr(i)
+                            evParam2Str = ""
+                            _setEvalParamStr(evParamStr)
+                            _setEvalParam2Str(evParam2Str)
                         else
                             _setEvalParam2(GetCondParam2(i))
-                            _setEvalParamStr(GetCondParamStr(i))
-                            _setEvalParam2Str(GetCondParam2Str(i))
+                            evParamStr  = GetCondParamStr(i)
+                            evParam2Str = GetCondParam2Str(i)
+                            _setEvalParamStr(evParamStr)
+                            _setEvalParam2Str(evParam2Str)
                         endif
-                        if p.checkCondition(target, _g_condParam(i, useScratch), p.GetConditionId(itemIdx))
+                        ; PERF_TIER1_APPLY #6: per-(actor pass) cache. See
+                        ; _checkCondCached docstring for cacheability rules.
+                        if _checkCondCached(target, p, _g_condParam(i, useScratch), p.GetConditionId(itemIdx), key, evParamStr, evParam2Str)
                             return i
                         endif
                     endif
@@ -7758,6 +7871,10 @@ Function _processTrackedActorOnce(Actor target)
     endif
     int i = 0
     bool needApply = false
+    ; PERF_TIER1_APPLY #6: per-actor cond-result cache. Stacked presets that
+    ; share conds (e.g. all 4 Vis presets bind mtf.base:combat.in to slot 1)
+    ; collapse 4 × ~50ms cross-script calls into 1 + 3 cache hits.
+    _resetEvalCondCache()
     ; Roster batch — see slow-tick player loop comment for the why.
     MTFPulse.BeginTransitionBatch()
     while i < n
