@@ -1,8 +1,11 @@
 #include "papyrus.h"
+#include "actor_state.h"
 #include "config.h"
 #include "log.h"
+#include "preset_registry.h"
 #include "pulse_roster.h"
 
+#include <climits>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -762,6 +765,472 @@ namespace MTFPulse::Papyrus {
             }
         }
 
+        // ── Tier 2 #1: preset cache natives ─────────────────────────────────
+        // Lazy write-through. Papyrus _loadPresetToScratch first cold-loads
+        // a preset from JSON, then calls PresetCacheSet to mirror the parsed
+        // fields into the in-process registry. Subsequent reloads of the
+        // same preset call PresetCacheGet* and skip the StorageUtil warm
+        // cache entirely — 4 cross-script calls instead of 13.
+        //
+        // Layout (must match `_loadScratchFromCache` / `_saveScratchToCache`
+        // in MTF_MainQuest.psc — see PresetData struct in preset_registry.h):
+        //   strings[32]: [condPluginId×8, condPackId×8, condEntryId×8,
+        //                 pulseWaveform×8]
+        //   ints[128]:   [condParam×8, cooldownMin×8, cooldownMode×8,
+        //                 pulseDepth×8, layerTint×32, layerEmissive×32,
+        //                 layerAlpha×32]
+        //   floats[40]:  [pulseRate×8, layerEmissiveMult×32]
+        //   scalars[4]:  [transitionDuration*1000 as int, fadeEnabled (0/1),
+        //                 fadeMode, fadeDurationMs]
+        //
+        // Indices in the flat arrays are documented as constants below to keep
+        // the C++ encode and Papyrus decode in lockstep.
+        namespace PresetLayout {
+            // strings[32]
+            constexpr std::size_t kStrPluginId = 0;
+            constexpr std::size_t kStrPackId   = 8;
+            constexpr std::size_t kStrEntryId  = 16;
+            constexpr std::size_t kStrWaveform = 24;
+            constexpr std::size_t kStrTotal    = 32;
+            // ints[128]
+            constexpr std::size_t kIntCondParam      = 0;
+            constexpr std::size_t kIntCooldownMin    = 8;
+            constexpr std::size_t kIntCooldownMode   = 16;
+            constexpr std::size_t kIntPulseDepth     = 24;
+            constexpr std::size_t kIntLayerTint      = 32;
+            constexpr std::size_t kIntLayerEmissive  = 64;
+            constexpr std::size_t kIntLayerAlpha     = 96;
+            constexpr std::size_t kIntTotal          = 128;
+            // floats[40]
+            constexpr std::size_t kFltPulseRate          = 0;
+            constexpr std::size_t kFltLayerEmissiveMult  = 8;
+            constexpr std::size_t kFltTotal              = 40;
+            // scalars[4]
+            constexpr std::size_t kScalTransitionMs   = 0;  // transitionDur * 1000
+            constexpr std::size_t kScalFadeEnabled    = 1;
+            constexpr std::size_t kScalFadeMode       = 2;
+            constexpr std::size_t kScalFadeDurationMs = 3;
+            constexpr std::size_t kScalTotal          = 4;
+        }
+
+        // PresetCacheSet — called by Papyrus after a cold JSON load (and only
+        // then). Writes a single registry entry. Subsequent loads of the same
+        // preset hit the read natives instead.
+        void PresetCacheSet(
+            RE::StaticFunctionTag*           /*tag*/,
+            RE::BSFixedString                name,
+            std::vector<RE::BSFixedString>   strs,
+            std::vector<std::int32_t>        ints,
+            std::vector<float>               floats,
+            std::vector<std::int32_t>        scalars)
+        {
+            if (name.empty()) {
+                spdlog::warn("PresetCacheSet called with empty name");
+                return;
+            }
+            if (strs.size() < PresetLayout::kStrTotal ||
+                ints.size() < PresetLayout::kIntTotal ||
+                floats.size() < PresetLayout::kFltTotal ||
+                scalars.size() < PresetLayout::kScalTotal)
+            {
+                spdlog::warn("PresetCacheSet '{}' got mismatched array sizes "
+                             "(strs={} expect={}; ints={} expect={}; "
+                             "floats={} expect={}; scalars={} expect={})",
+                             name.c_str(),
+                             strs.size(),    PresetLayout::kStrTotal,
+                             ints.size(),    PresetLayout::kIntTotal,
+                             floats.size(),  PresetLayout::kFltTotal,
+                             scalars.size(), PresetLayout::kScalTotal);
+                return;
+            }
+
+            PresetData d{};
+            for (std::size_t s = 0; s < PresetData::kSlots; ++s) {
+                d.cond_pluginid[s]   = strs[PresetLayout::kStrPluginId + s].c_str();
+                d.cond_packid[s]     = strs[PresetLayout::kStrPackId   + s].c_str();
+                d.cond_entryid[s]    = strs[PresetLayout::kStrEntryId  + s].c_str();
+                d.pulse_waveform[s]  = strs[PresetLayout::kStrWaveform + s].c_str();
+                d.cond_param[s]      = ints[PresetLayout::kIntCondParam    + s];
+                d.cooldown_min[s]    = ints[PresetLayout::kIntCooldownMin  + s];
+                d.cooldown_mode[s]   = ints[PresetLayout::kIntCooldownMode + s];
+                d.pulse_depth[s]     = ints[PresetLayout::kIntPulseDepth   + s];
+                d.pulse_rate[s]      = floats[PresetLayout::kFltPulseRate  + s];
+            }
+            for (std::size_t l = 0; l < PresetData::kLayers; ++l) {
+                d.layer_tint[l]           = ints[PresetLayout::kIntLayerTint     + l];
+                d.layer_emissive[l]       = ints[PresetLayout::kIntLayerEmissive + l];
+                d.layer_alpha[l]          = ints[PresetLayout::kIntLayerAlpha    + l];
+                d.layer_emissive_mult[l]  = floats[PresetLayout::kFltLayerEmissiveMult + l];
+            }
+            d.transition_duration       = static_cast<float>(scalars[PresetLayout::kScalTransitionMs]) * 0.001f;
+            d.fade_on_death_enabled     = scalars[PresetLayout::kScalFadeEnabled]  != 0;
+            d.fade_on_death_mode        = scalars[PresetLayout::kScalFadeMode];
+            d.fade_on_death_duration_ms = scalars[PresetLayout::kScalFadeDurationMs];
+
+            const auto sz = PresetRegistry::Instance().Set(name.c_str(), std::move(d));
+            spdlog::debug("PresetCacheSet '{}' (registry size = {})", name.c_str(), sz);
+        }
+
+        bool PresetCacheHas(RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            return PresetRegistry::Instance().Has(name.c_str());
+        }
+
+        std::int32_t PresetCacheSize(RE::StaticFunctionTag* /*tag*/)
+        {
+            return static_cast<std::int32_t>(PresetRegistry::Instance().Size());
+        }
+
+        // PresetCacheGet* — return the cached arrays in the same flat layouts
+        // PresetCacheSet accepts. Each returns an empty array on miss; the
+        // Papyrus caller checks Length and falls through to the StorageUtil
+        // warm cache (and, on miss there, to the cold JSON path).
+        std::vector<RE::BSFixedString> PresetCacheGetStrings(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) {
+                return {};
+            }
+            std::vector<RE::BSFixedString> out;
+            out.resize(PresetLayout::kStrTotal);
+            for (std::size_t s = 0; s < PresetData::kSlots; ++s) {
+                out[PresetLayout::kStrPluginId + s] = p->cond_pluginid[s];
+                out[PresetLayout::kStrPackId   + s] = p->cond_packid[s];
+                out[PresetLayout::kStrEntryId  + s] = p->cond_entryid[s];
+                out[PresetLayout::kStrWaveform + s] = p->pulse_waveform[s];
+            }
+            return out;
+        }
+
+        std::vector<std::int32_t> PresetCacheGetInts(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) {
+                return {};
+            }
+            std::vector<std::int32_t> out(PresetLayout::kIntTotal, 0);
+            for (std::size_t s = 0; s < PresetData::kSlots; ++s) {
+                out[PresetLayout::kIntCondParam    + s] = p->cond_param[s];
+                out[PresetLayout::kIntCooldownMin  + s] = p->cooldown_min[s];
+                out[PresetLayout::kIntCooldownMode + s] = p->cooldown_mode[s];
+                out[PresetLayout::kIntPulseDepth   + s] = p->pulse_depth[s];
+            }
+            for (std::size_t l = 0; l < PresetData::kLayers; ++l) {
+                out[PresetLayout::kIntLayerTint     + l] = p->layer_tint[l];
+                out[PresetLayout::kIntLayerEmissive + l] = p->layer_emissive[l];
+                out[PresetLayout::kIntLayerAlpha    + l] = p->layer_alpha[l];
+            }
+            return out;
+        }
+
+        std::vector<float> PresetCacheGetFloats(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) {
+                return {};
+            }
+            std::vector<float> out(PresetLayout::kFltTotal, 0.0f);
+            for (std::size_t s = 0; s < PresetData::kSlots; ++s) {
+                out[PresetLayout::kFltPulseRate + s] = p->pulse_rate[s];
+            }
+            for (std::size_t l = 0; l < PresetData::kLayers; ++l) {
+                out[PresetLayout::kFltLayerEmissiveMult + l] = p->layer_emissive_mult[l];
+            }
+            return out;
+        }
+
+        std::vector<std::int32_t> PresetCacheGetScalars(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) {
+                return {};
+            }
+            std::vector<std::int32_t> out(PresetLayout::kScalTotal, 0);
+            out[PresetLayout::kScalTransitionMs] =
+                static_cast<std::int32_t>(p->transition_duration * 1000.0f + 0.5f);
+            out[PresetLayout::kScalFadeEnabled]    = p->fade_on_death_enabled ? 1 : 0;
+            out[PresetLayout::kScalFadeMode]       = p->fade_on_death_mode;
+            out[PresetLayout::kScalFadeDurationMs] = p->fade_on_death_duration_ms;
+            return out;
+        }
+
+        // PresetCacheInvalidate — called by Papyrus _invalidateScratchCache so
+        // SavePreset / deletion flows drop the C++ entry too. Without this,
+        // an edited preset would re-use the stale C++ snapshot.
+        void PresetCacheInvalidate(RE::StaticFunctionTag* /*tag*/,
+                                   RE::BSFixedString name)
+        {
+            if (name.empty()) {
+                return;
+            }
+            const bool removed = PresetRegistry::Instance().Remove(name.c_str());
+            if (removed) {
+                spdlog::debug("PresetCacheInvalidate '{}' dropped", name.c_str());
+            }
+        }
+
+        // ── Tier 2 #1 v2: per-field getters ─────────────────────────────────
+        // The original packed-array getters (PresetCacheGetStrings/Ints/Floats)
+        // forced the Papyrus side to unpack via indexed writes into local
+        // arrays — that hit a Papyrus VM quirk where the third Int[32] local
+        // allocation in a function with many array locals returned None,
+        // cascading to invisible textures. These per-field getters return
+        // each field directly so Papyrus can do `_sX = MTFPulse.GetX(name)`
+        // whole-array reference assignment with no indexed writes. 13 cross-
+        // script calls instead of 4; still beats 13 StorageUtil reads since
+        // C++ map lookup is faster per-call than StorageUtil's dotted-key
+        // hash + list copy.
+        std::vector<RE::BSFixedString> PresetCacheGetCondPluginId(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            std::vector<RE::BSFixedString> out(p->cond_pluginid.begin(), p->cond_pluginid.end());
+            return out;
+        }
+        std::vector<std::int32_t> PresetCacheGetCondParam(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<std::int32_t>(p->cond_param.begin(), p->cond_param.end());
+        }
+        std::vector<RE::BSFixedString> PresetCacheGetCondPackId(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<RE::BSFixedString>(p->cond_packid.begin(), p->cond_packid.end());
+        }
+        std::vector<RE::BSFixedString> PresetCacheGetCondEntryId(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<RE::BSFixedString>(p->cond_entryid.begin(), p->cond_entryid.end());
+        }
+        std::vector<std::int32_t> PresetCacheGetCooldownMin(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<std::int32_t>(p->cooldown_min.begin(), p->cooldown_min.end());
+        }
+        std::vector<std::int32_t> PresetCacheGetCooldownMode(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<std::int32_t>(p->cooldown_mode.begin(), p->cooldown_mode.end());
+        }
+        std::vector<float> PresetCacheGetPulseRate(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<float>(p->pulse_rate.begin(), p->pulse_rate.end());
+        }
+        std::vector<std::int32_t> PresetCacheGetPulseDepth(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<std::int32_t>(p->pulse_depth.begin(), p->pulse_depth.end());
+        }
+        std::vector<RE::BSFixedString> PresetCacheGetPulseWaveform(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<RE::BSFixedString>(p->pulse_waveform.begin(), p->pulse_waveform.end());
+        }
+        std::vector<std::int32_t> PresetCacheGetLayerTint(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<std::int32_t>(p->layer_tint.begin(), p->layer_tint.end());
+        }
+        std::vector<std::int32_t> PresetCacheGetLayerEmissive(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<std::int32_t>(p->layer_emissive.begin(), p->layer_emissive.end());
+        }
+        std::vector<float> PresetCacheGetLayerEmMult(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<float>(p->layer_emissive_mult.begin(), p->layer_emissive_mult.end());
+        }
+        std::vector<std::int32_t> PresetCacheGetLayerAlpha(
+            RE::StaticFunctionTag* /*tag*/, RE::BSFixedString name)
+        {
+            auto p = PresetRegistry::Instance().Get(name.c_str());
+            if (!p) return {};
+            return std::vector<std::int32_t>(p->layer_alpha.begin(), p->layer_alpha.end());
+        }
+
+        // ── Tier 2 #2: actor preset state cache natives ─────────────────────
+        // Sentinels: returned from Get* when the (actor, preset) key isn't in
+        // the C++ cache. Papyrus falls back to StorageUtil on these.
+        //   - Int sentinel:  INT32_MIN  (no caller stores INT32_MIN as a real
+        //                    tier/base/layers value)
+        //   - Float sentinel: -1.0e30f  (callers use 0.0 / positive game-time
+        //                    or real-time values; this is well outside any
+        //                    legitimate range)
+        constexpr std::int32_t kActorStateMissInt   = INT32_MIN;
+        // Plain-decimal sentinel (Papyrus doesn't support scientific notation,
+        // so the same magic number on both sides has to spell out). Game-time
+        // and real-time values are non-negative and bounded well below 1e9 even
+        // on year-long playthroughs.
+        constexpr float        kActorStateMissFloat = -987654321.0f;
+
+        static std::uint32_t ActorFormID(RE::Actor* a)
+        {
+            return a ? a->GetFormID() : 0u;
+        }
+
+        // Per-(actor, preset) tier
+        std::int32_t ActorPresetGetTier(RE::StaticFunctionTag* /*tag*/,
+                                        RE::Actor*             actor,
+                                        RE::BSFixedString      preset)
+        {
+            if (!actor || preset.empty()) return kActorStateMissInt;
+            auto v = ActorStateRegistry::Instance().GetTier(ActorFormID(actor), preset.c_str());
+            return v ? *v : kActorStateMissInt;
+        }
+        void ActorPresetSetTier(RE::StaticFunctionTag* /*tag*/,
+                                RE::Actor*             actor,
+                                RE::BSFixedString      preset,
+                                std::int32_t           tier)
+        {
+            if (!actor || preset.empty()) return;
+            ActorStateRegistry::Instance().SetTier(ActorFormID(actor), preset.c_str(), tier);
+        }
+
+        // Per-(actor, preset) pulse-start real-time anchor
+        float ActorPresetGetPulseStartRT(RE::StaticFunctionTag* /*tag*/,
+                                         RE::Actor*             actor,
+                                         RE::BSFixedString      preset)
+        {
+            if (!actor || preset.empty()) return kActorStateMissFloat;
+            auto v = ActorStateRegistry::Instance().GetPulseStartRT(ActorFormID(actor), preset.c_str());
+            return v ? *v : kActorStateMissFloat;
+        }
+        void ActorPresetSetPulseStartRT(RE::StaticFunctionTag* /*tag*/,
+                                        RE::Actor*             actor,
+                                        RE::BSFixedString      preset,
+                                        float                  t)
+        {
+            if (!actor || preset.empty()) return;
+            ActorStateRegistry::Instance().SetPulseStartRT(ActorFormID(actor), preset.c_str(), t);
+        }
+
+        // Per-(actor, preset, slot) persist-until game-time
+        float ActorPresetGetPersistUntil(RE::StaticFunctionTag* /*tag*/,
+                                         RE::Actor*             actor,
+                                         RE::BSFixedString      preset,
+                                         std::int32_t           slot)
+        {
+            if (!actor || preset.empty()) return kActorStateMissFloat;
+            auto v = ActorStateRegistry::Instance().GetPersistUntil(ActorFormID(actor), preset.c_str(), slot);
+            return v ? *v : kActorStateMissFloat;
+        }
+        void ActorPresetSetPersistUntil(RE::StaticFunctionTag* /*tag*/,
+                                        RE::Actor*             actor,
+                                        RE::BSFixedString      preset,
+                                        std::int32_t           slot,
+                                        float                  t)
+        {
+            if (!actor || preset.empty()) return;
+            ActorStateRegistry::Instance().SetPersistUntil(ActorFormID(actor), preset.c_str(), slot, t);
+        }
+
+        // Per-(actor, preset, slot) cool-until game-time
+        float ActorPresetGetCoolUntil(RE::StaticFunctionTag* /*tag*/,
+                                      RE::Actor*             actor,
+                                      RE::BSFixedString      preset,
+                                      std::int32_t           slot)
+        {
+            if (!actor || preset.empty()) return kActorStateMissFloat;
+            auto v = ActorStateRegistry::Instance().GetCoolUntil(ActorFormID(actor), preset.c_str(), slot);
+            return v ? *v : kActorStateMissFloat;
+        }
+        void ActorPresetSetCoolUntil(RE::StaticFunctionTag* /*tag*/,
+                                     RE::Actor*             actor,
+                                     RE::BSFixedString      preset,
+                                     std::int32_t           slot,
+                                     float                  t)
+        {
+            if (!actor || preset.empty()) return;
+            ActorStateRegistry::Instance().SetCoolUntil(ActorFormID(actor), preset.c_str(), slot, t);
+        }
+
+        // Per-(actor, preset, area) base slot. Area is 0=Body, 1=Face,
+        // 2=Hands, 3=Feet — matches the Roster Area enum + the area string
+        // mapping in MainQuest._areaIdxFromString.
+        std::int32_t ActorPresetGetBase(RE::StaticFunctionTag* /*tag*/,
+                                        RE::Actor*             actor,
+                                        RE::BSFixedString      preset,
+                                        std::int32_t           area)
+        {
+            if (!actor || preset.empty()) return kActorStateMissInt;
+            auto v = ActorStateRegistry::Instance().GetBase(ActorFormID(actor), preset.c_str(), area);
+            return v ? *v : kActorStateMissInt;
+        }
+        void ActorPresetSetBase(RE::StaticFunctionTag* /*tag*/,
+                                RE::Actor*             actor,
+                                RE::BSFixedString      preset,
+                                std::int32_t           area,
+                                std::int32_t           value)
+        {
+            if (!actor || preset.empty()) return;
+            ActorStateRegistry::Instance().SetBase(ActorFormID(actor), preset.c_str(), area, value);
+        }
+
+        // Per-(actor, preset, area) reserved layer count
+        std::int32_t ActorPresetGetLayers(RE::StaticFunctionTag* /*tag*/,
+                                          RE::Actor*             actor,
+                                          RE::BSFixedString      preset,
+                                          std::int32_t           area)
+        {
+            if (!actor || preset.empty()) return kActorStateMissInt;
+            auto v = ActorStateRegistry::Instance().GetLayers(ActorFormID(actor), preset.c_str(), area);
+            return v ? *v : kActorStateMissInt;
+        }
+        void ActorPresetSetLayers(RE::StaticFunctionTag* /*tag*/,
+                                  RE::Actor*             actor,
+                                  RE::BSFixedString      preset,
+                                  std::int32_t           area,
+                                  std::int32_t           value)
+        {
+            if (!actor || preset.empty()) return;
+            ActorStateRegistry::Instance().SetLayers(ActorFormID(actor), preset.c_str(), area, value);
+        }
+
+        // Drop the (actor, preset) cache entry. Mirror of
+        // _clearActorPresetState in MainQuest — called when a preset is
+        // removed from an actor's applied list.
+        void ActorPresetClear(RE::StaticFunctionTag* /*tag*/,
+                              RE::Actor*             actor,
+                              RE::BSFixedString      preset)
+        {
+            if (!actor || preset.empty()) return;
+            ActorStateRegistry::Instance().Clear(ActorFormID(actor), preset.c_str());
+        }
+
+        std::int32_t ActorPresetCacheSize(RE::StaticFunctionTag* /*tag*/)
+        {
+            return static_cast<std::int32_t>(ActorStateRegistry::Instance().Size());
+        }
+
     }  // namespace
 
     bool Register(RE::BSScript::IVirtualMachine* vm)
@@ -790,6 +1259,46 @@ namespace MTFPulse::Papyrus {
         vm->RegisterFunction("RegisterWaveformLUT",        kClassName, RegisterWaveformLUT);
         vm->RegisterFunction("SetActorPulseAndFadeBatch",  kClassName, SetActorPulseAndFadeBatch);
         vm->RegisterFunction("GetWaveformRegistrySize",    kClassName, GetWaveformRegistrySize);
+        // Tier 2 #1: preset cache
+        vm->RegisterFunction("PresetCacheSet",           kClassName, PresetCacheSet);
+        vm->RegisterFunction("PresetCacheHas",           kClassName, PresetCacheHas);
+        vm->RegisterFunction("PresetCacheSize",          kClassName, PresetCacheSize);
+        vm->RegisterFunction("PresetCacheGetStrings",    kClassName, PresetCacheGetStrings);
+        vm->RegisterFunction("PresetCacheGetInts",       kClassName, PresetCacheGetInts);
+        vm->RegisterFunction("PresetCacheGetFloats",     kClassName, PresetCacheGetFloats);
+        vm->RegisterFunction("PresetCacheGetScalars",    kClassName, PresetCacheGetScalars);
+        vm->RegisterFunction("PresetCacheInvalidate",    kClassName, PresetCacheInvalidate);
+        // Tier 2 #1 v2: per-field getters (avoid Papyrus indexed-write quirk
+        // by returning each field as its own array — Papyrus does a whole-
+        // array reference assignment for each).
+        vm->RegisterFunction("PresetCacheGetCondPluginId", kClassName, PresetCacheGetCondPluginId);
+        vm->RegisterFunction("PresetCacheGetCondParam",    kClassName, PresetCacheGetCondParam);
+        vm->RegisterFunction("PresetCacheGetCondPackId",   kClassName, PresetCacheGetCondPackId);
+        vm->RegisterFunction("PresetCacheGetCondEntryId",  kClassName, PresetCacheGetCondEntryId);
+        vm->RegisterFunction("PresetCacheGetCooldownMin",  kClassName, PresetCacheGetCooldownMin);
+        vm->RegisterFunction("PresetCacheGetCooldownMode", kClassName, PresetCacheGetCooldownMode);
+        vm->RegisterFunction("PresetCacheGetPulseRate",    kClassName, PresetCacheGetPulseRate);
+        vm->RegisterFunction("PresetCacheGetPulseDepth",   kClassName, PresetCacheGetPulseDepth);
+        vm->RegisterFunction("PresetCacheGetPulseWaveform",kClassName, PresetCacheGetPulseWaveform);
+        vm->RegisterFunction("PresetCacheGetLayerTint",    kClassName, PresetCacheGetLayerTint);
+        vm->RegisterFunction("PresetCacheGetLayerEmissive",kClassName, PresetCacheGetLayerEmissive);
+        vm->RegisterFunction("PresetCacheGetLayerEmMult",  kClassName, PresetCacheGetLayerEmMult);
+        vm->RegisterFunction("PresetCacheGetLayerAlpha",   kClassName, PresetCacheGetLayerAlpha);
+        // Tier 2 #2: actor preset state cache
+        vm->RegisterFunction("ActorPresetGetTier",          kClassName, ActorPresetGetTier);
+        vm->RegisterFunction("ActorPresetSetTier",          kClassName, ActorPresetSetTier);
+        vm->RegisterFunction("ActorPresetGetPulseStartRT",  kClassName, ActorPresetGetPulseStartRT);
+        vm->RegisterFunction("ActorPresetSetPulseStartRT",  kClassName, ActorPresetSetPulseStartRT);
+        vm->RegisterFunction("ActorPresetGetPersistUntil",  kClassName, ActorPresetGetPersistUntil);
+        vm->RegisterFunction("ActorPresetSetPersistUntil",  kClassName, ActorPresetSetPersistUntil);
+        vm->RegisterFunction("ActorPresetGetCoolUntil",     kClassName, ActorPresetGetCoolUntil);
+        vm->RegisterFunction("ActorPresetSetCoolUntil",     kClassName, ActorPresetSetCoolUntil);
+        vm->RegisterFunction("ActorPresetGetBase",          kClassName, ActorPresetGetBase);
+        vm->RegisterFunction("ActorPresetSetBase",          kClassName, ActorPresetSetBase);
+        vm->RegisterFunction("ActorPresetGetLayers",        kClassName, ActorPresetGetLayers);
+        vm->RegisterFunction("ActorPresetSetLayers",        kClassName, ActorPresetSetLayers);
+        vm->RegisterFunction("ActorPresetClear",            kClassName, ActorPresetClear);
+        vm->RegisterFunction("ActorPresetCacheSize",        kClassName, ActorPresetCacheSize);
         spdlog::info("Papyrus natives registered under '{}'", kClassName);
         return true;
     }
