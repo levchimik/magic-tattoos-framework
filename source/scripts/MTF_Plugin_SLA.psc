@@ -64,7 +64,7 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; v0.2.9: param1 is now a menu id ("locked" / "unlocked"), fetched via
         ; host.GetEvalParamStr(). Int param ignored on this branch.
         bool locked = SLAFramework.IsActorArousalLocked(target)
-        if _host().GetEvalParamStr() == "locked"
+        if _host().GetEvalParamStr(target) == "locked"
             return locked
         endif
         return !locked

@@ -123,18 +123,29 @@ Function _showStressNMenu()
     endif
     m.ResetMenu()
     int current = StorageUtil.GetIntValue(None, "mtf.stress.n", 2)
+    MTF_MainQuest hostQ = GetOwningQuest() as MTF_MainQuest
+    bool parallelOn = false
+    if hostQ != None
+        parallelOn = StorageUtil.GetIntValue(hostQ, "mtf.parallelTick.enabled", 1) != 0
+    endif
+    string parallelLabel = "PARALLEL: OFF"
+    if parallelOn
+        parallelLabel = "PARALLEL: ON"
+    endif
     int HEADER_COUNT      = 3
     int RUN_STRESS_ROW    = HEADER_COUNT          ; 3
     int RUN_VIS_ROW       = HEADER_COUNT + 1      ; 4
     int RUN_VISH_ROW      = HEADER_COUNT + 2      ; 5
-    int SEP_ROW           = HEADER_COUNT + 3      ; 6
-    int VALUES_BASE       = HEADER_COUNT + 4      ; 7
+    int TOGGLE_PARALLEL_ROW = HEADER_COUNT + 3    ; 6
+    int SEP_ROW           = HEADER_COUNT + 4      ; 7
+    int VALUES_BASE       = HEADER_COUNT + 5      ; 8
     m.AddEntryItem("-   MTF: pick N (concurrent fibers / NPCs)   -")
     m.AddEntryItem("Current: N = " + current)
     m.AddEntryItem("-----------------------")
     m.AddEntryItem(">> Run STRESS now (skills, N = " + current + ")")
     m.AddEntryItem(">> Run VISUALS now (combat, N = " + current + ")")
     m.AddEntryItem(">> Run VISUALS-HEALTH now (sequential, N = " + current + ")")
+    m.AddEntryItem(">> Toggle parallel dispatch (" + parallelLabel + ")")
     m.AddEntryItem("-----------------------")
     int[] values = new int[10]
     values[0] = 1
@@ -167,6 +178,20 @@ Function _showStressNMenu()
     elseif idx == RUN_VISH_ROW
         Debug.Trace("[MTF_VISH] Run-visuals-health selected (N=" + current + ")")
         RunVisualsHealth()
+        return
+    elseif idx == TOGGLE_PARALLEL_ROW
+        if hostQ != None
+            int newState = 0
+            if !parallelOn
+                newState = 1
+            endif
+            hostQ.SetParallelTick(newState)
+            string label = "OFF"
+            if newState != 0
+                label = "ON"
+            endif
+            Debug.Notification("MTF: parallel dispatch " + label)
+        endif
         return
     elseif idx < VALUES_BASE
         return                ; header / separator rows

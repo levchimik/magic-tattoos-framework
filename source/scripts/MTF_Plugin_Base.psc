@@ -423,7 +423,7 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; ids map 1:1 onto _checkHit's classIdx and the host-side
         ; hit-counter storage keys. param2 = chance % per matching hit.
         ; Pre-v0.2.5 used 7 separate combat.hit.* conditions.
-        string hitId = _host().GetEvalParamStr()
+        string hitId = _host().GetEvalParamStr(target)
         int hitClass = -1
         if hitId == "any"
             hitClass = 0
@@ -443,7 +443,7 @@ bool Function checkCondition(Actor target, int param, string cid)
         if hitClass < 0
             return false
         endif
-        return _checkHit(hitClass, _host().GetEvalParam2())
+        return _checkHit(hitClass, _host().GetEvalParam2(target))
     elseif cid == "health"
         float p = _avPercent(target, "Health")
         return p >= 0.0 && p >= param as float
@@ -457,7 +457,7 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; Pre-v0.2.5 used 6 separate location.{playerHome..jail} conditions;
         ; v0.2.7 folded location.indoors / location.outdoors in here, and
         ; v0.2.9 swapped the int positional dropdown for stable ids.
-        string locId = _host().GetEvalParamStr()
+        string locId = _host().GetEvalParamStr(target)
         if locId == "indoors"
             Cell ci = target.GetParentCell()
             return ci != None && ci.IsInterior()
@@ -482,7 +482,7 @@ bool Function checkCondition(Actor target, int param, string cid)
         if w == None
             return false
         endif
-        string wid = _host().GetEvalParamStr()
+        string wid = _host().GetEvalParamStr(target)
         int wClass = -1
         if wid == "pleasant"
             wClass = 0
@@ -525,7 +525,7 @@ bool Function checkCondition(Actor target, int param, string cid)
         float t36 = Utility.GetCurrentGameTime()
         float h36 = (t36 - Math.Floor(t36)) * 24.0
         int fromH = param
-        int tillH = _host().GetEvalParam2()
+        int tillH = _host().GetEvalParam2(target)
         if fromH == tillH
             return false
         elseif fromH < tillH

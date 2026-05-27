@@ -64,7 +64,7 @@ bool Function checkCondition(Actor target, int param, string cid)
     elseif cid == "cycle.phase"
         ; cycle.phase: phase id matches the picked option. v0.2.9 schema v2 —
         ; param1 carries a string id; map to BFNG's GetFemaleState int.
-        string phaseId = _host().GetEvalParamStr()
+        string phaseId = _host().GetEvalParamStr(target)
         int wantPhase = -1
         if phaseId == "follicular"
             wantPhase = 0

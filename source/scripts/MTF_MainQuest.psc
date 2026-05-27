@@ -559,8 +559,48 @@ Function _onTrackedActorKilled(Actor victim)
     endif
     if !fadeArmed
         _rosterRemoveActor(victim)
-    elseif DebugMode
-        Debug.Notification("[MTF fade] death cleanup deferred — fade running on " + victim.GetDisplayName())
+    else
+        ; v0.3.1 (#A parallel-safe): eagerly arm fade params on every
+        ; (preset, area, baseSlot) for this actor. Without this, a
+        ; parallel fiber mid-tier-transition may not have flushed its
+        ; fadePacked to the Roster yet — the C++ DeathSink fires now,
+        ; finds entries with fade_armed=false, and the pulse continues
+        ; running on the corpse instead of fading out. Reads fade params
+        ; from per-preset cache directly (race-safe, no _s* dependence).
+        ; SetActorFade is idempotent — if the fiber later writes the
+        ; same params, no harm.
+        int j = 0
+        while j < n
+            string nmFade = GetActorPresetAt(victim, j)
+            if nmFade != ""
+                string ckFade = "mtf.scratch.cached." + nmFade
+                bool fEnabled  = StorageUtil.GetIntValue(None, ckFade + ".fadeondeath.enabled", 0) > 0
+                if fEnabled
+                    int fMode = StorageUtil.GetIntValue(None, ckFade + ".fadeondeath.mode", 0)
+                    int fDur  = StorageUtil.GetIntValue(None, ckFade + ".fadeondeath.durationms", 2000)
+                    if fMode < 0 || fMode > 2
+                        fMode = 0
+                    endif
+                    if fDur < 1
+                        fDur = 2000
+                    endif
+                    Int[] fadeBases  = _readActorAreaBases(victim, nmFade)
+                    string[] fadeParts = _OVERLAY_PARTS()
+                    int k = 0
+                    while k < fadeParts.Length && k < fadeBases.Length
+                        int fBase = fadeBases[k]
+                        if fBase >= 0
+                            MTFPulse.SetActorFade(victim, fBase, fMode, fDur, _areaIndex(fadeParts[k]))
+                        endif
+                        k += 1
+                    endwhile
+                endif
+            endif
+            j += 1
+        endwhile
+        if DebugMode
+            Debug.Notification("[MTF fade] death cleanup deferred — fade armed on " + victim.GetDisplayName())
+        endif
     endif
     _setActorKilled(victim, true)
 EndFunction
@@ -1386,31 +1426,60 @@ EndFunction
 ; ── Evaluation-time scratch for current slot's param2 ────────────────────────
 ; evaluateTier sets this just before calling plugin.checkCondition so that
 ; the plugin (which gets only `param` via the call) can read param2 via
-; _host().GetEvalParam2(). Scoped per-evaluation; not persistent.
-Function _setEvalParam2(int val)
-    StorageUtil.SetIntValue(self, "mtf.evalParam2", val)
+; _host().GetEvalParam2(target). Scoped per-evaluation; not persistent.
+;
+; v0.3.1 (#A parallel-safe): keys are now target-keyed (StorageUtil form
+; param = the actor) instead of self-keyed. Two parallel fibers calling
+; evaluateTierForActor on DIFFERENT actors no longer clobber each other's
+; eval params between _setEvalParamStr and the subsequent p.checkCondition.
+; The previous self-keyed shared write caused intermittent wrong-tier
+; results during the 5-NPC combat burst — Fiber A sets paramStr for A,
+; yields in checkCondition, Fiber B overwrites paramStr for B, Fiber A
+; resumes and its plugin reads B's paramStr.
+Function _setEvalParam2(Actor target, int val)
+    if target == None
+        return
+    endif
+    StorageUtil.SetIntValue(target, "mtf.evalParam2", val)
 EndFunction
 
-int Function GetEvalParam2()
-    return StorageUtil.GetIntValue(self, "mtf.evalParam2", 0)
+int Function GetEvalParam2(Actor target)
+    if target == None
+        return 0
+    endif
+    return StorageUtil.GetIntValue(target, "mtf.evalParam2", 0)
 EndFunction
 
 ; ── String eval-param accessors (v0.2.9) ─────────────────────────────────────
 ; For menu-typed cond params: evaluateTier sets the id string before calling
-; the plugin's checkCondition. The plugin reads it via host.GetEvalParamStr()
-; (param) or host.GetEvalParam2Str() (param2). Slider-typed conds still use
+; the plugin's checkCondition. The plugin reads it via host.GetEvalParamStr(target)
+; (param) or host.GetEvalParam2Str(target) (param2). Slider-typed conds still use
 ; the int param arg + GetEvalParam2 above.
-Function _setEvalParamStr(string val)
-    StorageUtil.SetStringValue(self, "mtf.evalParam.s", val)
+;
+; v0.3.1 (#A parallel-safe): target-keyed; see _setEvalParam2 comment.
+Function _setEvalParamStr(Actor target, string val)
+    if target == None
+        return
+    endif
+    StorageUtil.SetStringValue(target, "mtf.evalParam.s", val)
 EndFunction
-string Function GetEvalParamStr()
-    return StorageUtil.GetStringValue(self, "mtf.evalParam.s", "")
+string Function GetEvalParamStr(Actor target)
+    if target == None
+        return ""
+    endif
+    return StorageUtil.GetStringValue(target, "mtf.evalParam.s", "")
 EndFunction
-Function _setEvalParam2Str(string val)
-    StorageUtil.SetStringValue(self, "mtf.evalParam2.s", val)
+Function _setEvalParam2Str(Actor target, string val)
+    if target == None
+        return
+    endif
+    StorageUtil.SetStringValue(target, "mtf.evalParam2.s", val)
 EndFunction
-string Function GetEvalParam2Str()
-    return StorageUtil.GetStringValue(self, "mtf.evalParam2.s", "")
+string Function GetEvalParam2Str(Actor target)
+    if target == None
+        return ""
+    endif
+    return StorageUtil.GetStringValue(target, "mtf.evalParam2.s", "")
 EndFunction
 
 float Function GetCondPulseRate(int slot)
@@ -3933,9 +4002,9 @@ int Function evaluateTier()
                 if p != None
                     int itemIdx = _condIdxFor(p, _keyItemId(key))
                     if itemIdx >= 0
-                        _setEvalParam2(GetCondParam2(i))
-                        _setEvalParamStr(GetCondParamStr(i))
-                        _setEvalParam2Str(GetCondParam2Str(i))
+                        _setEvalParam2(PlayerRef, GetCondParam2(i))
+                        _setEvalParamStr(PlayerRef, GetCondParamStr(i))
+                        _setEvalParam2Str(PlayerRef, GetCondParam2Str(i))
                         if p.checkCondition(PlayerRef, GetCondParam(i), p.GetConditionId(itemIdx))
                             return i
                         endif
@@ -4660,7 +4729,9 @@ State checkingAroused
             ; v0.3.0 (#2 batch native): same defer-then-flush pattern as the
             ; tracked-actor slow tick. Player visits get one SetActorPulseAndFadeBatch
             ; call at the end instead of N per-area natives.
-            _resetRosterBatch()
+            ; v0.3.1: PlayerRef is the batch namespace key (lists are
+            ; player-keyed so a concurrent NPC fiber doesn't clobber).
+            _resetRosterBatch(PlayerRef)
             int ppi = 0
             while ppi < playerPresetN
                 string ppName = presetNames[ppi]
@@ -4954,7 +5025,7 @@ function drawOverlayForActor(actor akTarget, int idx, bool useScratch, bool defe
     endwhile
 endFunction
 
-function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string area, int baseSlot, int reservedLayers, bool deferApply = false)
+function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string area, int baseSlot, int reservedLayers, bool deferApply = false, string presetName = "")
 {Stamp the entry chosen by `idx` into [baseSlot, baseSlot+reservedLayers).
  Layers the entry doesn't use within that range get cleared so leftover
  textures don't bleed through after a tier change. Slots outside the
@@ -4964,7 +5035,16 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
  at the end. Calling apply/clearOverlay per-layer (each of which Applies)
  caused 4 sequential overlay rebuilds per draw on a 4-layer reservation,
  and each rebuild flashed visibly on tier transitions. One Apply = one
- rebuild = no flash.}
+ rebuild = no flash.
+
+ v0.3.1 (#A parallel-safe): scratch path (useScratch=true + presetName)
+ reads pack/entry/layer arrays directly from the per-preset cache
+ namespace (mtf.scratch.cached.<presetName>.*) instead of going through
+ _g_resolvePackId/_g_layerTint etc., which depend on _s* script-level
+ state. With parallel-fiber dispatch, _s* is rebound by other fibers'
+ _loadPresetToScratch calls — the _g_* reads would return the WRONG
+ preset's pack/entry/layer data, painting the wrong texture or
+ silently no-op'ing (layerN=0 → tattoo "disappears" on tier change).}
     if akTarget == None || baseSlot < 0 || reservedLayers <= 0
         return
     endif
@@ -4993,8 +5073,68 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
     endif
     bool isFemale = akTarget.GetLeveledActorBase().GetSex() as bool
 
-    string packId  = _g_resolvePackId(idx, useScratch)
-    string entryId = _g_resolveEntryId(idx, useScratch)
+    ; v0.3.1: when scratch + presetName given, pull pack/entry + layer arrays
+    ; from cache directly (no _s* / _g_* dependence). Defaults gracefully
+    ; if the cache lists haven't been written yet — empty arrays mean the
+    ; layer reads fall through to the safe default values further down.
+    string packId  = ""
+    string entryId = ""
+    String[] cachedPackIds  = Utility.CreateStringArray(0, "")
+    String[] cachedEntryIds = Utility.CreateStringArray(0, "")
+    Int[]    cachedLayerTint     = Utility.CreateIntArray(0, 0)
+    Int[]    cachedLayerEmissive = Utility.CreateIntArray(0, 0)
+    Float[]  cachedLayerEmMult   = Utility.CreateFloatArray(0, 0.0)
+    Int[]    cachedLayerAlpha    = Utility.CreateIntArray(0, 0)
+    if useScratch && presetName != ""
+        string ck = "mtf.scratch.cached." + presetName
+        if StorageUtil.StringListCount(None, ck + ".cond.packid") > 0
+            cachedPackIds = StorageUtil.StringListToArray(None, ck + ".cond.packid")
+        endif
+        if StorageUtil.StringListCount(None, ck + ".cond.entryid") > 0
+            cachedEntryIds = StorageUtil.StringListToArray(None, ck + ".cond.entryid")
+        endif
+        if StorageUtil.IntListCount(None, ck + ".layer.tint") > 0
+            cachedLayerTint = StorageUtil.IntListToArray(None, ck + ".layer.tint")
+        endif
+        if StorageUtil.IntListCount(None, ck + ".layer.emissive") > 0
+            cachedLayerEmissive = StorageUtil.IntListToArray(None, ck + ".layer.emissive")
+        endif
+        if StorageUtil.FloatListCount(None, ck + ".layer.emissivemult") > 0
+            cachedLayerEmMult = StorageUtil.FloatListToArray(None, ck + ".layer.emissivemult")
+        endif
+        if StorageUtil.IntListCount(None, ck + ".layer.alpha") > 0
+            cachedLayerAlpha = StorageUtil.IntListToArray(None, ck + ".layer.alpha")
+        endif
+        ; Inline _g_resolvePackId/_g_resolveEntryId for tier `idx`. Same
+        ; precedence as the legacy accessor: slot-specific if non-empty,
+        ; else Default (slot 0) inheritance for slot > 0 with empty packId.
+        if cachedPackIds.Length > 0
+            if idx >= 0 && idx < cachedPackIds.Length
+                packId = cachedPackIds[idx]
+                if packId == "" && idx > 0
+                    packId = cachedPackIds[0]
+                endif
+            else
+                packId = cachedPackIds[0]
+            endif
+        endif
+        if cachedEntryIds.Length > 0
+            if idx >= 0 && idx < cachedEntryIds.Length
+                entryId = cachedEntryIds[idx]
+                if idx > 0 && idx < cachedPackIds.Length && cachedPackIds[idx] == ""
+                    entryId = cachedEntryIds[0]
+                endif
+            else
+                entryId = cachedEntryIds[0]
+            endif
+        endif
+    else
+        ; Player live path (or missing presetName) — use the legacy
+        ; accessors, which read player-owned StorageUtil keys via
+        ; ResolveSlotPackId/EntryId. No _s* dependence on this path.
+        packId  = _g_resolvePackId(idx, useScratch)
+        entryId = _g_resolveEntryId(idx, useScratch)
+    endif
 
     int maxLayers = MAX_LAYERS_PER_SLOT()
     int layerN = 0
@@ -5030,10 +5170,35 @@ function _drawOverlayForActorAt(actor akTarget, int idx, bool useScratch, string
     while i < layerN
         int lidx     = _layerIdx(idx, i)
         string tex   = GetEntryLayerTexture(packId, entryId, i)
-        int tint     = _g_layerTint(lidx, useScratch)
-        int emissive = _g_layerEmissive(lidx, useScratch)
-        float emMult = _g_layerEmissiveMult(lidx, useScratch)
-        float alpha  = (_g_layerAlpha(lidx, useScratch) as float) * 0.01
+        int tint
+        int emissive
+        float emMult
+        float alpha
+        if useScratch && presetName != ""
+            ; v0.3.1: inline per-layer reads from cached* locals.
+            tint     = 16777215   ; 0xFFFFFF default (matches _g_layerTint)
+            emissive = 16777215
+            emMult   = 0.0
+            int alphaInt = 100
+            if lidx >= 0 && lidx < cachedLayerTint.Length
+                tint = cachedLayerTint[lidx]
+            endif
+            if lidx >= 0 && lidx < cachedLayerEmissive.Length
+                emissive = cachedLayerEmissive[lidx]
+            endif
+            if lidx >= 0 && lidx < cachedLayerEmMult.Length
+                emMult = cachedLayerEmMult[lidx]
+            endif
+            if lidx >= 0 && lidx < cachedLayerAlpha.Length
+                alphaInt = cachedLayerAlpha[lidx]
+            endif
+            alpha = (alphaInt as float) * 0.01
+        else
+            tint     = _g_layerTint(lidx, useScratch)
+            emissive = _g_layerEmissive(lidx, useScratch)
+            emMult   = _g_layerEmissiveMult(lidx, useScratch)
+            alpha    = (_g_layerAlpha(lidx, useScratch) as float) * 0.01
+        endif
         _applyOverlayDeferred(akTarget, isFemale, area, baseSlot + i, tex, tint, emissive, emMult, alpha)
         i += 1
     endwhile
@@ -5132,7 +5297,10 @@ function _drawPresetOnActorWithAreas(actor target, string name, int tier, bool d
         int base = basesAll[p]
         int reserved = layersAll[p]
         if base >= 0 && reserved > 0
-            _drawOverlayForActorAt(target, tier, true, area, base, reserved, deferApply)
+            ; v0.3.1 (#A): pass `name` so _drawOverlayForActorAt reads
+            ; pack/entry/layer arrays from this preset's cache, not via
+            ; _g_*/_s* (which races under parallel-fiber dispatch).
+            _drawOverlayForActorAt(target, tier, true, area, base, reserved, deferApply, name)
         endif
         p += 1
     endwhile
@@ -5254,7 +5422,10 @@ Function _compactAppliedPresets(Actor target)
                             tier = 0
                         endif
                         if _loadPresetToScratch(nmJ)
-                            _drawOverlayForActorAt(target, tier, true, area, floor, newReserved)
+                            ; v0.3.1: pass nmJ so the draw reads pack/entry/
+                            ; layer arrays from THIS preset's cache (race-safe
+                            ; under parallel-fiber dispatch).
+                            _drawOverlayForActorAt(target, tier, true, area, floor, newReserved, false, nmJ)
                             ; Re-push roster entry for this preset at the new base.
                             ; Without this the actor would render but the
                             ; C++ roster (cleared in Step 1) stays empty
@@ -6052,6 +6223,33 @@ EndFunction
 Function _setScratchCondParam(int slot, int v)
     StorageUtil.SetIntValue(None, "mtf.scratch.cond.param." + _scratchLoadedFor + "." + slot, v)
 EndFunction
+; v0.3.1 (#A): ForPreset setters that bypass _scratchLoadedFor. Used by the
+; cold-load path so two fibers loading different presets concurrently
+; don't redirect each other's writes through a clobbered _scratchLoadedFor.
+Function _setScratchCondPluginIdForPreset(string presetName, int slot, string v)
+    if presetName == ""
+        return
+    endif
+    StorageUtil.SetStringValue(None, "mtf.scratch.cond.pluginid." + presetName + "." + slot, v)
+EndFunction
+Function _setScratchCondParamForPreset(string presetName, int slot, int v)
+    if presetName == ""
+        return
+    endif
+    StorageUtil.SetIntValue(None, "mtf.scratch.cond.param." + presetName + "." + slot, v)
+EndFunction
+Function _setScratchCondParamStrForPreset(string presetName, int slot, string v)
+    if presetName == ""
+        return
+    endif
+    StorageUtil.SetStringValue(None, "mtf.scratch.cond.param." + presetName + "." + slot + ".s", v)
+EndFunction
+Function _setScratchCondParam2StrForPreset(string presetName, int slot, string v)
+    if presetName == ""
+        return
+    endif
+    StorageUtil.SetStringValue(None, "mtf.scratch.cond.param2." + presetName + "." + slot + ".s", v)
+EndFunction
 ; v0.2.9 string-id scratch accessors for menu cond params. Per-preset namespaced
 ; just like the int variants above. Read at eval time before calling
 ; plugin.checkCondition via _setEvalParamStr.
@@ -6067,6 +6265,21 @@ EndFunction
 Function _setScratchCondParam2Str(int slot, string v)
     StorageUtil.SetStringValue(None, "mtf.scratch.cond.param2." + _scratchLoadedFor + "." + slot + ".s", v)
 EndFunction
+; v0.3.1 (#A): parallel-fiber-safe variants that read the per-preset key
+; directly without going through _scratchLoadedFor. Used by evaluateTierForActor
+; and other hot-path code that may run concurrently for different presets.
+string Function _getScratchCondParamStrForPreset(string presetName, int slot)
+    if presetName == ""
+        return ""
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.scratch.cond.param." + presetName + "." + slot + ".s", "")
+EndFunction
+string Function _getScratchCondParam2StrForPreset(string presetName, int slot)
+    if presetName == ""
+        return ""
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.scratch.cond.param2." + presetName + "." + slot + ".s", "")
+EndFunction
 ; v0.2.9 per-slot display name (scratch path). Mirrors the cond.pluginid pattern;
 ; namespaced by _scratchLoadedFor so each preset keeps its own slot names. Read
 ; via _g_condName below (currently MCM-only consumer); written by cold load.
@@ -6076,12 +6289,24 @@ EndFunction
 Function _setScratchCondName(int slot, string v)
     StorageUtil.SetStringValue(None, "mtf.scratch.cond.name." + _scratchLoadedFor + "." + slot, v)
 EndFunction
+Function _setScratchCondNameForPreset(string presetName, int slot, string v)
+    if presetName == ""
+        return
+    endif
+    StorageUtil.SetStringValue(None, "mtf.scratch.cond.name." + presetName + "." + slot, v)
+EndFunction
 
 float Function _getScratchPulsePause(int slot)
     return StorageUtil.GetFloatValue(self, "mtf.scratch.pulse.pause." + _scratchLoadedFor + "." + slot, 0.0)
 EndFunction
 Function _setScratchPulsePause(int slot, float v)
     StorageUtil.SetFloatValue(self, "mtf.scratch.pulse.pause." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+Function _setScratchPulsePauseForPreset(string presetName, int slot, float v)
+    if presetName == ""
+        return
+    endif
+    StorageUtil.SetFloatValue(self, "mtf.scratch.pulse.pause." + presetName + "." + slot, v)
 EndFunction
 
 ; ── Plan B v2: StorageUtil-backed scratch cache ─────────────────────────────
@@ -6156,6 +6381,12 @@ int Function _getScratchCoolMin(int slot)
 EndFunction
 Function _setScratchCoolMin(int slot, int v)
     StorageUtil.SetIntValue(self, "mtf.scratch.cool.min." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+Function _setScratchCoolMinForPreset(string presetName, int slot, int v)
+    if presetName == ""
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.scratch.cool.min." + presetName + "." + slot, v)
 EndFunction
 
 ; ── Per-slot dispatch-bound caches (CACHED_SCRATCH_VERSION 6) ───────────────
@@ -6257,29 +6488,60 @@ Function _saveScratchToCache(string name)
  per cold load at the very end of _loadPresetToScratch. Version stamp
  is written LAST so a crash mid-write leaves the cache invalid (next
  read sees version mismatch → cold rebuild) rather than partially
+ populated.
+
+ v0.3.1 (#A): kept as a thin wrapper over _saveScratchToCacheDirect so
+ the script-level _s* path stays compatible. New cold-load callers should
+ use the Direct variant to avoid the _s* dependency.}
+    if name == ""
+        return
+    endif
+    _saveScratchToCacheDirect(name, \
+        _sCondPluginId, _sCondParam, _sCondPackId, _sCondEntryId, \
+        _sCooldownMin, _sCooldownMode, \
+        _sCondPulseRate, _sCondPulseDepth, _sCondWaveform, \
+        _sCondLayerTint, _sCondLayerEmissive, _sCondLayerEmissiveMult, _sCondLayerAlpha, \
+        _sTransitionDuration, _sFadeOnDeathEnabled, _sFadeOnDeathMode, _sFadeOnDeathDurationMs)
+EndFunction
+
+Function _saveScratchToCacheDirect(string name, \
+        string[] condPluginIdArr, int[] condParamArr, string[] condPackIdArr, string[] condEntryIdArr, \
+        int[] persistMinArr, int[] allowOverrideArr, \
+        float[] pulseRateArr, int[] pulseDepthArr, string[] waveformArr, \
+        int[] layerTintArr, int[] layerEmissiveArr, float[] layerEmMultArr, int[] layerAlphaArr, \
+        float transitionDuration, bool fadeEnabled, int fadeMode, int fadeDurMs)
+{Fiber-safe cache writer. All data comes from caller-supplied locals — no
+ read from script-level _s*, so two fibers cold-loading different presets
+ concurrently each write to their own cache namespace without crossing
+ streams. Used by _loadPresetToScratch's cold-load path; the legacy
+ _saveScratchToCache(name) wrapper still reads _s* for the player-side
+ MCM save flow.
+
+ Version stamp written LAST so a crash mid-write leaves the cache invalid
+ (next read sees version mismatch → cold rebuild) rather than partially
  populated.}
     if name == ""
         return
     endif
     string ck = "mtf.scratch.cached." + name
-    StorageUtil.StringListCopy(None, ck + ".cond.pluginid",       _sCondPluginId)
-    StorageUtil.IntListCopy(None,    ck + ".cond.param",          _sCondParam)
-    StorageUtil.StringListCopy(None, ck + ".cond.packid",         _sCondPackId)
-    StorageUtil.StringListCopy(None, ck + ".cond.entryid",        _sCondEntryId)
-    StorageUtil.IntListCopy(None,    ck + ".cooldown.min",        _sCooldownMin)
-    StorageUtil.IntListCopy(None,    ck + ".cooldown.mode",       _sCooldownMode)
-    StorageUtil.FloatListCopy(None,  ck + ".pulse.rate",          _sCondPulseRate)
-    StorageUtil.IntListCopy(None,    ck + ".pulse.depth",         _sCondPulseDepth)
-    StorageUtil.StringListCopy(None, ck + ".pulse.waveform",      _sCondWaveform)
-    StorageUtil.IntListCopy(None,    ck + ".layer.tint",          _sCondLayerTint)
-    StorageUtil.IntListCopy(None,    ck + ".layer.emissive",      _sCondLayerEmissive)
-    StorageUtil.FloatListCopy(None,  ck + ".layer.emissivemult",  _sCondLayerEmissiveMult)
-    StorageUtil.IntListCopy(None,    ck + ".layer.alpha",         _sCondLayerAlpha)
-    StorageUtil.SetFloatValue(None,  ck + ".transition.duration",  _sTransitionDuration)
-    StorageUtil.SetIntValue(None,    ck + ".fadeondeath.enabled",  _sFadeOnDeathEnabled as int)
-    StorageUtil.SetIntValue(None,    ck + ".fadeondeath.mode",     _sFadeOnDeathMode)
-    StorageUtil.SetIntValue(None,    ck + ".fadeondeath.durationms", _sFadeOnDeathDurationMs)
-    StorageUtil.SetIntValue(None,    ck + ".version",              CACHED_SCRATCH_VERSION())
+    StorageUtil.StringListCopy(None, ck + ".cond.pluginid",       condPluginIdArr)
+    StorageUtil.IntListCopy(None,    ck + ".cond.param",          condParamArr)
+    StorageUtil.StringListCopy(None, ck + ".cond.packid",         condPackIdArr)
+    StorageUtil.StringListCopy(None, ck + ".cond.entryid",        condEntryIdArr)
+    StorageUtil.IntListCopy(None,    ck + ".cooldown.min",        persistMinArr)
+    StorageUtil.IntListCopy(None,    ck + ".cooldown.mode",       allowOverrideArr)
+    StorageUtil.FloatListCopy(None,  ck + ".pulse.rate",          pulseRateArr)
+    StorageUtil.IntListCopy(None,    ck + ".pulse.depth",         pulseDepthArr)
+    StorageUtil.StringListCopy(None, ck + ".pulse.waveform",      waveformArr)
+    StorageUtil.IntListCopy(None,    ck + ".layer.tint",          layerTintArr)
+    StorageUtil.IntListCopy(None,    ck + ".layer.emissive",      layerEmissiveArr)
+    StorageUtil.FloatListCopy(None,  ck + ".layer.emissivemult",  layerEmMultArr)
+    StorageUtil.IntListCopy(None,    ck + ".layer.alpha",         layerAlphaArr)
+    StorageUtil.SetFloatValue(None,  ck + ".transition.duration", transitionDuration)
+    StorageUtil.SetIntValue(None,    ck + ".fadeondeath.enabled", fadeEnabled as int)
+    StorageUtil.SetIntValue(None,    ck + ".fadeondeath.mode",    fadeMode)
+    StorageUtil.SetIntValue(None,    ck + ".fadeondeath.durationms", fadeDurMs)
+    StorageUtil.SetIntValue(None,    ck + ".version",             CACHED_SCRATCH_VERSION())
 EndFunction
 
 Function _invalidateScratchCache(string name)
@@ -6330,10 +6592,11 @@ bool Function _loadPresetToScratch(string name)
     if JsonUtil.GetPathIntValue(f, ".schemaversion", 1) < 4
         return false
     endif
-    ; Set _scratchLoadedFor early so namespaced FX scratch writers (which
-    ; key on _scratchLoadedFor) write under this preset's name rather than
-    ; the previously-loaded preset. The cache write at the end of cold
-    ; load also relies on _scratchLoadedFor being correct.
+    ; v0.3.1 (#A): set _scratchLoadedFor early so any legacy
+    ; non-ForPreset writers we missed still route under this preset's
+    ; name. Now-only used as a tag for the warm-hit fast-return and the
+    ; legacy player-path consumers; all internal cold-load writes go
+    ; through ForPreset variants and don't depend on it.
     _scratchLoadedFor = name
     ; Per-preset cross-fade duration. Default 1.0s — a clearly-visible
     ; cinematic-feeling fade that flatters most stat-driven tier changes
@@ -6341,17 +6604,22 @@ bool Function _loadPresetToScratch(string name)
     ; player should be able to track without it feeling snappy). Authors
     ; can speed it up or disable with "transition": { "duration": 0.0 }
     ; at the preset root.
-    _sTransitionDuration = JsonUtil.GetPathFloatValue(f, ".transition.duration", 1.0)
+    ;
+    ; v0.3.1: stash JSON-read scalars into LOCALS first; assign to _s*
+    ; only at the end of the function. Fiber-safe: a concurrent fiber
+    ; clobbering _s* mid-flight no longer corrupts our cache write
+    ; (the cache writer takes locals as params).
+    float localTransitionDuration = JsonUtil.GetPathFloatValue(f, ".transition.duration", 1.0)
 
     ; Per-preset fade-on-death (v0.1.4). Off when block absent.
-    _sFadeOnDeathEnabled    = JsonUtil.GetPathIntValue(f, ".fadeondeath.enabled", 0) > 0
-    _sFadeOnDeathMode       = JsonUtil.GetPathIntValue(f, ".fadeondeath.mode", 0)
-    if _sFadeOnDeathMode < 0 || _sFadeOnDeathMode > 2
-        _sFadeOnDeathMode = 0
+    bool localFadeOnDeathEnabled    = JsonUtil.GetPathIntValue(f, ".fadeondeath.enabled", 0) > 0
+    int  localFadeOnDeathMode       = JsonUtil.GetPathIntValue(f, ".fadeondeath.mode", 0)
+    if localFadeOnDeathMode < 0 || localFadeOnDeathMode > 2
+        localFadeOnDeathMode = 0
     endif
-    _sFadeOnDeathDurationMs = JsonUtil.GetPathIntValue(f, ".fadeondeath.durationms", 2000)
-    if _sFadeOnDeathDurationMs < 1
-        _sFadeOnDeathDurationMs = 2000
+    int  localFadeOnDeathDurationMs = JsonUtil.GetPathIntValue(f, ".fadeondeath.durationms", 2000)
+    if localFadeOnDeathDurationMs < 1
+        localFadeOnDeathDurationMs = 2000
     endif
     int maxL = MAX_LAYERS_PER_SLOT()
     int maxE = MAX_EFFECTS_PER_SLOT()
@@ -6392,33 +6660,36 @@ bool Function _loadPresetToScratch(string name)
         ; id from the JSON; sliders read int. Both write into the slot's
         ; matching scratch storage (the int array OR a string-typed namespaced
         ; key) so eval-time can read whichever the catalog says.
+        ; v0.3.1 (#A): route all per-slot scratch writes through ForPreset
+        ; variants so the inner JSON walk's writes survive a concurrent
+        ; fiber's _loadPresetToScratch (which rebinds _scratchLoadedFor).
         if _condParamIsMenu(slotCondKey)
-            _setScratchCondParamStr(s, JsonUtil.GetPathStringValue(f, sp + ".cond.param", ""))
+            _setScratchCondParamStrForPreset(name, s, JsonUtil.GetPathStringValue(f, sp + ".cond.param", ""))
             localCondParam[s] = 0
         else
             localCondParam[s] = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
-            _setScratchCondParamStr(s, "")
+            _setScratchCondParamStrForPreset(name, s, "")
         endif
         if _condParam2IsMenu(slotCondKey)
-            _setScratchCondParam2Str(s, JsonUtil.GetPathStringValue(f, sp + ".cond.param2", ""))
+            _setScratchCondParam2StrForPreset(name, s, JsonUtil.GetPathStringValue(f, sp + ".cond.param2", ""))
         else
-            _setScratchCondParam2Str(s, "")
+            _setScratchCondParam2StrForPreset(name, s, "")
         endif
         localCondPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",   "")
         localCondEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid",  "")
         ; v0.2.9 per-slot display name into the per-preset scratch keyspace.
         ; Currently only the MCM consumes this (NPCs don't render labels), but
         ; the scratch population keeps the read-shape uniform across all slots.
-        _setScratchCondName(s, JsonUtil.GetPathStringValue(f, sp + ".name", ""))
+        _setScratchCondNameForPreset(name, s, JsonUtil.GetPathStringValue(f, sp + ".name", ""))
         ; v0.1.24 cooldown rework — read new schema 8 keys only. Defaults
         ; per the migration policy: persist=0, allowOverride=1, cool=0.
         localPersistMin[s]    = JsonUtil.GetPathIntValue(f, sp + ".persist.min", 0)
         localAllowOverride[s] = JsonUtil.GetPathIntValue(f, sp + ".persist.allowOverride", 1)
-        _setScratchCoolMin(s, JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
+        _setScratchCoolMinForPreset(name, s, JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
         localPulseRate[s]    = JsonUtil.GetPathFloatValue(f,  sp + ".pulse.rate",   0.0)
         localPulseDepth[s]   = JsonUtil.GetPathIntValue(f,    sp + ".pulse.depth",  0)
         localWaveform[s]     = JsonUtil.GetPathStringValue(f, sp + ".pulse.waveform", "")
-        _setScratchPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
+        _setScratchPulsePauseForPreset(name, s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
         int L = 0
         while L < maxL
             int li = s * maxL + L
@@ -6528,27 +6799,29 @@ bool Function _loadPresetToScratch(string name)
     while sb <= maxC
         string sp_b = ".slot[" + sb + "]"
         string pid_b = JsonUtil.GetPathStringValue(f, sp_b + ".cond.pluginid", "")
-        _setScratchCondPluginId(sb, pid_b)
+        ; v0.3.1 (#A): backend-slot writes also go through ForPreset variants
+        ; so the cold-load body is parallel-fiber-safe end-to-end.
+        _setScratchCondPluginIdForPreset(name, sb, pid_b)
         if pid_b != ""
             condMaxSlot = sb
         endif
         ; v0.2.9: param/param2 menu-vs-slider routing for backend slots too.
         if _condParamIsMenu(pid_b)
-            _setScratchCondParamStr(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.param", ""))
-            _setScratchCondParam(sb, 0)
+            _setScratchCondParamStrForPreset(name, sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.param", ""))
+            _setScratchCondParamForPreset(name, sb, 0)
         else
-            _setScratchCondParam(sb, JsonUtil.GetPathIntValue(f, sp_b + ".cond.param", 0))
-            _setScratchCondParamStr(sb, "")
+            _setScratchCondParamForPreset(name, sb, JsonUtil.GetPathIntValue(f, sp_b + ".cond.param", 0))
+            _setScratchCondParamStrForPreset(name, sb, "")
         endif
         if _condParam2IsMenu(pid_b)
-            _setScratchCondParam2Str(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.param2", ""))
+            _setScratchCondParam2StrForPreset(name, sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.param2", ""))
         else
-            _setScratchCondParam2Str(sb, "")
+            _setScratchCondParam2StrForPreset(name, sb, "")
         endif
         ; v0.2.9 per-slot display name (backend slot path).
-        _setScratchCondName(sb,     JsonUtil.GetPathStringValue(f, sp_b + ".name", ""))
+        _setScratchCondNameForPreset(name, sb, JsonUtil.GetPathStringValue(f, sp_b + ".name", ""))
         ; cool.min for the backend slot (StorageUtil-keyed; safe for any slot).
-        _setScratchCoolMin(sb, JsonUtil.GetPathIntValue(f, sp_b + ".cool.min", 0))
+        _setScratchCoolMinForPreset(name, sb, JsonUtil.GetPathIntValue(f, sp_b + ".cool.min", 0))
         ; Fast-skip: empty backend slot has no effects to write.
         int slotEffectMaxIdxB = 0
         if pid_b != ""
@@ -6559,7 +6832,8 @@ bool Function _loadPresetToScratch(string name)
                 if effKey_b != ""
                     slotEffectMaxIdxB = eb + 1
                 endif
-                _writeFxKey(sb, eb, true, effKey_b)
+                ; v0.3.1: ForPreset variants for backend-slot effect writes.
+                _writeFxKeyForPreset(sb, eb, true, name, effKey_b)
                 MTF_Plugin pLoadB = None
                 int itemIdxB = -1
                 if effKey_b != ""
@@ -6579,7 +6853,7 @@ bool Function _loadPresetToScratch(string name)
                             vb = 0
                         endif
                     endif
-                    _writeFxParamN(sb, eb, snb, true, vb)
+                    _writeFxParamNForPreset(sb, eb, snb, true, name, vb)
                     snb += 1
                 endwhile
                 eb += 1
@@ -6594,16 +6868,61 @@ bool Function _loadPresetToScratch(string name)
     ; cond slots populated → eval returns Tier 0 (always-on) immediately.
     _setScratchCondMaxSlot(name, condMaxSlot)
 
-    ; _scratchLoadedFor was already set at the top of cold load so the
-    ; namespaced FX writes above resolved correctly. Persist the
-    ; just-loaded scratch into the StorageUtil cache so the next
-    ; _loadPresetToScratch(name) skips the JSON work entirely.
-    _saveScratchToCache(name)
+    ; v0.3.1: assign locals to _s* at the END so legacy player-path
+    ; consumers see the loaded data, and persist to cache via the Direct
+    ; variant that takes locals as params (fiber-safe — no read from _s*).
+    ; Order matters: write cache FIRST, then rebind _s*. If we crashed
+    ; mid-way (impossible since these are atomic SKSE crossings, but
+    ; defensive) the on-disk cache would still be valid for next time.
+    _saveScratchToCacheDirect(name, \
+        localCondPluginId, localCondParam, localCondPackId, localCondEntryId, \
+        localPersistMin, localAllowOverride, \
+        localPulseRate, localPulseDepth, localWaveform, \
+        localLayerTint, localLayerEmissive, localLayerEmMult, localLayerAlpha, \
+        localTransitionDuration, localFadeOnDeathEnabled, localFadeOnDeathMode, localFadeOnDeathDurationMs)
+    _sTransitionDuration    = localTransitionDuration
+    _sFadeOnDeathEnabled    = localFadeOnDeathEnabled
+    _sFadeOnDeathMode       = localFadeOnDeathMode
+    _sFadeOnDeathDurationMs = localFadeOnDeathDurationMs
     return true
 EndFunction
 
 string Function GetScratchLoadedFor()
     return _scratchLoadedFor
+EndFunction
+
+bool Function _ensurePresetCache(string name)
+{Fiber-safe variant of _loadPresetToScratch. Guarantees the per-preset
+ cache namespace (mtf.scratch.cached.<name>.*) is populated; does NOT
+ promise anything about _s* / _scratchLoadedFor.
+
+ The straight _loadPresetToScratch path has a race: another fiber mid-
+ cold-load has set _scratchLoadedFor = name BEFORE writing the cache. A
+ second fiber's call would warm-hit on that stale flag and return TRUE
+ from _loadPresetToScratch even though the cache version stamp isn't
+ written yet. _ensurePresetCache instead checks the cache version stamp
+ (atomic SKSE read), which is written LAST by _saveScratchToCacheDirect
+ — so it never returns success on an unfinished load.
+
+ Used by the parallel-NPC hot path; the player/MCM paths keep using
+ _loadPresetToScratch because they rely on _s* / _scratchLoadedFor.
+
+ Two concurrent _ensurePresetCache(name) calls for the same name with a
+ cold cache will both cold-load redundantly — wasteful but safe (both
+ write to the same per-preset namespace via ForPreset writers).}
+    if name == ""
+        return false
+    endif
+    if _isScratchCached(name)
+        return true
+    endif
+    ; Force the cold-load path by clearing _scratchLoadedFor if it
+    ; happens to match (another fiber mid-flight has set it but the
+    ; cache isn't written yet — we MUST do the work).
+    if _scratchLoadedFor == name
+        _scratchLoadedFor = ""
+    endif
+    return _loadPresetToScratch(name)
 EndFunction
 
 ; ── Generalized slot/layer/effect getters ───────────────────────────────────
@@ -7001,9 +7320,9 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
                         int param = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
                         string paramStr = JsonUtil.GetPathStringValue(f, sp + ".cond.param", "")
                         string param2Str = JsonUtil.GetPathStringValue(f, sp + ".cond.param2", "")
-                        _setEvalParam2(0)
-                        _setEvalParamStr(paramStr)
-                        _setEvalParam2Str(param2Str)
+                        _setEvalParam2(target, 0)
+                        _setEvalParamStr(target, paramStr)
+                        _setEvalParam2Str(target, param2Str)
                         if p.checkCondition(target, param, p.GetConditionId(itemIdx))
                             return i
                         endif
@@ -7023,7 +7342,13 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
  and StorageUtil cool keys are consulted (presetName is ignored).
 
  v0.1.24 state machine: pre-scan for !allowOverride locked slot, then
- normal eval per slot — see evaluateTier for the canonical comment.}
+ normal eval per slot — see evaluateTier for the canonical comment.
+
+ v0.3.1 (#A parallel-safe): the scratch path now pulls cond arrays from
+ the per-preset cache namespace (mtf.scratch.cached.<presetName>.*) into
+ LOCAL arrays at the top of the function rather than reading _s* via
+ _g_*. Two parallel fibers running this for different (actor, preset)
+ pairs each see their own snapshot — no cross-fiber clobber.}
     if target == None
         return 0
     endif
@@ -7051,11 +7376,49 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
             maxC = condCap
         endif
     endif
+    ; v0.3.1: pull per-preset cond arrays into LOCALS for the scratch path.
+    ; 4 SKSE crossings up front, every per-slot read inside the loops is
+    ; free indexed access. Player path (useScratch=false) keeps reading
+    ; via GetCond* (StorageUtil-backed, no _s* dependence to begin with).
+    ;
+    ; StorageUtil.*ListToArray returns None when the list doesn't exist
+    ; (e.g. AddAppliedPreset's first eval before _saveScratchToCache has
+    ; written the cache for a fresh preset). Assigning None to a typed
+    ; `T[]` local throws "Cannot cast from None to T[]" — guard by
+    ; checking ListCount first and defaulting to length-0 arrays.
+    String[] cachedCondPluginId = Utility.CreateStringArray(0, "")
+    Int[]    cachedCondParam    = Utility.CreateIntArray(0, 0)
+    Int[]    cachedAllowOverride = Utility.CreateIntArray(0, 0)
+    if useScratch && presetName != ""
+        string evalCk = "mtf.scratch.cached." + presetName
+        if StorageUtil.StringListCount(None, evalCk + ".cond.pluginid") > 0
+            cachedCondPluginId = StorageUtil.StringListToArray(None, evalCk + ".cond.pluginid")
+        endif
+        if StorageUtil.IntListCount(None, evalCk + ".cond.param") > 0
+            cachedCondParam = StorageUtil.IntListToArray(None, evalCk + ".cond.param")
+        endif
+        if StorageUtil.IntListCount(None, evalCk + ".cooldown.mode") > 0
+            cachedAllowOverride = StorageUtil.IntListToArray(None, evalCk + ".cooldown.mode")
+        endif
+    endif
 
     ; Pre-scan: lowest-i slot in persist with !allowOverride wins outright.
     int i = 1
     while i <= maxC
-        if _g_condPluginId(i, useScratch) != "" && _g_allowOverride(i, useScratch) == 0
+        string scanKey = ""
+        int    scanAllowOverride = 1
+        if useScratch
+            if i < cachedCondPluginId.Length
+                scanKey = cachedCondPluginId[i]
+            endif
+            if i < cachedAllowOverride.Length
+                scanAllowOverride = cachedAllowOverride[i]
+            endif
+        else
+            scanKey = _g_condPluginId(i, false)
+            scanAllowOverride = _g_allowOverride(i, false)
+        endif
+        if scanKey != "" && scanAllowOverride == 0
             float persistEndA
             if useScratch
                 persistEndA = _getActorPresetPersistUntil(target, presetName, i)
@@ -7072,7 +7435,14 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
     ; Normal eval with persist passthrough.
     i = 1
     while i <= maxC
-        string key = _g_condPluginId(i, useScratch)
+        string key = ""
+        if useScratch
+            if i < cachedCondPluginId.Length
+                key = cachedCondPluginId[i]
+            endif
+        else
+            key = _g_condPluginId(i, false)
+        endif
         if key != ""
             float coolEnd
             float persistEnd
@@ -7100,16 +7470,19 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
                             ; call computes and stores, rest reuse. Key
                             ; encodes pluginid+param+paramStr so different
                             ; params don't collide.
-                            int paramI    = _g_condParam(i, useScratch)
-                            string paramS = _getScratchCondParamStr(i)
+                            int paramI = 0
+                            if i < cachedCondParam.Length
+                                paramI = cachedCondParam[i]
+                            endif
+                            string paramS = _getScratchCondParamStrForPreset(presetName, i)
                             string memoCk = key + ":" + paramI + ":" + paramS
                             int memoHit = _condMemoLookup(target, memoCk)
                             if memoHit == 1
                                 return i
                             elseif memoHit < 0
-                                _setEvalParam2(0)
-                                _setEvalParamStr(paramS)
-                                _setEvalParam2Str("")
+                                _setEvalParam2(target, 0)
+                                _setEvalParamStr(target, paramS)
+                                _setEvalParam2Str(target, "")
                                 bool condTrue = p.checkCondition(target, paramI, p.GetConditionId(itemIdx))
                                 _condMemoStore(target, memoCk, condTrue)
                                 if condTrue
@@ -7118,9 +7491,9 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
                             endif
                             ; memoHit == 0 (cached false) → fall through to next slot
                         else
-                            _setEvalParam2(GetCondParam2(i))
-                            _setEvalParamStr(GetCondParamStr(i))
-                            _setEvalParam2Str(GetCondParam2Str(i))
+                            _setEvalParam2(target, GetCondParam2(i))
+                            _setEvalParamStr(target, GetCondParamStr(i))
+                            _setEvalParam2Str(target, GetCondParam2Str(i))
                             if p.checkCondition(target, _g_condParam(i, useScratch), p.GetConditionId(itemIdx))
                                 return i
                             endif
@@ -7668,7 +8041,13 @@ Function _rosterAddOrUpdateWithAreas(Actor a, string name, int tier, float start
 
  v0.3.0 (#2 batch native): when deferRoster=true, push entries into the
  batch accumulator instead of calling MTFPulse natives per-area. Caller
- flushes via _flushRosterBatch at end of the per-actor preset loop.}
+ flushes via _flushRosterBatch at end of the per-actor preset loop.
+
+ v0.3.1 (#A parallel-safe): reads per-preset scratch state directly from
+ the cache namespace (mtf.scratch.cached.<name>.*) into function-local
+ arrays instead of going through _s* / _g_* (which are rebound on every
+ _loadPresetToScratch). Two parallel fibers running this for different
+ presets each see their own snapshot — no cross-fiber clobber.}
     if a == None || name == "" || tier < 0 || tier >= 8
         return
     endif
@@ -7682,24 +8061,113 @@ Function _rosterAddOrUpdateWithAreas(Actor a, string name, int tier, float start
     if perfOnR
         r0 = Utility.GetCurrentRealTime()
     endif
-    ; v0.1.17 Phase 3 (multi-area): a preset can paint across multiple area
-    ; pools (a face pack in slot 0 + body packs in slots 1..7 produces
-    ; reservations for BOTH "Face" and "Body"). Iterate parts and push one
-    ; roster entry per area-with-reservation. The tier's picked pack
-    ; determines which area's reservation actually carries this tier's
-    ; texture — entries for other areas paint nothing for this tier
-    ; (layerN=0 → ClearActorAt branch) but stay registered so a future
-    ; tier whose pack matches THEIR area finds a live entry.
-    string packId  = _g_resolvePackId(tier, true)
-    string entryId = _g_resolveEntryId(tier, true)
+    ; v0.3.1: pull per-preset cache lists into LOCALS up front. Each
+    ; *ListToArray is one SKSE crossing — ~12 crossings total, then every
+    ; subsequent indexed read is free local-array access. Replaces the
+    ; old _g_*(useScratch=true) + _s* read pattern that depended on
+    ; _scratchLoadedFor matching `name`.
+    ;
+    ; StorageUtil.*ListToArray returns None on missing key, which fails
+    ; assignment to a typed `T[]` local. Guard each read with ListCount
+    ; and default to empty arrays so out-of-bounds checks below catch
+    ; the absent-cache case gracefully.
+    string ck = "mtf.scratch.cached." + name
+    String[] cachedPackIds       = Utility.CreateStringArray(0, "")
+    String[] cachedEntryIds      = Utility.CreateStringArray(0, "")
+    Float[]  cachedPulseRate     = Utility.CreateFloatArray(0, 0.0)
+    Int[]    cachedPulseDepth    = Utility.CreateIntArray(0, 0)
+    String[] cachedWaveform      = Utility.CreateStringArray(0, "")
+    Float[]  cachedLayerEmMult   = Utility.CreateFloatArray(0, 0.0)
+    Int[]    cachedLayerTint     = Utility.CreateIntArray(0, 0)
+    Int[]    cachedLayerAlpha    = Utility.CreateIntArray(0, 0)
+    Int[]    cachedLayerEmissive = Utility.CreateIntArray(0, 0)
+    if StorageUtil.StringListCount(None, ck + ".cond.packid") > 0
+        cachedPackIds = StorageUtil.StringListToArray(None, ck + ".cond.packid")
+    endif
+    if StorageUtil.StringListCount(None, ck + ".cond.entryid") > 0
+        cachedEntryIds = StorageUtil.StringListToArray(None, ck + ".cond.entryid")
+    endif
+    if StorageUtil.FloatListCount(None, ck + ".pulse.rate") > 0
+        cachedPulseRate = StorageUtil.FloatListToArray(None, ck + ".pulse.rate")
+    endif
+    if StorageUtil.IntListCount(None, ck + ".pulse.depth") > 0
+        cachedPulseDepth = StorageUtil.IntListToArray(None, ck + ".pulse.depth")
+    endif
+    if StorageUtil.StringListCount(None, ck + ".pulse.waveform") > 0
+        cachedWaveform = StorageUtil.StringListToArray(None, ck + ".pulse.waveform")
+    endif
+    if StorageUtil.FloatListCount(None, ck + ".layer.emissivemult") > 0
+        cachedLayerEmMult = StorageUtil.FloatListToArray(None, ck + ".layer.emissivemult")
+    endif
+    if StorageUtil.IntListCount(None, ck + ".layer.tint") > 0
+        cachedLayerTint = StorageUtil.IntListToArray(None, ck + ".layer.tint")
+    endif
+    if StorageUtil.IntListCount(None, ck + ".layer.alpha") > 0
+        cachedLayerAlpha = StorageUtil.IntListToArray(None, ck + ".layer.alpha")
+    endif
+    if StorageUtil.IntListCount(None, ck + ".layer.emissive") > 0
+        cachedLayerEmissive = StorageUtil.IntListToArray(None, ck + ".layer.emissive")
+    endif
+    Float    cachedTransitionDur = StorageUtil.GetFloatValue(None, ck + ".transition.duration", 1.0)
+    bool     cachedFadeEnabled   = StorageUtil.GetIntValue(None, ck + ".fadeondeath.enabled", 0) > 0
+    int      cachedFadeMode      = StorageUtil.GetIntValue(None, ck + ".fadeondeath.mode", 0)
+    int      cachedFadeDurMs     = StorageUtil.GetIntValue(None, ck + ".fadeondeath.durationms", 2000)
+    ; pulse.pause is per-(preset, slot); legacy storage uses `self` as form
+    ; key (not None) and the `_scratchLoadedFor` segment — use `name`
+    ; directly to bypass _scratchLoadedFor.
+    Float    cachedPulsePause    = StorageUtil.GetFloatValue(self, "mtf.scratch.pulse.pause." + name + "." + tier, 0.0)
+    ; Resolve pack/entry for `tier` inline (was _g_resolvePackId/EntryId).
+    ; Same precedence as the legacy accessor: tier-slot if non-empty,
+    ; else Default (slot 0). Empty packIds[tier] with tier > 0 inherits.
+    string packId  = ""
+    string entryId = ""
+    if cachedPackIds.Length > 0
+        if tier >= 0 && tier < cachedPackIds.Length
+            packId = cachedPackIds[tier]
+            if packId == "" && tier > 0
+                packId = cachedPackIds[0]
+            endif
+        else
+            packId = cachedPackIds[0]
+        endif
+    endif
+    if cachedEntryIds.Length > 0
+        if tier >= 0 && tier < cachedEntryIds.Length
+            entryId = cachedEntryIds[tier]
+            if tier > 0 && tier < cachedPackIds.Length && cachedPackIds[tier] == ""
+                entryId = cachedEntryIds[0]
+            endif
+        else
+            entryId = cachedEntryIds[0]
+        endif
+    endif
     string activeArea = ""
     if packId != "" && packId != "<none>" && entryId != ""
         activeArea = GetPackArea(packId)
     endif
-    float rate  = _g_pulseRate(tier, true)
-    int   depth = _g_pulseDepth(tier, true)
-    Float[] lut = _waveformLUTForTier(tier, true)
-    Float   tDur = _g_transitionDuration(tier, true)
+    float rate  = 0.0
+    if tier >= 0 && tier < cachedPulseRate.Length
+        rate = cachedPulseRate[tier]
+    endif
+    int   depth = 0
+    if tier >= 0 && tier < cachedPulseDepth.Length
+        depth = cachedPulseDepth[tier]
+    endif
+    string lutWaveformName = ""
+    if tier >= 0 && tier < cachedWaveform.Length
+        lutWaveformName = cachedWaveform[tier]
+    endif
+    Float[] lut = _buildWaveformLUT(lutWaveformName)
+    Float   tDur = cachedTransitionDur
+    ; v0.3.1 forceSnap branch REVERTED — setting tDur=0 actually causes
+    ; the dark-then-bright issue we were trying to fix. The C++ Set's
+    ; "fresh entry init" branch only runs when tDur > 0; with tDur=0
+    ; seeded.from_em_mult stays at default 0 and the Tick computes
+    ; em_no_flash from a 0-baseline plus pulse phase which sits at
+    ; trough initially. The actual fix for "dark first frame" needs to
+    ; be in the C++ Set's slot<0 branch (run init regardless of tDur),
+    ; not in Papyrus tDur override. For now, leave tDur at its
+    ; configured value so the existing slot<0&&tDur>0 init still runs.
     int maxL = MAX_LAYERS_PER_SLOT()
     ; isFemale is dead in the C++ pulse path — every skee_bridge::Write*
     ; marks it [[maybe_unused]] because SetNodeProperty operates on the
@@ -7744,9 +8212,10 @@ Function _rosterAddOrUpdateWithAreas(Actor a, string name, int tier, float start
                     ; Push a layerN=0 entry; C++ batch translates that to
                     ; ClearAt + ClearFade. Empty layer arrays are fine —
                     ; _pushRosterBatchEntry pads to length 4 internally.
+                    ; v0.3.1: actor `a` is the batch namespace key.
                     Float[] _emEmpty = Utility.CreateFloatArray(0, 0.0)
                     Int[]   _intEmpty = Utility.CreateIntArray(0, 0)
-                    _pushRosterBatchEntry(0.0, 0, 0.0, 0, startRT, baseSlot, "", \
+                    _pushRosterBatchEntry(a, 0.0, 0, 0.0, 0, startRT, baseSlot, "", \
                                           0.0, areaIdx, 0, _emEmpty, _intEmpty, _intEmpty, _intEmpty)
                 else
                     MTFPulse.ClearActorAt(a, baseSlot, areaIdx)
@@ -7760,41 +8229,33 @@ Function _rosterAddOrUpdateWithAreas(Actor a, string name, int tier, float start
                 Int[]   tints     = Utility.CreateIntArray(layerN, 16777215)
                 Int[]   alphas    = Utility.CreateIntArray(layerN, 100)
                 Int[]   emissives = Utility.CreateIntArray(layerN, 16777215)
-                ; Hoist the 4 Auto property references + lengths once before
-                ; the inner loop. Inlining the array reads (vs calling the
-                ; _g_layer* wrappers per layer) drops the function-dispatch
-                ; overhead and redundant _sArraysReady/length checks —
-                ; perf bisect identified this as the bulk of the ~100ms
-                ; "other" budget on the F11 hot path.
-                if _sArraysReady
-                    Float[] refEmMult = _sCondLayerEmissiveMult
-                    Int[]   refTint   = _sCondLayerTint
-                    Int[]   refAlpha  = _sCondLayerAlpha
-                    Int[]   refEmis   = _sCondLayerEmissive
-                    int emMultLen = refEmMult.Length
-                    int tintLen   = refTint.Length
-                    int alphaLen  = refAlpha.Length
-                    int emisLen   = refEmis.Length
-                    int L = 0
-                    while L < layerN
-                        int li = tier * maxL + L
-                        if li >= 0
-                            if li < emMultLen
-                                emMults[L] = refEmMult[li]
-                            endif
-                            if li < tintLen
-                                tints[L] = refTint[li]
-                            endif
-                            if li < alphaLen
-                                alphas[L] = refAlpha[li]
-                            endif
-                            if li < emisLen
-                                emissives[L] = refEmis[li]
-                            endif
+                ; v0.3.1: read from cached* locals pulled from per-preset
+                ; cache namespace (not _s* script-level — those are
+                ; cross-fiber unsafe). Each cached* is its own local; the
+                ; bounds-checked indexing pattern is unchanged.
+                int emMultLen = cachedLayerEmMult.Length
+                int tintLen   = cachedLayerTint.Length
+                int alphaLen  = cachedLayerAlpha.Length
+                int emisLen   = cachedLayerEmissive.Length
+                int L = 0
+                while L < layerN
+                    int li = tier * maxL + L
+                    if li >= 0
+                        if li < emMultLen
+                            emMults[L] = cachedLayerEmMult[li]
                         endif
-                        L += 1
-                    endwhile
-                endif
+                        if li < tintLen
+                            tints[L] = cachedLayerTint[li]
+                        endif
+                        if li < alphaLen
+                            alphas[L] = cachedLayerAlpha[li]
+                        endif
+                        if li < emisLen
+                            emissives[L] = cachedLayerEmissive[li]
+                        endif
+                    endif
+                    L += 1
+                endwhile
                 float n0 = 0.0
                 if perfOnR
                     n0 = Utility.GetCurrentRealTime()
@@ -7805,22 +8266,22 @@ Function _rosterAddOrUpdateWithAreas(Actor a, string name, int tier, float start
                     ; Caller (_processTrackedActorOnce) issues ONE
                     ; SetActorPulseAndFadeBatch call after the per-preset
                     ; loop — collapses ~2N SKSE crossings into 1.
-                    string waveform = ""
-                    if _sArraysReady && tier >= 0 && tier < 8
-                        waveform = _sCondWaveform[tier]
-                    endif
+                    ;
+                    ; v0.3.1: waveform / fade values come from cached*
+                    ; locals (parallel-safe), not _s* globals.
+                    string waveform = lutWaveformName
                     int fadePacked = 0
-                    if _sFadeOnDeathEnabled
-                        int dur = _sFadeOnDeathDurationMs
+                    if cachedFadeEnabled
+                        int dur = cachedFadeDurMs
                         if dur > 536870911    ; 0x1FFFFFFF — fits in 29 bits
                             dur = 536870911
                         endif
                         ; Bit-pack: enabled in bit 0, mode in bits 1..2,
-                        ; duration_ms in bits 3..31. _sFadeOnDeathMode is
+                        ; duration_ms in bits 3..31. cachedFadeMode is
                         ; clamped 0..2 in _loadPresetToScratch.
-                        fadePacked = (dur * 8) + (_sFadeOnDeathMode * 2) + 1
+                        fadePacked = (dur * 8) + (cachedFadeMode * 2) + 1
                     endif
-                    _pushRosterBatchEntry(rate, depth, _g_pulsePause(tier, true), \
+                    _pushRosterBatchEntry(a, rate, depth, cachedPulsePause, \
                                           layerN, startRT, baseSlot, waveform, \
                                           tDur, areaIdx, fadePacked, \
                                           emMults, tints, alphas, emissives)
@@ -7830,18 +8291,18 @@ Function _rosterAddOrUpdateWithAreas(Actor a, string name, int tier, float start
                     ; (instant snap, no cross-fade). Calling it unconditionally
                     ; keeps the C++ side aware of the target alpha/tint/emissive
                     ; at all times — see v0.1.1 design notes preserved below.
-                    MTFPulse.SetActorPulseWithTransition(a, rate, depth, _g_pulsePause(tier, true), \
+                    MTFPulse.SetActorPulseWithTransition(a, rate, depth, cachedPulsePause, \
                                                          layerN, startRT, emMults, \
                                                          baseSlot, isFemale, lut, \
                                                          tints, alphas, emissives, tDur, \
                                                          areaIdx)
                     ; v0.1.4 per-preset fade-on-death: arm the fade lane on the
-                    ; roster entry. _sFadeOnDeath* state was loaded from the
-                    ; scratch-loaded preset's .fadeondeath block by the caller.
-                    if _sFadeOnDeathEnabled
-                        MTFPulse.SetActorFade(a, baseSlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs, areaIdx)
+                    ; roster entry. v0.3.1: fade state read from cached*
+                    ; locals (parallel-safe).
+                    if cachedFadeEnabled
+                        MTFPulse.SetActorFade(a, baseSlot, cachedFadeMode, cachedFadeDurMs, areaIdx)
                         if DebugMode
-                            Debug.Notification("[MTF fade] armed " + a.GetDisplayName() + " area=" + area + " slot=" + baseSlot + " mode=" + _sFadeOnDeathMode)
+                            Debug.Notification("[MTF fade] armed " + a.GetDisplayName() + " area=" + area + " slot=" + baseSlot + " mode=" + cachedFadeMode)
                         endif
                     else
                         MTFPulse.ClearActorFade(a, baseSlot, areaIdx)
@@ -7924,7 +8385,9 @@ Function _processTrackedActorOnce(Actor target)
     ; accumulator instead of firing MTFPulse.SetActorPulseWithTransition +
     ; ClearActorFade per area. One SetActorPulseAndFadeBatch call at the
     ; end of the preset loop replaces ~2N SKSE crossings per actor.
-    _resetRosterBatch()
+    ; v0.3.1: actor-keyed accumulator so parallel fibers (one per NPC)
+    ; don't clash on a process-global namespace.
+    _resetRosterBatch(target)
     while i < n
         string nm = GetActorPresetAt(target, i)
         if nm != ""
@@ -7932,7 +8395,15 @@ Function _processTrackedActorOnce(Actor target)
             if perfOn
                 tL0 = Utility.GetCurrentRealTime()
             endif
-            bool loaded = _loadPresetToScratch(nm)
+            ; v0.3.1 (#A parallel-safe): use _ensurePresetCache instead of
+            ; _loadPresetToScratch — the latter has a warm-hit race
+            ; (_scratchLoadedFor flag set BEFORE cache write completes,
+            ; concurrent fiber returns success on unfinished state).
+            ; _ensurePresetCache checks the cache version stamp directly,
+            ; which is written LAST. Also skips the _s* rebind since the
+            ; downstream eval/draw chain now reads from cache directly
+            ; (stages 2a/2b).
+            bool loaded = _ensurePresetCache(nm)
             if perfOn
                 tLoadAccum += Utility.GetCurrentRealTime() - tL0
             endif
@@ -7987,7 +8458,16 @@ Function _processTrackedActorsSlowTick(int maxThisTick)
 {Round-robin walk of the tracked list. Up to maxThisTick actors get
  evaluated per call. State persists across calls via _rotIdx, so a long
  list eventually completes a full sweep over multiple slow ticks.
- maxThisTick <= 0 means "all of them this tick" (Step 5 baseline).}
+ maxThisTick <= 0 means "all of them this tick" (Step 5 baseline).
+
+ v0.3.1 (#A): dispatches to the parallel-fiber variant when enabled.
+ Sequential path kept as fallback if the parallel toggle is off OR
+ the previous batch hasn't fully drained (guards against unbounded
+ fiber pileup if a single actor takes longer than PULSE_INTERVAL).}
+    if _parallelTickEnabled()
+        _processTrackedActorsSlowTickParallel(maxThisTick)
+        return
+    endif
     int total = GetTrackedCount()
     if total <= 0
         return
@@ -8036,6 +8516,199 @@ Function _processTrackedActorsSlowTick(int maxThisTick)
             Debug.Trace("[MTF_PERF] slowtick processed=" + processed + " wall=" + sDt + "ms")
         endif
     endif
+EndFunction
+
+bool Function _parallelTickEnabled()
+{Default true unless explicitly disabled via console:
+   cqf MTF SetParallelTick 0
+ Stored in StorageUtil so it survives saves but isn't an MCM toggle.}
+    return StorageUtil.GetIntValue(self, "mtf.parallelTick.enabled", 1) != 0
+EndFunction
+
+Function SetParallelTick(int enabled)
+{Console-callable kill-switch. `cqf MTF SetParallelTick 0` reverts to
+ sequential dispatch; `cqf MTF SetParallelTick 1` re-enables.
+
+ Also force-clears the fibers-in-flight counter — if the parallel path
+ wedged (a fiber failed to decrement, e.g. ModEvent dispatch error), the
+ counter stays > 0 forever and the parallel slow-tick rejects all
+ subsequent ticks. Disabling clears the wedge so re-enabling works
+ cleanly.}
+    StorageUtil.SetIntValue(self, "mtf.parallelTick.enabled", enabled)
+    StorageUtil.SetIntValue(self, "mtf.fibersInFlight", 0)
+    if DebugMode
+        if enabled != 0
+            Notification("MTF: parallel slow-tick ENABLED")
+        else
+            Notification("MTF: parallel slow-tick DISABLED")
+        endif
+    endif
+EndFunction
+
+Function ResetFiberCounter()
+{Console-callable recovery: `cqf MTF ResetFiberCounter` clears the
+ fibers-in-flight counter without flipping the enabled toggle. Use this
+ when the parallel slow-tick logs "X fibers still in flight" forever
+ because a dispatch errored out.}
+    StorageUtil.SetIntValue(self, "mtf.fibersInFlight", 0)
+    if DebugMode
+        Notification("MTF: fibers-in-flight counter reset")
+    endif
+EndFunction
+
+Function _processTrackedActorsSlowTickParallel(int maxThisTick)
+{Per-actor parallel-fiber dispatch. Each tracked actor is processed in
+ its own Papyrus fiber via a MTF_ProcessTrackedActor ModEvent received
+ on MTF_AliasPresetApi. When one fiber yields on a cross-script call
+ (plugin lifecycle, NiOverride, etc.) other fibers run. 5-NPC combat
+ burst goes from ~10s sequential to ~max(per-actor) parallel.
+
+ Backpressure: if the previous batch's fibers are still in flight
+ (mtf.fibersInFlight > 0), this tick skips dispatching new work. The
+ next OnUpdate will retry.}
+    int total = GetTrackedCount()
+    if total <= 0
+        return
+    endif
+    int inFlight = StorageUtil.GetIntValue(self, "mtf.fibersInFlight", 0)
+    if inFlight > 0
+        ; Self-heal: if a previous batch's counter never drained (a fiber
+        ; errored before its decrement could run), the parallel tick
+        ; refuses to dispatch forever. Treat as stale and force-reset if
+        ; (a) no dispatch timestamp (leftover from a save that pre-dates
+        ; the timestamp tracking — counter never gets cleared without
+        ; this), or (b) timestamp is older than 30s.
+        float dispatchedAt = StorageUtil.GetFloatValue(self, "mtf.fibersInFlight.rt", 0.0)
+        float now = Utility.GetCurrentRealTime()
+        bool stale = false
+        if dispatchedAt <= 0.0
+            stale = true  ; pre-tracking leftover or fresh-load defaults
+        elseif (now - dispatchedAt) > 30.0
+            stale = true
+        endif
+        if stale
+            if DebugMode
+                int age = ((now - dispatchedAt) as int)
+                Debug.Trace("[MTF_PERF] parallel slowtick STALE — " + inFlight + " fibers in flight, ts=" + dispatchedAt + " age=" + age + "s, force-resetting")
+            endif
+            StorageUtil.SetIntValue(self, "mtf.fibersInFlight", 0)
+            StorageUtil.SetFloatValue(self, "mtf.fibersInFlight.rt", 0.0)
+            ; Fall through to dispatch.
+        else
+            if DebugMode
+                Debug.Trace("[MTF_PERF] parallel slowtick skip — " + inFlight + " fibers still in flight")
+            endif
+            return
+        endif
+    endif
+    if maxThisTick <= 0
+        maxThisTick = total
+    elseif maxThisTick > total
+        maxThisTick = total
+    endif
+    if _rotIdx < 0 || _rotIdx >= total
+        _rotIdx = 0
+    endif
+    ; Snapshot the actors to process (and advance _rotIdx synchronously
+    ; under the main fiber). Stale FormList entries get pruned here so
+    ; the worker fibers never see None.
+    Form[] toProcess = Utility.CreateFormArray(maxThisTick, None)
+    int snapshot = 0
+    int idx = _rotIdx
+    bool aborted = false
+    while snapshot < maxThisTick && !aborted
+        Actor a = GetTrackedAt(idx)
+        if a == None
+            StorageUtil.FormListRemoveAt(self, "mtf.tracked", idx)
+            total = GetTrackedCount()
+            if total <= 0
+                _rotIdx = 0
+                snapshot = 0
+                aborted = true
+            else
+                if idx >= total
+                    idx = 0
+                endif
+            endif
+        else
+            toProcess[snapshot] = a as Form
+            snapshot += 1
+            idx += 1
+            if idx >= total
+                idx = 0
+            endif
+        endif
+    endwhile
+    if !aborted
+        _rotIdx = idx
+    endif
+    if snapshot <= 0
+        return
+    endif
+    bool perfOn = DebugMode
+    float st0 = 0.0
+    if perfOn
+        st0 = Utility.GetCurrentRealTime()
+    endif
+    ; Arm the in-flight counter BEFORE the first Send. Each fiber
+    ; decrements via FiberProcessTrackedActor on completion. If we
+    ; set after Send, a fiber that runs ahead-of-set would underflow.
+    ; Stamp dispatch time so the self-heal timeout in the next tick
+    ; can detect a wedged batch (counter > 0 with no progress).
+    StorageUtil.SetIntValue(self, "mtf.fibersInFlight", snapshot)
+    StorageUtil.SetFloatValue(self, "mtf.fibersInFlight.rt", Utility.GetCurrentRealTime())
+    if perfOn
+        Debug.Trace("[MTF_PERF] parallel slowtick dispatch " + snapshot + " fibers")
+    endif
+    int j = 0
+    while j < snapshot
+        Form fForm = toProcess[j]
+        if fForm != None
+            int h = ModEvent.Create("MTF_ProcessTrackedActor")
+            if h != 0
+                ; Handler signature is (string, float, Form) — push all
+                ; three even though only `Form` carries payload. Missing
+                ; pushes throw "Incorrect number of arguments" on dispatch
+                ; and the handler body never runs (counter never decrements).
+                ModEvent.PushString(h, "")
+                ModEvent.PushFloat(h, 0.0)
+                ModEvent.PushForm(h, fForm)
+                bool sent = ModEvent.Send(h)
+                if !sent
+                    ; Send failed — decrement the counter so we don't
+                    ; wedge forever waiting for a fiber that never runs.
+                    _fiberCounterDecrement()
+                endif
+            else
+                _fiberCounterDecrement()
+            endif
+        else
+            _fiberCounterDecrement()
+        endif
+        j += 1
+    endwhile
+EndFunction
+
+Function _fiberCounterDecrement()
+    int remaining = StorageUtil.GetIntValue(self, "mtf.fibersInFlight", 0) - 1
+    if remaining < 0
+        remaining = 0
+    endif
+    StorageUtil.SetIntValue(self, "mtf.fibersInFlight", remaining)
+EndFunction
+
+Function FiberProcessTrackedActor(Actor target)
+{Public entry point called by MTF_AliasPresetApi.OnProcessTrackedActorEvent.
+ Runs in the alias fiber. Cross-script yields inside _processTrackedActorOnce
+ let other actor fibers interleave (effective parallelism).
+
+ Always decrements the in-flight counter — even on early-return paths —
+ so _processTrackedActorsSlowTickParallel sees an accurate "batch
+ drained" signal.}
+    if target != None
+        _processTrackedActorOnce(target)
+    endif
+    _fiberCounterDecrement()
 EndFunction
 
 ; ══════════════════════════════════════════════════════════════════════════
@@ -8133,27 +8806,32 @@ Function _regOneWaveform(string name)
     endif
 EndFunction
 
-Function _resetRosterBatch()
+Function _resetRosterBatch(Form key)
 {Clear all 14 accumulator lists. Called at the START of a per-actor
  batch (start of _processTrackedActorOnce, or AddAppliedPresetsBatch).
- StorageUtil.IntListClear is one SKSE crossing per list — 14 crossings ~ 5ms.}
-    StorageUtil.FloatListClear(None,  "mtf.rb.rates")
-    StorageUtil.IntListClear(None,    "mtf.rb.depths")
-    StorageUtil.FloatListClear(None,  "mtf.rb.pauses")
-    StorageUtil.IntListClear(None,    "mtf.rb.layerCounts")
-    StorageUtil.FloatListClear(None,  "mtf.rb.startTimes")
-    StorageUtil.IntListClear(None,    "mtf.rb.baseSlots")
-    StorageUtil.StringListClear(None, "mtf.rb.waveforms")
-    StorageUtil.FloatListClear(None,  "mtf.rb.tDurs")
-    StorageUtil.IntListClear(None,    "mtf.rb.areas")
-    StorageUtil.IntListClear(None,    "mtf.rb.fadePacked")
-    StorageUtil.FloatListClear(None,  "mtf.rb.emMults")
-    StorageUtil.IntListClear(None,    "mtf.rb.tints")
-    StorageUtil.IntListClear(None,    "mtf.rb.alphas")
-    StorageUtil.IntListClear(None,    "mtf.rb.emissives")
+ StorageUtil.IntListClear is one SKSE crossing per list — 14 crossings ~ 5ms.
+
+ v0.3.1 (#A parallel-safe): `key` is the actor (or `self` for player)
+ so each parallel-fiber per-actor batch lives in its own StorageUtil
+ namespace. Was using None (process-global lists) which collided across
+ parallel fibers.}
+    StorageUtil.FloatListClear(key,  "mtf.rb.rates")
+    StorageUtil.IntListClear(key,    "mtf.rb.depths")
+    StorageUtil.FloatListClear(key,  "mtf.rb.pauses")
+    StorageUtil.IntListClear(key,    "mtf.rb.layerCounts")
+    StorageUtil.FloatListClear(key,  "mtf.rb.startTimes")
+    StorageUtil.IntListClear(key,    "mtf.rb.baseSlots")
+    StorageUtil.StringListClear(key, "mtf.rb.waveforms")
+    StorageUtil.FloatListClear(key,  "mtf.rb.tDurs")
+    StorageUtil.IntListClear(key,    "mtf.rb.areas")
+    StorageUtil.IntListClear(key,    "mtf.rb.fadePacked")
+    StorageUtil.FloatListClear(key,  "mtf.rb.emMults")
+    StorageUtil.IntListClear(key,    "mtf.rb.tints")
+    StorageUtil.IntListClear(key,    "mtf.rb.alphas")
+    StorageUtil.IntListClear(key,    "mtf.rb.emissives")
 EndFunction
 
-Function _pushRosterBatchEntry(float rate, int depth, float pause, int layerN, \
+Function _pushRosterBatchEntry(Form key, float rate, int depth, float pause, int layerN, \
                                 float startRT, int baseSlot, string waveform, \
                                 float tDur, int area, int fadePacked, \
                                 Float[] emMults, Int[] tints, Int[] alphas, Int[] emissives)
@@ -8167,17 +8845,19 @@ Function _pushRosterBatchEntry(float rate, int depth, float pause, int layerN, \
 
  StorageUtil lists used as backing store: Papyrus quest scripts can't
  indexed-write to script-level arrays reliably (project_papyrus_property_array_writes);
- list-add operations are SKSE natives that don't suffer the quirk.}
-    StorageUtil.FloatListAdd(None,  "mtf.rb.rates",      rate)
-    StorageUtil.IntListAdd(None,    "mtf.rb.depths",     depth)
-    StorageUtil.FloatListAdd(None,  "mtf.rb.pauses",     pause)
-    StorageUtil.IntListAdd(None,    "mtf.rb.layerCounts", layerN)
-    StorageUtil.FloatListAdd(None,  "mtf.rb.startTimes", startRT)
-    StorageUtil.IntListAdd(None,    "mtf.rb.baseSlots",  baseSlot)
-    StorageUtil.StringListAdd(None, "mtf.rb.waveforms",  waveform)
-    StorageUtil.FloatListAdd(None,  "mtf.rb.tDurs",      tDur)
-    StorageUtil.IntListAdd(None,    "mtf.rb.areas",      area)
-    StorageUtil.IntListAdd(None,    "mtf.rb.fadePacked", fadePacked)
+ list-add operations are SKSE natives that don't suffer the quirk.
+
+ v0.3.1 (#A parallel-safe): `key` namespaces the lists per fiber/actor.}
+    StorageUtil.FloatListAdd(key,  "mtf.rb.rates",      rate)
+    StorageUtil.IntListAdd(key,    "mtf.rb.depths",     depth)
+    StorageUtil.FloatListAdd(key,  "mtf.rb.pauses",     pause)
+    StorageUtil.IntListAdd(key,    "mtf.rb.layerCounts", layerN)
+    StorageUtil.FloatListAdd(key,  "mtf.rb.startTimes", startRT)
+    StorageUtil.IntListAdd(key,    "mtf.rb.baseSlots",  baseSlot)
+    StorageUtil.StringListAdd(key, "mtf.rb.waveforms",  waveform)
+    StorageUtil.FloatListAdd(key,  "mtf.rb.tDurs",      tDur)
+    StorageUtil.IntListAdd(key,    "mtf.rb.areas",      area)
+    StorageUtil.IntListAdd(key,    "mtf.rb.fadePacked", fadePacked)
     int L = 0
     while L < 4
         float em    = 0.0
@@ -8190,10 +8870,10 @@ Function _pushRosterBatchEntry(float rate, int depth, float pause, int layerN, \
             alpha = alphas[L]
             emis  = emissives[L]
         endif
-        StorageUtil.FloatListAdd(None, "mtf.rb.emMults",   em)
-        StorageUtil.IntListAdd(None,   "mtf.rb.tints",     tint)
-        StorageUtil.IntListAdd(None,   "mtf.rb.alphas",    alpha)
-        StorageUtil.IntListAdd(None,   "mtf.rb.emissives", emis)
+        StorageUtil.FloatListAdd(key, "mtf.rb.emMults",   em)
+        StorageUtil.IntListAdd(key,   "mtf.rb.tints",     tint)
+        StorageUtil.IntListAdd(key,   "mtf.rb.alphas",    alpha)
+        StorageUtil.IntListAdd(key,   "mtf.rb.emissives", emis)
         L += 1
     endwhile
 EndFunction
@@ -8206,25 +8886,28 @@ Function _flushRosterBatch(Actor a, bool isFemale)
  ::temp1 fix (memory project_papyrus_temp1_corruption): rates.Length is
  read AFTER all 14 IntListToArray calls — interleaving the None-check with
  subsequent same-type assignments corrupted ::temp1 in the rolled-back
- commit, throwing "Mismatched types ::temp1" on every flush.}
-    Float[]  rates = StorageUtil.FloatListToArray(None, "mtf.rb.rates")
+ commit, throwing "Mismatched types ::temp1" on every flush.
+
+ v0.3.1 (#A parallel-safe): reads from the actor's own StorageUtil
+ namespace (set up by _resetRosterBatch(a) at start of per-actor batch).}
+    Float[]  rates = StorageUtil.FloatListToArray(a, "mtf.rb.rates")
     if rates.Length == 0
         return
     endif
     _ensureWaveformsRegistered()
-    Int[]    depths      = StorageUtil.IntListToArray(None,    "mtf.rb.depths")
-    Float[]  pauses      = StorageUtil.FloatListToArray(None,  "mtf.rb.pauses")
-    Int[]    layerCounts = StorageUtil.IntListToArray(None,    "mtf.rb.layerCounts")
-    Float[]  startTimes  = StorageUtil.FloatListToArray(None,  "mtf.rb.startTimes")
-    Int[]    baseSlots   = StorageUtil.IntListToArray(None,    "mtf.rb.baseSlots")
-    String[] waveforms   = StorageUtil.StringListToArray(None, "mtf.rb.waveforms")
-    Float[]  tDurs       = StorageUtil.FloatListToArray(None,  "mtf.rb.tDurs")
-    Int[]    areas       = StorageUtil.IntListToArray(None,    "mtf.rb.areas")
-    Int[]    fadePacked  = StorageUtil.IntListToArray(None,    "mtf.rb.fadePacked")
-    Float[]  emMults     = StorageUtil.FloatListToArray(None,  "mtf.rb.emMults")
-    Int[]    tints       = StorageUtil.IntListToArray(None,    "mtf.rb.tints")
-    Int[]    alphas      = StorageUtil.IntListToArray(None,    "mtf.rb.alphas")
-    Int[]    emissives   = StorageUtil.IntListToArray(None,    "mtf.rb.emissives")
+    Int[]    depths      = StorageUtil.IntListToArray(a,    "mtf.rb.depths")
+    Float[]  pauses      = StorageUtil.FloatListToArray(a,  "mtf.rb.pauses")
+    Int[]    layerCounts = StorageUtil.IntListToArray(a,    "mtf.rb.layerCounts")
+    Float[]  startTimes  = StorageUtil.FloatListToArray(a,  "mtf.rb.startTimes")
+    Int[]    baseSlots   = StorageUtil.IntListToArray(a,    "mtf.rb.baseSlots")
+    String[] waveforms   = StorageUtil.StringListToArray(a, "mtf.rb.waveforms")
+    Float[]  tDurs       = StorageUtil.FloatListToArray(a,  "mtf.rb.tDurs")
+    Int[]    areas       = StorageUtil.IntListToArray(a,    "mtf.rb.areas")
+    Int[]    fadePacked  = StorageUtil.IntListToArray(a,    "mtf.rb.fadePacked")
+    Float[]  emMults     = StorageUtil.FloatListToArray(a,  "mtf.rb.emMults")
+    Int[]    tints       = StorageUtil.IntListToArray(a,    "mtf.rb.tints")
+    Int[]    alphas      = StorageUtil.IntListToArray(a,    "mtf.rb.alphas")
+    Int[]    emissives   = StorageUtil.IntListToArray(a,    "mtf.rb.emissives")
     MTFPulse.SetActorPulseAndFadeBatch(a, isFemale, rates, depths, pauses, \
         layerCounts, startTimes, baseSlots, waveforms, tDurs, areas, fadePacked, \
         emMults, tints, alphas, emissives)

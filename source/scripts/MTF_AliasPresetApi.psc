@@ -25,6 +25,12 @@ Function _registerAll()
     RegisterForModEvent("MTF_ApplyPreset",      "OnApplyPresetEvent")
     RegisterForModEvent("MTF_RemovePreset",     "OnRemovePresetEvent")
     RegisterForModEvent("MTF_RemoveAllPresets", "OnRemoveAllPresetsEvent")
+    ; v0.3.1 (#A): per-actor fiber dispatch for slow-tick. MTF_MainQuest fires
+    ; one MTF_ProcessTrackedActor event per actor; each handler runs as its
+    ; own Papyrus fiber, so when one yields on a cross-script call (plugin
+    ; lifecycle, NiOverride, etc.) another actor's fiber can run. 5-NPC
+    ; combat burst goes from sequential ~10s to parallel ~max(per-actor).
+    RegisterForModEvent("MTF_ProcessTrackedActor", "OnProcessTrackedActorEvent")
 EndFunction
 
 Function OnApplyPresetEvent(string strArg, float numArg, Form sender)
@@ -53,4 +59,17 @@ Function OnRemoveAllPresetsEvent(string strArg, float numArg, Form sender)
     endif
     Actor target = sender as Actor
     host.ApiRemoveAllPresets(target)
+EndFunction
+
+Function OnProcessTrackedActorEvent(string strArg, float numArg, Form sender)
+    ; v0.3.1 (#A): runs in this alias's own Papyrus fiber. Yields inside
+    ; the host call let other actors' fibers interleave on cross-script
+    ; suspension. host.FiberProcessTrackedActor handles the post-completion
+    ; counter decrement so MTF_MainQuest can detect "batch drained".
+    MTF_MainQuest host = GetOwningQuest() as MTF_MainQuest
+    if host == None
+        return
+    endif
+    Actor target = sender as Actor
+    host.FiberProcessTrackedActor(target)
 EndFunction
