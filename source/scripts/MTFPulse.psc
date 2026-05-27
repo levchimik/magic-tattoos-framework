@@ -199,3 +199,47 @@ Function TriggerActorFade(Actor aktor, Int baseOverlaySlot, Int area) Global Nat
 ;                   "function MTFPulse.GetConfigInt not found" path falls
 ;                   through to the caller's own default).
 Int Function GetConfigInt(String key, Int defaultValue) Global Native
+
+; v0.3.0 PERF_TIER1_APPLY #5 batch native infrastructure.
+;
+; RegisterWaveformLUT stores a 64-float pulse curve under a short name so
+; SetActorPulseAndFadeBatch can reference each entry's waveform by name
+; instead of re-marshalling a 256-byte array on every per-entry cross-script
+; call. MainQuest._registerStandardWaveforms calls this once per session
+; (from _prewarmInit, which self-bootstraps on every load). Idempotent on
+; the C++ side — calling with the same name overwrites.
+Function RegisterWaveformLUT(String name, Float[] lut) Global Native
+
+; Query the current size of the C++ waveform LUT registry. Used by
+; MainQuest._ensureWaveformsRegistered to detect a fresh DLL session
+; (game launch zeroes the registry but Papyrus state persists with
+; the save) — a 0 / low return means we need to re-register before
+; calling SetActorPulseAndFadeBatch. Cheap (one atomic read + mutex
+; acquire, ~5 µs).
+Int Function GetWaveformRegistrySize() Global Native
+
+; Batched per-actor pulse + fade set. Replaces N pairs of
+; (SetActorPulseWithTransition + SetActorFade/ClearActorFade) cross-script
+; calls with a single call carrying parallel arrays for all N entries.
+; Internally wraps Roster Set loop in BeginBatch/EndBatch so all entries
+; land with a shared transition_start anchor.
+;
+; fadePacked encodes the fade lane per entry as a single int:
+;   bit 0      enabled (0 = clear fade, 1 = arm)
+;   bits 1..2  fade mode (0=overlay, 1=emissive, 2=inverted)
+;   bits 3..31 duration_ms (max ~268M ms)
+;
+; waveformNames entries are looked up against the LUT registry; missing
+; names fall back to the built-in cosine wave on the C++ side.
+;
+; Per-layer arrays (emMults, tints, alphas, emissives) are flat — entry i
+; layer L lives at index i*4 + L. The C++ side reads only the first
+; layerCounts[i] of each entry's 4 slots.
+Function SetActorPulseAndFadeBatch(Actor aktor, Bool isFemale, \
+                                    Float[] rates, Int[] depthPcts, Float[] pauses, \
+                                    Int[] layerCounts, Float[] startTimes, \
+                                    Int[] baseOverlaySlots, String[] waveformNames, \
+                                    Float[] transitionDurations, Int[] areas, \
+                                    Int[] fadePacked, \
+                                    Float[] emMults, Int[] tints, Int[] alphas, \
+                                    Int[] emissives) Global Native

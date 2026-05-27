@@ -5576,7 +5576,7 @@ bool Function IsTrackedActor(Actor target)
     return StorageUtil.FormListHas(self, "mtf.tracked", target)
 EndFunction
 
-int Function AddAppliedPreset(Actor target, string name, bool deferApply = false)
+int Function AddAppliedPreset(Actor target, string name, bool deferApply = false, bool deferRoster = false)
 {Apply preset `name` to `target`. For NPCs, also tracks the actor.
  Computes base slot + reserved layer count per overlay area. Rejects with
  -6 / -7 if visuals can't fit cleanly (see codes below). Per-preset state
@@ -5771,7 +5771,7 @@ int Function AddAppliedPreset(Actor target, string name, bool deferApply = false
     if _profileApply
         _t2 = Utility.GetCurrentRealTime()
     endif
-    _evalAndDrawPresetForActor(target, name, deferApply)
+    _evalAndDrawPresetForActor(target, name, deferApply, deferRoster)
     if _profileApply
         _t3 = Utility.GetCurrentRealTime()
         Debug.Trace("[MTF_TIME] AddApplied " + name + ": load=" + (_t1 - _t0) + " scan+writes=" + (_t2 - _t1) + " evalDraw=" + (_t3 - _t2) + " total=" + (_t3 - _t0))
@@ -5815,20 +5815,28 @@ int Function AddAppliedPresetsBatch(Actor target, string[] names)
     ; the duration of the batch. The first preset pays the ~120ms scan; every
     ; subsequent preset stacks atop the accumulated reservs without re-scanning.
     _beginBatchBaseSlotCache()
-    MTFPulse.BeginTransitionBatch()
+    ; PERF_TIER1_APPLY #5: defer the per-preset MTFPulse.Set/Fade cross-script
+    ; calls into a script-level accumulator and flush them all via ONE
+    ; MTFPulse.SetActorPulseAndFadeBatch native call after the per-preset
+    ; loop. Eliminates ~7 of the 8 per-actor cross-script transitions to the
+    ; C++ pulse plugin. The C++ batch native handles its own
+    ; BeginBatch/EndBatch wrap (shared transition_start anchor) so we drop
+    ; the outer BeginTransitionBatch/EndTransitionBatch wrap that the
+    ; deferred path made redundant.
+    _resetRosterBatch()
     int i = 0
     while i < n
         string nm = names[i]
         if nm != ""
-            int rc = AddAppliedPreset(target, nm, true)
+            int rc = AddAppliedPreset(target, nm, true, true)
             if rc == 1
                 ok += 1
             endif
         endif
         i += 1
     endwhile
-    MTFPulse.EndTransitionBatch()
     if ok > 0
+        _flushRosterBatch(target, _isFemaleCached(target))
         NiOverride.ApplyNodeOverrides(target)
     endif
     _endBatchBaseSlotCache()
@@ -7478,7 +7486,7 @@ int Function _resolveDispatchBaseSlot(Actor target, string presetName)
 EndFunction
 
 ; ── Per-preset eval + draw cycle ────────────────────────────────────────────
-bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferApply = false)
+bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferApply = false, bool deferRoster = false)
 {One preset's eval+draw cycle on a target. Caller must already have run
  _loadPresetToScratch(name). Fires tier transition edges, arms cooldowns,
  stamps the overlay at the preset's stored base/layers, and updates the
@@ -7518,7 +7526,7 @@ bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferAp
     else
         now = evaluateTierForActor(target, name, true)
     endif
-    return _applyPresetTierChange(target, name, prev, now, deferApply)
+    return _applyPresetTierChange(target, name, prev, now, deferApply, deferRoster)
 EndFunction
 
 bool Function _evalAndDrawPresetForActorWithKnownTier(Actor target, string name, int newTier, bool deferApply = false)
@@ -7537,7 +7545,7 @@ bool Function _evalAndDrawPresetForActorWithKnownTier(Actor target, string name,
     return _applyPresetTierChange(target, name, prev, newTier, deferApply)
 EndFunction
 
-bool Function _applyPresetTierChange(Actor target, string name, int prev, int now, bool deferApply)
+bool Function _applyPresetTierChange(Actor target, string name, int prev, int now, bool deferApply, bool deferRoster = false)
 {Shared body for both _evalAndDrawPresetForActor (self-eval) and
  _evalAndDrawPresetForActorWithKnownTier (pre-eval). Handles the tier
  transition edge — deactivate prev effects, update roster, draw, activate
@@ -7594,7 +7602,7 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
         _setActorPresetTier(target, name, now)
         _setActorPresetPulseStartRT(target, name, rtNow)
         if now >= 0
-            _rosterAddOrUpdate(target, name, now, rtNow)
+            _rosterAddOrUpdate(target, name, now, rtNow, deferRoster)
         else
             _rosterRemovePreset(target, name)
         endif
@@ -7750,7 +7758,7 @@ Function _rosterRemoveActor(Actor a)
     MTFPulse.ClearActor(a)
 EndFunction
 
-Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
+Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT, bool deferRoster = false)
 {Snapshot the preset's tier params and push to the MTFPulse C++ roster,
  keyed by (a, preset's stored base_slot). Caller must have
  _loadPresetToScratch(name) loaded so the _g_* readers see this preset's
@@ -7817,7 +7825,16 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
                 ; This area has a reservation but the tier's pack lives in a
                 ; different area. Clear any stale entry so the C++ roster
                 ; doesn't pulse a slot that should be tier-empty.
-                MTFPulse.ClearActorAt(a, baseSlot, areaIdx)
+                if deferRoster
+                    ; Push a no-paint entry (layerCounts=0 → C++ ClearAt)
+                    Float[] _emEm    = Utility.CreateFloatArray(4, 0.0)
+                    Int[]   _emTints = Utility.CreateIntArray(4, 16777215)
+                    Int[]   _emAlphas = Utility.CreateIntArray(4, 0)
+                    _pushRosterBatchEntry(0.0, 0, 0.0, 0, startRT, baseSlot, "", \
+                                           0.0, areaIdx, 0, _emEm, _emTints, _emAlphas, _emTints)
+                else
+                    MTFPulse.ClearActorAt(a, baseSlot, areaIdx)
+                endif
             else
                 Float[] emMults   = Utility.CreateFloatArray(layerN)
                 Int[]   tints     = Utility.CreateIntArray(layerN)
@@ -7832,31 +7849,62 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
                     emissives[L] = _g_layerEmissive(li, true)
                     L += 1
                 endwhile
-                ; SetActorPulseWithTransition is a strict superset of
-                ; SetActorPulse: with tDur <= 0 it behaves identically
-                ; (instant snap, no cross-fade). Calling it unconditionally
-                ; keeps the C++ side aware of the target alpha/tint/emissive
-                ; at all times — see v0.1.1 design notes preserved below.
-                MTFPulse.SetActorPulseWithTransition(a, rate, depth, _g_pulsePause(tier, true), \
-                                                     layerN, startRT, emMults, \
-                                                     baseSlot, isFemale, lut, \
-                                                     tints, alphas, emissives, tDur, \
-                                                     areaIdx)
-                ; v0.1.4 per-preset fade-on-death: arm the fade lane on the
-                ; roster entry. _sFadeOnDeath* state was loaded from the
-                ; scratch-loaded preset's .fadeondeath block by the caller.
-                if _sFadeOnDeathEnabled
-                    MTFPulse.SetActorFade(a, baseSlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs, areaIdx)
-                    ; Demoted to Trace — was a Debug.Notification but it fires
-                    ; on every preset apply, and Notification yields the VM per
-                    ; call. Batched apply of 4 presets × 5 NPCs = 20 toasts =
-                    ; ~300-600ms wasted screen-spam time. Trace stays in the
-                    ; log for diagnostics without blocking the VM.
-                    if DebugMode
+                if deferRoster
+                    ; v0.3.0 PERF_TIER1_APPLY #5: push entry to the per-actor
+                    ; batch accumulator instead of issuing per-Set cross-script
+                    ; calls. AddAppliedPresetsBatch flushes the accumulator
+                    ; via one MTFPulse.SetActorPulseAndFadeBatch call after
+                    ; the per-preset loop. Saves N×2 native crossings per
+                    ; actor (where N = stacked-preset-area count, typically 4).
+                    string waveform = ""
+                    if _sArraysReady && tier >= 0 && tier < 8
+                        waveform = _sCondWaveform[tier]
+                    endif
+                    int fadePacked = 0
+                    if _sFadeOnDeathEnabled
+                        int dur = _sFadeOnDeathDurationMs
+                        if dur > 536870911    ; 0x1FFFFFFF — fits in 29 bits
+                            dur = 536870911
+                        endif
+                        ; Bit-pack: enabled in bit 0, mode in bits 1..2,
+                        ; duration_ms in bits 3..31. _sFadeOnDeathMode is
+                        ; already clamped to 0..2 in _loadPresetToScratch.
+                        fadePacked = (dur * 8) + (_sFadeOnDeathMode * 2) + 1
+                    endif
+                    _pushRosterBatchEntry(rate, depth, _g_pulsePause(tier, true), \
+                                           layerN, startRT, baseSlot, waveform, \
+                                           tDur, areaIdx, fadePacked, \
+                                           emMults, tints, alphas, emissives)
+                    if _sFadeOnDeathEnabled && DebugMode
                         Debug.Trace("[MTF fade] armed " + a.GetDisplayName() + " area=" + area + " slot=" + baseSlot + " mode=" + _sFadeOnDeathMode)
                     endif
                 else
-                    MTFPulse.ClearActorFade(a, baseSlot, areaIdx)
+                    ; SetActorPulseWithTransition is a strict superset of
+                    ; SetActorPulse: with tDur <= 0 it behaves identically
+                    ; (instant snap, no cross-fade). Calling it unconditionally
+                    ; keeps the C++ side aware of the target alpha/tint/emissive
+                    ; at all times — see v0.1.1 design notes preserved below.
+                    MTFPulse.SetActorPulseWithTransition(a, rate, depth, _g_pulsePause(tier, true), \
+                                                         layerN, startRT, emMults, \
+                                                         baseSlot, isFemale, lut, \
+                                                         tints, alphas, emissives, tDur, \
+                                                         areaIdx)
+                    ; v0.1.4 per-preset fade-on-death: arm the fade lane on the
+                    ; roster entry. _sFadeOnDeath* state was loaded from the
+                    ; scratch-loaded preset's .fadeondeath block by the caller.
+                    if _sFadeOnDeathEnabled
+                        MTFPulse.SetActorFade(a, baseSlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs, areaIdx)
+                        ; Demoted to Trace — was a Debug.Notification but it fires
+                        ; on every preset apply, and Notification yields the VM per
+                        ; call. Batched apply of 4 presets × 5 NPCs = 20 toasts =
+                        ; ~300-600ms wasted screen-spam time. Trace stays in the
+                        ; log for diagnostics without blocking the VM.
+                        if DebugMode
+                            Debug.Trace("[MTF fade] armed " + a.GetDisplayName() + " area=" + area + " slot=" + baseSlot + " mode=" + _sFadeOnDeathMode)
+                        endif
+                    else
+                        MTFPulse.ClearActorFade(a, baseSlot, areaIdx)
+                    endif
                 endif
             endif
         endif
@@ -8102,6 +8150,136 @@ Function _prewarmInit()
     endif
     _prewarmList = raw
     _prewarmIdx = 0
+EndFunction
+
+Function _ensureWaveformsRegistered()
+{PERF_TIER1_APPLY #5: re-register standard waveform LUTs when the C++ DLL
+ registry is empty (fresh game launch). Papyrus script-level vars persist
+ across save/load so a simple Papyrus-side bool gate misfires after the
+ first session; querying the C++ side directly is the only reliable signal.
+ Cheap query (~5µs) — safe to call from any hot path that's about to issue
+ a batch native call. Re-registration costs ~7×_buildWaveformLUT (~70ms
+ one-time per session); subsequent calls early-return on the size check.}
+    if MTFPulse.GetWaveformRegistrySize() >= 7
+        return
+    endif
+    _registerStandardWaveforms()
+EndFunction
+
+Function _registerStandardWaveforms()
+{Push the 7 standard waveform LUTs to the C++ DLL so MTFPulse.SetActorPulseAndFadeBatch
+ can resolve them by name. Idempotent on the C++ side (insert_or_assign).
+
+ Direct per-name calls (no `string[] names = new string[N]` array) — Quest
+ scripts have multiple silent-no-op quirks with array indexed writes and
+ the `new T[N]` initializer that bit our first cut: only the first
+ registration ever fired because subsequent `names[i] = ...` writes were
+ swallowed and `names[i]` reads for i>0 returned "". See
+ project_papyrus_property_array_writes + project_papyrus_long_ifelse_chains
+ memories.}
+    _regOneWaveform("heartbeat")
+    _regOneWaveform("square")
+    _regOneWaveform("triangle")
+    _regOneWaveform("sawtooth")
+    _regOneWaveform("doublehump")
+    _regOneWaveform("doublepulse")
+    _regOneWaveform("triplehump")
+EndFunction
+
+Function _regOneWaveform(string name)
+    Float[] lut = _buildWaveformLUT(name)
+    if lut != None && lut.Length == WAVE_LUT_SIZE()
+        MTFPulse.RegisterWaveformLUT(name, lut)
+    endif
+EndFunction
+
+; ── v0.3.0 PERF_TIER1_APPLY #5: roster-batch accumulator ────────────────────
+; Filled by _rosterAddOrUpdate when deferRoster=true (only path is
+; AddAppliedPresetsBatch). Flushed at the end of the batch via one
+; MTFPulse.SetActorPulseAndFadeBatch native call instead of N×2 per-Set
+; cross-script calls. StorageUtil lists are used as the backing store
+; because Papyrus quest scripts can't indexed-write to script-level arrays
+; reliably (per project_papyrus_property_array_writes); list-add operations
+; are SKSE natives that don't suffer the indexed-write quirk and each
+; ListToArray on flush is a single native crossing (~120µs per array).
+
+Function _resetRosterBatch()
+    StorageUtil.FloatListClear(None,  "mtf.rb.rates")
+    StorageUtil.IntListClear(None,    "mtf.rb.depths")
+    StorageUtil.FloatListClear(None,  "mtf.rb.pauses")
+    StorageUtil.IntListClear(None,    "mtf.rb.layerCounts")
+    StorageUtil.FloatListClear(None,  "mtf.rb.startTimes")
+    StorageUtil.IntListClear(None,    "mtf.rb.baseSlots")
+    StorageUtil.StringListClear(None, "mtf.rb.waveforms")
+    StorageUtil.FloatListClear(None,  "mtf.rb.tDurs")
+    StorageUtil.IntListClear(None,    "mtf.rb.areas")
+    StorageUtil.IntListClear(None,    "mtf.rb.fadePacked")
+    StorageUtil.FloatListClear(None,  "mtf.rb.emMults")
+    StorageUtil.IntListClear(None,    "mtf.rb.tints")
+    StorageUtil.IntListClear(None,    "mtf.rb.alphas")
+    StorageUtil.IntListClear(None,    "mtf.rb.emissives")
+EndFunction
+
+Function _pushRosterBatchEntry(float rate, int depth, float pause, int layerN, \
+                                float startRT, int baseSlot, string waveform, \
+                                float tDur, int area, int fadePacked, \
+                                Float[] emMults, Int[] tints, Int[] alphas, Int[] emissives)
+{Append one entry to the roster batch accumulator. Always pads layer arrays
+ to length 4 (the C++ side ignores the trailing slots beyond layerN).}
+    StorageUtil.FloatListAdd(None,  "mtf.rb.rates",      rate)
+    StorageUtil.IntListAdd(None,    "mtf.rb.depths",     depth)
+    StorageUtil.FloatListAdd(None,  "mtf.rb.pauses",     pause)
+    StorageUtil.IntListAdd(None,    "mtf.rb.layerCounts", layerN)
+    StorageUtil.FloatListAdd(None,  "mtf.rb.startTimes", startRT)
+    StorageUtil.IntListAdd(None,    "mtf.rb.baseSlots",  baseSlot)
+    StorageUtil.StringListAdd(None, "mtf.rb.waveforms",  waveform)
+    StorageUtil.FloatListAdd(None,  "mtf.rb.tDurs",      tDur)
+    StorageUtil.IntListAdd(None,    "mtf.rb.areas",      area)
+    StorageUtil.IntListAdd(None,    "mtf.rb.fadePacked", fadePacked)
+    int L = 0
+    while L < 4
+        float em    = 0.0
+        int   tint  = 16777215   ; 0xFFFFFF
+        int   alpha = 100
+        int   emis  = 16777215
+        if L < layerN
+            em    = emMults[L]
+            tint  = tints[L]
+            alpha = alphas[L]
+            emis  = emissives[L]
+        endif
+        StorageUtil.FloatListAdd(None, "mtf.rb.emMults",   em)
+        StorageUtil.IntListAdd(None,   "mtf.rb.tints",     tint)
+        StorageUtil.IntListAdd(None,   "mtf.rb.alphas",    alpha)
+        StorageUtil.IntListAdd(None,   "mtf.rb.emissives", emis)
+        L += 1
+    endwhile
+EndFunction
+
+Function _flushRosterBatch(Actor a, bool isFemale)
+{Drain the roster batch lists into local arrays and fire one batched native
+ call. No-op if the accumulator is empty (every preset was no-paint).}
+    Float[]  rates = StorageUtil.FloatListToArray(None, "mtf.rb.rates")
+    if rates == None || rates.Length == 0
+        return
+    endif
+    _ensureWaveformsRegistered()
+    Int[]    depths      = StorageUtil.IntListToArray(None,    "mtf.rb.depths")
+    Float[]  pauses      = StorageUtil.FloatListToArray(None,  "mtf.rb.pauses")
+    Int[]    layerCounts = StorageUtil.IntListToArray(None,    "mtf.rb.layerCounts")
+    Float[]  startTimes  = StorageUtil.FloatListToArray(None,  "mtf.rb.startTimes")
+    Int[]    baseSlots   = StorageUtil.IntListToArray(None,    "mtf.rb.baseSlots")
+    String[] waveforms   = StorageUtil.StringListToArray(None, "mtf.rb.waveforms")
+    Float[]  tDurs       = StorageUtil.FloatListToArray(None,  "mtf.rb.tDurs")
+    Int[]    areas       = StorageUtil.IntListToArray(None,    "mtf.rb.areas")
+    Int[]    fadePacked  = StorageUtil.IntListToArray(None,    "mtf.rb.fadePacked")
+    Float[]  emMults     = StorageUtil.FloatListToArray(None,  "mtf.rb.emMults")
+    Int[]    tints       = StorageUtil.IntListToArray(None,    "mtf.rb.tints")
+    Int[]    alphas      = StorageUtil.IntListToArray(None,    "mtf.rb.alphas")
+    Int[]    emissives   = StorageUtil.IntListToArray(None,    "mtf.rb.emissives")
+    MTFPulse.SetActorPulseAndFadeBatch(a, isFemale, rates, depths, pauses, \
+        layerCounts, startTimes, baseSlots, waveforms, tDurs, areas, fadePacked, \
+        emMults, tints, alphas, emissives)
 EndFunction
 
 Function _prewarmStep()
