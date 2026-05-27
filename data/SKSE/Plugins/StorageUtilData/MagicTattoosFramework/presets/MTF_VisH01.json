@@ -1,0 +1,190 @@
+{
+  "valid": 1,
+  "displayname": "VisH 01 Magic Scar (green/red)",
+  "schemaversion": 9,
+  "transition": {
+    "duration": 3.0
+  },
+  "fadeondeath": {
+    "enabled": 1,
+    "mode": 0,
+    "durationms": 2000
+  },
+  "slot": [
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "mtf.rx-overlays",
+        "entryid": "Magic Scar"
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      },
+      "pulse": {
+        "rate": 0.6,
+        "depth": 60,
+        "waveform": "heartbeat"
+      },
+      "layer": [
+        {
+          "tint": "00FF00",
+          "emissive": "00FF00",
+          "emissivemult": 0.6,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:health.below",
+        "param": 50,
+        "packid": "mtf.rx-overlays",
+        "entryid": "Magic Scar"
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      },
+      "pulse": {
+        "rate": 4.0,
+        "depth": 90,
+        "waveform": "square"
+      },
+      "layer": [
+        {
+          "tint": "FF1010",
+          "emissive": "FF1010",
+          "emissivemult": 0.6,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    }
+  ]
+}

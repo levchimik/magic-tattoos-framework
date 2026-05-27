@@ -1,0 +1,190 @@
+{
+  "valid": 1,
+  "displayname": "VisH 02 Spine MagicBook (blue/yellow)",
+  "schemaversion": 9,
+  "transition": {
+    "duration": 3.0
+  },
+  "fadeondeath": {
+    "enabled": 1,
+    "mode": 0,
+    "durationms": 2000
+  },
+  "slot": [
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "mtf.rx-overlays",
+        "entryid": "Spine MagicBook"
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      },
+      "pulse": {
+        "rate": 1.0,
+        "depth": 60,
+        "waveform": "triangle"
+      },
+      "layer": [
+        {
+          "tint": "1080FF",
+          "emissive": "1080FF",
+          "emissivemult": 0.6,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:health.below",
+        "param": 50,
+        "packid": "mtf.rx-overlays",
+        "entryid": "Spine MagicBook"
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      },
+      "pulse": {
+        "rate": 5.0,
+        "depth": 95,
+        "waveform": "sawtooth"
+      },
+      "layer": [
+        {
+          "tint": "FFE020",
+          "emissive": "FFE020",
+          "emissivemult": 0.6,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,190 @@
+{
+  "valid": 1,
+  "displayname": "VisH 04 ThighL Virgo (blue/yellow)",
+  "schemaversion": 9,
+  "transition": {
+    "duration": 3.0
+  },
+  "fadeondeath": {
+    "enabled": 1,
+    "mode": 0,
+    "durationms": 2000
+  },
+  "slot": [
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "mtf.rx-overlays",
+        "entryid": "ThighL Virgo"
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      },
+      "pulse": {
+        "rate": 0.8,
+        "depth": 60,
+        "waveform": "doublehump"
+      },
+      "layer": [
+        {
+          "tint": "2070FF",
+          "emissive": "2070FF",
+          "emissivemult": 0.6,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "mtf.base:health.below",
+        "param": 50,
+        "packid": "mtf.rx-overlays",
+        "entryid": "ThighL Virgo"
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      },
+      "pulse": {
+        "rate": 4.5,
+        "depth": 95,
+        "waveform": "doublepulse"
+      },
+      "layer": [
+        {
+          "tint": "FFCC10",
+          "emissive": "FFCC10",
+          "emissivemult": 0.6,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        },
+        {
+          "tint": "FFFFFF",
+          "emissive": "FFFFFF",
+          "emissivemult": 0.0,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "pluginid": "",
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    }
+  ]
+}

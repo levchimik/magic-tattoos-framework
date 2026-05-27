@@ -126,13 +126,15 @@ Function _showStressNMenu()
     int HEADER_COUNT      = 3
     int RUN_STRESS_ROW    = HEADER_COUNT          ; 3
     int RUN_VIS_ROW       = HEADER_COUNT + 1      ; 4
-    int SEP_ROW           = HEADER_COUNT + 2      ; 5
-    int VALUES_BASE       = HEADER_COUNT + 3      ; 6
+    int RUN_VISH_ROW      = HEADER_COUNT + 2      ; 5
+    int SEP_ROW           = HEADER_COUNT + 3      ; 6
+    int VALUES_BASE       = HEADER_COUNT + 4      ; 7
     m.AddEntryItem("-   MTF: pick N (concurrent fibers / NPCs)   -")
     m.AddEntryItem("Current: N = " + current)
     m.AddEntryItem("-----------------------")
     m.AddEntryItem(">> Run STRESS now (skills, N = " + current + ")")
-    m.AddEntryItem(">> Run VISUALS now (tattoos, N = " + current + ")")
+    m.AddEntryItem(">> Run VISUALS now (combat, N = " + current + ")")
+    m.AddEntryItem(">> Run VISUALS-HEALTH now (sequential, N = " + current + ")")
     m.AddEntryItem("-----------------------")
     int[] values = new int[10]
     values[0] = 1
@@ -161,6 +163,10 @@ Function _showStressNMenu()
     elseif idx == RUN_VIS_ROW
         Debug.Trace("[MTF_VIS] Run-visuals selected (N=" + current + ")")
         RunVisuals()
+        return
+    elseif idx == RUN_VISH_ROW
+        Debug.Trace("[MTF_VISH] Run-visuals-health selected (N=" + current + ")")
+        RunVisualsHealth()
         return
     elseif idx < VALUES_BASE
         return                ; header / separator rows
@@ -1963,4 +1969,180 @@ Function RunVisuals()
 
     Debug.Trace("[MTF_VIS] === Visual stress end ===")
     Debug.Notification("MTF visuals: done")
+EndFunction
+
+; ── v0.2.16: visuals-health sequential ─────────────────────────────────────
+; Same N x 4-preset setup as RunVisuals, but the tier transition trigger is
+; SEQUENTIAL per-actor health drain instead of a simultaneous combat hit.
+; Each NPC binds MTF_VisH01..04 (cond = mtf.base:health.below at 50%). We
+; drain ONE actor's health below threshold, wait long enough for the slow-
+; tick to visit and transition it, restore its health, then move to the
+; next actor. Isolates per-actor wall time — F11's bulk simultaneous case
+; serializes 5 x 4 = 20 transitions through MainQuest's instance lock in
+; one slow-tick frame; here each actor's 4-transition burst gets its own
+; slow-tick window, which should be ~5x faster total.
+int    Property VISUAL_HEALTH_THRESHOLD_PCT = 50    AutoReadOnly
+; Drain to 15% — well below the 50% threshold even after a few seconds of
+; non-combat regen, so the eval reliably sees health.below=true.
+float  Property VISUAL_HEALTH_DRAIN_PCT     = 0.85  AutoReadOnly
+; Per-actor wait between drain and restore. Slow-tick cadence is ~2s; 6s
+; covers the cadence plus the per-actor wall time (~1s with 4 presets)
+; plus settling margin.
+float  Property VISUAL_HEALTH_PHASE_S       = 6.0   AutoReadOnly
+; Settle between actors — let RestoreActorValue propagate and the next
+; slow-tick reset this actor's preset tier back to 0 before the next
+; drain.
+float  Property VISUAL_HEALTH_REST_S        = 3.0   AutoReadOnly
+
+Function RunVisualsHealth()
+    int N = StorageUtil.GetIntValue(None, "mtf.stress.n", 4)
+    if N < 1
+        N = 1
+    elseif N > STRESS_N_MAX
+        N = STRESS_N_MAX
+    endif
+
+    MTF_MainQuest mq = GetOwningQuest() as MTF_MainQuest
+    if mq == None
+        Debug.Trace("[MTF_VISH] FATAL: owning quest != MTF_MainQuest")
+        Debug.Notification("MTF visuals-health: ABORT (no MainQuest)")
+        return
+    endif
+    Actor pl = Game.GetPlayer()
+    if pl == None
+        return
+    endif
+    Form npcBase = Game.GetForm(VISUAL_NPC_FORMID)
+    if npcBase == None
+        Debug.Trace("[MTF_VISH] FATAL: spawn base 0x" + _hex8(VISUAL_NPC_FORMID) + " not found")
+        Debug.Notification("MTF visuals-health: ABORT (spawn base 0x" + _hex8(VISUAL_NPC_FORMID) + " missing)")
+        return
+    endif
+
+    Debug.Notification("MTF visuals-health: N=" + N + " (sequential)")
+    Debug.Trace("[MTF_VISH] === sequential health start, N=" + N + " ===")
+
+    ; ── PHASE A — spawn N. Mirrors RunVisuals but stays peaceful (no
+    ; frenzy at the end). Player should tgm if they don't want aggro.
+    Form[] spawned = Utility.CreateFormArray(N, None)
+    string[] presets = Utility.CreateStringArray(VISUAL_PRESET_COUNT, "")
+    presets[0] = "MTF_VisH01"
+    presets[1] = "MTF_VisH02"
+    presets[2] = "MTF_VisH03"
+    presets[3] = "MTF_VisH04"
+
+    Debug.Notification("MTF visuals-health: spawning " + N + " ...")
+    int i = 0
+    while i < N
+        Actor a = pl.PlaceAtMe(npcBase) as Actor
+        if a == None
+            Debug.Trace("[MTF_VISH] WARN: PlaceAtMe None at i=" + i)
+        else
+            spawned[i] = a
+            a.SetRelationshipRank(pl, 4)
+            a.SetActorValue("Aggression", 0.0)
+            a.SetActorValue("Confidence", 4.0)
+            a.IgnoreFriendlyHits(true)
+            float angDeg = (i as float) * (360.0 / (N as float))
+            float dx = VISUAL_RING_R * Math.cos(angDeg)
+            float dy = VISUAL_RING_R * Math.sin(angDeg)
+            a.MoveTo(pl, dx, dy, 0.0)
+            a.UnequipAll()
+            Debug.Trace("[MTF_VISH] spawn i=" + i + " ok")
+        endif
+        i += 1
+    endwhile
+    Utility.Wait(1.0)
+
+    ; ── PHASE B — apply all 4 health presets to each NPC.
+    Debug.Notification("MTF visuals-health: applying " + VISUAL_PRESET_COUNT + " tattoos x N=" + N)
+    i = 0
+    while i < N
+        Actor a = spawned[i] as Actor
+        if a != None
+            int p = 0
+            while p < VISUAL_PRESET_COUNT
+                int rc = mq.AddAppliedPreset(a, presets[p])
+                Debug.Trace("[MTF_VISH] apply i=" + i + " preset=" + presets[p] + " rc=" + rc)
+                if rc != 1
+                    Debug.Trace("[MTF_VISH] WARN: AddAppliedPreset i=" + i + " preset=" + presets[p] + " rc=" + rc)
+                endif
+                p += 1
+            endwhile
+        endif
+        i += 1
+    endwhile
+    Utility.Wait(VISUAL_T_BASELINE)
+
+    ; ── PHASE C — SEQUENTIAL DRAIN (drain-only loop, bulk restore at end).
+    ;
+    ; Each iteration drains ONE actor's health below the 50% threshold and
+    ; waits for the slow-tick to fire and transition its 4 presets 0→1.
+    ; Critically: we do NOT restore in this loop — restoration mid-loop
+    ; lets a long slow-tick (which can take 1.5s+ per transitioning actor)
+    ; observe BOTH the prior actor's restore AND the next actor's drain
+    ; in the same tick, interleaving the transitions and defeating the
+    ; sequential test design.
+    ;
+    ; With drain-only iteration, each slow-tick sees exactly ONE actor's
+    ; state change (the one we just drained) — the other actors are either
+    ; stable at tier 0 (not yet drained) or stable at tier 1 (already
+    ; drained). The slow-tick wall during this phase should reveal the
+    ; per-actor floor: ~1 actor x 4 tx + 4 actors x idle eval/tick.
+    ;
+    ; Bulk restore at the end recovers all actors; the resulting 5-actor
+    ; simultaneous 1→0 transition burst mirrors F11 combat-engage shape
+    ; and isn't the measurement target here.
+    Debug.Notification("MTF visuals-health: drain sequence (" + ((VISUAL_HEALTH_PHASE_S * (N as float)) as int) + "s)")
+    i = 0
+    while i < N
+        Actor a = spawned[i] as Actor
+        if a != None
+            float maxH = a.GetBaseActorValue("Health")
+            if maxH <= 0.0
+                maxH = 100.0
+            endif
+            float drainAmt = maxH * VISUAL_HEALTH_DRAIN_PCT
+            Debug.Trace("[MTF_VISH] drain i=" + i + " maxH=" + (maxH as int) + " drain=" + (drainAmt as int))
+            a.DamageActorValue("Health", drainAmt)
+            Utility.Wait(VISUAL_HEALTH_PHASE_S)
+        endif
+        i += 1
+    endwhile
+    ; Bulk restore. Not the measurement target — just cleanup so the
+    ; despawn phase below sees actors at full health.
+    Debug.Trace("[MTF_VISH] bulk restore")
+    i = 0
+    while i < N
+        Actor a = spawned[i] as Actor
+        if a != None
+            a.RestoreActorValue("Health", 99999.0)
+        endif
+        i += 1
+    endwhile
+    Utility.Wait(VISUAL_HEALTH_REST_S)
+
+    ; ── CLEANUP — Disable + Delete (no kill phase; we want to be able to
+    ; re-run without leftovers, and fade-on-death isn't the focus here).
+    Debug.Notification("MTF visuals-health: despawn")
+    i = 0
+    while i < N
+        Actor a = spawned[i] as Actor
+        if a != None
+            a.Disable()
+        endif
+        i += 1
+    endwhile
+    Utility.Wait(0.5)
+    i = 0
+    while i < N
+        Actor a = spawned[i] as Actor
+        if a != None
+            a.Delete()
+        endif
+        i += 1
+    endwhile
+
+    Debug.Trace("[MTF_VISH] === sequential health end ===")
+    Debug.Notification("MTF visuals-health: done")
 EndFunction
