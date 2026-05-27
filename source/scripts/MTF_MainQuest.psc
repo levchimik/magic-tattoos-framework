@@ -1915,11 +1915,13 @@ Float[] Function _builtinCosLUT()
 EndFunction
 
 Float[] Function _buildWaveformLUT(string name)
-{Build a 64-entry [0,1]→[0,1] pulse curve sampled across one cycle. Falls
- back to cosine when name is empty, the JSON is missing, or the kind is
- unrecognised. Supported kinds: cos, triangle, square (shape=duty),
- sawtooth, keyframes (.points[].t/.v, lerped, up to 16 points).}
-    int N = WAVE_LUT_SIZE()
+{Dispatch to per-kind helper. Falls back to cosine on missing JSON or
+ unknown kind. The OLD inline if/elseif chain with multiple while-loops
+ produced bytecode that Champollion couldn't decompile (orphaned nodes
+ 33-40); at runtime the function returned None, throwing "Cannot cast
+ from None to Float[]" at every _regOneWaveform call and leaving the C++
+ waveform registry permanently empty. Flat dispatcher with per-kind
+ helpers sidesteps the codegen quirk.}
     if name == ""
         return _builtinCosLUT()
     endif
@@ -1928,92 +1930,118 @@ Float[] Function _buildWaveformLUT(string name)
         return _builtinCosLUT()
     endif
     string kind = JsonUtil.GetPathStringValue(file, ".kind", "cos")
-    float shape = JsonUtil.GetPathFloatValue(file, ".shape", 0.5)
-    Float[] lut = Utility.CreateFloatArray(N, 0.0)
-    int i = 0
     if kind == "cos" || kind == ""
-        while i < N
-            float phase = (i as float) / (N as float)
-            lut[i] = 0.5 - 0.5 * Math.Cos(phase * 360.0)
-            i += 1
-        endwhile
-    elseif kind == "triangle"
-        while i < N
-            float phase = (i as float) / (N as float)
-            float v
-            if phase < 0.5
-                v = phase * 2.0
-            else
-                v = 2.0 - phase * 2.0
-            endif
-            lut[i] = v
-            i += 1
-        endwhile
-    elseif kind == "square"
-        float duty = shape
-        if duty <= 0.0 || duty >= 1.0
-            duty = 0.5
-        endif
-        while i < N
-            float phase = (i as float) / (N as float)
-            if phase < duty
-                lut[i] = 1.0
-            else
-                lut[i] = 0.0
-            endif
-            i += 1
-        endwhile
-    elseif kind == "sawtooth"
-        while i < N
-            lut[i] = (i as float) / (N as float)
-            i += 1
-        endwhile
-    elseif kind == "keyframes"
-        Float[] tArr = Utility.CreateFloatArray(16, -1.0)
-        Float[] vArr = Utility.CreateFloatArray(16, 0.0)
-        int np = 0
-        int k = 0
-        bool done = false
-        while k < 16 && !done
-            string pp = ".points[" + k + "]"
-            float tk = JsonUtil.GetPathFloatValue(file, pp + ".t", -1.0)
-            if tk < 0.0
-                done = true
-            else
-                tArr[np] = tk
-                vArr[np] = JsonUtil.GetPathFloatValue(file, pp + ".v", 0.0)
-                np += 1
-                k += 1
-            endif
-        endwhile
-        if np < 2
-            return _builtinCosLUT()
-        endif
-        while i < N
-            float phase = (i as float) / (N as float)
-            int seg = 0
-            while seg < np - 1 && tArr[seg + 1] < phase
-                seg += 1
-            endwhile
-            if seg >= np - 1
-                lut[i] = vArr[np - 1]
-            else
-                float t0 = tArr[seg]
-                float t1 = tArr[seg + 1]
-                float v0 = vArr[seg]
-                float v1 = vArr[seg + 1]
-                if t1 <= t0
-                    lut[i] = v0
-                else
-                    float a = (phase - t0) / (t1 - t0)
-                    lut[i] = v0 + (v1 - v0) * a
-                endif
-            endif
-            i += 1
-        endwhile
-    else
         return _builtinCosLUT()
     endif
+    if kind == "keyframes"
+        return _buildKeyframesLUT(file)
+    endif
+    if kind == "triangle"
+        return _buildTriangleLUT()
+    endif
+    if kind == "square"
+        float shape = JsonUtil.GetPathFloatValue(file, ".shape", 0.5)
+        return _buildSquareLUT(shape)
+    endif
+    if kind == "sawtooth"
+        return _buildSawtoothLUT()
+    endif
+    return _builtinCosLUT()
+EndFunction
+
+Float[] Function _buildTriangleLUT()
+    int N = WAVE_LUT_SIZE()
+    Float[] lut = Utility.CreateFloatArray(N, 0.0)
+    int i = 0
+    while i < N
+        float phase = (i as float) / (N as float)
+        if phase < 0.5
+            lut[i] = phase * 2.0
+        else
+            lut[i] = 2.0 - phase * 2.0
+        endif
+        i += 1
+    endwhile
+    return lut
+EndFunction
+
+Float[] Function _buildSquareLUT(float shape)
+    int N = WAVE_LUT_SIZE()
+    float duty = shape
+    if duty <= 0.0 || duty >= 1.0
+        duty = 0.5
+    endif
+    Float[] lut = Utility.CreateFloatArray(N, 0.0)
+    int i = 0
+    while i < N
+        float phase = (i as float) / (N as float)
+        if phase < duty
+            lut[i] = 1.0
+        else
+            lut[i] = 0.0
+        endif
+        i += 1
+    endwhile
+    return lut
+EndFunction
+
+Float[] Function _buildSawtoothLUT()
+    int N = WAVE_LUT_SIZE()
+    Float[] lut = Utility.CreateFloatArray(N, 0.0)
+    int i = 0
+    while i < N
+        lut[i] = (i as float) / (N as float)
+        i += 1
+    endwhile
+    return lut
+EndFunction
+
+Float[] Function _buildKeyframesLUT(string file)
+    int N = WAVE_LUT_SIZE()
+    Float[] tArr = Utility.CreateFloatArray(16, -1.0)
+    Float[] vArr = Utility.CreateFloatArray(16, 0.0)
+    int np = 0
+    int k = 0
+    bool done = false
+    while k < 16 && !done
+        string pp = ".points[" + k + "]"
+        float tk = JsonUtil.GetPathFloatValue(file, pp + ".t", -1.0)
+        if tk < 0.0
+            done = true
+        else
+            tArr[np] = tk
+            vArr[np] = JsonUtil.GetPathFloatValue(file, pp + ".v", 0.0)
+            np += 1
+            k += 1
+        endif
+    endwhile
+    if np < 2
+        return _builtinCosLUT()
+    endif
+    Float[] lut = Utility.CreateFloatArray(N, 0.0)
+    int i = 0
+    while i < N
+        float phase = (i as float) / (N as float)
+        int seg = 0
+        while seg < np - 1 && tArr[seg + 1] < phase
+            seg += 1
+        endwhile
+        if seg >= np - 1
+            lut[i] = vArr[np - 1]
+        else
+            float t0 = tArr[seg]
+            float t1 = tArr[seg + 1]
+            float v0 = vArr[seg]
+            float v1 = vArr[seg + 1]
+            if t1 <= t0
+                lut[i] = v0
+            else
+                float a = (phase - t0) / (t1 - t0)
+                lut[i] = v0 + (v1 - v0) * a
+            endif
+        endif
+        i += 1
+    endwhile
     return lut
 EndFunction
 
@@ -8187,8 +8215,14 @@ Function _registerStandardWaveforms()
 EndFunction
 
 Function _regOneWaveform(string name)
+    ; `if lut != None` compiles to `cast ::temp0 None` against a Float[]-
+    ; typed slot; the VM rejects that cast with "Cannot cast from None to
+    ; Float[]" at runtime — even though _buildWaveformLUT always returns a
+    ; valid Float[]. Length-only check avoids the None comparison. .Length
+    ; on a None array returns 0 in Papyrus (property access doesn't
+    ; deref). See [[papyrus_temp1_corruption]] memo.
     Float[] lut = _buildWaveformLUT(name)
-    if lut != None && lut.Length == WAVE_LUT_SIZE()
+    if lut.Length == WAVE_LUT_SIZE()
         MTFPulse.RegisterWaveformLUT(name, lut)
     endif
 EndFunction
@@ -8259,24 +8293,43 @@ EndFunction
 Function _flushRosterBatch(Actor a, bool isFemale)
 {Drain the roster batch lists into local arrays and fire one batched native
  call. No-op if the accumulator is empty (every preset was no-paint).}
-    Float[]  rates = StorageUtil.FloatListToArray(None, "mtf.rb.rates")
-    if rates == None || rates.Length == 0
-        return
-    endif
-    _ensureWaveformsRegistered()
-    Int[]    depths      = StorageUtil.IntListToArray(None,    "mtf.rb.depths")
+    ; Papyrus VM quirk: the `rates == None` comparison compiles to
+    ; `cast ::temp1 None` which corrupts ::temp1's runtime state for
+    ; subsequent StorageUtil.FloatListToArray return assignments. Even
+    ; though ::temp1's declared slot type stays Float[], the VM throws
+    ; "Mismatched types assigning to variable named ::temp1" on every
+    ; FloatListToArray call AFTER the comparison — and each thrown error
+    ; syncs a full stack trace to disk (~20 ms × 4/batch × 5 batches/F11
+    ; = ~400 ms) AND leaves the 4 affected locals (pauses/startTimes/
+    ; tDurs/emMults) as None, so SetActorPulseAndFadeBatch falls back to
+    ; a slow path costing multiple seconds per F11 batch.
+    ;
+    ; Fix: read every list FIRST, validate AFTER. The None-compare's
+    ; cast-into-temp1 then happens once at end-of-function, where the
+    ; corruption doesn't affect any subsequent FloatListToArray call.
+    Float[]  rates       = StorageUtil.FloatListToArray(None,  "mtf.rb.rates")
     Float[]  pauses      = StorageUtil.FloatListToArray(None,  "mtf.rb.pauses")
-    Int[]    layerCounts = StorageUtil.IntListToArray(None,    "mtf.rb.layerCounts")
     Float[]  startTimes  = StorageUtil.FloatListToArray(None,  "mtf.rb.startTimes")
-    Int[]    baseSlots   = StorageUtil.IntListToArray(None,    "mtf.rb.baseSlots")
-    String[] waveforms   = StorageUtil.StringListToArray(None, "mtf.rb.waveforms")
     Float[]  tDurs       = StorageUtil.FloatListToArray(None,  "mtf.rb.tDurs")
+    Float[]  emMults     = StorageUtil.FloatListToArray(None,  "mtf.rb.emMults")
+    Int[]    depths      = StorageUtil.IntListToArray(None,    "mtf.rb.depths")
+    Int[]    layerCounts = StorageUtil.IntListToArray(None,    "mtf.rb.layerCounts")
+    Int[]    baseSlots   = StorageUtil.IntListToArray(None,    "mtf.rb.baseSlots")
     Int[]    areas       = StorageUtil.IntListToArray(None,    "mtf.rb.areas")
     Int[]    fadePacked  = StorageUtil.IntListToArray(None,    "mtf.rb.fadePacked")
-    Float[]  emMults     = StorageUtil.FloatListToArray(None,  "mtf.rb.emMults")
     Int[]    tints       = StorageUtil.IntListToArray(None,    "mtf.rb.tints")
     Int[]    alphas      = StorageUtil.IntListToArray(None,    "mtf.rb.alphas")
     Int[]    emissives   = StorageUtil.IntListToArray(None,    "mtf.rb.emissives")
+    String[] waveforms   = StorageUtil.StringListToArray(None, "mtf.rb.waveforms")
+    ; `rates == None` compiles to `cast ::temp1 None` against a Float[]-typed
+    ; slot; the VM throws "Cannot cast from None to Float[]" at runtime. The
+    ; deferred-position fix earlier stopped the cascade onto subsequent
+    ; reads, but the cast itself still fires once per batch. .Length on a
+    ; None array returns 0 in Papyrus, so the length-only check suffices.
+    if rates.Length == 0
+        return
+    endif
+    _ensureWaveformsRegistered()
     MTFPulse.SetActorPulseAndFadeBatch(a, isFemale, rates, depths, pauses, \
         layerCounts, startTimes, baseSlots, waveforms, tDurs, areas, fadePacked, \
         emMults, tints, alphas, emissives)
