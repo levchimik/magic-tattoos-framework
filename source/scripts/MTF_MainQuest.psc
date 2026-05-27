@@ -1732,6 +1732,64 @@ string _lutCacheName = ""
 Float[] _lutCacheValue
 bool _lutCacheReady = false
 
+; ── Per-actor checkCondition memoization (single-entry) ──────────────────
+; Cleared at the start of each _processTrackedActorOnce visit. A single
+; actor with N stacked presets that all key off the same condition (e.g.
+; the F11/VisH visual presets all share `mtf.base:combat.in` or
+; `:health.below:50`) was re-running p.checkCondition N times, paying the
+; Form-crossing cost (`IsInCombat`, `GetActorValuePercentage`) once per
+; preset. Memo dedupes within the visit — first preset computes & stores,
+; rest get the cached bool.
+;
+; Single-entry by design: an earlier multi-entry attempt with parallel
+; script-level Form[]/string[]/int[] arrays silently failed because
+; indexed writes to script-level array vars in quest scripts hit
+; transient copies and never persist (project memory:
+; project_papyrus_property_array_writes). Stores incremented the count
+; but the array contents reverted, so every lookup hit the "empty"
+; branch despite count > 0. Plain scalar vars are immune to that quirk.
+;
+; The single-entry shape still handles the dominant pattern — repeated
+; calls with the same (actor, cond) pair within one actor visit — which
+; covers F11/VisH where every preset on an actor shares the same cond.
+; Mixed-cond presets only get a hit on the LAST stored pair; still no
+; worse than the un-memoized baseline.
+;
+; Form-keyed so a cross-fiber yield (e.g. another AddAppliedPreset fiber
+; sneaking in while this one yields inside _applyPresetTierChange) can't
+; leak another actor's value through — Form-equality compare is by
+; reference, no crossing cost.
+Form   _condMemoLastActor
+string _condMemoLastKey = ""
+int    _condMemoLastVal = -1     ; -1 = unset, 0 = false, 1 = true
+
+Function _condMemoReset()
+    _condMemoLastActor = None
+    _condMemoLastKey   = ""
+    _condMemoLastVal   = -1
+EndFunction
+
+int Function _condMemoLookup(Form a, string ck)
+{Returns -1 on miss, 0/1 on hit.}
+    if _condMemoLastVal >= 0 && _condMemoLastActor == a && _condMemoLastKey == ck
+        return _condMemoLastVal
+    endif
+    return -1
+EndFunction
+
+Function _condMemoStore(Form a, string ck, bool v)
+    _condMemoLastActor = a
+    _condMemoLastKey   = ck
+    if v
+        _condMemoLastVal = 1
+    else
+        _condMemoLastVal = 0
+    endif
+EndFunction
+
+; Inlined; no [MTF_MEMO] diagnostic traces (validated during bringup,
+; removed for production-noise hygiene).
+
 Float[] Function _buildWaveformLUT(string name)
     if _lutCacheReady && name == _lutCacheName
         return _lutCacheValue
@@ -6914,16 +6972,35 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
                         ; NPC tracked-subject scratch presets don't carry
                         ; param2 yet — reset to 0 so a stale value can't leak.
                         if useScratch
-                            _setEvalParam2(0)
-                            _setEvalParamStr(_getScratchCondParamStr(i))
-                            _setEvalParam2Str("")
+                            ; Per-actor checkCondition memo. Multi-preset
+                            ; actors commonly share the same condition; first
+                            ; call computes and stores, rest reuse. Key
+                            ; encodes pluginid+param+paramStr so different
+                            ; params don't collide.
+                            int paramI    = _g_condParam(i, useScratch)
+                            string paramS = _getScratchCondParamStr(i)
+                            string memoCk = key + ":" + paramI + ":" + paramS
+                            int memoHit = _condMemoLookup(target, memoCk)
+                            if memoHit == 1
+                                return i
+                            elseif memoHit < 0
+                                _setEvalParam2(0)
+                                _setEvalParamStr(paramS)
+                                _setEvalParam2Str("")
+                                bool condTrue = p.checkCondition(target, paramI, p.GetConditionId(itemIdx))
+                                _condMemoStore(target, memoCk, condTrue)
+                                if condTrue
+                                    return i
+                                endif
+                            endif
+                            ; memoHit == 0 (cached false) → fall through to next slot
                         else
                             _setEvalParam2(GetCondParam2(i))
                             _setEvalParamStr(GetCondParamStr(i))
                             _setEvalParam2Str(GetCondParam2Str(i))
-                        endif
-                        if p.checkCondition(target, _g_condParam(i, useScratch), p.GetConditionId(itemIdx))
-                            return i
+                            if p.checkCondition(target, _g_condParam(i, useScratch), p.GetConditionId(itemIdx))
+                                return i
+                            endif
                         endif
                     endif
                 endif
@@ -7633,6 +7710,12 @@ Function _processTrackedActorOnce(Actor target)
     if n <= 0
         return
     endif
+    ; Per-actor checkCondition memo lives ONLY across this visit. Multiple
+    ; presets on this actor that share the same condition (very common —
+    ; all 4 F11/VisH visual presets key off the same cond) reuse the
+    ; first computed result; cross-actor leakage prevented by Form-keying
+    ; in _condMemoLookup.
+    _condMemoReset()
     int i = 0
     bool needApply = false
     int drewCnt = 0
