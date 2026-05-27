@@ -298,7 +298,7 @@ per-mod glue or YAML triggers.]]></description>
         <group name="Texture Pack Adapters" type="SelectAny">
           <plugins order="Explicit">
 
-            <plugin name="LewdMarks catalog (Body)">
+            <plugin name="LewdMarks catalog">
               <description><![CDATA[JSON catalogs for LewdMarks textures (RaceMenu + SlaveTats variants).
 
 REQUIRES: LewdMarks by SavageDomain — install separately.
@@ -324,7 +324,7 @@ Area: Body.]]></description>
               </typeDescriptor>
             </plugin>
 
-            <plugin name="RX Overlays catalog (Body)">
+            <plugin name="RX Overlays catalog">
               <description><![CDATA[JSON catalog for RX Overlays (RXOverlays.esp).
 
 REQUIRES: RX'Overlays - Racemenu Tattoo and Overlays — install separately.
@@ -349,7 +349,7 @@ Area: Body.]]></description>
               </typeDescriptor>
             </plugin>
 
-            <plugin name="Bard's Nail Overlays catalog (Hands)">
+            <plugin name="Bard's Nail Overlays catalog">
               <description><![CDATA[JSON catalog for Bard's Nail Overlays (nail polish pack).
 
 REQUIRES: Bard's Nail Overlays by Bardledorf — install separately.
@@ -363,7 +363,7 @@ Area: Hands.]]></description>
               </typeDescriptor>
             </plugin>
 
-            <plugin name="Community Overlays 1 — Face catalog (Face)">
+            <plugin name="Community Overlays 1 — Face catalog">
               <description><![CDATA[JSON catalog for Community Overlays 1 — Female Face Overlays.
 
 REQUIRES: Community Overlays 1 (Face) — install separately.
@@ -374,6 +374,141 @@ Area: Face.]]></description>
               </files>
               <typeDescriptor>
                 <type name="Optional"/>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="Lyru's Tattoo Pack Collection catalog">
+              <description><![CDATA[JSON catalog for Lyru's Tattoo Pack Collection — 64 grounded body tattoos with detailed per-entry descriptions.
+
+REQUIRES: Lyru's Tattoo pack collection by Lyru — install separately.
+Auto-recommended if LyruTat.esp is active.
+
+Area: Body.]]></description>
+              <files>
+                <folder source="25_content_lyru1" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="LyruTat.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="Lyru's Tattoo Pack Collection 2 catalog">
+              <description><![CDATA[JSON catalog for Lyru's Tattoo Pack Collection 2 — 51 grounded body tattoos with detailed per-entry descriptions.
+
+REQUIRES: Lyru's Tattoo pack collection 2 by Lyru — install separately.
+Auto-recommended if LyruTat2.esp is active.
+
+Area: Body.]]></description>
+              <files>
+                <folder source="26_content_lyru2" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="LyruTat2.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="Bitchcraft Tats catalog">
+              <description><![CDATA[JSON catalog for Bitchcraft Tats — occult-themed body tattoos (Daedric sigils, sugar-skull face paints, tribal pieces) with detailed per-entry descriptions.
+
+REQUIRES: Bitchcraft Tats by Cridow — install separately.
+Auto-recommended if "Bitchcraft Tats.esp" is active.
+
+Area: Body.]]></description>
+              <files>
+                <folder source="27_content_bitchcraft" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="Bitchcraft Tats.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="Community Overlays 2 catalog">
+              <description><![CDATA[JSON catalogs for Community Overlays 2 — Main (CBBE and Male). Bundles five sub-catalogs covering 226 grounded entries:
+- mtf.community-overlays-2-body (96 entries) — Body
+- mtf.community-overlays-2-hand (36 entries) — Hands
+- mtf.community-overlays-2-feet (31 entries) — Feet
+- mtf.community-overlays-2-face (32 entries) — Face (FacePaint slots)
+- mtf.community-overlays-2-warpaint (31 entries) — Face (Warpaint slots)
+
+REQUIRES: (4) Community Overlays 2 - Main - CBBE and Male — install separately.
+Auto-recommended if CommunityOverlays2_31T50.esp is active.
+
+Areas: Body, Hands, Feet, Face.]]></description>
+              <files>
+                <folder source="29_content_co2" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="CommunityOverlays2_31T50.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="Community Overlays 3 catalog">
+              <description><![CDATA[JSON catalogs for Community Overlays 3 — Main (CBBE and Male). Bundles five sub-catalogs covering 242 grounded entries:
+- mtf.community-overlays-3-body (92 entries) — Body
+- mtf.community-overlays-3-hand (30 entries) — Hands
+- mtf.community-overlays-3-feet (22 entries) — Feet
+- mtf.community-overlays-3-face (49 entries) — Face (FacePaint slots)
+- mtf.community-overlays-3-warpaint (49 entries) — Face (Warpaint slots)
+
+REQUIRES: (4) Community Overlays 3 - Main - CBBE and Male — install separately.
+Auto-recommended if CommunityOverlays3.esp is active.
+
+Areas: Body, Hands, Feet, Face.]]></description>
+              <files>
+                <folder source="28_content_co3" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="CommunityOverlays3.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
               </typeDescriptor>
             </plugin>
 

@@ -218,13 +218,22 @@ stage_content() {
     local out="$STAGE/$folder"
     mkdir -p "$out"
     cp -r "$CONTENT/$pack/." "$out/"
+    # Strip backup/scratch files that aren't gitignored at copy-time but
+    # shouldn't ship in the FOMOD (e.g. *.json.bak from spriggit/patch
+    # round-trips, *.orig from merge conflicts).
+    find "$out" -type f \( -name '*.bak' -o -name '*.orig' -o -name '*~' \) -delete
     echo "  staged $folder ($(find "$out" -type f | wc -l) files)"
 }
 
-stage_content "20_content_lewdmarks" "lewdmarks"
-stage_content "22_content_rx"        "rx-overlays"
-stage_content "23_content_bardle"    "bardle-nail-polish"
-stage_content "24_content_co1_face"  "community-overlays-1-face"
+stage_content "20_content_lewdmarks"  "lewdmarks"
+stage_content "22_content_rx"         "rx-overlays"
+stage_content "23_content_bardle"     "bardle-nail-polish"
+stage_content "24_content_co1_face"   "community-overlays-1-face"
+stage_content "25_content_lyru1"      "lyru-1"
+stage_content "26_content_lyru2"      "lyru-2"
+stage_content "27_content_bitchcraft" "bitchcraft"
+stage_content "28_content_co3"        "community-overlays-3"
+stage_content "29_content_co2"        "community-overlays-2"
 
 # -----------------------------------------------------------------------------
 # 31_test_pack: smoke-test presets (from test-pack/) + F10 console-runner
