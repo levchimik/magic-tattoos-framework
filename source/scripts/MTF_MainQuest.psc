@@ -5931,8 +5931,18 @@ int Function CACHED_SCRATCH_VERSION() global
  for every slot 0..maxC. v4 caches were produced WITHOUT those name
  writes; a cache hit on a v4 entry would skip cold load and the MCM
  slot dropdown would render canonical labels even when the preset
- stored custom names. Bumping forces a one-shot cold rebuild.}
-    return 5
+ stored custom names. Bumping forces a one-shot cold rebuild.
+
+ v6: per-(preset,slot) effect maxIdx + per-preset cond maxSlot caches
+ written at end of cold load. Dispatch loops in
+ _activate/_deactivate/_tickSlotEffectsForActor read maxIdx to early-
+ exit on empty effect lists; evaluateTierForActor reads maxSlot to
+ cap the cond walk. v5 caches lack these writes — a cache hit would
+ read maxIdx=0 from a missing key and silently skip ALL effect
+ dispatch for that preset. Bumping forces a one-shot cold rebuild so
+ the new caches populate. Only affects the scratch (NPC) path; MCM
+ live-preset slots never read these caches and behave identically.}
+    return 6
 EndFunction
 
 ; v0.1.24 scratch-namespaced cool.min accessors. Per-preset (preset name
@@ -5944,6 +5954,56 @@ int Function _getScratchCoolMin(int slot)
 EndFunction
 Function _setScratchCoolMin(int slot, int v)
     StorageUtil.SetIntValue(self, "mtf.scratch.cool.min." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+
+; ── Per-slot dispatch-bound caches (CACHED_SCRATCH_VERSION 6) ───────────────
+; Two tiny per-preset caches written at the end of cold load so dispatch
+; loops can early-exit when there's nothing to do.
+;
+;   mtf.fx.scratch.<preset>.<slot>.maxIdx  — last_populated_effect_idx + 1
+;   mtf.cond.scratch.<preset>.maxSlot      — highest_populated_cond_slot
+;
+; Read by:
+;   _activate/_deactivate/_tickSlotEffectsForActor (effects per slot)
+;   evaluateTierForActor (cond slots, the NPC eval path)
+;
+; The MCM-live preset path (useScratch=false) never reads these — MCM
+; allows non-contiguous slot/effect placement and the loops there keep
+; legacy "walk all 32" behaviour. Scratch-loaded NPC presets are the win
+; case because the visual-stress presets bind 0-1 effects per slot and
+; only 1-2 cond slots — early-exit saves the ~7ms-per-call empty-row
+; scan that dominated the F11 combat-engage trace.
+int Function _getScratchEffectMaxIdx(string presetName, int slot)
+{Returns 0 when no effects bound on this slot (skip dispatch entirely),
+ or N where 0..N-1 are the populated indices. Default 0 is safe — caller
+ treats it as "no effects".}
+    if presetName == ""
+        return 0
+    endif
+    return StorageUtil.GetIntValue(None, "mtf.fx.scratch." + presetName + "." + slot + ".maxIdx", 0)
+EndFunction
+
+Function _setScratchEffectMaxIdx(string presetName, int slot, int v)
+    if presetName == ""
+        return
+    endif
+    StorageUtil.SetIntValue(None, "mtf.fx.scratch." + presetName + "." + slot + ".maxIdx", v)
+EndFunction
+
+int Function _getScratchCondMaxSlot(string presetName)
+{Returns highest populated cond slot (1-indexed). Default 0 = no conds
+ → evaluateTierForActor falls to the always-on Tier 0 immediately.}
+    if presetName == ""
+        return 0
+    endif
+    return StorageUtil.GetIntValue(None, "mtf.cond.scratch." + presetName + ".maxSlot", 0)
+EndFunction
+
+Function _setScratchCondMaxSlot(string presetName, int v)
+    if presetName == ""
+        return
+    endif
+    StorageUtil.SetIntValue(None, "mtf.cond.scratch." + presetName + ".maxSlot", v)
 EndFunction
 
 bool Function _isScratchCached(string name)
@@ -6113,11 +6173,19 @@ bool Function _loadPresetToScratch(string name)
     int[]    localLayerEmissive   = new int[32]
     float[]  localLayerEmMult     = new float[32]
     int[]    localLayerAlpha      = new int[32]
+    ; v6: dispatch-bound caches built during cold load. condMaxSlot tracks
+    ; the highest slot index (slot >= 1) where a cond pluginid is bound;
+    ; evaluateTierForActor (scratch path) caps its walk to this. Per-slot
+    ; effect maxIdx is written inside the e-loop via _setScratchEffectMaxIdx.
+    int condMaxSlot = 0
     int s = 0
     while s < 8
         string sp = ".slot[" + s + "]"
         string slotCondKey = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
         localCondPluginId[s] = slotCondKey
+        if s > 0 && slotCondKey != ""
+            condMaxSlot = s
+        endif
         ; v0.2.9: param/param2 menu-vs-slider routing. Menu params read string
         ; id from the JSON; sliders read int. Both write into the slot's
         ; matching scratch storage (the int array OR a string-typed namespaced
@@ -6160,6 +6228,7 @@ bool Function _loadPresetToScratch(string name)
             L += 1
         endwhile
         int e = 0
+        int slotEffectMaxIdx = 0
         while e < maxE
             string ep = sp + ".effect[" + e + "]"
             ; Scratch effect storage lives in StorageUtil under
@@ -6169,6 +6238,9 @@ bool Function _loadPresetToScratch(string name)
             ; across swaps under its own key segment. Missing entries
             ; default to "" / 0.
             string effKey = JsonUtil.GetPathStringValue(f, ep + ".key", "")
+            if effKey != ""
+                slotEffectMaxIdx = e + 1
+            endif
             ; v0.2.12: writes go through ForPreset variants — the inner sn
             ; loop calls pLoadX.GetEffectParamMenuOptionCount which is a
             ; cross-script call and yields the VM. A concurrent fiber's
@@ -6222,6 +6294,9 @@ bool Function _loadPresetToScratch(string name)
             endwhile
             e += 1
         endwhile
+        ; v6: per-slot maxIdx cache. Dispatch loops skip the 32-row
+        ; snapshot scan when slotEffectMaxIdx == 0 (no effects bound).
+        _setScratchEffectMaxIdx(name, s, slotEffectMaxIdx)
         s += 1
     endwhile
     ; Whole-array reference assignments — the safe pattern. (Effect arrays
@@ -6252,6 +6327,9 @@ bool Function _loadPresetToScratch(string name)
         string sp_b = ".slot[" + sb + "]"
         string pid_b = JsonUtil.GetPathStringValue(f, sp_b + ".cond.pluginid", "")
         _setScratchCondPluginId(sb, pid_b)
+        if pid_b != ""
+            condMaxSlot = sb
+        endif
         ; v0.2.9: param/param2 menu-vs-slider routing for backend slots too.
         if _condParamIsMenu(pid_b)
             _setScratchCondParamStr(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.param", ""))
@@ -6270,11 +6348,15 @@ bool Function _loadPresetToScratch(string name)
         ; cool.min for the backend slot (StorageUtil-keyed; safe for any slot).
         _setScratchCoolMin(sb, JsonUtil.GetPathIntValue(f, sp_b + ".cool.min", 0))
         ; Fast-skip: empty backend slot has no effects to write.
+        int slotEffectMaxIdxB = 0
         if pid_b != ""
             int eb = 0
             while eb < maxE
                 string ep_b = sp_b + ".effect[" + eb + "]"
                 string effKey_b = JsonUtil.GetPathStringValue(f, ep_b + ".key", "")
+                if effKey_b != ""
+                    slotEffectMaxIdxB = eb + 1
+                endif
                 _writeFxKey(sb, eb, true, effKey_b)
                 MTF_Plugin pLoadB = None
                 int itemIdxB = -1
@@ -6301,8 +6383,14 @@ bool Function _loadPresetToScratch(string name)
                 eb += 1
             endwhile
         endif
+        _setScratchEffectMaxIdx(name, sb, slotEffectMaxIdxB)
         sb += 1
     endwhile
+
+    ; v6: cond walk cap. evaluateTierForActor (scratch path) reads this and
+    ; iterates 1..condMaxSlot instead of 1..MAX_CONDITIONS(). 0 means no
+    ; cond slots populated → eval returns Tier 0 (always-on) immediately.
+    _setScratchCondMaxSlot(name, condMaxSlot)
 
     ; _scratchLoadedFor was already set at the top of cold load so the
     ; namespaced FX writes above resolved correctly. Persist the
@@ -6750,6 +6838,17 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
     if useScratch && maxC > 32
         maxC = 32
     endif
+    ; v6 cond-walk cap. Scratch path reads the per-preset condMaxSlot cache
+    ; (highest populated cond slot, written at scratch load). MCM/player
+    ; live path (useScratch=false) keeps walking 1..maxC since slots can be
+    ; sparsely populated through MCM edits. 0 = no cond slots populated →
+    ; both loops below skip immediately and return Tier 0.
+    if useScratch && presetName != ""
+        int condCap = _getScratchCondMaxSlot(presetName)
+        if condCap < maxC
+            maxC = condCap
+        endif
+    endif
 
     ; Pre-scan: lowest-i slot in persist with !allowOverride wins outright.
     int i = 1
@@ -6828,7 +6927,17 @@ Function _activateSlotEffectsForActor(Actor target, int slot, bool useScratch, s
         return
     endif
     int baseSlot = _resolveDispatchBaseSlot(target, presetName)
+    ; v6 dispatch-cap. Scratch path reads the per-(preset,slot) maxIdx and
+    ; iterates 0..maxIdx-1 (returns immediately when 0). MCM/player live
+    ; path (useScratch=false) keeps legacy 0..MAX_EFFECTS_PER_SLOT iteration
+    ; because MCM editing allows non-contiguous effect placement.
     int maxE = MAX_EFFECTS_PER_SLOT()
+    if useScratch && presetName != ""
+        maxE = _getScratchEffectMaxIdx(presetName, slot)
+        if maxE <= 0
+            return
+        endif
+    endif
     ; SNAPSHOT before dispatch — see _deactivateSlotEffectsForActor for
     ; the full race-rationale comment. Short version: each p.onActivate is
     ; a cross-script call that suspends our VM; during the suspension the
@@ -6869,7 +6978,14 @@ Function _deactivateSlotEffectsForActor(Actor target, int slot, bool useScratch,
         return
     endif
     int baseSlot = _resolveDispatchBaseSlot(target, presetName)
+    ; v6 dispatch-cap (see _activateSlotEffectsForActor).
     int maxE = MAX_EFFECTS_PER_SLOT()
+    if useScratch && presetName != ""
+        maxE = _getScratchEffectMaxIdx(presetName, slot)
+        if maxE <= 0
+            return
+        endif
+    endif
     ; SNAPSHOT effect bindings into locals BEFORE the dispatch loop. Each
     ; p.onDeactivate is a cross-script call that suspends our VM thread.
     ; During the suspension the slow-tick can interleave on a different
@@ -6921,7 +7037,17 @@ Function _tickSlotEffectsForActor(Actor target, int slot, bool useScratch, strin
         return
     endif
     int baseSlot = _resolveDispatchBaseSlot(target, presetName)
+    ; v6 dispatch-cap (see _activateSlotEffectsForActor). Same-tier path
+    ; this function services calls fire on every slow-tick for every
+    ; tracked actor preset, so the early-exit here is the biggest cumulative
+    ; win — visual-only presets cost 0 instead of ~7 ms of empty-row scan.
     int maxE = MAX_EFFECTS_PER_SLOT()
+    if useScratch && presetName != ""
+        maxE = _getScratchEffectMaxIdx(presetName, slot)
+        if maxE <= 0
+            return
+        endif
+    endif
     ; SNAPSHOT before dispatch — see _deactivateSlotEffectsForActor for
     ; the race-rationale. _scratchLoadedFor gets clobbered by interleaved
     ; _loadPresetToScratch calls during suspending p.onTick dispatches.
@@ -7043,6 +7169,19 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
  Caller is responsible for scratch load.}
     float rtNow = Utility.GetCurrentRealTime()
     bool drew = false
+    ; ── PERF instrumentation. Capture wall-clock splits for the heavy
+    ; transition path (prev != now). Gated on DebugMode; traces go to
+    ; Papyrus.0.log only via Debug.Trace, not toasts. Greppable prefix
+    ; [MTF_PERF] tx.
+    bool perfOn = DebugMode && (now != prev)
+    float pt0 = 0.0
+    float ptDeact = 0.0
+    float ptRoster = 0.0
+    float ptDraw = 0.0
+    float ptAct = 0.0
+    if perfOn
+        pt0 = rtNow
+    endif
     if now != prev
         if prev >= 0
             _deactivateSlotEffectsForActor(target, prev, true, name)
@@ -7058,6 +7197,9 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
                     _setActorPresetCoolUntil(target, name, prev, Utility.GetCurrentGameTime() + (coolMins as float) / 1440.0)
                 endif
             endif
+        endif
+        if perfOn
+            ptDeact = Utility.GetCurrentRealTime()
         endif
         ; CRITICAL ORDER: update the C++ pulse roster FIRST, then stamp
         ; the new tier's visuals. The C++ hot path writes emissive directly
@@ -7086,8 +7228,14 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
         else
             _rosterRemovePreset(target, name)
         endif
+        if perfOn
+            ptRoster = Utility.GetCurrentRealTime()
+        endif
         _drawPresetOnActor(target, name, now, deferApply)
         drew = true
+        if perfOn
+            ptDraw = Utility.GetCurrentRealTime()
+        endif
         if now >= 0
             _activateSlotEffectsForActor(target, now, true, name)
             ; v0.1.24: arm persist timer on the activation edge (now > 0
@@ -7103,6 +7251,18 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
         _notifyTierChangeForActor(target, now, true)
         ; v0.1.20: external-integration broadcast for NPC preset tiers.
         _emitTierChanged(target, "preset", name, prev, now)
+        if perfOn
+            ptAct = Utility.GetCurrentRealTime()
+            int dD = ((ptDeact  - pt0)     * 1000.0) as int
+            int dR = ((ptRoster - ptDeact) * 1000.0) as int
+            int dG = ((ptDraw   - ptRoster) * 1000.0) as int
+            int dA = ((ptAct    - ptDraw)  * 1000.0) as int
+            int dT = ((ptAct    - pt0)     * 1000.0) as int
+            Debug.Trace("[MTF_PERF] tx actor=" + target.GetDisplayName() \
+                + " preset=" + name + " " + prev + "->" + now \
+                + " deact=" + dD + " roster=" + dR \
+                + " draw=" + dG + " act=" + dA + " total=" + dT + "ms")
+        endif
     endif
     ; Same-tier path used to re-stamp the overlay every eval to handle the
     ; "freshly applied" edge. With AddAppliedPreset initializing tier=-1,
@@ -7360,6 +7520,12 @@ Function _processTrackedActorOnce(Actor target)
     endif
     int i = 0
     bool needApply = false
+    int drewCnt = 0
+    bool perfOn = DebugMode
+    float at0 = 0.0
+    if perfOn
+        at0 = Utility.GetCurrentRealTime()
+    endif
     ; Roster batch — see slow-tick player loop comment for the why.
     MTFPulse.BeginTransitionBatch()
     while i < n
@@ -7367,6 +7533,7 @@ Function _processTrackedActorOnce(Actor target)
         if nm != "" && _loadPresetToScratch(nm)
             if _evalAndDrawPresetForActor(target, nm, true)
                 needApply = true
+                drewCnt += 1
             endif
         endif
         i += 1
@@ -7374,6 +7541,11 @@ Function _processTrackedActorOnce(Actor target)
     MTFPulse.EndTransitionBatch()
     if needApply
         NiOverride.ApplyNodeOverrides(target)
+    endif
+    if perfOn && drewCnt > 0
+        int aDt = ((Utility.GetCurrentRealTime() - at0) * 1000.0) as int
+        Debug.Trace("[MTF_PERF] actor " + target.GetDisplayName() \
+            + " presets=" + n + " drew=" + drewCnt + " wall=" + aDt + "ms")
     endif
 EndFunction
 
@@ -7396,6 +7568,11 @@ Function _processTrackedActorsSlowTick(int maxThisTick)
     endif
     int processed = 0
     int idx = _rotIdx
+    bool perfOn = DebugMode
+    float st0 = 0.0
+    if perfOn
+        st0 = Utility.GetCurrentRealTime()
+    endif
     while processed < maxThisTick
         Actor a = GetTrackedAt(idx)
         if a == None
@@ -7419,6 +7596,12 @@ Function _processTrackedActorsSlowTick(int maxThisTick)
         endif
     endwhile
     _rotIdx = idx
+    if perfOn
+        int sDt = ((Utility.GetCurrentRealTime() - st0) * 1000.0) as int
+        if sDt > 50
+            Debug.Trace("[MTF_PERF] slowtick processed=" + processed + " wall=" + sDt + "ms")
+        endif
+    endif
 EndFunction
 
 ; ══════════════════════════════════════════════════════════════════════════
