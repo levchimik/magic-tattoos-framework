@@ -1722,7 +1722,28 @@ Float[] Function _builtinCosLUT()
     return lut
 EndFunction
 
+; Single-entry session-only LUT cache. Combat-engage burst applies the
+; same preset's waveform 20× — without this, _buildWaveformLUT re-runs
+; 3 JsonUtil reads + a 64-iter Math.Cos loop every call. Cache hit on the
+; second-and-later applies of the same waveform name. Callers must NOT
+; mutate the returned array (the C++ native is the only consumer and
+; copies into its own storage at Roster::Set time).
+string _lutCacheName = ""
+Float[] _lutCacheValue
+bool _lutCacheReady = false
+
 Float[] Function _buildWaveformLUT(string name)
+    if _lutCacheReady && name == _lutCacheName
+        return _lutCacheValue
+    endif
+    Float[] lut = _buildWaveformLUTUncached(name)
+    _lutCacheName = name
+    _lutCacheValue = lut
+    _lutCacheReady = true
+    return lut
+EndFunction
+
+Float[] Function _buildWaveformLUTUncached(string name)
 {Build a 64-entry [0,1]→[0,1] pulse curve sampled across one cycle. Falls
  back to cosine when name is empty, the JSON is missing, or the kind is
  unrecognised. Supported kinds: cos, triangle, square (shape=duty),
@@ -7140,8 +7161,19 @@ bool Function _evalAndDrawPresetForActor(Actor target, string name, bool deferAp
     if target == None || name == ""
         return false
     endif
+    bool perfEv = DebugMode
+    float pE0 = 0.0
+    if perfEv
+        pE0 = Utility.GetCurrentRealTime()
+    endif
     int prev = _getActorPresetTier(target, name)
     int now  = evaluateTierForActor(target, name, true)
+    if perfEv
+        int dEv = ((Utility.GetCurrentRealTime() - pE0) * 1000.0) as int
+        Debug.Trace("[MTF_PERF] eval actor=" + target.GetDisplayName() \
+            + " preset=" + name + " prev=" + prev + " now=" + now \
+            + " evalMs=" + dEv)
+    endif
     return _applyPresetTierChange(target, name, prev, now, deferApply)
 EndFunction
 
@@ -7273,7 +7305,19 @@ bool Function _applyPresetTierChange(Actor target, string name, int prev, int no
     ; rebuild and fights the C++ pulse hot path that owns the emissive
     ; channel between Papyrus stamps.
     if now >= 0
+        float pTk0 = 0.0
+        bool perfTk = DebugMode
+        if perfTk
+            pTk0 = Utility.GetCurrentRealTime()
+        endif
         _tickSlotEffectsForActor(target, now, true, name)
+        if perfTk
+            int dTk = ((Utility.GetCurrentRealTime() - pTk0) * 1000.0) as int
+            if dTk >= 10
+                Debug.Trace("[MTF_PERF] tick actor=" + target.GetDisplayName() \
+                    + " preset=" + name + " slot=" + now + " ms=" + dTk)
+            endif
+        endif
     endif
     return drew
 EndFunction
@@ -7398,6 +7442,16 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
     if a == None || name == "" || tier < 0 || tier >= 8
         return
     endif
+    ; ── PERF (bisect of roster split) — gated on DebugMode.
+    ;   resolve = pack/entry/scratch head reads + isFemale crossing
+    ;   partsTotal = full parts loop (area scans + native calls + fade arm)
+    ;   native = accumulated time inside MTFPulse.SetActorPulseWithTransition
+    ;   other = partsTotal - native = StorageUtil layer reads + array allocs
+    bool perfOnR = DebugMode
+    float r0 = 0.0
+    if perfOnR
+        r0 = Utility.GetCurrentRealTime()
+    endif
     ; v0.1.17 Phase 3 (multi-area): a preset can paint across multiple area
     ; pools (a face pack in slot 0 + body packs in slots 1..7 produces
     ; reservations for BOTH "Face" and "Body"). Iterate parts and push one
@@ -7417,7 +7471,19 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
     Float[] lut = _waveformLUTForTier(tier, true)
     Float   tDur = _g_transitionDuration(tier, true)
     int maxL = MAX_LAYERS_PER_SLOT()
-    bool isFemale = a.GetLeveledActorBase().GetSex() as bool
+    ; isFemale is dead in the C++ pulse path — every skee_bridge::Write*
+    ; marks it [[maybe_unused]] because SetNodeProperty operates on the
+    ; already-resolved node graph. The param is kept in the native ABI
+    ; for a future AddNodeOverride variant. Pass false constant to avoid
+    ; 2 Form crossings (GetLeveledActorBase + GetSex) per roster apply,
+    ; which the perf bisect identified as part of the resolve budget.
+    bool isFemale = false
+
+    float r1 = 0.0
+    float tNativeAccum = 0.0
+    if perfOnR
+        r1 = Utility.GetCurrentRealTime()
+    endif
 
     string[] parts = _OVERLAY_PARTS()
     int p = 0
@@ -7443,29 +7509,66 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
                 ; doesn't pulse a slot that should be tier-empty.
                 MTFPulse.ClearActorAt(a, baseSlot, areaIdx)
             else
-                Float[] emMults   = Utility.CreateFloatArray(layerN)
-                Int[]   tints     = Utility.CreateIntArray(layerN)
-                Int[]   alphas    = Utility.CreateIntArray(layerN)
-                Int[]   emissives = Utility.CreateIntArray(layerN)
-                int L = 0
-                while L < layerN
-                    int li = tier * maxL + L
-                    emMults[L]   = _g_layerEmissiveMult(li, true)
-                    tints[L]     = _g_layerTint(li, true)
-                    alphas[L]    = _g_layerAlpha(li, true)
-                    emissives[L] = _g_layerEmissive(li, true)
-                    L += 1
-                endwhile
+                ; Fresh-allocate with the same defaults the legacy
+                ; _g_layer* accessors returned for out-of-range indices —
+                ; so the inline reads below can leave any out-of-bounds
+                ; element on the default without an explicit else branch.
+                Float[] emMults   = Utility.CreateFloatArray(layerN, 0.0)
+                Int[]   tints     = Utility.CreateIntArray(layerN, 16777215)
+                Int[]   alphas    = Utility.CreateIntArray(layerN, 100)
+                Int[]   emissives = Utility.CreateIntArray(layerN, 16777215)
+                ; Hoist the 4 Auto property references + lengths once before
+                ; the inner loop. Inlining the array reads (vs calling the
+                ; _g_layer* wrappers per layer) drops the function-dispatch
+                ; overhead and redundant _sArraysReady/length checks —
+                ; perf bisect identified this as the bulk of the ~100ms
+                ; "other" budget on the F11 hot path.
+                if _sArraysReady
+                    Float[] refEmMult = _sCondLayerEmissiveMult
+                    Int[]   refTint   = _sCondLayerTint
+                    Int[]   refAlpha  = _sCondLayerAlpha
+                    Int[]   refEmis   = _sCondLayerEmissive
+                    int emMultLen = refEmMult.Length
+                    int tintLen   = refTint.Length
+                    int alphaLen  = refAlpha.Length
+                    int emisLen   = refEmis.Length
+                    int L = 0
+                    while L < layerN
+                        int li = tier * maxL + L
+                        if li >= 0
+                            if li < emMultLen
+                                emMults[L] = refEmMult[li]
+                            endif
+                            if li < tintLen
+                                tints[L] = refTint[li]
+                            endif
+                            if li < alphaLen
+                                alphas[L] = refAlpha[li]
+                            endif
+                            if li < emisLen
+                                emissives[L] = refEmis[li]
+                            endif
+                        endif
+                        L += 1
+                    endwhile
+                endif
                 ; SetActorPulseWithTransition is a strict superset of
                 ; SetActorPulse: with tDur <= 0 it behaves identically
                 ; (instant snap, no cross-fade). Calling it unconditionally
                 ; keeps the C++ side aware of the target alpha/tint/emissive
                 ; at all times — see v0.1.1 design notes preserved below.
+                float n0 = 0.0
+                if perfOnR
+                    n0 = Utility.GetCurrentRealTime()
+                endif
                 MTFPulse.SetActorPulseWithTransition(a, rate, depth, _g_pulsePause(tier, true), \
                                                      layerN, startRT, emMults, \
                                                      baseSlot, isFemale, lut, \
                                                      tints, alphas, emissives, tDur, \
                                                      areaIdx)
+                if perfOnR
+                    tNativeAccum += Utility.GetCurrentRealTime() - n0
+                endif
                 ; v0.1.4 per-preset fade-on-death: arm the fade lane on the
                 ; roster entry. _sFadeOnDeath* state was loaded from the
                 ; scratch-loaded preset's .fadeondeath block by the caller.
@@ -7481,6 +7584,18 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
         endif
         p += 1
     endwhile
+    if perfOnR
+        float r2 = Utility.GetCurrentRealTime()
+        int dResolve = ((r1 - r0) * 1000.0) as int
+        int dParts   = ((r2 - r1) * 1000.0) as int
+        int dNative  = (tNativeAccum * 1000.0) as int
+        int dOther   = dParts - dNative
+        int dTotal   = ((r2 - r0) * 1000.0) as int
+        Debug.Trace("[MTF_PERF] roster actor=" + a.GetDisplayName() \
+            + " preset=" + name + " tier=" + tier \
+            + " resolve=" + dResolve + " native=" + dNative \
+            + " other=" + dOther + " total=" + dTotal + "ms")
+    endif
 EndFunction
 
 ; ── Tracked actor evaluation (full pass — Step 6 adds stagger + distance) ──
@@ -7523,6 +7638,8 @@ Function _processTrackedActorOnce(Actor target)
     int drewCnt = 0
     bool perfOn = DebugMode
     float at0 = 0.0
+    float tLoadAccum = 0.0
+    float tEvalDrawAccum = 0.0
     if perfOn
         at0 = Utility.GetCurrentRealTime()
     endif
@@ -7530,22 +7647,56 @@ Function _processTrackedActorOnce(Actor target)
     MTFPulse.BeginTransitionBatch()
     while i < n
         string nm = GetActorPresetAt(target, i)
-        if nm != "" && _loadPresetToScratch(nm)
-            if _evalAndDrawPresetForActor(target, nm, true)
-                needApply = true
-                drewCnt += 1
+        if nm != ""
+            float tL0 = 0.0
+            if perfOn
+                tL0 = Utility.GetCurrentRealTime()
+            endif
+            bool loaded = _loadPresetToScratch(nm)
+            if perfOn
+                tLoadAccum += Utility.GetCurrentRealTime() - tL0
+            endif
+            if loaded
+                float tE0 = 0.0
+                if perfOn
+                    tE0 = Utility.GetCurrentRealTime()
+                endif
+                bool drew = _evalAndDrawPresetForActor(target, nm, true)
+                if perfOn
+                    tEvalDrawAccum += Utility.GetCurrentRealTime() - tE0
+                endif
+                if drew
+                    needApply = true
+                    drewCnt += 1
+                endif
             endif
         endif
         i += 1
     endwhile
+    float tEB0 = 0.0
+    if perfOn
+        tEB0 = Utility.GetCurrentRealTime()
+    endif
     MTFPulse.EndTransitionBatch()
+    float tApply0 = 0.0
+    if perfOn
+        tApply0 = Utility.GetCurrentRealTime()
+    endif
     if needApply
         NiOverride.ApplyNodeOverrides(target)
     endif
     if perfOn && drewCnt > 0
-        int aDt = ((Utility.GetCurrentRealTime() - at0) * 1000.0) as int
+        float tEnd = Utility.GetCurrentRealTime()
+        int aDt    = ((tEnd - at0)       * 1000.0) as int
+        int aLoad  = (tLoadAccum         * 1000.0) as int
+        int aEval  = (tEvalDrawAccum     * 1000.0) as int
+        int aEB    = ((tApply0 - tEB0)   * 1000.0) as int
+        int aApply = ((tEnd - tApply0)   * 1000.0) as int
         Debug.Trace("[MTF_PERF] actor " + target.GetDisplayName() \
-            + " presets=" + n + " drew=" + drewCnt + " wall=" + aDt + "ms")
+            + " presets=" + n + " drew=" + drewCnt \
+            + " load=" + aLoad + " evalDraw=" + aEval \
+            + " endbatch=" + aEB + " apply=" + aApply \
+            + " wall=" + aDt + "ms")
     endif
 EndFunction
 
