@@ -3,13 +3,76 @@
 #include "log.h"
 #include "pulse_roster.h"
 
+#include <array>
+#include <mutex>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace MTFPulse::Papyrus {
 
     namespace {
+        // ── Waveform LUT registry (v0.3.0 batch native) ─────────────────────
+        // The original SetActorPulse* natives accept a 64-element wave_lut
+        // float array per call. That marshalling cost dominates the per-call
+        // cross-script overhead. For SetActorPulseAndFadeBatch we look the
+        // LUT up by *name* via this registry — the Papyrus side calls
+        // RegisterWaveformLUT(name, lut) once per standard waveform at
+        // framework-ready, then the batch native references each entry's
+        // waveform by a short BSFixedString (~8 bytes) instead of dragging
+        // 256 bytes of float data across each cross-script call.
+        //
+        // Storage is a Meyers singleton with its own mutex so the slow path
+        // (Papyrus registration) and the hot path (lookup in the batch
+        // native) never block each other longer than a name-keyed lookup.
+        class WaveformLUTRegistry
+        {
+        public:
+            static WaveformLUTRegistry& Instance()
+            {
+                static WaveformLUTRegistry inst;
+                return inst;
+            }
+
+            void Register(std::string_view name, const std::vector<float>& lut)
+            {
+                if (name.empty() || lut.size() != PulseEntry::kWaveLUTSize) {
+                    return;
+                }
+                std::array<float, PulseEntry::kWaveLUTSize> arr{};
+                std::copy(lut.begin(), lut.end(), arr.begin());
+                std::lock_guard<std::mutex> g(mtx_);
+                luts_.insert_or_assign(std::string(name), arr);
+            }
+
+            bool Lookup(std::string_view name,
+                        std::array<float, PulseEntry::kWaveLUTSize>& out) const
+            {
+                if (name.empty()) {
+                    return false;
+                }
+                std::lock_guard<std::mutex> g(mtx_);
+                auto it = luts_.find(std::string(name));
+                if (it == luts_.end()) {
+                    return false;
+                }
+                out = it->second;
+                return true;
+            }
+
+            std::size_t Size() const
+            {
+                std::lock_guard<std::mutex> g(mtx_);
+                return luts_.size();
+            }
+
+        private:
+            WaveformLUTRegistry() = default;
+            mutable std::mutex mtx_;
+            std::unordered_map<std::string,
+                std::array<float, PulseEntry::kWaveLUTSize>> luts_;
+        };
         // Parse a comma-separated tag string into a set. Trims whitespace,
         // lowercases ASCII (so "Blunt" and "blunt" hash to the same key),
         // drops empty fragments. "*" is preserved verbatim.
@@ -513,6 +576,166 @@ namespace MTFPulse::Papyrus {
             return Config::GetInt(v, default_value);
         }
 
+        // ── v0.3.0 Batch native infrastructure ──────────────────────────────
+        // RegisterWaveformLUT stores a 64-float curve under a short name so
+        // SetActorPulseAndFadeBatch can reference it without re-marshalling
+        // the LUT on every per-entry cross-script call. Idempotent — calling
+        // with the same name overwrites; with a different LUT, replaces.
+        void RegisterWaveformLUT(RE::StaticFunctionTag* /*tag*/,
+                                 RE::BSFixedString  name,
+                                 std::vector<float> lut)
+        {
+            if (name.empty()) {
+                spdlog::warn("RegisterWaveformLUT called with empty name");
+                return;
+            }
+            if (lut.size() != PulseEntry::kWaveLUTSize) {
+                spdlog::warn("RegisterWaveformLUT '{}' got LUT size {}, expected {}",
+                             name.c_str(), lut.size(), PulseEntry::kWaveLUTSize);
+                return;
+            }
+            WaveformLUTRegistry::Instance().Register(name.c_str(), lut);
+            spdlog::info("Registered waveform LUT '{}' (registry size = {})",
+                         name.c_str(), WaveformLUTRegistry::Instance().Size());
+        }
+
+        // Lets the Papyrus side detect a fresh DLL session (game launch
+        // re-zeroes the registry) and re-register standard waveforms.
+        std::int32_t GetWaveformRegistrySize(RE::StaticFunctionTag* /*tag*/)
+        {
+            return static_cast<std::int32_t>(WaveformLUTRegistry::Instance().Size());
+        }
+
+        // Batched per-actor pulse + fade set. Replaces N pairs of
+        // (SetActorPulseWithTransition + SetActorFade/ClearActorFade) cross-
+        // script calls with a single call carrying parallel arrays for all N
+        // entries. Internally wraps the Roster Set loop in BeginBatch/EndBatch
+        // so all entries land with a shared transition_start anchor (same
+        // semantics MTFPulse.BeginTransitionBatch/End provided, with one
+        // cross-script transition instead of N×2).
+        //
+        // fade_packed encodes the fade lane in a single int per entry:
+        //   bit 0:        enabled (0 = clear fade, 1 = arm)
+        //   bits 1..2:    fade mode (0=overlay, 1=emissive, 2=inverted)
+        //   bits 3..31:   duration_ms (max ~268M ms)
+        //
+        // waveform_names entries are looked up against WaveformLUTRegistry;
+        // missing/unregistered names fall through to the Tick built-in cosine
+        // (has_wave_lut=false). Per-layer arrays are flat — entry i layer L
+        // lives at index i*4 + L; only the first layerCounts[i] of each
+        // entry's 4 slots are read by the C++ side.
+        //
+        // Two-pass: Pass 1 issues Set under BeginBatch (all entries queue with
+        // a shared transition_start anchor at EndBatch). Pass 2 fires the
+        // fade arm/clear AFTER the entries are installed in the live roster —
+        // SetFadeParams looks up the live roster, so it must run post-EndBatch
+        // or every call misses.
+        void SetActorPulseAndFadeBatch(
+            RE::StaticFunctionTag*         /*tag*/,
+            RE::Actor*                     actor,
+            bool                           is_female,
+            std::vector<float>             rates,
+            std::vector<std::int32_t>      depth_pcts,
+            std::vector<float>             pauses,
+            std::vector<std::int32_t>      layer_counts,
+            std::vector<float>             start_times,
+            std::vector<std::int32_t>      base_overlay_slots,
+            std::vector<RE::BSFixedString> waveform_names,
+            std::vector<float>             transition_durations,
+            std::vector<std::int32_t>      areas,
+            std::vector<std::int32_t>      fade_packed,
+            std::vector<float>             em_mults_flat,
+            std::vector<std::int32_t>      tint_rgbs_flat,
+            std::vector<std::int32_t>      alphas_pct_flat,
+            std::vector<std::int32_t>      emissive_rgbs_flat)
+        {
+            if (!actor) {
+                spdlog::warn("SetActorPulseAndFadeBatch called with null actor");
+                return;
+            }
+            const std::size_t N = rates.size();
+            if (N == 0) {
+                return;
+            }
+
+            auto& roster = Roster::Instance();
+            roster.BeginBatch();
+
+            // Persist per-entry fade row for Pass 2.
+            struct FadeRow { std::uint8_t area; std::int32_t base_slot; std::int32_t packed; };
+            std::vector<FadeRow> fade_rows;
+            fade_rows.reserve(N);
+
+            for (std::size_t i = 0; i < N; ++i) {
+                const std::uint8_t areaN     = NormArea(i < areas.size() ? areas[i] : 0);
+                const std::int32_t baseSlot  = i < base_overlay_slots.size() ? base_overlay_slots[i] : 0;
+                const std::int32_t layerN_in = i < layer_counts.size() ? layer_counts[i] : 0;
+                const std::int32_t layerN    = std::clamp(layerN_in, 0, 4);
+
+                if (layerN <= 0) {
+                    // Mirror existing "no layers" branch: clear the entry
+                    // and the fade lane so a leftover arm can't fire later.
+                    roster.ClearAt(actor, areaN, baseSlot);
+                    roster.ClearFade(actor, areaN, baseSlot);
+                    continue;
+                }
+
+                PulseEntry e{};
+                e.rate                = std::max(0.0f, i < rates.size() ? rates[i] : 0.0f);
+                e.depth               = std::clamp(i < depth_pcts.size() ? depth_pcts[i] : 0, 0, 100) * 0.01f;
+                e.pause               = std::max(0.0f, i < pauses.size() ? pauses[i] : 0.0f);
+                e.start_time          = i < start_times.size() ? start_times[i] : 0.0f;
+                e.base_slot           = baseSlot;
+                e.area                = areaN;
+                e.layer_count         = layerN;
+                e.is_female           = is_female;
+                e.transition_duration = std::max(0.0f, i < transition_durations.size() ? transition_durations[i] : 0.0f);
+
+                for (std::int32_t L = 0; L < layerN; ++L) {
+                    const std::size_t fi = i * 4 + static_cast<std::size_t>(L);
+                    e.layer_base_em_mult[L] = fi < em_mults_flat.size() ? em_mults_flat[fi] : 0.0f;
+                    const std::int32_t a_pct = fi < alphas_pct_flat.size() ? alphas_pct_flat[fi] : 100;
+                    e.target_alpha[L]    = std::clamp(a_pct, 0, 100) * 0.01f;
+                    e.target_tint[L]     = fi < tint_rgbs_flat.size()    ? tint_rgbs_flat[fi]    : static_cast<std::int32_t>(0xFFFFFF);
+                    e.target_emissive[L] = fi < emissive_rgbs_flat.size() ? emissive_rgbs_flat[fi] : static_cast<std::int32_t>(0xFFFFFF);
+                }
+
+                if (i < waveform_names.size() && !waveform_names[i].empty()) {
+                    std::array<float, PulseEntry::kWaveLUTSize> lut{};
+                    if (WaveformLUTRegistry::Instance().Lookup(waveform_names[i].c_str(), lut)) {
+                        e.wave_lut     = lut;
+                        e.has_wave_lut = true;
+                    } else {
+                        spdlog::warn("SetActorPulseAndFadeBatch entry {}: unknown waveform '{}', falling back to cosine",
+                                     i, waveform_names[i].c_str());
+                        e.has_wave_lut = false;
+                    }
+                } else {
+                    e.has_wave_lut = false;
+                }
+
+                roster.Set(actor, e);
+
+                fade_rows.push_back(FadeRow{ areaN, baseSlot,
+                                             i < fade_packed.size() ? fade_packed[i] : 0 });
+            }
+
+            roster.EndBatch();
+
+            for (const auto& row : fade_rows) {
+                const bool fadeOn = (row.packed & 0x1) != 0;
+                if (fadeOn) {
+                    const std::int32_t fadeMode = (row.packed >> 1) & 0x3;
+                    const std::int32_t fadeMs   = (row.packed >> 3) & 0x1FFFFFFF;
+                    roster.SetFadeParams(actor, row.area, row.base_slot,
+                                         std::clamp(fadeMode, 0, 2),
+                                         static_cast<float>(std::max(1, fadeMs)));
+                } else {
+                    roster.ClearFade(actor, row.area, row.base_slot);
+                }
+            }
+        }
+
     }  // namespace
 
     bool Register(RE::BSScript::IVirtualMachine* vm)
@@ -538,6 +761,9 @@ namespace MTFPulse::Papyrus {
         vm->RegisterFunction("ClearActorFade",    kClassName, ClearActorFade);
         vm->RegisterFunction("TriggerActorFade",  kClassName, TriggerActorFade);
         vm->RegisterFunction("GetConfigInt",      kClassName, GetConfigInt);
+        vm->RegisterFunction("RegisterWaveformLUT",       kClassName, RegisterWaveformLUT);
+        vm->RegisterFunction("GetWaveformRegistrySize",   kClassName, GetWaveformRegistrySize);
+        vm->RegisterFunction("SetActorPulseAndFadeBatch", kClassName, SetActorPulseAndFadeBatch);
         spdlog::info("Papyrus natives registered under '{}'", kClassName);
         return true;
     }
