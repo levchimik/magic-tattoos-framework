@@ -1,0 +1,458 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.community-overlays-3-hand",
+  "label": "Community Overlays 3 (Hands)",
+  "area": "Hand",
+  "entries": [
+    {
+      "id": "CO 52 Faedis Hands",
+      "label": "CO  52  Faedis Hands",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\52 Hands O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "solid ink gloves",
+        "style": "dense blotted ink",
+        "placement": "back of both hands, wrists, and lower forearm-cuffs"
+      },
+      "description": "A heavy fill of solid black ink that covers the entire back of each hand, wraps around the wrist, and continues down the forearm as a thick cuff. Edges are soft and feathered, reading like long opera-style gloves dyed straight into the skin."
+    },
+    {
+      "id": "CO 53 Ziva Hands",
+      "label": "CO  53  Ziva Hands",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\53 Hands O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small tribal flame mark",
+        "style": "minimal tribal with dot punctuation",
+        "placement": "outer wrist of each hand, near the base of the thumb"
+      },
+      "description": "A compact, flame-shaped tribal sigil sits on the outer wrist of each hand, formed of two curved hooks framed by a vertical row of small dots. The mark is small and self-contained, leaving the fingers, knuckles, and back of the hand bare."
+    },
+    {
+      "id": "CO 51 Nexregiant Hands Female",
+      "label": "CO  51  Nexregiant Hands Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filled tribal gauntlets",
+        "style": "bold dragon-tribal silhouette",
+        "placement": "back of both hands, wrists, and full forearm-cuffs"
+      },
+      "description": "Heavy mirrored tribal fills sheath the back of each hand and run as a thick gauntlet up the wrist and forearm. Small dragon-head flourishes curl over the knuckle base while the cuff itself is a near-solid block of ink with carved negative-space slits."
+    },
+    {
+      "id": "CO 56 Smoke Bones Hands Base Female",
+      "label": "CO  56  Smoke Bones Hands Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "skeletal hand x-ray",
+        "style": "anatomical bone outline",
+        "placement": "back of both hands, fingers, and wrists"
+      },
+      "description": "A clean skeletal anatomy laid over each hand, with metacarpal and phalange bones running from the wrist to each fingertip and short bars at the knuckles. The wrist edge shows the cut-off of the radius and ulna, like an x-ray plate."
+    },
+    {
+      "id": "CO 56 Smoke Bones Hands Tribal L1 Female",
+      "label": "CO  56  Smoke Bones Hands Tribal L 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Hands Tribal F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spider-and-eye tribal cluster",
+        "style": "bold tribal silhouette",
+        "placement": "back of both hands and outer wrist"
+      },
+      "description": "A central spider-like motif with an oval body sits on the back of each hand, flanked by a four-pointed star accent and topped by a single vertical bar that runs up the wrist. A small chevron and dotted accent sit just below near the knuckles."
+    },
+    {
+      "id": "CO 56 Smoke Bones Hands Tribal L2 Female",
+      "label": "CO  56  Smoke Bones Hands Tribal L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Hands Tribal 2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered tribal sparks and slashes",
+        "style": "sparse tribal accents",
+        "placement": "back of both hands and the base of the fingers"
+      },
+      "description": "A loose pattern of small curl-hooks, short bars and tiny dots scattered across the back of each hand, with a horizontal row of dashes running along the knuckle base. Nothing fills the design — it reads as scattered ash flecks of ink."
+    },
+    {
+      "id": "CO 57 Egyptaris Hands V1 Female",
+      "label": "CO  57  Egyptaris Hands V 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Hands 1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched tribal armour-wrap",
+        "style": "fine-line bold tribal",
+        "placement": "back of both hands, wrists, and forearm-cuffs"
+      },
+      "description": "A linework armour-wrap that follows the back of each hand, splits across the wrist into segmented bands, and continues up the forearm with curling tendrils and a stylised eye. A small ankh-like glyph sits centred on the back of each hand."
+    },
+    {
+      "id": "CO 57 Egyptaris Hands V2 Female",
+      "label": "CO  57  Egyptaris Hands V 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Hands 2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched tribal armour-wrap with arrow vamp",
+        "style": "fine-line bold tribal",
+        "placement": "back of both hands with a chevron over the knuckles, wrists, and forearm-cuffs"
+      },
+      "description": "A linework armour-wrap close in spirit to the V1 layout, but with a long chevron vamp pointing down the back of the hand toward the knuckles. Wrist bands and forearm tendrils repeat, and a small ankh-like glyph sits high on the wrist."
+    },
+    {
+      "id": "CO 58 Quake Hand Female",
+      "label": "CO  58  Quake Hand Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\58 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "cracked-stone shard mosaic",
+        "style": "fragmented mosaic infill",
+        "placement": "back and outer side of the left hand and wrist"
+      },
+      "description": "A single-hand design only, covering the back and outer edge of the left hand with a dense mosaic of irregular black shards separated by thin pale cracks. The pattern reads like splintered obsidian plating laid directly onto the skin."
+    },
+    {
+      "id": "CO 58 Aquasar Hand Female",
+      "label": "CO  58  Aquasar Hand Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\58 Hands Secondary F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spiked spiral medallion",
+        "style": "bold ink with negative-space spiral",
+        "placement": "back of the left hand"
+      },
+      "description": "A single-hand design only — a thick black disc sitting on the back of the left hand, ringed with sharp outward-pointing spines and carved with a wide negative-space spiral in its centre. The right hand is left bare."
+    },
+    {
+      "id": "CO 62 Blood Curse Hands Female",
+      "label": "CO  62  Blood Curse Hands Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\62 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "branching vein cracks",
+        "style": "organic capillary linework",
+        "placement": "back of both hands, wrists, and lower forearm"
+      },
+      "description": "A spread of thin, fractal capillary lines that branch like burst blood vessels or roots crawling up from the wrist onto the back of each hand. There is no symmetry and no central motif — only creeping, curse-like veins under the skin."
+    },
+    {
+      "id": "CO 65 Flora Iter Hand Female",
+      "label": "CO  65  Flora Iter Hand Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\65 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal henna-style hand-piece",
+        "style": "dense ornamental tribal",
+        "placement": "back of the left hand, fingers, and wrist"
+      },
+      "description": "A single-hand design only — an ornate filigree fills the back of the left hand with curls, eyes and chevrons, and continues onto every finger as banded segments. The wrist anchor flares outward in a heavy decorative cuff."
+    },
+    {
+      "id": "CO 66 Aquadynamis Hands Female",
+      "label": "CO  66  Aquadynamis Hands Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\66 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized aquatic tribal scripts",
+        "style": "calligraphic tribal",
+        "placement": "outer wrist and back of both hands above the knuckles"
+      },
+      "description": "Two small mirrored motifs per hand: a curling fish-tail glyph at the outer wrist and a larger, denser calligraphic flourish across the back of the hand just above the knuckles. The shapes flow like brushed cursive in a stylised aquatic script."
+    },
+    {
+      "id": "CO 68 Brimflame Hand Female",
+      "label": "CO  68  Brimflame Hand Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\68 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spear-and-vine tribal flame",
+        "style": "bold tribal with negative-space lines",
+        "placement": "back of both hands, wrists, and forearm-cuffs"
+      },
+      "description": "A long pointed spearhead motif sits at the wrist of each arm, with curling flame-vines branching outward to wrap the back of the hand and run up the forearm. Internal stripes of negative space give it the look of layered banded flame."
+    },
+    {
+      "id": "CO 70 Ancient Ward Hand Female",
+      "label": "CO  70  Ancient Ward Hand Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\70 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "arc of blocky ward glyphs",
+        "style": "stylized rune-block script",
+        "placement": "outer wrist and side of both hands, arcing toward the base of the fingers"
+      },
+      "description": "A column of chunky, square-cornered ward glyphs runs along the outer edge of each hand, curving from the wrist up to the base of the little finger. The characters read as a stylised lost-language inscription, framed by simple bar borders."
+    },
+    {
+      "id": "CO Extra Hands Arcus Female",
+      "label": "CO Extra Hands Arcus Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Hands Arcus F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "row of tiny spike marks",
+        "style": "minimalist tick-mark dashes",
+        "placement": "thin band across the base of the fingers on both hands"
+      },
+      "description": "A narrow row of small spike-shaped tick marks runs across the base of the fingers on each hand, like a string of tally cuts laid where a ring would sit. The marks are tiny, evenly spaced, and entirely confined to the knuckle-base band."
+    },
+    {
+      "id": "CO 51 Nexregiant Hands Male",
+      "label": "CO  51  Nexregiant Hands Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filled tribal gauntlets",
+        "style": "bold dragon-tribal silhouette",
+        "placement": "back of both hands, wrists, and full forearm-cuffs"
+      },
+      "description": "Heavy mirrored tribal fills cover the back of each hand and wrap up into a thick gauntlet that runs the length of the forearm. Curled dragon-head flourishes mark the knuckle area while the cuff itself is a near-solid mass of ink with narrow negative-space slits."
+    },
+    {
+      "id": "CO 56 Smoke Bones Hands Base Male",
+      "label": "CO  56  Smoke Bones Hands Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "skeletal hand x-ray",
+        "style": "anatomical bone outline",
+        "placement": "back of both hands, fingers, and wrists"
+      },
+      "description": "A clean skeletal anatomy laid over each hand, with metacarpal and phalange bones running from the wrist to every fingertip and short bars at the knuckle joints. The wrist edge shows the cut-off ends of the radius and ulna, like an x-ray plate."
+    },
+    {
+      "id": "CO 56 Smoke Bones Hands Tribal L1 Male",
+      "label": "CO  56  Smoke Bones Hands Tribal L 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Hands Tribal M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spider-and-eye tribal cluster",
+        "style": "bold tribal silhouette",
+        "placement": "back of both hands and outer wrist"
+      },
+      "description": "A spider-like emblem with a thick oval body sits on the back of each hand, flanked by a four-pointed star accent and crowned by a single vertical bar that runs up the wrist. A small chevron and dotted accent sit just below near the knuckles."
+    },
+    {
+      "id": "CO 56 Smoke Bones Hands Tribal L2 Male",
+      "label": "CO  56  Smoke Bones Hands Tribal L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Hands Tribal 2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered tribal sparks and slashes",
+        "style": "sparse tribal accents",
+        "placement": "back of both hands and the base of the fingers"
+      },
+      "description": "A loose scatter of small curl-hooks, short bars and tiny dots across the back of each hand, with a horizontal row of dashes laid across the knuckle base. The whole design reads as drifting flecks of ink rather than a single shape."
+    },
+    {
+      "id": "CO 57 Egyptaris Hands V1 Male",
+      "label": "CO  57  Egyptaris Hands V 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Hands 1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched tribal armour-wrap",
+        "style": "fine-line bold tribal",
+        "placement": "back of both hands, wrists, and forearm-cuffs"
+      },
+      "description": "A linework armour-wrap that traces the back of each hand, breaks across the wrist into segmented bands, and continues up the forearm with curling tendrils and a stylised eye. A small ankh-like glyph sits centred on the back of each hand."
+    },
+    {
+      "id": "CO 57 Egyptaris Hands V2 Male",
+      "label": "CO  57  Egyptaris Hands V 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Hands 2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched tribal armour-wrap with arrow vamp",
+        "style": "fine-line bold tribal",
+        "placement": "back of both hands with a chevron over the knuckles, wrists, and forearm-cuffs"
+      },
+      "description": "A linework armour-wrap close in spirit to the V1 layout, but with a long chevron vamp pointing down the back of the hand toward the knuckles. Wrist bands and forearm tendrils repeat, with a small ankh-like glyph sitting high on the wrist."
+    },
+    {
+      "id": "CO 58 Quake Hand Male",
+      "label": "CO  58  Quake Hand Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\58 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "cracked-stone shard mosaic",
+        "style": "fragmented mosaic infill",
+        "placement": "back and outer side of the left hand and wrist"
+      },
+      "description": "A single-hand design only, covering the back and outer edge of the left hand with a dense mosaic of irregular black shards separated by thin pale cracks. It reads like splintered obsidian plating laid directly onto the skin."
+    },
+    {
+      "id": "CO 58 Aquasar Hand Male",
+      "label": "CO  58  Aquasar Hand Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\58 Hands Secondary M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spiked spiral medallion",
+        "style": "bold ink with negative-space spiral",
+        "placement": "back of the left hand"
+      },
+      "description": "A single-hand design only — a thick black disc sitting on the back of the left hand, ringed with sharp outward-pointing spines and carved with a wide negative-space spiral in its centre. The right hand is left bare."
+    },
+    {
+      "id": "CO 62 Blood Curse Hands Male",
+      "label": "CO  62  Blood Curse Hands Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\62 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "branching vein cracks",
+        "style": "organic capillary linework",
+        "placement": "back of both hands, wrists, and lower forearm"
+      },
+      "description": "A spread of thin, fractal capillary lines that branch like burst blood vessels or roots creeping up from the wrist over the back of each hand. There is no symmetry or central motif — only fine, curse-like veins under the skin."
+    },
+    {
+      "id": "CO 65 Flora Iter Hand Male",
+      "label": "CO  65  Flora Iter Hand Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\65 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal henna-style hand-piece",
+        "style": "dense ornamental tribal",
+        "placement": "back of the left hand, fingers, and wrist"
+      },
+      "description": "A single-hand design only — an ornate filigree fills the back of the left hand with curls, eye motifs and chevrons, and continues onto every finger as banded segments. The wrist anchor flares outward in a heavy decorative cuff."
+    },
+    {
+      "id": "CO 66 Aquadynamis Hands Male",
+      "label": "CO  66  Aquadynamis Hands Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\66 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized aquatic tribal scripts",
+        "style": "calligraphic tribal",
+        "placement": "outer wrist and back of both hands above the knuckles"
+      },
+      "description": "Two small mirrored motifs per hand: a curling fish-tail glyph at the outer wrist and a larger calligraphic flourish across the back of the hand just above the knuckles. The shapes flow like brushed cursive in a stylised aquatic script."
+    },
+    {
+      "id": "CO 68 Brimflame Hand Male",
+      "label": "CO  68  Brimflame Hand Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\68 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spear-and-vine tribal flame",
+        "style": "bold tribal with negative-space lines",
+        "placement": "back of both hands, wrists, and forearm-cuffs"
+      },
+      "description": "A long pointed spearhead motif anchors at the wrist of each arm, with curling flame-vines branching outward to cover the back of the hand and run up the forearm. Internal stripes of negative space give it the look of layered banded flame."
+    },
+    {
+      "id": "CO 70 Ancient Ward Hand Male",
+      "label": "CO  70  Ancient Ward Hand Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\70 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "arc of blocky ward glyphs",
+        "style": "stylized rune-block script",
+        "placement": "outer wrist and side of both hands, arcing toward the base of the fingers"
+      },
+      "description": "A column of chunky, square-cornered ward glyphs runs along the outer edge of each hand, curving from the wrist up to the base of the little finger. The characters read as a stylised lost-language inscription, framed by simple bar borders."
+    },
+    {
+      "id": "CO Extra Hands Arcus Male",
+      "label": "CO Extra Hands Arcus Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Hands Arcus M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "row of tiny spike marks",
+        "style": "minimalist tick-mark dashes",
+        "placement": "thin band across the base of the fingers on both hands"
+      },
+      "description": "A narrow row of small spike-shaped tick marks runs across the base of the fingers on each hand, like a line of tally cuts laid where a ring would sit. The marks are tiny, evenly spaced, and entirely confined to the knuckle-base band."
+    }
+  ]
+}

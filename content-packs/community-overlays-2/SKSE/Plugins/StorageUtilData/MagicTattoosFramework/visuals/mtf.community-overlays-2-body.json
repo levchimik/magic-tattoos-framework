@@ -1,0 +1,1448 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.community-overlays-2-body",
+  "label": "Community Overlays 2 (Body)",
+  "area": "Body",
+  "entries": [
+    {
+      "id": "CO 31 Nexus Body Female",
+      "label": "CO  31  Nexus Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\31 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "branching root or vein network",
+        "style": "organic blackwork tendrils",
+        "placement": "torso and upper arms (chest, collarbones, ribs and shoulders, centered)"
+      },
+      "description": "A spreading web of branching tendrils that crawls across the collarbones and ribs like cracked roots or veins, with curling whip-ends trailing down the upper arms. The lines are thick and irregular, with a small spiral knot at the center of the chest."
+    },
+    {
+      "id": "CO 32 Dalish Body 1 Female",
+      "label": "CO  32  Dalish Body  1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\32 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "elven dotwork vinework",
+        "style": "fine stippled linework",
+        "placement": "chest, breasts and outer thighs (centered, symmetrical)"
+      },
+      "description": "Slim symmetrical dot-stippled vines descend from the collarbones, wrap around the breasts, and trail down the outer hips and thighs. The motifs include little curl-tipped fronds and S-curves rendered entirely as fine dotted outlines, no solid fills."
+    },
+    {
+      "id": "CO 33 Dalish Body 2 Female",
+      "label": "CO  33  Dalish Body  2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\33 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled fern and tree-of-life motifs",
+        "style": "fine dotwork ornament",
+        "placement": "sternum, lower belly and outer thighs (centered, symmetrical)"
+      },
+      "description": "A vertical fern-like tree of life dominates the sternum, flanked by paired stippled scrolls along the lower ribs and a smaller fern over the pubic mound. Outer thighs carry long wavy dotted bands and curling tendrils, all in fine stipple, no solid fills."
+    },
+    {
+      "id": "CO 34 Pirate Body Female",
+      "label": "CO  34  Pirate Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\34 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "kraken, anchor and skull motifs",
+        "style": "rough nautical blackwork",
+        "placement": "torso (chest, sternum and lower belly, centered)"
+      },
+      "description": "A large octopus or kraken sprawls over the upper chest with tentacles fanning outward, while a small grinning skull sits at the sternum framed by curling scrollwork. Lower belly carries a stylized anchor and ribbon banner; the strokes are chunky and slightly ragged like brushwork."
+    },
+    {
+      "id": "CO 35 Voodoo Body Female",
+      "label": "CO  35  Voodoo Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\35 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ritual mask and totem ornaments",
+        "style": "heavy tribal blackwork",
+        "placement": "torso, breasts and pelvis (centered, symmetrical)"
+      },
+      "description": "A tall horned ritual mask rises from the sternum with paired antler-like spikes, flanked across the breasts and hips by smaller skeletal totems and patterned panel pieces. A second wider mask lies across the lower belly, all rendered as bold solid black silhouettes with white interior detail."
+    },
+    {
+      "id": "CO 36 Corruption Body Base Female",
+      "label": "CO  36  Corruption Body Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "creeping ink corruption silhouette",
+        "style": "solid black flame-edged blotch",
+        "placement": "left half of torso (full coverage, character's left side)"
+      },
+      "description": "A massive solid black blot covers one whole side of the torso from shoulder to lower belly, with jagged flame-like fingers and dripping tendrils eating into the skin along its inner edge. There is no figural subject, just a creeping wash of corruption silhouette."
+    },
+    {
+      "id": "CO 36 Corruption Body L2 Female",
+      "label": "CO  36  Corruption Body L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Body L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered eldritch script glyphs",
+        "style": "blackletter inscription",
+        "placement": "torso and outer thighs (scattered, asymmetric)"
+      },
+      "description": "Short lines of dense angular script in an invented runic alphabet float at varied tilts across the chest, ribs and outer thighs. The glyphs read like incantations or curses tattooed in scattered bursts rather than a single block of text."
+    },
+    {
+      "id": "CO 36 Corruption Body Neck Female",
+      "label": "CO  36  Corruption Body Neck Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Body Neck F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ink stain blot",
+        "style": "solid silhouette",
+        "placement": "upper chest (sternum / collarbone notch, centered)"
+      },
+      "description": "A single irregular solid black blot sits at the base of the throat, shaped like a splat with spiky fingers reaching down across the upper chest. No internal detail, just a flat silhouette resembling a fresh ink stain."
+    },
+    {
+      "id": "CO 37 DracoNordic Body Base Female",
+      "label": "CO  37  Draco Nordic Body Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\37 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "draconic tribal sigil with wings and tail",
+        "style": "ornate tribal blackwork",
+        "placement": "torso, outer arms and thighs (centered, symmetrical)"
+      },
+      "description": "A stylized winged dragon spreads across the chest with curling tail-fronds running down the sternum and onto the belly. Mirrored tribal blade-and-flame panels flank the outer arms and outer thighs, all crisp solid black with sharp filigree edges."
+    },
+    {
+      "id": "CO 37 DracoNordic Body L2 Female",
+      "label": "CO  37  Draco Nordic Body L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\37 Body L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "draconic verse inscription",
+        "style": "stippled script glyphs",
+        "placement": "torso and outer hips (scattered, symmetrical)"
+      },
+      "description": "Short stippled lines of invented angular script arc around the upper chest, sternum and lower belly, with longer phrases curving down the outer hips. The script is small and fine, scattered like a verse written in many fragments."
+    },
+    {
+      "id": "CO 38 Mitsukami Body Female",
+      "label": "CO  38  Mitsukami Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\38 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized cloud and curl ornaments",
+        "style": "eastern ornamental linework",
+        "placement": "torso, breasts and outer thighs (centered, symmetrical)"
+      },
+      "description": "A field of mirrored cloud-curl and teardrop ornaments scatters across the chest, breasts and outer thighs, with a central diamond motif at the sternum. The strokes are smooth and rounded with little spiral roll-ups, giving an eastern temple-decor feel."
+    },
+    {
+      "id": "CO 39 Runic Shade Runes Body Female",
+      "label": "CO  39  Runic Shade Runes Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Body Runes F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dense rune inscriptions",
+        "style": "small stamped glyphs in panels",
+        "placement": "full torso, breasts and outer thighs (rectangular blocks, symmetrical)"
+      },
+      "description": "Rectangular blocks of tiny stamped runes cover the upper chest, breasts, belly and outer thighs as if pages of an invented script have been pressed into the skin. The glyphs are short and identical-sized, packed in tight rows that read like dense paragraphs."
+    },
+    {
+      "id": "CO 39 Runic Shade Ornament Body Female",
+      "label": "CO  39  Runic Shade Ornament Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Body Ornament F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "diamond-shaped sigil cartouches",
+        "style": "ornate filigree blackwork",
+        "placement": "sternum, breasts and lower belly (centered, symmetrical)"
+      },
+      "description": "Three large diamond-shaped sigil cartouches sit at the sternum, on each breast and over the pubis, with small companion glyph clusters along the lower belly. The cartouches are densely filled with ornate filigree maze patterns inside crisp diamond borders."
+    },
+    {
+      "id": "CO 40 Feranas Full L1 Female",
+      "label": "CO  40  Feranas Full L 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Full L1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "swirling tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "full torso, breasts and outer thighs (centered, symmetrical)"
+      },
+      "description": "Bold tribal scrolls with hooked curl-tip terminations sweep across the chest, breasts, belly and outer thighs in mirrored sweeps. The composition has no figural subject; it reads as flowing ornamental whorls similar to an elven body suit."
+    },
+    {
+      "id": "CO 40 Feranas Full L2 Female",
+      "label": "CO  40  Feranas Full L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Full L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "denser swirling tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "full torso, breasts and outer thighs (centered, symmetrical)"
+      },
+      "description": "Mirrored tribal scrolls and hooked curls fill the chest, breasts, belly and outer thighs more densely than a base layer, with extra interlocking whorls weaving between the main sweeps. Still purely ornamental, no figural motif."
+    },
+    {
+      "id": "CO 40 Feranas Full L3 Female",
+      "label": "CO  40  Feranas Full L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Full L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled tribal scrollwork accents",
+        "style": "dotted-line curl highlights",
+        "placement": "full torso, breasts and outer thighs (centered, symmetrical)"
+      },
+      "description": "A faint network of dotted-line whorls and small curls echoes along the chest, ribs, belly and outer thighs, providing thin stippled highlights instead of bold solid fills. Reads as a delicate accent layer of curl ornaments."
+    },
+    {
+      "id": "CO 40 Feranas Left Arm L1 Female",
+      "label": "CO  40  Feranas Left Arm L 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Arm L1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "asymmetric tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "upper torso (left shoulder / pec area)"
+      },
+      "description": "A single-side composition of hooked curls and flowing scrolls covers one upper shoulder and pec, sweeping inward toward the sternum. Pure ornamental swirls with curl-tip terminations, no figural subject."
+    },
+    {
+      "id": "CO 40 Feranas Left Arm L2 Female",
+      "label": "CO  40  Feranas Left Arm L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Arm L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "denser asymmetric tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "upper torso (left shoulder / pec area)"
+      },
+      "description": "Dense interlocking hooked curls and scrollwork cover one upper shoulder and pec, with additional whorls filling the spaces between the main sweeps. Pure ornament with curl-tip terminations."
+    },
+    {
+      "id": "CO 40 Feranas Left Arm L3 Female",
+      "label": "CO  40  Feranas Left Arm L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Arm L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled scrollwork accents",
+        "style": "dotted-line curl highlights",
+        "placement": "upper torso (left shoulder / pec area)"
+      },
+      "description": "A thin layer of dotted-line whorls and small curls echoes along one upper shoulder and pec as faint stippled highlights. Reads as a subtle accent rather than a bold piece."
+    },
+    {
+      "id": "CO 40 Feranas Right Arm L1 Female",
+      "label": "CO  40  Feranas Right Arm L 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Arm L1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "asymmetric tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "upper torso (right shoulder / pec area)"
+      },
+      "description": "A compact arrangement of hooked curls and flowing scrolls covers one upper shoulder and pec, sweeping inward across the chest. Pure ornament with curl-tipped ends, no figural element."
+    },
+    {
+      "id": "CO 40 Feranas Right Arm L2 Female",
+      "label": "CO  40  Feranas Right Arm L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Arm L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "denser asymmetric tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "upper torso (right shoulder / pec area)"
+      },
+      "description": "Tightly packed interlocking whorls and hooked curls cover one upper shoulder and pec, with extra ornamental fill between the main sweeps. Pure ornament with curl-tipped endings."
+    },
+    {
+      "id": "CO 40 Feranas Right Arm L3 Female",
+      "label": "CO  40  Feranas Right Arm L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Arm L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled scrollwork accents",
+        "style": "dotted-line curl highlights",
+        "placement": "upper torso (right shoulder / pec area)"
+      },
+      "description": "A faint scattering of dotted-line whorls and small curls accents one upper shoulder and pec. Subtle stippled highlights, no solid fills."
+    },
+    {
+      "id": "CO 40 Feranas Left Leg L1 Female",
+      "label": "CO  40  Feranas Left Leg L 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Leg L1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal scrollwork band",
+        "style": "elven curl-tip blackwork",
+        "placement": "outer hip and thigh (one side)"
+      },
+      "description": "A flowing band of hooked curls and tribal scrolls wraps the outer hip and upper thigh on one side, with a small curl accent reaching up onto the lower belly. Pure ornament, no figural subject."
+    },
+    {
+      "id": "CO 40 Feranas Left Leg L2 Female",
+      "label": "CO  40  Feranas Left Leg L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Leg L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "denser scrollwork hip band",
+        "style": "elven curl-tip blackwork",
+        "placement": "outer hip and thigh (one side)"
+      },
+      "description": "Tightly interlocking whorls, hooked curls and small spiral ornaments fill the outer hip and upper thigh on one side. The composition layers extra detail between the main sweeps for a fuller decorative band."
+    },
+    {
+      "id": "CO 40 Feranas Left Leg L3 Female",
+      "label": "CO  40  Feranas Left Leg L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Leg L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled scrollwork hip accents",
+        "style": "dotted-line curl highlights",
+        "placement": "outer hip and thigh (one side)"
+      },
+      "description": "Faint dotted whorls and curl accents echo along one outer hip and upper thigh as a delicate stippled highlight layer. Subtle accents with no solid fills."
+    },
+    {
+      "id": "CO 40 Feranas Right Leg L1 Female",
+      "label": "CO  40  Feranas Right Leg L 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal scrollwork band",
+        "style": "elven curl-tip blackwork",
+        "placement": "outer hip and thigh (opposite side)"
+      },
+      "description": "A flowing band of hooked curls and tribal scrolls wraps one outer hip and upper thigh, with a small flame-like curl reaching up onto the lower torso. Pure ornament with curl-tip endings, no figural subject."
+    },
+    {
+      "id": "CO 40 Feranas Right Leg L2 Female",
+      "label": "CO  40  Feranas Right Leg L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "denser scrollwork hip band",
+        "style": "elven curl-tip blackwork",
+        "placement": "outer hip and thigh (opposite side)"
+      },
+      "description": "Tightly interwoven whorls, hooked curls and ornamental swirls fill one outer hip and upper thigh as a dense decorative band. Pure ornament with curl-tip endings."
+    },
+    {
+      "id": "CO 40 Feranas Right Leg L3 Female",
+      "label": "CO  40  Feranas Right Leg L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled scrollwork hip accents",
+        "style": "dotted-line curl highlights",
+        "placement": "outer hip and thigh (opposite side)"
+      },
+      "description": "Faint dotted whorls and small curl accents echo across one outer hip and upper thigh as a delicate stippled highlight layer. Subtle ornament throughout."
+    },
+    {
+      "id": "CO 41 Indrik Body Base Female",
+      "label": "CO  41  Indrik Body Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\41 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dense feather-scale pattern",
+        "style": "interlocking eye-scale repeats",
+        "placement": "full torso, breasts and lower belly (centered, symmetrical)"
+      },
+      "description": "Tightly tiled feather-scales cover the entire torso, breasts and lower belly in a solid pattern of overlapping teardrop eyes, like an animal pelt or peacock plumage rendered in heavy black ink. The body becomes a single field of repeating scales with no figural subject."
+    },
+    {
+      "id": "CO 41 Indrik Body Highlights Female",
+      "label": "CO  41  Indrik Body Highlights Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\41 Body L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "feather-scale outline highlights",
+        "style": "fine outlined eye-scale repeats",
+        "placement": "full torso, breasts and lower belly (centered, symmetrical)"
+      },
+      "description": "The same dense feather-scale pattern but drawn only as fine outlines instead of solid fills, so the eye-shaped scales read as a wireframe pelt. Looks like a delicate skin-tracing layer of the same plumage motif."
+    },
+    {
+      "id": "CO 42 Stripes Body Female",
+      "label": "CO  42  Stripes Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\42 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "animal tiger stripes",
+        "style": "thick irregular black bands",
+        "placement": "full torso, breasts and thighs (symmetrical)"
+      },
+      "description": "Thick irregular vertical black bands sweep across the chest, sides, breasts and thighs in a tiger-stripe pattern. The stripes vary in width, curl and break naturally like animal fur markings, covering most of the body."
+    },
+    {
+      "id": "CO 43 Natura Body Base Female",
+      "label": "CO  43  Natura Body Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized horned beast skull or mask",
+        "style": "heavy organic blackwork",
+        "placement": "full torso and breasts (centered, symmetrical)"
+      },
+      "description": "A large solid black silhouette spreads across the torso forming a horned beast-mask with hollow eyes, surrounded by flame-like or root-like fingers reaching outward. The composition fills the chest, breasts and belly with one continuous organic blot."
+    },
+    {
+      "id": "CO 43 Natura Body L2 Female",
+      "label": "CO  43  Natura Body L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "fragmented beast-mask outline",
+        "style": "broken organic shapes",
+        "placement": "full torso and breasts (centered, symmetrical)"
+      },
+      "description": "The same horned beast-mask composition broken into disconnected island-like fragments scattered across the chest, breasts and belly. Reads as a partial silhouette where pieces of the mask, horns and tendrils are missing."
+    },
+    {
+      "id": "CO 43 Natura Body L3 Female",
+      "label": "CO  43  Natura Body L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "skeletal vines and spiny stems",
+        "style": "fine stippled organic accents",
+        "placement": "full torso, breasts and pelvis (scattered, symmetrical)"
+      },
+      "description": "Small skeletal vine fragments, spiny stems and tiny fern-like shoots scatter across the chest, breasts and pelvis in fine stippled outlines. A subtle accent layer of bone-leaf forms with no solid fills."
+    },
+    {
+      "id": "CO 43 Natura Body L3 Variant Female",
+      "label": "CO  43  Natura Body L 3  Variant Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body L3 Variant F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "skeletal vines and spiny stems variant",
+        "style": "fine stippled organic accents",
+        "placement": "full torso, breasts and pelvis (scattered, symmetrical)"
+      },
+      "description": "An alternate scatter of skeletal vine fragments, spiny stems and fine fern shoots across the chest, breasts and pelvis, rendered in stippled outline. Same accent character as the base highlight but with subtly different placement and shapes."
+    },
+    {
+      "id": "CO 44 Vampirias Body Female",
+      "label": "CO  44  Vampirias Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\44 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "thorned bat-wing crest",
+        "style": "gothic spiked blackwork",
+        "placement": "upper chest, sternum and lower belly (centered, symmetrical)"
+      },
+      "description": "A tall spiked crest of bat-wing-like prongs rises from the throat down the sternum, paired with flanking thorned wings sweeping across the chest. A smaller fanged motif anchors the lower belly, all sharp gothic blackwork with serrated edges."
+    },
+    {
+      "id": "CO 44 Vampirias Body L2 Female",
+      "label": "CO  44  Vampirias Body L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\44 Body L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "trickling drip lines",
+        "style": "thin brushed strokes",
+        "placement": "torso and outer thighs (symmetrical, vertical drips)"
+      },
+      "description": "Thin vertical streaks and curling drip lines run down the chest, ribs, breasts and outer thighs, suggesting blood or ink trickling on skin. Each stroke is a loose brushy line, scattered to read like an irregular drip rather than a designed pattern."
+    },
+    {
+      "id": "CO 45 Occultis Triagis Body Female",
+      "label": "CO  45  Occultis Triagis Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\45 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "four-pointed star cross with occult panels",
+        "style": "intricate dot-and-line filigree",
+        "placement": "upper torso, breasts and lower belly (centered)"
+      },
+      "description": "A large four-armed star or cross of pennant-shaped panels sprawls across the chest and ribs, with each panel filled with intricate dot-and-line filigree and small geometric eye sigils. A smaller version anchors the lower belly."
+    },
+    {
+      "id": "CO 46 High Kraisas Body Female",
+      "label": "CO  46  High Kraisas Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\46 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal serpent or beast crest",
+        "style": "flowing tribal blackwork",
+        "placement": "full torso, breasts and outer thighs (centered, symmetrical)"
+      },
+      "description": "A large mirrored tribal crest spreads across the chest with wing-like blades fanning out, narrowing through the ribs into a fanged maw or beast face at the navel. Flame-like ornaments wrap the breasts and outer thighs in solid black sweeps."
+    },
+    {
+      "id": "CO 47 Lizal Tribe Body Female",
+      "label": "CO  47  Lizal Tribe Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\47 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal stamp patterns and totems",
+        "style": "rough cuneiform blockwork",
+        "placement": "full torso, breasts and outer thighs (centered, symmetrical)"
+      },
+      "description": "Dense fields of small angular stamp-shapes form pseudo-skeletal totems and grids across the chest, breasts, lower belly and outer thighs. The patterns read like primitive carved cuneiform marks repeated to suggest tribal scarring or armor."
+    },
+    {
+      "id": "CO 48 Faeri Body Base Female",
+      "label": "CO  48  Faeri Body Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\48 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "delicate vine ornament accents",
+        "style": "fine curling linework",
+        "placement": "shoulders, upper chest and outer thighs (scattered, symmetrical)"
+      },
+      "description": "Fine curling vine ornaments scatter across the shoulders, throat, sternum and outer thighs as small delicate flourishes. The motifs include little spiral fronds and looping ribbons, very thin and airy."
+    },
+    {
+      "id": "CO 48 Faeri Body L2 Female",
+      "label": "CO  48  Faeri Body L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\48 Body L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tiny floral and curl accents",
+        "style": "fine spot ornament",
+        "placement": "throat, breasts and pelvis (scattered, asymmetric)"
+      },
+      "description": "A handful of small detailed motifs — a citrus-fruit slice, a tiny snail-curl, a leafy spray and a stippled wing-shape — drift at scattered points around the throat, breasts and lower belly. The pieces are widely spaced like decorative beauty marks."
+    },
+    {
+      "id": "CO 49 Azaer Tribe Body Female",
+      "label": "CO  49  Azaer Tribe Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\49 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "mirrored maze-fill tribal crest",
+        "style": "labyrinthine line blackwork",
+        "placement": "full torso, breasts and outer thighs (centered, symmetrical)"
+      },
+      "description": "A mirrored tribal crest fills the entire chest with maze-like interlocking lines, narrowing through the ribs into a beast-face at the navel and fanning out across the breasts and outer thighs. Every interior space is packed with labyrinthine ribbon-fill."
+    },
+    {
+      "id": "CO 50 Kiraea Body Female",
+      "label": "CO  50  Kiraea Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\50 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "twin armored beast figures",
+        "style": "intricate filigree blackwork",
+        "placement": "full torso, breasts and outer thighs (centered, symmetrical)"
+      },
+      "description": "Two intricately patterned armored beast figures stand back to back on the upper chest with crested heads, while paired smaller filigree creatures occupy the breasts and outer thighs. Every shape is packed with detailed scrollwork and crest patterning."
+    },
+    {
+      "id": "CO Extra Vortex Arm Female",
+      "label": "CO Extra Vortex Arm Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Body Vortex F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "geometric truss-shaped emblem",
+        "style": "stippled fill geometric blackwork",
+        "placement": "upper arm (one side)"
+      },
+      "description": "A small geometric truss-like emblem with a wedge silhouette sits on one upper arm, with a larger triangular truss panel below and a smaller right-angle piece beneath. The interiors are packed with fine stipple, reading like a stylized angular bracket."
+    },
+    {
+      "id": "CO Extra Kraisas Primalis Body Female",
+      "label": "CO Extra Kraisas Primalis Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Body Kraisas F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal serpent or beast crest",
+        "style": "flowing tribal blackwork",
+        "placement": "full torso, breasts and outer thighs (centered, symmetrical)"
+      },
+      "description": "A mirrored tribal crest with wing-blade fans spreads across the chest, narrowing through the ribs into a fanged maw at the navel, with flame-like sweeps wrapping the breasts and outer thighs. Bold solid black ornament throughout."
+    },
+    {
+      "id": "CO Extra Swift Body Base Female",
+      "label": "CO Extra Swift Body Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Body Swift Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scaled-feather wing pair",
+        "style": "broken-stripe blackwork",
+        "placement": "upper chest and outer hips (centered, symmetrical)"
+      },
+      "description": "A mirrored pair of vertical scaled-feather wings sits across the upper chest, with small flick-shaped accents on each outer shoulder and a thin curving stroke down each outer hip. The wing forms are broken into solid stripes with white gaps like cracked feathers."
+    },
+    {
+      "id": "CO Extra Swift Body Base Alt Female",
+      "label": "CO Extra Swift Body Base Alt Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Body Swift Base Alt F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scaled-feather wing pair (alternate)",
+        "style": "broken-stripe blackwork",
+        "placement": "upper chest and outer hips (centered, symmetrical)"
+      },
+      "description": "A mirrored pair of vertical scaled-feather wings across the upper chest with small flick-accents on the outer shoulders and a thin curving stroke down each outer hip. An alternate base version of the same broken-stripe wing motif."
+    },
+    {
+      "id": "CO Extra Swift Body Accent Female",
+      "label": "CO Extra Swift Body Accent Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Body Swift Accent F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "flick-stroke wing accents",
+        "style": "scattered tally marks",
+        "placement": "upper chest and outer hips (centered, symmetrical)"
+      },
+      "description": "Small flick-shaped tally strokes scatter across the upper chest in two columns and again as tiny accents on the outer shoulders and lower hips. Loose dashes and curls suggesting feather-tips, with no continuous shape."
+    },
+    {
+      "id": "CO Extra Swift Body Bands Female",
+      "label": "CO Extra Swift Body Bands Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Body Swift Bands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "speckled feather bands",
+        "style": "scattered solid blots",
+        "placement": "upper chest and outer hips (centered, symmetrical)"
+      },
+      "description": "Two vertical columns of speckled solid dabs run down the upper chest, with smaller groups on each outer shoulder and a row across the lower hips. The dabs are irregularly sized like scattered feather spots or pebble texture."
+    },
+    {
+      "id": "CO Extra Trethasi Body Female",
+      "label": "CO Extra Trethasi Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Body Trethasi F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "armored beast totem panels",
+        "style": "ornate filigree blackwork",
+        "placement": "upper chest and lower belly (centered, symmetrical)"
+      },
+      "description": "An elaborate beast-totem panel covers the upper chest with a fanged head crowned in horns, framed by sharp wing-like flanges. A second smaller patterned panel sits over the lower belly with paired teardrop ornaments on the hips, all in dense filigree."
+    },
+    {
+      "id": "CO 31 Nexus Body Male",
+      "label": "CO  31  Nexus Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\31 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "branching root or vein network",
+        "style": "organic blackwork tendrils",
+        "placement": "torso and upper arms (chest, ribs and shoulders, centered)"
+      },
+      "description": "Twisting branch-like lines spill from the throat down across the pecs and over the shoulders, ending in curling tendrils on the upper arms. A small spiral hub sits at the sternum and the strokes thicken irregularly like swelling veins."
+    },
+    {
+      "id": "CO 32 Dalish Body 1 Male",
+      "label": "CO  32  Dalish Body  1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\32 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "elven dotwork vinework",
+        "style": "fine stippled linework",
+        "placement": "chest, ribs and outer thighs (centered, symmetrical)"
+      },
+      "description": "Symmetrical stippled vines flow from the sternum out across the pecs, then sweep down the flanks and outer thighs as long S-curves. Every line is built from dotted contour, ending in small curl-tipped fronds."
+    },
+    {
+      "id": "CO 33 Dalish Body 2 Male",
+      "label": "CO  33  Dalish Body  2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\33 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled fern and tree-of-life motifs",
+        "style": "fine dotwork ornament",
+        "placement": "sternum, lower belly and outer thighs (centered, symmetrical)"
+      },
+      "description": "A tall fern-shaped tree of life runs down the sternum with paired stippled scrolls across the lower torso and a smaller leafy spray over the pelvis. Outer thighs carry long wavy dotted bands and curl tips, the whole piece built from fine stipple."
+    },
+    {
+      "id": "CO 34 Pirate Body Male",
+      "label": "CO  34  Pirate Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\34 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "kraken, anchor and skull motifs",
+        "style": "rough nautical blackwork",
+        "placement": "torso (chest, sternum and lower belly, centered)"
+      },
+      "description": "A spreading kraken with curling tentacles covers the upper chest, a small skull and scroll sits at the sternum, and a stylized anchor with banner anchors the lower belly. Brushy chunky linework gives it a hand-inked sailor feel."
+    },
+    {
+      "id": "CO 35 Voodoo Body Male",
+      "label": "CO  35  Voodoo Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\35 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ritual mask and totem ornaments",
+        "style": "heavy tribal blackwork",
+        "placement": "torso, pecs and pelvis (centered, symmetrical)"
+      },
+      "description": "A horned ritual mask with antler spikes climbs from the sternum to the throat, flanked by skeletal totem panels across the pecs and hips. A second wider mask spans the lower belly, all in heavy solid silhouettes with carved white interior linework."
+    },
+    {
+      "id": "CO 36 Corruption Body Base Male",
+      "label": "CO  36  Corruption Body Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "creeping ink corruption silhouette",
+        "style": "solid black flame-edged blotch",
+        "placement": "left half of torso (full coverage, character's left side)"
+      },
+      "description": "A solid black mass swallows one entire side of the torso from shoulder down through the pelvis, with jagged flame-tipped fingers reaching across the chest. The inner edge frays into dripping tendrils, giving the impression of skin being consumed by ink."
+    },
+    {
+      "id": "CO 36 Corruption Body L2 Male",
+      "label": "CO  36  Corruption Body L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Body L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered eldritch script glyphs",
+        "style": "blackletter inscription",
+        "placement": "torso and outer thighs (scattered, asymmetric)"
+      },
+      "description": "Short stacked lines of angular runic script appear at varied tilts on the chest, ribs and outer thighs like graffiti curses. Each cluster sits independently with no border, in a dense blackletter-style invented alphabet."
+    },
+    {
+      "id": "CO 37 DracoNordic Body Base Male",
+      "label": "CO  37  Draco Nordic Body Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\37 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "draconic tribal sigil with wings and tail",
+        "style": "ornate tribal blackwork",
+        "placement": "torso, outer arms and thighs (centered, symmetrical)"
+      },
+      "description": "A winged dragon emblem sprawls across the chest with curling tail-flames running down the sternum to the navel. Smaller mirrored tribal panels mark the outer arms and outer thighs, all in crisp solid blackwork with sharp filigree edges."
+    },
+    {
+      "id": "CO 37 DracoNordic Body L2 Male",
+      "label": "CO  37  Draco Nordic Body L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\37 Body L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "draconic verse inscription",
+        "style": "stippled script glyphs",
+        "placement": "torso and flanks (scattered, symmetrical)"
+      },
+      "description": "Short stippled lines of angular invented script arc across the upper chest and curve down the flanks, with a longer phrase along the lower belly. The lettering is small, scattered like fragments of a verse rather than a single tract."
+    },
+    {
+      "id": "CO 38 Mitsukami Body Male",
+      "label": "CO  38  Mitsukami Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\38 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized cloud and curl ornaments",
+        "style": "eastern ornamental linework",
+        "placement": "torso, pecs and outer thighs (centered, symmetrical)"
+      },
+      "description": "Mirrored cloud-curl ornaments with little spiral roll-ups cover the pecs, flanks and outer thighs, with a small diamond emblem at the sternum and a wider one over the lower belly. Smooth rounded strokes give an eastern temple ornament feel."
+    },
+    {
+      "id": "CO 39 Runic Shade Runes Body Male",
+      "label": "CO  39  Runic Shade Runes Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Body Runes M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dense rune inscriptions",
+        "style": "small stamped glyphs in panels",
+        "placement": "full torso, pecs and outer thighs (rectangular blocks, symmetrical)"
+      },
+      "description": "Tight rectangular blocks of tiny stamped runic glyphs cover the pecs, belly, flanks and outer thighs, like dense pages of script pressed into the skin. The lettering is uniform-sized and packed in regular rows."
+    },
+    {
+      "id": "CO 39 Runic Shade Ornament Body Male",
+      "label": "CO  39  Runic Shade Ornament Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Body Ornament M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "diamond-shaped sigil cartouches",
+        "style": "ornate filigree blackwork",
+        "placement": "sternum, pecs and lower belly (centered, symmetrical)"
+      },
+      "description": "Diamond cartouches packed with ornate filigree maze interiors sit at the sternum, on each pec and a smaller one over the pubis. Small companion glyph clusters flank the lower belly, all framed by crisp sharp diamond borders."
+    },
+    {
+      "id": "CO 40 Feranas Full L1 Male",
+      "label": "CO  40  Feranas Full L 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Full L1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "swirling tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "full torso, pecs and outer thighs (centered, symmetrical)"
+      },
+      "description": "Bold mirrored scrolls with hooked curl-tip ends sweep across the chest, ribs, belly and outer thighs. The shapes are pure ornament with no figural element, evoking an elven body suit of flowing whorls."
+    },
+    {
+      "id": "CO 40 Feranas Full L2 Male",
+      "label": "CO  40  Feranas Full L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Full L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "denser swirling tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "full torso, pecs and outer thighs (centered, symmetrical)"
+      },
+      "description": "Mirrored tribal scrolls and hooked curls weave densely across the pecs, belly, flanks and outer thighs, with extra interlocking whorls filling the negative space between the main sweeps. Pure ornament throughout."
+    },
+    {
+      "id": "CO 40 Feranas Full L3 Male",
+      "label": "CO  40  Feranas Full L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Full L3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled tribal scrollwork accents",
+        "style": "dotted-line curl highlights",
+        "placement": "full torso, pecs and outer thighs (centered, symmetrical)"
+      },
+      "description": "Thin dotted-line whorls and small curl accents trace along the pecs, ribs, belly and outer thighs as a delicate highlight layer. Subtle stipple ornament with no solid fills."
+    },
+    {
+      "id": "CO 40 Feranas Left Arm L1 Male",
+      "label": "CO  40  Feranas Left Arm L 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Arm L1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "asymmetric tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "upper torso (left shoulder / pec area)"
+      },
+      "description": "Hooked curls and flowing scrolls fill one upper shoulder and pec, with sweeps pulling inward toward the sternum. Solid ornamental whorls with curl-tipped endings, no figural element."
+    },
+    {
+      "id": "CO 40 Feranas Left Arm L2 Male",
+      "label": "CO  40  Feranas Left Arm L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Arm L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "denser asymmetric tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "upper torso (left shoulder / pec area)"
+      },
+      "description": "Tighter interlocking whorls and hooked curls weave across one upper shoulder and pec, layering in extra ornament between the base sweeps. Solid ornamental linework with curl-tipped endings."
+    },
+    {
+      "id": "CO 40 Feranas Left Arm L3 Male",
+      "label": "CO  40  Feranas Left Arm L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Arm L3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled scrollwork accents",
+        "style": "dotted-line curl highlights",
+        "placement": "upper torso (left shoulder / pec area)"
+      },
+      "description": "Thin dotted whorls and small curl accents drift across one upper shoulder and pec as a delicate stippled highlight layer. Subtle ornament with no solid fills."
+    },
+    {
+      "id": "CO 40 Feranas Right Arm L1 Male",
+      "label": "CO  40  Feranas Right Arm L 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Arm L1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "asymmetric tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "upper torso (right shoulder / pec area)"
+      },
+      "description": "Hooked curls and flowing scrollwork fill one upper shoulder and pec with inward-sweeping ornamental whorls. Solid linework with curl-tip terminations."
+    },
+    {
+      "id": "CO 40 Feranas Right Arm L2 Male",
+      "label": "CO  40  Feranas Right Arm L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Arm L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "denser asymmetric tribal scrollwork",
+        "style": "elven curl-tip blackwork",
+        "placement": "upper torso (right shoulder / pec area)"
+      },
+      "description": "Dense interlocking hooked curls and ornamental scrolls weave across one upper shoulder and pec, layering extra whorls between the base sweeps. Solid blackwork ornament."
+    },
+    {
+      "id": "CO 40 Feranas Right Arm L3 Male",
+      "label": "CO  40  Feranas Right Arm L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Arm L3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled scrollwork accents",
+        "style": "dotted-line curl highlights",
+        "placement": "upper torso (right shoulder / pec area)"
+      },
+      "description": "Dotted whorls and small curl accents trace lightly across one upper shoulder and pec as a delicate stippled highlight layer. Subtle ornament throughout."
+    },
+    {
+      "id": "CO 40 Feranas Left Leg L1 Male",
+      "label": "CO  40  Feranas Left Leg L 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Leg L1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal scrollwork band",
+        "style": "elven curl-tip blackwork",
+        "placement": "outer hip and thigh (one side)"
+      },
+      "description": "Hooked curls and tribal scrolls form a flowing band across one outer hip and upper thigh, with a small accent curl on the lower belly. Solid ornamental linework throughout."
+    },
+    {
+      "id": "CO 40 Feranas Left Leg L2 Male",
+      "label": "CO  40  Feranas Left Leg L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Leg L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "denser scrollwork hip band",
+        "style": "elven curl-tip blackwork",
+        "placement": "outer hip and thigh (one side)"
+      },
+      "description": "Densely packed hooked curls and ornamental scrolls cover one outer hip and upper thigh, with extra whorls filling between the base sweeps. Solid blackwork curl-band ornament."
+    },
+    {
+      "id": "CO 40 Feranas Left Leg L3 Male",
+      "label": "CO  40  Feranas Left Leg L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Left Leg L3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled scrollwork hip accents",
+        "style": "dotted-line curl highlights",
+        "placement": "outer hip and thigh (one side)"
+      },
+      "description": "Thin dotted whorls and small curl accents trace along one outer hip and upper thigh as a subtle stippled highlight layer. No solid fills."
+    },
+    {
+      "id": "CO 40 Feranas Right Leg L1 Male",
+      "label": "CO  40  Feranas Right Leg L 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal scrollwork band",
+        "style": "elven curl-tip blackwork",
+        "placement": "outer hip and thigh (opposite side)"
+      },
+      "description": "Hooked curls and tribal scrolls flow across one outer hip and upper thigh, with a small flame-curl accent on the lower torso. Solid ornamental linework."
+    },
+    {
+      "id": "CO 40 Feranas Right Leg L2 Male",
+      "label": "CO  40  Feranas Right Leg L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "denser scrollwork hip band",
+        "style": "elven curl-tip blackwork",
+        "placement": "outer hip and thigh (opposite side)"
+      },
+      "description": "Dense interlocking hooked curls and ornamental scrolls cover one outer hip and upper thigh, with extra whorls filling the negative spaces. Solid curl-band blackwork."
+    },
+    {
+      "id": "CO 40 Feranas Right Leg L3 Male",
+      "label": "CO  40  Feranas Right Leg L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled scrollwork hip accents",
+        "style": "dotted-line curl highlights",
+        "placement": "outer hip and thigh (opposite side)"
+      },
+      "description": "Thin dotted whorls and small curl accents trace lightly across one outer hip and upper thigh as a subtle stippled highlight layer. No solid fills."
+    },
+    {
+      "id": "CO 41 Indrik Body Base Male",
+      "label": "CO  41  Indrik Body Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\41 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dense feather-scale pattern",
+        "style": "interlocking eye-scale repeats",
+        "placement": "full torso, pecs and pelvis (centered, symmetrical)"
+      },
+      "description": "Tightly tiled feather-scales blanket the chest, abdomen and pelvis as overlapping teardrop eyes, evoking an animal pelt or peacock plumage. Solid repeating pattern, no figural subject."
+    },
+    {
+      "id": "CO 41 Indrik Body Highlights Male",
+      "label": "CO  41  Indrik Body Highlights Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\41 Body L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "feather-scale outline highlights",
+        "style": "fine outlined eye-scale repeats",
+        "placement": "full torso, pecs and pelvis (centered, symmetrical)"
+      },
+      "description": "Dense feather-scale repeats rendered only as fine outlined eyes across the chest, abdomen and pelvis. The whole field reads as a wireframe pelt with no solid black fill."
+    },
+    {
+      "id": "CO 42 Stripes Body Male",
+      "label": "CO  42  Stripes Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\42 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "animal tiger stripes",
+        "style": "thick irregular black bands",
+        "placement": "full torso and thighs (symmetrical)"
+      },
+      "description": "Thick irregular vertical black bands sweep across the chest, ribs, pelvis and thighs in a tiger-stripe pattern. Stripe widths vary and curl naturally like animal fur markings."
+    },
+    {
+      "id": "CO 43 Natura Body Base Male",
+      "label": "CO  43  Natura Body Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized horned beast skull or mask",
+        "style": "heavy organic blackwork",
+        "placement": "full torso (centered, symmetrical)"
+      },
+      "description": "A solid black horned beast-mask with a hollow eye motif sprawls down the chest and belly, surrounded by flame-like fingers and tendrils reaching outward. The whole torso is consumed by the continuous organic silhouette."
+    },
+    {
+      "id": "CO 43 Natura Body L2 Male",
+      "label": "CO  43  Natura Body L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "fragmented beast-mask outline",
+        "style": "broken organic shapes",
+        "placement": "full torso (centered, symmetrical)"
+      },
+      "description": "The horned beast-mask composition shown as broken fragments scattered across the chest and belly. Pieces of horns, eye and flame-tendrils sit as disconnected solid islands across the torso."
+    },
+    {
+      "id": "CO 43 Natura Body L3 Male",
+      "label": "CO  43  Natura Body L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body L3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "skeletal vines and spiny stems",
+        "style": "fine stippled organic accents",
+        "placement": "full torso and pelvis (scattered, symmetrical)"
+      },
+      "description": "Stippled skeletal vines, spiny stems and small fern shoots scatter across the chest, ribs and pelvis as delicate outlined fragments. Reads as a fine accent overlay of bone-leaf shapes."
+    },
+    {
+      "id": "CO 44 Vampirias Body Male",
+      "label": "CO  44  Vampirias Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\44 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "thorned bat-wing crest",
+        "style": "gothic spiked blackwork",
+        "placement": "upper chest, sternum and lower belly (centered, symmetrical)"
+      },
+      "description": "A tall spiked bat-wing crest descends from the throat down the sternum, with flanking thorned wings sweeping across the pecs and a smaller fanged motif at the lower belly. Sharp gothic blackwork with jagged serrated edges throughout."
+    },
+    {
+      "id": "CO 44 Vampirias Body L2 Male",
+      "label": "CO  44  Vampirias Body L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\44 Body L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "trickling drip lines",
+        "style": "thin brushed strokes",
+        "placement": "torso and outer thighs (symmetrical, vertical drips)"
+      },
+      "description": "Thin curling vertical drips run down the chest, ribs and outer thighs like trickles of blood or ink. Loose brushy strokes scattered irregularly for an organic dripping look."
+    },
+    {
+      "id": "CO 45 Occultis Triagis Body Male",
+      "label": "CO  45  Occultis Triagis Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\45 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "four-pointed star cross with occult panels",
+        "style": "intricate dot-and-line filigree",
+        "placement": "upper torso, pecs and lower belly (centered)"
+      },
+      "description": "A four-armed pennant-cross sprawls across the chest and ribs, with each pennant packed with dot-and-line filigree and small eye sigils. A smaller version sits on the lower belly, all rendered as fine intricate occult panels."
+    },
+    {
+      "id": "CO 46 High Kraisas Body Male",
+      "label": "CO  46  High Kraisas Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\46 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal serpent or beast crest",
+        "style": "flowing tribal blackwork",
+        "placement": "full torso, pecs and outer thighs (centered, symmetrical)"
+      },
+      "description": "A mirrored tribal crest spreads across the chest with wing-blade fans, narrowing through the ribs to a fanged beast-face at the navel. Flame-like sweeps wrap the pecs and outer thighs in solid black ornament."
+    },
+    {
+      "id": "CO 47 Lizal Tribe Body Male",
+      "label": "CO  47  Lizal Tribe Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\47 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal stamp patterns and totems",
+        "style": "rough cuneiform blockwork",
+        "placement": "full torso, pecs and outer thighs (centered, symmetrical)"
+      },
+      "description": "Dense fields of small angular stamp-shapes form tribal totems and grids across the pecs, belly, hips and outer thighs. Reads like primitive carved cuneiform marks repeated for tribal scarification."
+    },
+    {
+      "id": "CO 48 Faeri Body Base Male",
+      "label": "CO  48  Faeri Body Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\48 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "delicate vine ornament accents",
+        "style": "fine curling linework",
+        "placement": "shoulders, upper chest and outer thighs (scattered, symmetrical)"
+      },
+      "description": "Fine curling vine flourishes and small spiral fronds scatter across the shoulders, sternum and outer thighs. Thin airy linework with no solid fills, reading as delicate fae ornament."
+    },
+    {
+      "id": "CO 48 Faeri Body L2 Male",
+      "label": "CO  48  Faeri Body L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\48 Body L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tiny floral and curl accents",
+        "style": "fine spot ornament",
+        "placement": "throat, chest and pelvis (scattered, asymmetric)"
+      },
+      "description": "A few small detailed motifs — a citrus-slice, a snail-curl, a leafy spray and a stippled wing — sit at scattered points around the throat, chest and pelvis. Widely spaced like decorative beauty marks."
+    },
+    {
+      "id": "CO 49 Azaer Tribe Body Male",
+      "label": "CO  49  Azaer Tribe Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\49 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "mirrored maze-fill tribal crest",
+        "style": "labyrinthine line blackwork",
+        "placement": "full torso, pecs and outer thighs (centered, symmetrical)"
+      },
+      "description": "A mirrored tribal crest covers the chest in labyrinthine interlocking lines, with a beast-face at the navel and ribbon-fill spreading across the pecs and outer thighs. Every interior space is densely packed with maze-style fill."
+    },
+    {
+      "id": "CO 50 Kiraea Body Male",
+      "label": "CO  50  Kiraea Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\50 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "twin armored beast figures",
+        "style": "intricate filigree blackwork",
+        "placement": "full torso, pecs and outer thighs (centered, symmetrical)"
+      },
+      "description": "Two intricately patterned armored beast figures stand back to back across the chest, with smaller filigree creatures occupying the pecs, lower belly and outer thighs. Every figure is packed with detailed scrollwork and crest patterning."
+    },
+    {
+      "id": "CO Extra Vortex Arm Male",
+      "label": "CO Extra Vortex Arm Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Body Vortex M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "geometric truss-shaped emblem",
+        "style": "stippled fill geometric blackwork",
+        "placement": "upper arm (one side)"
+      },
+      "description": "A small wedge-shaped truss emblem sits on one upper arm, with a larger triangular truss panel and a smaller right-angle piece stacked below. Interiors filled with fine stipple, like a stylized angular bracket."
+    },
+    {
+      "id": "CO Extra Kraisas Primalis Body Male",
+      "label": "CO Extra Kraisas Primalis Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Body Kraisas M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal serpent or beast crest",
+        "style": "flowing tribal blackwork",
+        "placement": "full torso, pecs and outer thighs (centered, symmetrical)"
+      },
+      "description": "A mirrored tribal crest with wing-blade fans covers the chest, narrowing to a fanged beast-face at the navel, with flame-like ornament across the pecs and outer thighs. Heavy solid black tribal panels throughout."
+    },
+    {
+      "id": "CO Extra Trethasi Body Male",
+      "label": "CO Extra Trethasi Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Body Trethasi M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "armored beast totem panels",
+        "style": "ornate filigree blackwork",
+        "placement": "upper chest and lower belly (centered, symmetrical)"
+      },
+      "description": "An elaborate horned beast-totem panel sits on the upper chest with a fanged head and sharp wing-flange framing, paired with a second patterned panel on the lower belly. Small teardrop ornaments mark the hips, all in dense filigree blackwork."
+    }
+  ]
+}

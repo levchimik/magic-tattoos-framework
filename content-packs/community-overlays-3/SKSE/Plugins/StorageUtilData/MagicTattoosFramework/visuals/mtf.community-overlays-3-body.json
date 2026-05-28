@@ -1,0 +1,1388 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.community-overlays-3-body",
+  "label": "Community Overlays 3 (Body)",
+  "area": "Body",
+  "entries": [
+    {
+      "id": "CO 61 Converus Chest",
+      "label": "CO  61  Converus Chest",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\61 Body Chest O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "crowned tribal sigil with crossed spears",
+        "style": "heavy black tribal blackwork",
+        "placement": "upper chest (sternum, centered)"
+      },
+      "description": "A symmetrical heraldic emblem built around a tall central spear and crown of curling horns, flanked by long curved claw-like blades sweeping outward. The composition reads like a high tribal crest with a downward-pointing dagger tip at the bottom and pronged barbs at the top."
+    },
+    {
+      "id": "CO 61 Converus Back",
+      "label": "CO  61  Converus Back",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\61 Body Back O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "crowned tribal sigil with crossed spears",
+        "style": "heavy black tribal blackwork",
+        "placement": "back (upper spine, centered)"
+      },
+      "description": "The same heraldic emblem rendered as a vertical crest: paired curving blades flare out from a central pillar that ends in a barbed dagger point. Spiraling filigree fills the inner panels and a small crown sits above the central spear."
+    },
+    {
+      "id": "CO 61 Converus Belly",
+      "label": "CO  61  Converus Belly",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\61 Body Belly O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "crowned crest with tendrils and dagger",
+        "style": "ornate tribal blackwork",
+        "placement": "lower abdomen (pubic, centered)"
+      },
+      "description": "A dense vertical crest with a flowering crown of tendrils up top, twin hooked horns curling outward, and a long pointed dagger spine running down the middle. Two scrolling hooks anchor the lower edge like serif feet."
+    },
+    {
+      "id": "CO 61 Converus Arm",
+      "label": "CO  61  Converus Arm",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\61 Body Arm O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal blade-and-feather scrollwork",
+        "style": "tribal blackwork",
+        "placement": "upper arm (right side, on the outer biceps)"
+      },
+      "description": "A single asymmetric tribal piece shaped like a curved feathered blade, with sharp jagged tendrils flowing diagonally across the upper arm. Spiked petal forms and curling whorls fill the interior with no clear figural subject."
+    },
+    {
+      "id": "CO 64 Zuly Lotus Spine",
+      "label": "CO  64  Zuly Lotus Spine",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\64 Body Spine O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "lotus and ornate stem",
+        "style": "ornamental linework with curls",
+        "placement": "back centerline (spine, centered)"
+      },
+      "description": "An upright lotus blossom crowns a long vertical stem filled with curling vine knots, teardrop chambers, and small spiral medallions. The bottom finial tapers to a pointed almond shape resembling a hanging seed."
+    },
+    {
+      "id": "CO 64 Zuly Lotus Spine Alt",
+      "label": "CO  64  Zuly Lotus Spine Alt",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\64 Body Spine Alt O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "minimal lotus on a beaded stem",
+        "style": "simple line geometry",
+        "placement": "back centerline (spine, centered)"
+      },
+      "description": "A simplified version of the lotus motif: a small open blossom sits at the top above a vertical chain of geometric beads, diamonds, and a single ring, ending in an arrowhead pointing downward. The whole piece reads like a stylized totem or spinal marker."
+    },
+    {
+      "id": "CO Extra Body Runes Friend",
+      "label": "CO Extra Body Runes Friend",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Body Runes Friend O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized angular glyphs",
+        "style": "bold sketched runes",
+        "placement": "upper chest (sternum, centered)"
+      },
+      "description": "A short cluster of jagged hand-drawn glyph marks shaped like zigzags, triangles, and a stick figure. The strokes are coarse and brush-like, suggesting a chalked or smeared message."
+    },
+    {
+      "id": "CO 51 Nexregiant Body Female",
+      "label": "CO  51  Nexregiant Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full-body symmetrical bestial figure",
+        "style": "dense tribal blackwork",
+        "placement": "torso and limbs (front and back, full coverage)"
+      },
+      "description": "A sprawling symmetric pattern covers torso, sides, hips, and reaches up onto the shoulders, with a winged, horned beast silhouette dominating the center. Branching flame-like tendrils and curling whorls run down both flanks and along the thighs."
+    },
+    {
+      "id": "CO 51 Nexregiant Body Sides Female",
+      "label": "CO  51  Nexregiant Body Sides Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Body Sides F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "lateral tribal beast wing panels",
+        "style": "dense tribal blackwork",
+        "placement": "lateral torso (left and right sides, ribs and hips)"
+      },
+      "description": "Twin matching panels of swirling tribal blackwork sweep down each flank from underarm to hip, with stylized wing or claw shapes anchoring the ribs. The shoulder caps and outer thighs are also dappled with the same dark pattern."
+    },
+    {
+      "id": "CO 51 Nexregiant Body Torso Female",
+      "label": "CO  51  Nexregiant Body Torso Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Body Torso F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stacked tribal masks",
+        "style": "dense tribal blackwork",
+        "placement": "front torso (sternum to lower abdomen, centered)"
+      },
+      "description": "A vertical column of two tribal-mask shapes runs from the upper chest down to the pelvis, the upper one with crown-like prongs and the lower with horn curls and dripping flames. The composition is strictly mirrored along the centerline."
+    },
+    {
+      "id": "CO 52 Faedis Body Female",
+      "label": "CO  52  Faedis Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\52 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "solid silhouette stockings and arm wraps",
+        "style": "smooth gradient blackwork",
+        "placement": "arms (forearms and hands), legs (thighs and feet), waist band"
+      },
+      "description": "Solid black gradient shapes form opera-style arm coverings from elbow to fingertips, a sash or corset band wrapping the waist, and thigh-high stocking silhouettes ending mid-thigh. The fills are soft-edged rather than detailed."
+    },
+    {
+      "id": "CO 53 Ziva Body Female",
+      "label": "CO  53  Ziva Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\53 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "fine tribal scrollwork across torso and arms",
+        "style": "thin-line tribal",
+        "placement": "shoulders, upper chest, ribs, hips, thighs (front and back)"
+      },
+      "description": "A delicate web of fine-line tribal scrolls spreads across both shoulders and chest, with separate panels of curling whorls on the ribs, hips, and outer thighs. Small spirals and bird-like flourishes punctuate the wider tracery."
+    },
+    {
+      "id": "CO 54 Do'Tive Body Base Female",
+      "label": "CO  54  Do'Tive Body Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\54 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted contour lines and concentric spirals",
+        "style": "stippled dot-work outline",
+        "placement": "shoulders, ribs, hips, thighs (broad coverage)"
+      },
+      "description": "An expansive dot-work pattern of sweeping curved contours covers the upper body and thighs, punctuated by a pair of small concentric spirals on the lower belly. The look is closer to a tribal map of dotted river-lines than figural artwork."
+    },
+    {
+      "id": "CO 54 Do'Tive Body Secondary Female",
+      "label": "CO  54  Do'Tive Body Secondary Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\54 Body L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single small curved mark",
+        "style": "minimal brush stroke",
+        "placement": "lower abdomen (pubic, centered)"
+      },
+      "description": "A tiny curved crescent or smile-shaped stroke sits low on the belly just above the pubic area. The mark is solitary and minimal, almost like a hand-drawn signature glyph."
+    },
+    {
+      "id": "CO 54 Do'Tive Body Tertiary Female",
+      "label": "CO  54  Do'Tive Body Tertiary Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\54 Body L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "swirling chain ornaments",
+        "style": "fine looped beading",
+        "placement": "shoulders, upper chest, ribs, hips (broad coverage)"
+      },
+      "description": "Long flowing ropes of tiny circular bead links form arcing curls and spirals that drape across the chest, ribs, and hips. The effect resembles delicate strands of pearls coiled and twisted into ornamental swags."
+    },
+    {
+      "id": "CO 55 Locke Belly Female",
+      "label": "CO  55  Locke Belly Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\55 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small knotted heraldic crest",
+        "style": "fine outlined ornament",
+        "placement": "lower abdomen (pubic, centered)"
+      },
+      "description": "A petite shield-like crest sits centered just above the pubic mound, formed by interlaced loops with two pointed wings flaring left and right and a small downward spike. Pure outline, no fill."
+    },
+    {
+      "id": "CO 55 Locke Belly Alt Female",
+      "label": "CO  55  Locke Belly Alt Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\55 Body Alt F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged knot crest variant",
+        "style": "fine outlined ornament",
+        "placement": "lower abdomen (pubic, centered)"
+      },
+      "description": "A slimmer variant of the heraldic knot: three interlaced loops stack into a diamond above a downward arrow, with two horizontal wings tipped by small dots. The piece sits low and centered, framed as a stamped seal."
+    },
+    {
+      "id": "CO 56 Smoke Bones Body Base Female",
+      "label": "CO  56  Smoke Bones Body Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full skeletal anatomy",
+        "style": "black silhouette skeleton",
+        "placement": "torso, arms, hands, legs (full skeletal overlay)"
+      },
+      "description": "A complete silhouetted skeleton aligned to the body: rib cage and sternum across the chest, pelvis across the hips, arm bones spread out wide, leg bones on the thighs, and detailed hand and foot skeletons on the wrist and ankle regions. The bones read as solid black plates with carved interior detailing."
+    },
+    {
+      "id": "CO 56 Smoke Bones Body Base Alt Female",
+      "label": "CO  56  Smoke Bones Body Base Alt Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Alt F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full skeletal anatomy variant",
+        "style": "black silhouette skeleton",
+        "placement": "torso, arms, hands, legs (full skeletal overlay)"
+      },
+      "description": "Alternate cut of the same silhouetted skeleton, with rib cage, sternum, pelvis, arm and leg bones, plus hand and foot skeletons all mapped to the matching anatomy. The bones are rendered as flat black shapes with notched interior lines."
+    },
+    {
+      "id": "CO 56 Smoke Bones Body Tribal L1 Female",
+      "label": "CO  56  Smoke Bones Body Tribal L 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Tribal F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "bone fragments and tribal accents",
+        "style": "rough brushed tribal",
+        "placement": "shoulders, chest, ribs, hips, thighs (scattered)"
+      },
+      "description": "A scattered field of stylized bone shards, claw marks, and short brushed dashes crosses the torso and limbs without forming a single figure. Small sunburst rosettes appear at the hips and a couple of clawed accents anchor the underarms."
+    },
+    {
+      "id": "CO 56 Smoke Bones Body Tribal L1 Alt Female",
+      "label": "CO  56  Smoke Bones Body Tribal L 1  Alt Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Tribal Alt F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "bone fragments and tribal accents",
+        "style": "rough brushed tribal",
+        "placement": "shoulders, chest, ribs, hips, thighs (scattered)"
+      },
+      "description": "Variant cut of the bone-shard pattern: rough brushed claw fragments, broken rib stripes, and small sunburst rosettes scatter across the shoulders, ribs, and hips. Reads as battle-scarred tribal accenting rather than a unified figure."
+    },
+    {
+      "id": "CO 56 Smoke Bones Body Tribal L2 Female",
+      "label": "CO  56  Smoke Bones Body Tribal L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Tribal 2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "minimalist bone-mark accents",
+        "style": "small brush dashes",
+        "placement": "shoulders, sternum, ribs, thighs (scattered)"
+      },
+      "description": "A much sparser variant featuring tiny brushed bone shards and crescent dashes scattered along the shoulders, sternum, hip bones, and outer thighs. The marks read like ritual ash strokes rather than a continuous design."
+    },
+    {
+      "id": "CO 57 Egyptaris Body Female",
+      "label": "CO  57  Egyptaris Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged solar disc with feathered borders",
+        "style": "ancient hieroglyphic tribal",
+        "placement": "lower abdomen / pubic region, with feathered borders along ribs and inner thighs"
+      },
+      "description": "A large circular medallion ringed with detailed inner glyphs sits low on the belly, with two outstretched feathered wings curling out toward the hips. Smaller bands of triangular hieroglyph-style strokes border the ribs and inner thighs, with a sun-curve crowning the lower belly."
+    },
+    {
+      "id": "CO 57 Egyptaris Breast Female",
+      "label": "CO  57  Egyptaris Breast Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Body B F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spider-like crawling glyph",
+        "style": "thick black ink",
+        "placement": "chest / over breasts (one mark per breast, mirrored)"
+      },
+      "description": "Two heavy black spider-like figures, each with a round body and several thick crawling legs, sit one over each breast. The stencil reads as a stamped insect or arcane glyph rather than an anatomical creature."
+    },
+    {
+      "id": "CO 58 Quake Body Female",
+      "label": "CO  58  Quake Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\58 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "cracked stone texture in a humanoid silhouette",
+        "style": "fractured mosaic blackwork",
+        "placement": "front torso (chest, ribs, abdomen, hips, slightly off-center)"
+      },
+      "description": "A large vaguely humanoid silhouette spreads down the front of the torso, filled entirely with a cracked-stone or shattered-tile mosaic pattern. The piece reads as living rock or basalt veining cracking across the body's centerline."
+    },
+    {
+      "id": "CO 58 Aquasar Body Female",
+      "label": "CO  58  Aquasar Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\58 Body Secondary F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized flowing water with eyes",
+        "style": "dense black brushwork with negative-space whorls",
+        "placement": "left side of torso, ribs, and hip"
+      },
+      "description": "A large black mass cascades down the left side of the body filled with curling whorls and small ringed eyes carved out as negative space. The overall silhouette suggests pouring water or smoke clinging to one flank."
+    },
+    {
+      "id": "CO 59 Gears Body Female",
+      "label": "CO  59  Gears Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\59 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered cogs, gears, and spirals",
+        "style": "small mechanical motifs",
+        "placement": "shoulders, sternum, ribs, hips, thighs (scattered)"
+      },
+      "description": "A loose constellation of small toothed gears, concentric cogs, and tight spirals scatters across the torso and outer thighs. Each piece is its own little machine fragment, with no connecting linework between them."
+    },
+    {
+      "id": "CO 60 Trialis Body Female",
+      "label": "CO  60  Trialis Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\60 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single tribal mask panel",
+        "style": "dense tribal blackwork",
+        "placement": "left chest / over left breast"
+      },
+      "description": "A single irregular blob of dense tribal blackwork sits over the left breast, filled with swirling whorls, eye-like curls, and pointed horn shapes. The silhouette reads as a tribal mask draped sideways across the chest."
+    },
+    {
+      "id": "CO 60 Trialis Lupus Body Female",
+      "label": "CO  60  Trialis Lupus Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\60 Body Alt F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal wolf-like mask panel",
+        "style": "dense tribal blackwork",
+        "placement": "left chest / over left breast"
+      },
+      "description": "A larger version of the tribal mask panel covers the left breast and extends slightly toward the sternum, with curling whorls and snarling muzzle-like shapes embedded in the silhouette. Hints of fanged teeth and ears appear in the negative space."
+    },
+    {
+      "id": "CO 62 Blood Curse Body Female",
+      "label": "CO  62  Blood Curse Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\62 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "branching cracked veins",
+        "style": "thin organic veining",
+        "placement": "shoulders, chest, ribs, abdomen, hips, thighs (scattered)"
+      },
+      "description": "A network of thin branching cracks spreads across the torso and limbs like dried-out veins or splintered glass. The lines start thicker near the joints and taper to tiny capillary tips."
+    },
+    {
+      "id": "CO 63 Saervasi Body Female",
+      "label": "CO  63  Saervasi Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered serpent and feather tribal motifs",
+        "style": "ornate paisley tribal",
+        "placement": "upper chest, ribs, hips (multiple scattered patches)"
+      },
+      "description": "Several distinct ornate tribal medallions sit across the chest and ribs, including paisley swirls, a coiled serpent shape, and small clawed-feather motifs at the hips. Each patch is its own self-contained design rather than a continuous pattern."
+    },
+    {
+      "id": "CO 63 Saervasi Left Arm Female",
+      "label": "CO  63  Saervasi Left Arm Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body L Arm F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "coiled serpent paisley cluster",
+        "style": "ornate paisley tribal",
+        "placement": "upper arm (left side, on the outer biceps)"
+      },
+      "description": "A dense paisley arrangement of curling serpent coils and decorated scales wraps the outer left biceps. A long hooked tail trails downward beneath a rectangular paneled core."
+    },
+    {
+      "id": "CO 63 Saervasi Right Arm Female",
+      "label": "CO  63  Saervasi Right Arm Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body R Arm F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "coiled serpent paisley cluster",
+        "style": "ornate paisley tribal",
+        "placement": "upper arm (right side, on the outer biceps)"
+      },
+      "description": "A coiled serpent figure with a triangular eye-shaped head dominates the right biceps, surrounded by paisley swirls and dotted scale patterns. The body trails into a curving tail with small flourishes."
+    },
+    {
+      "id": "CO 63 Saervasi Left Side Female",
+      "label": "CO  63  Saervasi Left Side Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body L Side F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small paisley creature panels",
+        "style": "ornate paisley tribal",
+        "placement": "left flank (upper rib and hip)"
+      },
+      "description": "Two small paisley-styled creature motifs sit along the left flank, one near the upper ribs and the other on the hip. Each combines a curling tail with patterned dot-filled scales."
+    },
+    {
+      "id": "CO 63 Saervasi Right Side Female",
+      "label": "CO  63  Saervasi Right Side Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body R Side F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small paisley creature panels",
+        "style": "ornate paisley tribal",
+        "placement": "right flank (upper rib and hip)"
+      },
+      "description": "Mirror flank pieces on the right side: a small ornate beast on the upper ribs and a second on the hip, both rendered with curling tails and scale-dot interiors. The composition reads as territorial markings rather than a single creature."
+    },
+    {
+      "id": "CO 63 Saervasi Back Female",
+      "label": "CO  63  Saervasi Back Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body Back F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "vertical totem with central eye",
+        "style": "ornate paisley tribal",
+        "placement": "back centerline (spine, upper back)"
+      },
+      "description": "A tall vertical totem runs down the upper spine, made of stacked geometric panels with a large central eye-disc and bristling pronged crown above. Small dots and dashes line the outer edges."
+    },
+    {
+      "id": "CO 64 Zuly Lotus Body Female",
+      "label": "CO  64  Zuly Lotus Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\64 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filigree wings flanking a central sprig",
+        "style": "delicate scrollwork filigree",
+        "placement": "shoulders, chest, ribs, lower abdomen (front coverage)"
+      },
+      "description": "Twin filigree wings of leafy scrollwork drape from the shoulders down the chest, with a small upright sprig rising up the sternum. A larger bouquet of curling tendrils sits centered low on the belly."
+    },
+    {
+      "id": "CO 65 Flora Iter Body Female",
+      "label": "CO  65  Flora Iter Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\65 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate paisley sash with tiered belt",
+        "style": "Polynesian tribal paisley",
+        "placement": "left side wraparound (left chest, left ribs, left thigh)"
+      },
+      "description": "A bold paisley sash wraps the left half of the body, dropping from the left chest across the ribs down to the left thigh, with a wide horizontal beaded band running along the bottom of the rib panel. The interior is packed with curling spirals and patterned petal shapes."
+    },
+    {
+      "id": "CO 66 Aquadynamis Body Female",
+      "label": "CO  66  Aquadynamis Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\66 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "flowing flame and water tribal sprawl",
+        "style": "ornate calligraphic tribal",
+        "placement": "shoulders, chest, ribs, lower abdomen, thighs (full torso coverage)"
+      },
+      "description": "A symmetric tribal pattern of curling flame-like blades fans down from the shoulders, frames the breasts, and converges on the lower belly with a small skull-shaped emblem. Additional curling motifs trail down the outer thighs."
+    },
+    {
+      "id": "CO 67 Dark Ritual Body Female",
+      "label": "CO  67  Dark Ritual Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\67 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate cross with banded sash",
+        "style": "engraved gothic linework",
+        "placement": "upper chest (between collarbones, centered) with a separate sash across lower abdomen"
+      },
+      "description": "An ornate cross-shaped emblem with leafy filigree arms sits high on the sternum, its central spine running down between the breasts. A narrower horizontal sash with matching filigree spans the lower belly, ending in a small spider-like pendant."
+    },
+    {
+      "id": "CO 67 Dark Ritual Body Runes Female",
+      "label": "CO  67  Dark Ritual Body Runes Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\67 Body Runes F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "columns of runic inscription",
+        "style": "small hand-written runes",
+        "placement": "upper chest, collarbones, sides, lower abdomen (scattered runic bands)"
+      },
+      "description": "Long vertical and horizontal lines of small angular rune-glyphs run across the collarbones, down both sides of the breasts, and along the lower belly. The script is dense, narrow, and reads as columns of ritual inscription rather than figural art."
+    },
+    {
+      "id": "CO 67 Dark Ritual Body Runes Extra Female",
+      "label": "CO  67  Dark Ritual Body Runes Extra Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\67 Body Runes Limbs F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "framing bands of runic inscription",
+        "style": "small hand-written runes",
+        "placement": "sides of torso (running vertically along ribs) and bottom of belly"
+      },
+      "description": "Two thin vertical columns of small rune-glyphs run down the outer ribs, with two horizontal lines of the same script tracing the lower belly. The script is the supporting frame to a larger ritual layout rather than a complete pattern on its own."
+    },
+    {
+      "id": "CO 67 Dark Ritual Body Limbs Female",
+      "label": "CO  67  Dark Ritual Body Limbs Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\67 Body Limbs F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "engraved arm bands and chest sash",
+        "style": "engraved gothic linework",
+        "placement": "upper arms (both sides, descending from shoulder to elbow) and lower chest band"
+      },
+      "description": "Two long vertical engraved sleeves run down the outer upper arms, filled with carved tribal interiors. A second horizontal engraved band wraps the body just below the breasts."
+    },
+    {
+      "id": "CO 67 Dark Ritual Body Torso Female",
+      "label": "CO  67  Dark Ritual Body Torso Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\67 Body Torso F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate cross emblem with belt",
+        "style": "engraved gothic linework",
+        "placement": "upper chest (centered) and lower abdomen band"
+      },
+      "description": "A tall ornate cross with filigree crossbars and a pointed downward dagger sits centered between the collarbones. A second narrow filigree band wraps the lower belly with a small inverted crest pendant."
+    },
+    {
+      "id": "CO 68 Brimflame Body Female",
+      "label": "CO  68  Brimflame Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\68 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "wreathing flames across torso and limbs",
+        "style": "jagged flame silhouette",
+        "placement": "shoulders, chest, ribs, hips, thighs (broad coverage)"
+      },
+      "description": "Curling flame silhouettes sweep across both shoulders, down the chest, around the breasts, and across the hips and outer thighs, with smaller licks rising up the sternum. The whole body looks wrapped in stylized fire."
+    },
+    {
+      "id": "CO 69 Fallen Fury Body Female",
+      "label": "CO  69  Fallen Fury Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\69 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "wing-shaped tribal panels with central skull",
+        "style": "ornate symmetrical tribal blackwork",
+        "placement": "shoulders, chest, ribs, abdomen, hips (heavy front coverage)"
+      },
+      "description": "Two large pointed wing-shaped panels rise from the shoulders down across the chest and ribs, packed with dense tribal whorls. A central column of ornate motifs runs down the sternum, terminating in a small skull-and-flame emblem above the navel."
+    },
+    {
+      "id": "CO 70 Ancient Ward Body Female",
+      "label": "CO  70  Ancient Ward Body Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\70 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "circular ward with side glyph bars",
+        "style": "engraved geometric runes",
+        "placement": "upper chest (centered) with bracketed bars on outer ribs and waist"
+      },
+      "description": "A central circular medallion framed in engraved bands sits high on the sternum, flanked by two thick vertical 'I'-shaped bracket bars on the ribs. A matching horizontal glyph band wraps the waist below."
+    },
+    {
+      "id": "CO Extra Body Arcus Female",
+      "label": "CO Extra Body Arcus Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Body Arcus F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "wavy feathered crescents",
+        "style": "stippled brush curves",
+        "placement": "upper chest just below collarbones (horizontal band)"
+      },
+      "description": "A horizontal band of soft, wavy crescent shapes with feathery dashed edges arcs across the upper chest just below the collarbones. Small curl flourishes punctuate each end and tiny spiral accents bracket the corners."
+    },
+    {
+      "id": "CO Extra Body Argent Female",
+      "label": "CO Extra Body Argent Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Body Argent F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "vertical paisley sash down centerline",
+        "style": "Polynesian tribal paisley",
+        "placement": "front centerline (sternum to pubic, with arm and thigh flourishes)"
+      },
+      "description": "A long vertical paisley sash runs straight down the centerline from the upper chest to the pubic area, packed with curling spirals and decorated panels. Two narrow tribal cuffs flare out onto the upper arm and inner thigh as accents."
+    },
+    {
+      "id": "CO Extra Body Argent Leg Female",
+      "label": "CO Extra Body Argent Leg Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Body Argent Leg F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal hip and thigh accents",
+        "style": "smooth tribal blackwork",
+        "placement": "outer thighs (both sides) and a small mark near the upper spine"
+      },
+      "description": "Two solid, flame-shaped tribal silhouettes sit on the outer hips wrapping toward the front of the thighs. A small matching curl appears high on the upper back as a separate accent."
+    },
+    {
+      "id": "CO Extra Body Argent Alt Female",
+      "label": "CO Extra Body Argent Alt Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Body Argent Alt F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "vertical paisley sash down centerline (variant)",
+        "style": "Polynesian tribal paisley",
+        "placement": "front centerline (sternum to pubic, with arm and thigh flourishes)"
+      },
+      "description": "An alternate cut of the centerline paisley sash running from sternum to pubic, with the same dense curling spirals and small arm and thigh cuff accents. The interior detailing differs slightly but the overall column-down-the-front silhouette holds."
+    },
+    {
+      "id": "CO 51 Nexregiant Body Male",
+      "label": "CO  51  Nexregiant Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full-body symmetrical bestial figure",
+        "style": "dense tribal blackwork",
+        "placement": "torso and limbs (front and back, full coverage)"
+      },
+      "description": "A sprawling symmetric pattern covers chest, ribs, abdomen, hips, shoulders, and outer thighs, with a winged horned beast silhouette centered on the torso. Branching flame-like tendrils run down both flanks."
+    },
+    {
+      "id": "CO 51 Nexregiant Body Sides Male",
+      "label": "CO  51  Nexregiant Body Sides Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Body Sides M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "lateral tribal wing panels",
+        "style": "dense tribal blackwork",
+        "placement": "lateral torso (left and right sides, ribs and hips)"
+      },
+      "description": "Twin matching panels of swirling tribal blackwork run down each flank from the underarm to the hip, with wing or claw silhouettes anchoring the ribs. The shoulders and outer thighs carry the same dark fill."
+    },
+    {
+      "id": "CO 51 Nexregiant Body Torso Male",
+      "label": "CO  51  Nexregiant Body Torso Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Body Torso M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stacked tribal masks",
+        "style": "dense tribal blackwork",
+        "placement": "front torso (sternum to lower abdomen, centered)"
+      },
+      "description": "A vertical column of two tribal-mask shapes runs from the upper chest down to the pubic area, the upper with crown-like prongs and the lower with curling horns and dripping flame tendrils. The composition is strictly mirrored along the spine."
+    },
+    {
+      "id": "CO 52 Faedis Body Male",
+      "label": "CO  52  Faedis Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\52 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "solid silhouette stockings and arm wraps",
+        "style": "smooth gradient blackwork",
+        "placement": "arms (forearms and hands), legs (thighs and feet), waist band"
+      },
+      "description": "Solid black gradient shapes form arm coverings from elbow to fingertips, a wide sash wrapping the waist, and tall stocking silhouettes ending mid-thigh. The fills are soft-edged with no inner detail."
+    },
+    {
+      "id": "CO 53 Ziva Body Male",
+      "label": "CO  53  Ziva Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\53 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "fine tribal scrollwork across torso and arms",
+        "style": "thin-line tribal",
+        "placement": "shoulders, chest, ribs, hips, thighs (broad front coverage)"
+      },
+      "description": "A network of thin-line tribal scrolls fans out across the shoulders, sternum, and pectorals, with smaller ornate panels at the ribs, hips, and outer thighs. Tiny spirals and curling flourishes thread through the wider tracery."
+    },
+    {
+      "id": "CO 54 Do'Tive Body Base Male",
+      "label": "CO  54  Do'Tive Body Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\54 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted contour lines and concentric spirals",
+        "style": "stippled dot-work outline",
+        "placement": "shoulders, ribs, hips, thighs (broad coverage)"
+      },
+      "description": "Long sweeping curves drawn in tight dotted contour lines wrap the upper torso, ribs, and outer thighs, with a small concentric spiral marking the lower belly. The pattern reads as ritual scarification mapping rather than figural artwork."
+    },
+    {
+      "id": "CO 54 Do'Tive Body Secondary Male",
+      "label": "CO  54  Do'Tive Body Secondary Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\54 Body L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single small curved mark",
+        "style": "minimal brush stroke",
+        "placement": "lower abdomen (pubic, centered)"
+      },
+      "description": "A solitary crescent-shaped stroke sits low on the belly just above the pubic area. The mark stands alone as a small signature glyph."
+    },
+    {
+      "id": "CO 55 Locke Belly Male",
+      "label": "CO  55  Locke Belly Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\55 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small knotted heraldic crest",
+        "style": "fine outlined ornament",
+        "placement": "lower abdomen (pubic, centered)"
+      },
+      "description": "A petite shield-like crest sits centered low on the belly, formed by interlaced loops with two pointed wings flaring left and right and a small downward spike. The piece is pure outline."
+    },
+    {
+      "id": "CO 55 Locke Belly Alt Male",
+      "label": "CO  55  Locke Belly Alt Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\55 Body Alt M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged knot crest variant",
+        "style": "fine outlined ornament",
+        "placement": "lower abdomen (pubic, centered)"
+      },
+      "description": "An alternate winged knot variant: three small loops stack above a downward arrow with two short horizontal wings tipped by dots. The mark is small, centered, and reads as a stamped seal."
+    },
+    {
+      "id": "CO 56 Smoke Bones Body Base Male",
+      "label": "CO  56  Smoke Bones Body Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full skeletal anatomy",
+        "style": "black silhouette skeleton",
+        "placement": "torso, arms, hands, legs (full skeletal overlay)"
+      },
+      "description": "A complete silhouetted skeleton aligns to the body: rib cage across the chest, pelvis across the hips, full arm and leg bones, and detailed hand and foot bones at the wrists and ankles. The bones are flat black plates with carved interior lines."
+    },
+    {
+      "id": "CO 56 Smoke Bones Body Base Alt Male",
+      "label": "CO  56  Smoke Bones Body Base Alt Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Alt M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full skeletal anatomy variant",
+        "style": "black silhouette skeleton",
+        "placement": "torso, arms, hands, legs (full skeletal overlay)"
+      },
+      "description": "Alternate cut of the same silhouetted skeleton: rib cage, sternum, pelvis, arm and leg bones, and full hand and foot skeletons mapped to the matching anatomy. Bones read as solid black with notched detailing."
+    },
+    {
+      "id": "CO 56 Smoke Bones Body Tribal L1 Male",
+      "label": "CO  56  Smoke Bones Body Tribal L 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Tribal M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "bone fragments and tribal accents",
+        "style": "rough brushed tribal",
+        "placement": "shoulders, chest, ribs, hips, thighs (scattered)"
+      },
+      "description": "Brushed bone-shard motifs, broken rib stripes, and small sunburst rosettes scatter across the torso, ribs, hips, and outer thighs. The marks read as ritual battle-scarring rather than a unified figure."
+    },
+    {
+      "id": "CO 56 Smoke Bones Body Tribal L1 Alt Male",
+      "label": "CO  56  Smoke Bones Body Tribal L 1  Alt Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Tribal Alt M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "bone fragments and tribal accents",
+        "style": "rough brushed tribal",
+        "placement": "shoulders, chest, ribs, hips, thighs (scattered)"
+      },
+      "description": "Alternate variant of the bone-shard tribal pattern: rough brushed claw fragments, broken rib lines, and small sunburst rosettes spread across shoulders, ribs, and outer thighs. The composition is scattered rather than continuous."
+    },
+    {
+      "id": "CO 56 Smoke Bones Body Tribal L2 Male",
+      "label": "CO  56  Smoke Bones Body Tribal L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Tribal 2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "minimalist bone-mark accents",
+        "style": "small brush dashes",
+        "placement": "shoulders, sternum, ribs, hips, thighs (scattered)"
+      },
+      "description": "A sparser variant: tiny brushed bone shards and crescent dashes are scattered along the shoulders, sternum, hip bones, and outer thighs. Reads as ritual ash strokes rather than a single design."
+    },
+    {
+      "id": "CO 57 Egyptaris Body Male",
+      "label": "CO  57  Egyptaris Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged solar disc with feathered borders",
+        "style": "ancient hieroglyphic tribal",
+        "placement": "lower abdomen / pubic region with feathered borders along ribs and inner thighs"
+      },
+      "description": "A large circular medallion of inner glyphs sits low on the belly, with two outstretched feathered wings curling out toward the hips. Bands of triangular hieroglyph-style strokes border the ribs and inner thighs, with a sun-curve crowning the lower belly."
+    },
+    {
+      "id": "CO 58 Quake Body Male",
+      "label": "CO  58  Quake Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\58 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "cracked stone texture in a humanoid silhouette",
+        "style": "fractured mosaic blackwork",
+        "placement": "front torso (left chest, ribs, abdomen, hips, slightly off-center)"
+      },
+      "description": "A vaguely humanoid silhouette spreads down the left side of the front torso, filled with a cracked-stone or shattered-tile mosaic pattern. The figure reads like living rock veining splitting along one flank."
+    },
+    {
+      "id": "CO 58 Aquasar Body Male",
+      "label": "CO  58  Aquasar Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\58 Body Secondary M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized flowing water with eyes",
+        "style": "dense black brushwork with negative-space whorls",
+        "placement": "left side of torso, ribs, and hip"
+      },
+      "description": "A large black mass cascades down the left side of the body filled with curling whorls and small ringed eyes cut into negative space. The silhouette suggests pouring water or smoke clinging to one flank."
+    },
+    {
+      "id": "CO 59 Gears Body Male",
+      "label": "CO  59  Gears Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\59 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered cogs, gears, and spirals",
+        "style": "small mechanical motifs",
+        "placement": "shoulders, sternum, ribs, hips, thighs (scattered)"
+      },
+      "description": "A loose constellation of small toothed gears, concentric cogs, and tight spirals scatters across the chest, abdomen, hips, and outer thighs. Each piece is its own machine fragment with no connecting linework."
+    },
+    {
+      "id": "CO 60 Trialis Body Male",
+      "label": "CO  60  Trialis Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\60 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single tribal mask panel",
+        "style": "dense tribal blackwork",
+        "placement": "left chest / over left pectoral"
+      },
+      "description": "An irregular blob of dense tribal blackwork sits over the left pectoral, packed with swirling whorls, eye-like curls, and pointed horn shapes. The silhouette reads as a tribal mask draped sideways."
+    },
+    {
+      "id": "CO 60 Trialis Lupus Body Male",
+      "label": "CO  60  Trialis Lupus Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\60 Body Alt M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal wolf-like mask panel",
+        "style": "dense tribal blackwork",
+        "placement": "left chest / over left pectoral"
+      },
+      "description": "A larger mask-shaped panel covers the left pectoral, with curling whorls and snarling muzzle-like shapes embedded in the silhouette. Hints of fanged teeth and ears appear in the negative space."
+    },
+    {
+      "id": "CO 62 Blood Curse Body Male",
+      "label": "CO  62  Blood Curse Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\62 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "branching cracked veins",
+        "style": "thin organic veining",
+        "placement": "shoulders, chest, ribs, abdomen, hips, thighs (scattered)"
+      },
+      "description": "A network of thin branching cracks spreads across the torso and limbs like dried-out veins or splintered glass. The lines start thicker near the joints and taper to fine capillary tips."
+    },
+    {
+      "id": "CO 63 Saervasi Body Male",
+      "label": "CO  63  Saervasi Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered serpent and feather tribal motifs",
+        "style": "ornate paisley tribal",
+        "placement": "upper chest, ribs, hips (multiple scattered patches)"
+      },
+      "description": "Several ornate tribal medallions sit across the chest and ribs, including paisley swirls, a coiled serpent figure with a triangular eye-head, and small clawed-feather motifs at the hips. Each patch is self-contained."
+    },
+    {
+      "id": "CO 63 Saervasi Left Arm Male",
+      "label": "CO  63  Saervasi Left Arm Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body L Arm M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "coiled serpent paisley cluster",
+        "style": "ornate paisley tribal",
+        "placement": "upper arm (left side, on the outer biceps)"
+      },
+      "description": "A dense paisley arrangement of curling serpent coils and decorated scales wraps the outer left biceps. A long hooked tail trails downward from a rectangular paneled core."
+    },
+    {
+      "id": "CO 63 Saervasi Right Arm Male",
+      "label": "CO  63  Saervasi Right Arm Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body R Arm M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "coiled serpent paisley cluster",
+        "style": "ornate paisley tribal",
+        "placement": "upper arm (right side, on the outer biceps)"
+      },
+      "description": "A coiled serpent figure with a triangular eye-shaped head dominates the right biceps, surrounded by paisley swirls and dotted scale patterns. The body trails into a curving tail with small flourishes."
+    },
+    {
+      "id": "CO 63 Saervasi Left Side Male",
+      "label": "CO  63  Saervasi Left Side Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body L Side M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small paisley creature panels",
+        "style": "ornate paisley tribal",
+        "placement": "left flank (upper rib and hip)"
+      },
+      "description": "Two small paisley-styled creature motifs sit along the left flank, one near the upper ribs and the other on the hip, both with curling tails and patterned scale-dot interiors."
+    },
+    {
+      "id": "CO 63 Saervasi Right Side Male",
+      "label": "CO  63  Saervasi Right Side Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body R Side M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small paisley creature panels",
+        "style": "ornate paisley tribal",
+        "placement": "right flank (upper rib and hip)"
+      },
+      "description": "Mirror flank pieces on the right side: a small ornate beast on the upper ribs and a second on the hip, both rendered with curling tails and scale-dot interiors."
+    },
+    {
+      "id": "CO 63 Saervasi Back Male",
+      "label": "CO  63  Saervasi Back Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Body Back M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "vertical totem with central eye",
+        "style": "ornate paisley tribal",
+        "placement": "back centerline (spine, upper back)"
+      },
+      "description": "A tall vertical totem runs down the upper spine, made of stacked geometric panels topped by a bristling pronged crown. A large central eye-disc anchors the lower half."
+    },
+    {
+      "id": "CO 64 Zuly Lotus Body Male",
+      "label": "CO  64  Zuly Lotus Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\64 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filigree wings flanking a central sprig",
+        "style": "delicate scrollwork filigree",
+        "placement": "shoulders, chest, ribs, lower abdomen (front coverage)"
+      },
+      "description": "Twin filigree wings of leafy scrollwork drape from the shoulders down across the chest, with a small upright sprig rising up the sternum. A larger bouquet of curling tendrils sits low and centered on the belly."
+    },
+    {
+      "id": "CO 65 Flora Iter Body Male",
+      "label": "CO  65  Flora Iter Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\65 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate paisley sash with tiered belt",
+        "style": "Polynesian tribal paisley",
+        "placement": "left side wraparound (left chest, left ribs, left thigh)"
+      },
+      "description": "A bold paisley sash wraps the left half of the body, dropping from the left pectoral across the ribs to the left thigh, with a wide horizontal beaded band lining the bottom of the rib panel. The interior is packed with curling spirals and patterned petal shapes."
+    },
+    {
+      "id": "CO 66 Aquadynamis Body Male",
+      "label": "CO  66  Aquadynamis Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\66 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "flowing flame and water tribal sprawl",
+        "style": "ornate calligraphic tribal",
+        "placement": "shoulders, chest, ribs, abdomen, lower belly, thighs (full torso coverage)"
+      },
+      "description": "Symmetric curling flame-like blades fan down from the shoulders, frame the pectorals, and converge on the lower belly with a small skull-shaped emblem. Additional curling motifs trail down the outer thighs."
+    },
+    {
+      "id": "CO 67 Dark Ritual Body Male",
+      "label": "CO  67  Dark Ritual Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\67 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate cross with banded sash",
+        "style": "engraved gothic linework",
+        "placement": "upper chest (between pectorals, centered) and lower abdomen sash"
+      },
+      "description": "An ornate cross-shaped emblem with leafy filigree arms sits high on the sternum, its central spine running down the front. A narrower horizontal sash with matching filigree wraps the lower belly."
+    },
+    {
+      "id": "CO 67 Dark Ritual Body Runes Male",
+      "label": "CO  67  Dark Ritual Body Runes Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\67 Body Runes M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "columns of runic inscription",
+        "style": "small hand-written runes",
+        "placement": "upper chest, collarbones, sides, lower abdomen (scattered runic bands)"
+      },
+      "description": "Long vertical and horizontal lines of small angular rune-glyphs span the collarbones, both sides of the chest, and the lower belly. The script is dense and narrow, reading as columns of ritual inscription."
+    },
+    {
+      "id": "CO 67 Dark Ritual Body Runes Extra Male",
+      "label": "CO  67  Dark Ritual Body Runes Extra Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\67 Body Runes Limbs M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "framing bands of runic inscription",
+        "style": "small hand-written runes",
+        "placement": "sides of torso (running vertically along ribs) and lower belly"
+      },
+      "description": "Two thin vertical columns of small rune-glyphs run down the outer ribs, with two horizontal lines of the same script tracing the lower belly. Reads as supporting frame text rather than a complete pattern."
+    },
+    {
+      "id": "CO 67 Dark Ritual Body Limbs Male",
+      "label": "CO  67  Dark Ritual Body Limbs Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\67 Body Limbs M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "engraved arm bands and chest sash",
+        "style": "engraved gothic linework",
+        "placement": "upper arms (both sides, shoulder to elbow) and chest band"
+      },
+      "description": "Two long vertical engraved sleeves run down the outer upper arms, packed with carved tribal interiors. A horizontal engraved band wraps the chest just below the pectorals."
+    },
+    {
+      "id": "CO 67 Dark Ritual Body Torso Male",
+      "label": "CO  67  Dark Ritual Body Torso Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\67 Body Torso M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate cross emblem with belt",
+        "style": "engraved gothic linework",
+        "placement": "upper chest (centered) and lower abdomen band"
+      },
+      "description": "A tall ornate cross with filigree crossbars and a pointed downward dagger sits centered between the pectorals. A second narrow filigree band wraps the lower belly."
+    },
+    {
+      "id": "CO 68 Brimflame Body Male",
+      "label": "CO  68  Brimflame Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\68 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "wreathing flames across torso and limbs",
+        "style": "jagged flame silhouette",
+        "placement": "shoulders, chest, ribs, hips, thighs (broad coverage)"
+      },
+      "description": "Curling flame silhouettes sweep across both shoulders, down the chest, around the pectorals, and across the hips and outer thighs, with smaller licks rising up the sternum. The whole body looks wrapped in stylized fire."
+    },
+    {
+      "id": "CO 69 Fallen Fury Body Male",
+      "label": "CO  69  Fallen Fury Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\69 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "wing-shaped tribal panels with central skull",
+        "style": "ornate symmetrical tribal blackwork",
+        "placement": "shoulders, chest, ribs, abdomen, hips (heavy front coverage)"
+      },
+      "description": "Two large pointed wing-shaped panels rise from the shoulders down across the chest and ribs, packed with dense tribal whorls. A central column of ornate motifs runs down the sternum, terminating in a small skull-and-flame emblem above the navel."
+    },
+    {
+      "id": "CO 70 Ancient Ward Body Male",
+      "label": "CO  70  Ancient Ward Body Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\70 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "circular ward with side glyph bars",
+        "style": "engraved geometric runes",
+        "placement": "upper chest (centered) with bracketed bars on outer ribs and waist"
+      },
+      "description": "A central circular medallion framed in engraved bands sits high on the chest, flanked by two thick vertical 'I'-shaped bracket bars on the outer ribs. A matching horizontal glyph band wraps the waist below."
+    },
+    {
+      "id": "CO Extra Body Arcus Male",
+      "label": "CO Extra Body Arcus Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Body Arcus M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "wavy feathered crescents",
+        "style": "stippled brush curves",
+        "placement": "upper chest just below collarbones (horizontal band)"
+      },
+      "description": "A horizontal band of soft wavy crescent shapes with feathery dashed edges arcs across the upper chest just below the collarbones. Small curl flourishes and tiny spiral accents bracket each end."
+    },
+    {
+      "id": "CO Extra Body Argent Male",
+      "label": "CO Extra Body Argent Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Body Argent M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "vertical paisley sash down centerline",
+        "style": "Polynesian tribal paisley",
+        "placement": "front centerline (sternum to pubic, with arm and thigh flourishes)"
+      },
+      "description": "A long vertical paisley sash runs straight down the centerline from the upper chest to the pubic area, packed with curling spirals and decorated panels. Two small tribal cuffs flare out onto the upper arm and inner thigh as accents."
+    },
+    {
+      "id": "CO Extra Body Argent Leg Male",
+      "label": "CO Extra Body Argent Leg Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Body Argent Leg M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal hip and thigh accents",
+        "style": "smooth tribal blackwork",
+        "placement": "outer thighs (both sides) and a small mark near the upper spine"
+      },
+      "description": "Two solid flame-shaped tribal silhouettes sit on the outer hips wrapping toward the front of the thighs. A small matching curl appears high on the upper back as a separate accent."
+    }
+  ]
+}

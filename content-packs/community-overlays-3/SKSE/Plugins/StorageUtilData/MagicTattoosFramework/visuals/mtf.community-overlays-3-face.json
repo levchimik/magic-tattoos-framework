@@ -1,0 +1,743 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.community-overlays-3-face",
+  "label": "Community Overlays 3 (Face)",
+  "area": "Face",
+  "entries": [
+    {
+      "id": "CO Extra Head Runes Killer",
+      "label": "CO Extra Head Runes Killer",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Head Runes Killer O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "row of angular runic glyphs",
+        "style": "harsh brushed script",
+        "placement": "low across jawline / under chin"
+      },
+      "description": "A short horizontal line of jagged, angular glyphs rendered in heavy brushwork, reading like a runic word stamped under the jaw. The stencil lands as a single ink-line beneath the chin and along the underside of the jaw, with one taller pendant character hanging below."
+    },
+    {
+      "id": "CO 62 Cursed Blood Head",
+      "label": "CO  62  Cursed Blood Head",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\62 Head O.dds"
+        }
+      ],
+      "tags": {
+        "subject": "branching vein-like cracks",
+        "style": "organic capillary linework",
+        "placement": "scattered across forehead, cheeks, jaw, and neck"
+      },
+      "description": "A scattering of thin, fractal capillary lines that branch like burst veins or root systems, with no symmetry and no central shape. They wrap loosely around the forehead, both cheeks, the chin, and across the upper neck, suggesting a creeping curse spreading beneath the skin."
+    },
+    {
+      "id": "CO 66 Aquadynamis Head Special",
+      "label": "CO  66  Aquadynamis Head Special",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\66 Head S.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horned eye crests and curling jaw flourishes",
+        "style": "stylized aquatic tribal",
+        "placement": "above the eyes and along the jawline / front of neck"
+      },
+      "description": "A mirrored pair of horned crests sits as eyebrow ornaments above each eye, with a smaller bracket centred on the bridge of the nose. Two larger curling tendrils, like stylised fish or wave-tails, sweep along the jawline and front of the neck."
+    },
+    {
+      "id": "CO 51 Nexregiant Head Female",
+      "label": "CO  51  Nexregiant Head Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Head F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "twin dragon-head tribal masks",
+        "style": "bold tribal silhouette",
+        "placement": "mirrored on both cheeks, framing the eyes and jaw"
+      },
+      "description": "Two heavy mirrored emblems in solid tribal black, each forming a stylized dragon head with a circular eye motif on the cheek and pointed horn-fins reaching up past the temple and down under the jaw. The pair frames the face like a war-mask, leaving forehead, eyes, nose, and mouth bare."
+    },
+    {
+      "id": "CO 52 Faedis Head Female",
+      "label": "CO  52  Faedis Head Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\52 Head F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "pair of solid ink blots",
+        "style": "dense blotted ink",
+        "placement": "above and behind each ear"
+      },
+      "description": "Two thick, irregular ink blots, one teardrop-shaped and one near-oval, sit at the upper temples just in front of and above each ear. The blots have softly feathered edges and dense black centres, like spilled ink soaked into the skin at the hairline."
+    },
+    {
+      "id": "CO 53 Ziva Head Female",
+      "label": "CO  53  Ziva Head Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\53 Head F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized tribal eye-mask with dots",
+        "style": "bold tribal with dot punctuation",
+        "placement": "around both eyes and a small mark on the chin"
+      },
+      "description": "A curling, symmetrical eye-mask formed of two thick crescents that arc over the cheekbones, each ringed with a chain of small dots above and below, with a short central bar running down the bridge of the nose. A matching pair of vertical bars and a small dotted accent mark the chin."
+    },
+    {
+      "id": "CO 53 Ziva Head Variant Female",
+      "label": "CO  53  Ziva Head Variant Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\53 Head Var F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal under-eye crescents with dots",
+        "style": "minimal tribal with dot punctuation",
+        "placement": "below both eyes and on the chin"
+      },
+      "description": "A pared-down version of a tribal eye-mask: two thick horizontal crescents sit just beneath the eyes, framed by short rows of small dots above and below, with a straight vertical bar over the nose bridge. A simple vertical line and small dot pair mark the chin."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Base Female",
+      "label": "CO  56  Smoke Bones Head Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head 1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full skull-mask with grinning teeth",
+        "style": "smoky airbrushed skull",
+        "placement": "covers forehead, cheeks, jaw and mouth, with eyes and nose cutouts"
+      },
+      "description": "A full skull-face mask rendered in soft, smoky black, with hollow eye sockets, an inverted-heart nose cavity, and a wide row of pale grinning teeth across the mouth. The dark mass blankets the forehead, both cheeks, and the jaw, leaving only the eyes, nostrils, and tooth line as bright cutouts."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Base Alt Female",
+      "label": "CO  56  Smoke Bones Head Base Alt Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head 2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "lower-half skull-mask with grinning teeth",
+        "style": "smoky airbrushed skull",
+        "placement": "cheeks, nose, jaw, and mouth, leaving forehead bare"
+      },
+      "description": "A smoky black skull-mask that covers the mid- and lower face only, with empty eye sockets at the cheekbones, an inverted-triangle nose cavity, and a long row of pale teeth spanning the mouth. The forehead is left clean above the eye line, framing the design as a half-mask."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Add 1 Female",
+      "label": "CO  56  Smoke Bones Head Add  1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Add 1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged crown of branching antler-like horns",
+        "style": "tribal flame-tendril overlay",
+        "placement": "forehead, brows, temples and upper cheeks"
+      },
+      "description": "A symmetrical spread of branching antler- or flame-like tendrils that fans out from the brow line and curls up over the forehead and down past the temples. Smaller fingers of ink trail across the upper cheeks and the bridge of the nose, framing the eyes in a feathered crown."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Add 2 Female",
+      "label": "CO  56  Smoke Bones Head Add  2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Add 2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spike-and-dot brow and jaw frame",
+        "style": "fragmented tribal strokes",
+        "placement": "forehead, brows, cheeks and a wide chin-strap arc"
+      },
+      "description": "A loose, broken pattern of short tribal spikes and dot clusters scatters across the forehead, brows, and upper cheeks, suggesting feathered ornament fragments. A thick crescent runs from cheek to cheek beneath the mouth, anchoring the design with a heavy chin-strap arc."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Add 3 Female",
+      "label": "CO  56  Smoke Bones Head Add  3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Add 3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate symmetrical face-plate with fangs and tendrils",
+        "style": "ornamental tribal mask",
+        "placement": "forehead, around the eyes, cheeks and over the mouth"
+      },
+      "description": "A heavily detailed, mirrored face-plate built from interlocking arcs, fang-like fingers, and small dot rows, with a central spear motif running up the forehead. The pattern wraps around both eye sockets, drapes onto the cheeks, and finishes with a short toothed band beneath the mouth."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Add 4 Female",
+      "label": "CO  56  Smoke Bones Head Add  4  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Add 4 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horned demon-mask fragments with hanging fangs",
+        "style": "fierce tribal flame strokes",
+        "placement": "forehead, brows, cheeks and jawline"
+      },
+      "description": "Sharp, flame-like tribal strokes form a fragmented demon-mask: paired horn shapes curl up off the forehead, smaller spikes ride the cheekbones, and clusters of fang-like hooks hang from the lower cheeks and jaw. The mouth is framed by a small toothed motif below the lip."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Add 3 Alt Female",
+      "label": "CO  56  Smoke Bones Head Add  3  Alt Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Add 3 Alt F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate symmetrical face-plate, mouth area removed",
+        "style": "ornamental tribal mask",
+        "placement": "forehead, around the eyes and cheeks"
+      },
+      "description": "A mirrored ornamental face-plate of interlocking arcs and fang-like fingers, dominated by a central spear motif up the forehead. The eye sockets are heavily framed and tendrils drape onto the cheeks, but the mouth and chin area are left bare."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Alt 1 Female",
+      "label": "CO  56  Smoke Bones Head Alt  1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Alt 1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "fanged half-skull mouth-piece",
+        "style": "tribal flame strokes",
+        "placement": "forehead, brows, cheeks and around the mouth"
+      },
+      "description": "Sharp flame-like tribal strokes outline an open-jawed skull face, with two curling horns above the brow and a row of pointed fangs hanging beneath the mouth. The design leaves the eyes as bright cutouts and concentrates around the brow, cheekbones, and lower face."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Alt 2 Female",
+      "label": "CO  56  Smoke Bones Head Alt  2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Alt 2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "antlered demon-skull crown",
+        "style": "branching tribal flame",
+        "placement": "forehead, eyes, cheeks and jaw"
+      },
+      "description": "A tall crown of branching antler-and-flame shapes sprouts from the brow and forehead, framing a small skull face in negative space between the eyes. Thorn-like flame tendrils flick out over the cheeks and jaw, with a short comb of teeth beneath the mouth."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Candy 1 Female",
+      "label": "CO  56  Smoke Bones Head Candy  1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Candy 1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filigree sugar-skull mask",
+        "style": "fine scrollwork lace",
+        "placement": "full face — forehead, cheeks, around eyes and mouth, and jaw"
+      },
+      "description": "A dense lattice of fine swirling scrollwork wraps the whole face like sugar-skull filigree, with curl motifs above and around each eye, mirrored fronds across the cheeks, and a banded skull-mouth outline beneath the nose. The line work is delicate and continuous, never solid blocks."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Candy 2 Female",
+      "label": "CO  56  Smoke Bones Head Candy  2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Candy 2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "sparse sugar-skull outlines",
+        "style": "thin broken linework",
+        "placement": "forehead, upper cheeks, around the mouth and a chin arc"
+      },
+      "description": "A loose, broken version of sugar-skull filigree, sketched in thin disconnected strokes: small curls on the forehead, paired flourishes on each upper cheek, light scrolling around the mouth, and a long crescent following the underside of the jaw. The face reads mostly bare, with the ornament hinted in fragments."
+    },
+    {
+      "id": "CO 57 Egyptaris Head Female",
+      "label": "CO  57  Egyptaris Head Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Head F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "pair of Wadjet-style eye-of-protection symbols",
+        "style": "ancient eastern temple glyph",
+        "placement": "across both eyes and a small mark on the chin"
+      },
+      "description": "A mirrored pair of stylised eye-of-protection glyphs hugs each eye, with a heavy upper line, an extended teardrop tail trailing toward the temple, and a tight spiral curling beneath the inner corner. A small vertical lozenge sits centred on the chin, completing the temple-iconography motif."
+    },
+    {
+      "id": "CO 57 Egyptaris Head Extra Female",
+      "label": "CO  57  Egyptaris Head Extra Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Head Extra F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "Wadjet-style protective eye glyphs, heavier outline",
+        "style": "ancient eastern temple glyph",
+        "placement": "across both eyes and a small mark on the chin"
+      },
+      "description": "A bolder pair of stylised protective eye glyphs rims both eyes, with thickened brow-strokes, dramatic trailing tails sweeping toward the ears, and tight inward spirals beneath each inner corner. A small vertical lozenge marks the chin."
+    },
+    {
+      "id": "CO 58 Aquasar Head Female",
+      "label": "CO  58  Aquasar Head Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\58 Head F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single calligraphic glyph",
+        "style": "thick brush-stroke ideograph",
+        "placement": "right cheek, running from cheekbone to jaw"
+      },
+      "description": "A single bold ideograph painted in thick brush strokes, made of a top hook, a tight central spiral, and two parallel vertical tails dropping below. It sits down the right cheek, slanted slightly so the spiral rests just under the eye and the tails extend toward the jaw."
+    },
+    {
+      "id": "CO 59 Gears Head Female",
+      "label": "CO  59  Gears Head Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\59 Head F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "cluster of overlapping cog wheels",
+        "style": "mechanical clockwork",
+        "placement": "right cheek beside the nose and lip"
+      },
+      "description": "A diagonal cluster of four meshing toothed gears, the largest with a finely spoked centre and the smaller ones stepping toward the temple. The cluster sits on the right cheek, the biggest cog tucked beside the corner of the mouth, climbing toward the cheekbone."
+    },
+    {
+      "id": "CO 63 Saervasi Head",
+      "label": "CO  63  Saervasi Head",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Head F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate fish or sea-creature emblem",
+        "style": "Nordic-style knotwork",
+        "placement": "left cheekbone, beside the eye"
+      },
+      "description": "A single intricate emblem shaped like a stylised fish or sea-creature, filled with knotwork detailing along its body and fins. It sits across the left cheekbone, tucked against the outer corner of the eye, with its tail curling down toward the jaw."
+    },
+    {
+      "id": "CO 64 Zuly Lotus Head Female",
+      "label": "CO  64  Zuly Lotus Head Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\64 Head F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornamental lotus flower bindi",
+        "style": "filigree symbolic emblem",
+        "placement": "centre of the forehead between the brows"
+      },
+      "description": "A single small, highly detailed lotus blossom with layered ornamental petals and a coiled central spiral, applied as a forehead bindi between the eyebrows. The motif itself is rich with internal scrollwork, but on the face it appears as a compact emblem above the bridge of the nose."
+    },
+    {
+      "id": "CO 64 Zuly Lotus Head Alt Female",
+      "label": "CO  64  Zuly Lotus Head Alt Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\64 Head Alt F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horizontal ornamental scrollwork band",
+        "style": "decorative paisley filigree",
+        "placement": "narrow band across the forehead above the brows"
+      },
+      "description": "A long horizontal band of dense paisley-style scrollwork, dotted with small spheres along its length, that stretches across the upper forehead just above the brow line. It reads as a tattooed circlet or henna headband, with curling motifs flaring out toward each temple."
+    },
+    {
+      "id": "CO 68 Brimflame Head Female",
+      "label": "CO  68  Brimflame Head Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\68 Head F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horned sigil and weeping eye marks",
+        "style": "demonic sigil and flame",
+        "placement": "central forehead and trailing down the inner cheeks"
+      },
+      "description": "A horned sigil with an inset downward triangle sits centred on the forehead between the brows, flanked by short pointed crowns above each eye. From the inner corner of each eye a curling, blade-like trail flows down the cheek, like ceremonial tear-marks."
+    },
+    {
+      "id": "CO Extra Auricha Facepaint Base Female",
+      "label": "CO Extra Auricha Facepaint Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Head Auricha L1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged crest with central diamond",
+        "style": "bold tribal mask",
+        "placement": "across both eyes like a domino mask, with cheek tendrils"
+      },
+      "description": "A wide, swept-back tribal crest stretches across both eyes in the manner of a domino mask, anchored by a tall diamond shape above the bridge of the nose. Sharp, blade-like tendrils trail down from the lower edge over the upper cheeks and a small clawed motif drops below one eye."
+    },
+    {
+      "id": "CO Extra Auricha Facepaint Secondary Female",
+      "label": "CO Extra Auricha Facepaint Secondary Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Head Auricha L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "diamond-shaped knot crest",
+        "style": "ornamental knotwork sigil",
+        "placement": "centre forehead between the brows"
+      },
+      "description": "A diamond-shaped crest framed in tribal blades, with an interlaced four-loop knotwork sigil inside, applied to the forehead between the brows. The motif reads as a single bold bindi-style emblem, with sharp accent shards extending top and bottom along the centre line."
+    },
+    {
+      "id": "CO 51 Nexregiant Head Male",
+      "label": "CO  51  Nexregiant Head Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Head M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "twin dragon-head tribal masks",
+        "style": "bold tribal silhouette",
+        "placement": "mirrored on both cheeks, framing the eyes and jaw"
+      },
+      "description": "Two heavy mirrored emblems in solid tribal black, each forming a stylized dragon head with a circular eye motif on the cheek and pointed horn-fins curling up past the temple and beneath the jaw. Together they frame the face like a hunter's war-mask, leaving forehead, eyes, nose, and mouth uncovered."
+    },
+    {
+      "id": "CO 53 Ziva Head Male",
+      "label": "CO  53  Ziva Head Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\53 Head M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylized tribal eye-mask with dots",
+        "style": "bold tribal with dot punctuation",
+        "placement": "around both eyes and a small mark on the chin"
+      },
+      "description": "Symmetrical curling crescents arc over each cheekbone like an eye-mask, each ringed with a row of small dots and centred by a short bar over the bridge of the nose. The chin carries a matching small vertical motif with a dotted pair."
+    },
+    {
+      "id": "CO 53 Ziva Head Variant Male",
+      "label": "CO  53  Ziva Head Variant Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\53 Head Var M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal under-eye crescents with dots",
+        "style": "minimal tribal with dot punctuation",
+        "placement": "below both eyes and on the chin"
+      },
+      "description": "Two thick crescents are stamped under the eyes, flanked above and below by short rows of small dots, with a straight vertical bar joining them across the bridge of the nose. A simple vertical bar and a small dotted accent mark the centre of the chin."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Base Male",
+      "label": "CO  56  Smoke Bones Head Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "full skull-mask with grinning teeth",
+        "style": "smoky airbrushed skull",
+        "placement": "covers forehead, cheeks, jaw and mouth, with eyes and nose cutouts"
+      },
+      "description": "A full smoky-black skull mask spans the face, with hollow eye sockets at the eyes, an inverted-heart cavity over the nose, and a wide grinning row of pale teeth across the mouth. The mass darkens the forehead, cheeks, and jaw and leaves only the open eyes and tooth-line bright."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Add 1 Male",
+      "label": "CO  56  Smoke Bones Head Add  1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Add 1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged crown of branching antler-like horns",
+        "style": "tribal flame-tendril overlay",
+        "placement": "forehead, brows, temples and upper cheeks"
+      },
+      "description": "A symmetrical fan of branching antler- or flame-like tendrils curls up over the forehead and down past the temples, framing the eyes in a feathered crown. Smaller ink fingers trail across the upper cheeks and the bridge of the nose."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Add 2 Male",
+      "label": "CO  56  Smoke Bones Head Add  2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Add 2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spike-and-dot brow and jaw frame",
+        "style": "fragmented tribal strokes",
+        "placement": "forehead, brows, cheeks and a wide chin-strap arc"
+      },
+      "description": "Loose tribal spikes and dot clusters scatter across the forehead, brows, and upper cheeks, like fragments of feathered ornament. A heavy crescent sweeps from cheek to cheek beneath the mouth, acting as a chin-strap anchor to the design."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Add 3 Male",
+      "label": "CO  56  Smoke Bones Head Add  3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Add 3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate symmetrical face-plate with fangs and tendrils",
+        "style": "ornamental tribal mask",
+        "placement": "forehead, around the eyes, cheeks and over the mouth"
+      },
+      "description": "A heavily detailed mirrored face-plate built from interlocking arcs, fang-like fingers, and dot rows, with a central spear motif running up the forehead. The pattern frames both eye sockets, drapes onto the cheeks, and finishes with a short toothed band under the mouth."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Add 4 Male",
+      "label": "CO  56  Smoke Bones Head Add  4  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Add 4 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horned demon-mask fragments with hanging fangs",
+        "style": "fierce tribal flame strokes",
+        "placement": "forehead, brows, cheeks and jawline"
+      },
+      "description": "Flame-like tribal strokes form a fragmented demon-mask, with paired curling horns above the brow, sharp spikes along the cheekbones, and clusters of fang-like hooks dropping from the lower cheeks and jaw. A small toothed motif sits centred just beneath the mouth."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Add 3 Alt Male",
+      "label": "CO  56  Smoke Bones Head Add  3  Alt Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Add 3 Alt M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate symmetrical face-plate, mouth area removed",
+        "style": "ornamental tribal mask",
+        "placement": "forehead, around the eyes and cheeks"
+      },
+      "description": "A mirrored ornamental face-plate of interlocking arcs and fang-like fingers, dominated by a central spear running up the forehead. The eye sockets are heavily framed and tendrils drape onto the cheeks, while the mouth and chin remain uncovered."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Alt 1 Male",
+      "label": "CO  56  Smoke Bones Head Alt  1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Alt 1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "fanged half-skull mouth-piece",
+        "style": "tribal flame strokes",
+        "placement": "forehead, brows, cheeks and around the mouth"
+      },
+      "description": "Sharp flame-shaped strokes carve out an open-jawed skull face, with curling horns above the brow and a row of pointed fangs hanging beneath the mouth. The eyes are clean cutouts in the pattern, and most of the ink sits across the brow, cheekbones, and lower face."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Alt 2 Male",
+      "label": "CO  56  Smoke Bones Head Alt  2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Alt 2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "antlered demon-skull crown",
+        "style": "branching tribal flame",
+        "placement": "forehead, eyes, cheeks and jaw"
+      },
+      "description": "A tall, antlered flame-crown sprouts from the brow and forehead, framing a small skull face that sits in negative space between the eyes. Thorn-like tendrils flick out across the cheeks and jaw, with a short comb of teeth just beneath the mouth."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Candy 1 Male",
+      "label": "CO  56  Smoke Bones Head Candy  1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Candy 1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filigree sugar-skull mask",
+        "style": "fine scrollwork lace",
+        "placement": "full face — forehead, cheeks, around eyes and mouth, and jaw"
+      },
+      "description": "A dense lattice of fine swirling scrollwork covers the whole face in a sugar-skull lace, with curl motifs around each eye, mirrored fronds across the cheeks, and a banded skull-mouth outline beneath the nose. Everything is line work, never solid masses."
+    },
+    {
+      "id": "CO 56 Smoke Bones Head Candy 2 Male",
+      "label": "CO  56  Smoke Bones Head Candy  2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Head Candy 2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "sparse sugar-skull outlines",
+        "style": "thin broken linework",
+        "placement": "forehead, upper cheeks, around the mouth and a chin arc"
+      },
+      "description": "A pared-down sugar-skull pattern in thin disconnected strokes — small curls on the forehead, paired flourishes on the upper cheeks, light scrolling around the mouth, and a long crescent along the underside of the jaw. The face reads mostly bare, with the ornament only suggested."
+    },
+    {
+      "id": "CO 58 Aquasar Head Male",
+      "label": "CO  58  Aquasar Head Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\58 Head M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single calligraphic glyph",
+        "style": "thick brush-stroke ideograph",
+        "placement": "right cheek, running from cheekbone to jaw"
+      },
+      "description": "A bold ideograph painted in thick brush strokes — a top hook, a tight central spiral, and two parallel vertical tails dropping below. The glyph sits across the right cheek, with the spiral under the eye and the tails reaching toward the jaw."
+    },
+    {
+      "id": "CO 59 Gears Head Male",
+      "label": "CO  59  Gears Head Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\59 Head M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "cluster of overlapping cog wheels",
+        "style": "mechanical clockwork",
+        "placement": "right cheek beside the nose and lip"
+      },
+      "description": "A diagonal cluster of four meshing toothed gears, the largest with a finely spoked centre and three smaller ones stepping toward the temple. The cluster lands on the right cheek, the biggest cog tucked beside the corner of the mouth."
+    },
+    {
+      "id": "CO 63 Saervasi Male",
+      "label": "CO  63  Saervasi Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\63 Head M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate fish or sea-creature emblem",
+        "style": "Nordic-style knotwork",
+        "placement": "left cheekbone, beside the eye"
+      },
+      "description": "An intricate stylised fish-like emblem, packed with knotwork detail along its body and fins, set against the left cheekbone. It nestles against the outer corner of the eye with its tail curling down toward the jawline."
+    },
+    {
+      "id": "CO 64 Zuly Lotus Head Male",
+      "label": "CO  64  Zuly Lotus Head Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\64 Head M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornamental lotus flower bindi",
+        "style": "filigree symbolic emblem",
+        "placement": "centre of the forehead between the brows"
+      },
+      "description": "A single small lotus blossom with layered ornamental petals and a coiled central spiral is stamped between the eyebrows as a forehead bindi. On the face it reads as a tight emblem just above the bridge of the nose, though the underlying design is richly detailed."
+    },
+    {
+      "id": "CO 64 Zuly Lotus Head Alt Male",
+      "label": "CO  64  Zuly Lotus Head Alt Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\64 Head Alt M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horizontal ornamental scrollwork band",
+        "style": "decorative paisley filigree",
+        "placement": "narrow band across the forehead above the brows"
+      },
+      "description": "A long horizontal strip of paisley-style scrollwork dotted with small spheres lies across the upper forehead, just above the brow. It reads as a tattooed circlet or henna headband, with curling motifs flaring toward each temple."
+    },
+    {
+      "id": "CO 68 Brimflame Head Male",
+      "label": "CO  68  Brimflame Head Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\68 Head M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horned sigil and weeping eye marks",
+        "style": "demonic sigil and flame",
+        "placement": "central forehead and trailing down the inner cheeks"
+      },
+      "description": "A horned sigil with an inset downward triangle sits centred between the brows, flanked by small spiked crowns above each eye. From the inner eye corners, curling blade-like trails run down each cheek like ceremonial tear-marks."
+    },
+    {
+      "id": "CO Extra Auricha Facepaint Base Male",
+      "label": "CO Extra Auricha Facepaint Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Head Auricha L1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "winged crest with central diamond",
+        "style": "bold tribal mask",
+        "placement": "across both eyes like a domino mask, with cheek tendrils"
+      },
+      "description": "A wide swept-back tribal crest spans both eyes like a domino mask, anchored by a tall diamond above the bridge of the nose. Sharp blade-like tendrils trail from its lower edge across the upper cheeks, with a small clawed accent beneath one eye."
+    },
+    {
+      "id": "CO Extra Auricha Facepaint Secondary Male",
+      "label": "CO Extra Auricha Facepaint Secondary Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\Extra Head Auricha L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "diamond-shaped knot crest",
+        "style": "ornamental knotwork sigil",
+        "placement": "centre forehead between the brows"
+      },
+      "description": "A diamond-shaped tribal crest framed in sharp blades contains an interlaced four-loop knot sigil, stamped on the forehead between the brows. It reads as a single bindi-style emblem with thin accent shards extending top and bottom along the centreline."
+    }
+  ]
+}

@@ -57,7 +57,7 @@ All ESPs below come from `_build/esps/*.esp` (deserialized from
 | `14_plugin_bfng/` | `MTF_Plugin_BFNG.esp` + `.pex` | Auto-recommend if `BeeingFemale.esm` active |
 | `15_plugin_slavetats/` | `MTF_Plugin_SlaveTats.esp` + `.pex` | Auto-recommend if `SlaveTats.esp` active. Universal bridge — works for all pack roots, not just slavetats-prefixed ones (see `source/scripts/MTF_Plugin_SlaveTats.psc` docstring). |
 | `16_plugin_skyrimnet/` | `MTF_Plugin_SkyrimNet.esp` + `.pex` + `SKSE/Plugins/SkyrimNet/prompts/submodules/character_bio/0350_mtf_tattoos.prompt` | Auto-recommend if `SkyrimNet.esp` active. Registers `mtf_active_tattoos` decorator + listens for `MTF_TierChanged`; surfaces visible tattoos in LLM character_bio context. |
-| `20_content_lewdmarks/` … `24_content_co1_face/` | `content-packs/<pack>/` | Optional, manual checkbox |
+| `20_content_lewdmarks/` … `29_content_co2/` | `content-packs/<pack>/` | Optional, manual checkbox |
 | `31_test_pack/` | `test-pack/SKSE/...` | Optional, manual checkbox |
 
 Integration plugins are always installable. When the master plugin is
@@ -70,9 +70,16 @@ Skyrim load-time error — the option description warns about this.
 
 Texture pack adapter auto-detection: adapters whose source mod ships an
 ESP get pre-recommended too — LewdMarks (`LewdMarks.esp` OR
-`LewdMarksSlaveTats.esp`), RX (`RXOverlays.esp`). Bardle Nail Polish and
-Community Overlays 1 Face stay manual (their source mods are texture-only
-with no plugin file to detect).
+`LewdMarksSlaveTats.esp`), RX (`RXOverlays.esp`), Lyru-1 (`LyruTat.esp`),
+Lyru-2 (`LyruTat2.esp`), Bitchcraft (`Bitchcraft Tats.esp`),
+Community Overlays 2 (`CommunityOverlays2_31T50.esp`), Community Overlays 3
+(`CommunityOverlays3.esp`). Bardle Nail Polish and Community Overlays 1 Face
+stay manual (their source mods are texture-only with no plugin file to detect).
+
+The "Texture Pack Adapters" picklist in the installer is ordered alphabetically
+by display name (Bard's → Bitchcraft → CO1 → CO2 → CO3 → LewdMarks → Lyru-1
+→ Lyru-2 → RX). Folder numbering (20-29) is historical — UI order is set by
+the `<plugins order="Explicit">` sequence in `templates/ModuleConfig.xml`.
 
 ### Loose-file path detection probe
 

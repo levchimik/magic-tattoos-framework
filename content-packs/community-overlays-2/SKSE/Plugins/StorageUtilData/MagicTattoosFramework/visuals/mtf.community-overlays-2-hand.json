@@ -1,0 +1,548 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.community-overlays-2-hand",
+  "label": "Community Overlays 2 (Hands)",
+  "area": "Hand",
+  "entries": [
+    {
+      "id": "CO 34 Pirate Hand Map",
+      "label": "CO  34  Pirate Hand Map",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\34 Hand.dds"
+        }
+      ],
+      "tags": {
+        "subject": "treasure-map sketch with X-mark",
+        "style": "rough ink doodle",
+        "placement": "back of the right hand and wrist"
+      },
+      "description": "A single-hand sketch only, sitting on the back of the right hand and curling onto the wrist. The motif is a rough treasure-map fragment with a bold X mark, scattered island blobs, dashed coastlines and a small skull-like glyph, drawn in loose, sketch-like ink."
+    },
+    {
+      "id": "CO 31 Nexus Hands Female",
+      "label": "CO  31  Nexus Hands Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\31 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stylised glyph crest with floral accent",
+        "style": "bold organic linework",
+        "placement": "back of both hands and the inner forearm-cuff"
+      },
+      "description": "A pair of compact glyph crests sit on the back of each hand: a small four-petal flower set above a hooked tendril, with a curled accent below the knuckles. Heavy ribbon-like strokes continue down the inner wrist and forearm as an irregular cuff."
+    },
+    {
+      "id": "CO 32 Dalish Hands 1 Female",
+      "label": "CO  32  Dalish Hands  1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\32 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted vine bands",
+        "style": "stippled dot-and-line vines",
+        "placement": "outer edge of both hands, running from wrist to fingertip"
+      },
+      "description": "A stippled vine of paired dots and short curves runs along the outer edge of each hand, climbing from the wrist over the back of the thumb toward the fingertip. A second sparser dotted curve traces the inner wrist, leaving the centre of the hand bare."
+    },
+    {
+      "id": "CO 33 Dalish Hands 2 Female",
+      "label": "CO  33  Dalish Hands  2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\33 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled tribal vines with leaf cluster",
+        "style": "dotted Celtic-knot vines",
+        "placement": "back of both hands, knuckle base, and full forearm-cuff"
+      },
+      "description": "Multiple horizontal bands of dot-and-dash vines wrap the wrist and back of each hand, with a small leaf-and-branch cluster rising up the outer forearm. The lines stack like jewellery bracelets and continue down toward the knuckle base as fine stippled dashes."
+    },
+    {
+      "id": "CO 36 Corruption Hand Base Female",
+      "label": "CO  36  Corruption Hand Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Hand Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ragged ink blot creeping up the hand",
+        "style": "solid ink with torn organic edges",
+        "placement": "outer side of the right hand, wrist and forearm"
+      },
+      "description": "A single-hand fill of solid black ink that climbs the outer side of the right hand from the forearm to the knuckle base, with torn, jagged edges that look like spreading rot or shadow. The thumb side of the hand is fully consumed while the fingers stay clean."
+    },
+    {
+      "id": "CO 36 Corruption Hand L2 Female",
+      "label": "CO  36  Corruption Hand L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Hand L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "demonic glyph row",
+        "style": "rune-like ink script",
+        "placement": "outer side of the right wrist with a small hook on the upper hand"
+      },
+      "description": "A vertical column of small angular runes runs down the outer wrist of the right hand, capped by a curled hook-glyph just above the thumb on the back of the hand. The marks read like a short cursed inscription set into the skin rather than a tribal band."
+    },
+    {
+      "id": "CO 38 Mitsukami Hands Female",
+      "label": "CO  38  Mitsukami Hands Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\38 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spiral and eye-rune pair",
+        "style": "bold occult glyph",
+        "placement": "back of both hands at the wrist crease and just above the knuckles"
+      },
+      "description": "A flat spiral sits on the back of each wrist, fed by a short tendril, and a second mark — a stylised slit-eye inside a horseshoe — sits just above the knuckle base. The pair reads like a paired occult sigil rather than a continuous band."
+    },
+    {
+      "id": "CO 39 Runic Shade Hands Female",
+      "label": "CO  39  Runic Shade Hands Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "vertical column of small runes",
+        "style": "fine rune script",
+        "placement": "outer edge of both hands from wrist to little finger"
+      },
+      "description": "A narrow strip of small angular runes runs along the outer pinky-side edge of each hand, from the wrist down to the base of the little finger. The glyphs are tightly stacked but the rest of the hand and the back of the knuckles stay completely bare."
+    },
+    {
+      "id": "CO 40 Feranas Left Hand L1 Female",
+      "label": "CO  40  Feranas Left Hand L 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Hand L1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single-hand swirl tendril",
+        "style": "bold tribal curls",
+        "placement": "back of the right hand and wrist"
+      },
+      "description": "A single-hand mark on the back of the right hand: a tall hooked tendril with a coiled spiral terminal rises from the wrist toward the knuckles, with a smaller separate spiral curl sitting below it on the wrist. The other hand is left bare."
+    },
+    {
+      "id": "CO 40 Feranas Left Hand L2 Female",
+      "label": "CO  40  Feranas Left Hand L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Hand L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single-hand swirl tendril, denser variant",
+        "style": "bold tribal curls",
+        "placement": "back of the right hand, knuckle base and wrist"
+      },
+      "description": "A single-hand design only, with the right hand carrying a denser stack of tribal curls that climbs from the wrist over the back of the hand and onto the knuckle ridge. Multiple coiled spirals interlock with hook-tipped tendrils for a thicker tier."
+    },
+    {
+      "id": "CO 40 Feranas Left Hand L3 Female",
+      "label": "CO  40  Feranas Left Hand L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Hand L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted vine outline",
+        "style": "small fading stipple",
+        "placement": "back of the right hand and outer wrist"
+      },
+      "description": "A single-hand mark only, on the right hand: a faint dotted outline of the L2 tendril, rendered as tiny stipple dots that climb from the wrist toward the knuckles with a small spiral terminal. Reads as a faded scar of the heavier design."
+    },
+    {
+      "id": "CO 42 Stripes Hands Female",
+      "label": "CO  42  Stripes Hands Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\42 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "animal-stripe brush slashes",
+        "style": "thick brush strokes",
+        "placement": "back of both hands at the knuckle base, fanning over the fingers"
+      },
+      "description": "Five short, vertical brush-stroke stripes sit at the base of the knuckles on each hand, fanning slightly toward the fingertips. The strokes are thick and slightly tapered, giving an animal-fur-pattern look across the back of the hand."
+    },
+    {
+      "id": "CO 43 Natura Hands Base Female",
+      "label": "CO  43  Natura Hands Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Hands Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ragged ink overgrowth",
+        "style": "solid ink with torn organic edges",
+        "placement": "outer side of both hands, wrists and lower forearm-cuff"
+      },
+      "description": "A solid-fill creeping mass of ink runs up the outer thumb-side of each hand, the wrist and the lower forearm, with shredded, torn edges that look like spreading bark or rot. The fingers and the centre of the back of the hand stay clear."
+    },
+    {
+      "id": "CO 43 Natura Hands L2 Female",
+      "label": "CO  43  Natura Hands L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Hands L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ragged ink fragments with sharp claws",
+        "style": "broken solid-ink shards",
+        "placement": "outer side of both hands, wrists and lower forearm-cuff"
+      },
+      "description": "A broken-up version of the heavy overgrowth: solid black shards with hooked, claw-tipped extensions wrap the outer side of each hand, the wrist and the lower forearm. The shapes look like jagged ink-scales rather than a continuous fill."
+    },
+    {
+      "id": "CO 43 Natura Hands L3 Female",
+      "label": "CO  43  Natura Hands L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Hands L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched runic and dotted detailing",
+        "style": "fine stippled glyphwork",
+        "placement": "outer side of both hands, wrists and lower forearm-cuff"
+      },
+      "description": "A delicate stippled overlay made of tiny dotted runes, sun-disc glyphs, leaf clusters and short hatch bars, arranged along the outer hand and wrist where the heavier tier sits. The detail reads as a fine etched continuation of an existing ink mass."
+    },
+    {
+      "id": "CO 43 Natura Hands L3 Variant Female",
+      "label": "CO  43  Natura Hands L 3  Variant Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Hands L3 Variant F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched runic and dotted detailing, alt motif",
+        "style": "fine stippled glyphwork",
+        "placement": "outer side of both hands, wrists and lower forearm-cuff"
+      },
+      "description": "A near-identical fine-stipple overlay to the standard L3 but with a small flower-and-curl cluster swapped in along the forearm cuff. Same dotted runes, sun-disc and leaf cluster motifs along the outer hand and wrist."
+    },
+    {
+      "id": "CO 46 High Kraisas Hands Female",
+      "label": "CO  46  High Kraisas Hands Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\46 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "angular tribal crest",
+        "style": "bold blocky tribal",
+        "placement": "outer wrist and back of the hand at the knuckle base, both hands"
+      },
+      "description": "A chunky angular tribal crest sits on each outer wrist, formed of stacked zig-zag bars and a hooked talon-shape that reaches up onto the knuckle base of the hand. Heavy negative-space slits run inside the strokes."
+    },
+    {
+      "id": "CO 48 Faeri Hands Female",
+      "label": "CO  48  Faeri Hands Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\48 Hands F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filigree wrist band",
+        "style": "fine ornamental tribal",
+        "placement": "outer wrist of both hands, running down onto the lower forearm"
+      },
+      "description": "A long narrow filigree band wraps the outer wrist of each hand and trails down onto the lower forearm, made of small coiled scrolls, paired curls and tiny diamond accents. The hand itself stays bare and the design reads as etched jewellery."
+    },
+    {
+      "id": "CO Extra Vortex Hand Female",
+      "label": "CO Extra Vortex Hand Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Hand Vortex F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "concentric whorl with rib bars",
+        "style": "wood-grain spiral",
+        "placement": "back of the left hand and the inner wrist"
+      },
+      "description": "A single-hand design only, on the left hand. A round whorl ringed by short rib-bars sits on the back of the hand near the knuckle base, and a larger bell-shaped whorl with concentric rings sits on the inner wrist below it. Reads like wood-grain rings."
+    },
+    {
+      "id": "CO 31 Nexus Hands Male",
+      "label": "CO  31  Nexus Hands Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\31 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "asymmetric glyph crest",
+        "style": "bold organic linework",
+        "placement": "back of the right hand, knuckle base and full forearm-cuff"
+      },
+      "description": "A single-hand design only, with the right hand carrying a hooked flower-and-tendril crest centred above the knuckles. Heavy ribbon-like strokes continue down the wrist and onto the forearm as a rough cuff; the left hand is left bare."
+    },
+    {
+      "id": "CO 32 Dalish Hands 1 Male",
+      "label": "CO  32  Dalish Hands  1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\32 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted vine bands",
+        "style": "stippled dot-and-line vines",
+        "placement": "outer edge of both hands, running from wrist to fingertip"
+      },
+      "description": "A stippled vine of paired dots and short curves runs along the outer edge of each hand, climbing from the wrist over the back of the thumb toward the fingertip. A second sparser dotted curve traces the inner wrist while the rest of the hand stays bare."
+    },
+    {
+      "id": "CO 33 Dalish Hands 2 Male",
+      "label": "CO  33  Dalish Hands  2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\33 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled tribal vines with leaf cluster",
+        "style": "dotted Celtic-knot vines",
+        "placement": "back of both hands, knuckle base, and full forearm-cuff"
+      },
+      "description": "Stacked horizontal dot-and-dash vine bands wrap the wrist and back of each hand, with a small leaf-and-branch cluster rising up the outer forearm of the right side. The lines stack like jewellery bracelets, with fine stippled dashes continuing toward the knuckle base."
+    },
+    {
+      "id": "CO 36 Corruption Hand Base Male",
+      "label": "CO  36  Corruption Hand Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Hand Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ragged ink blot creeping up the hand",
+        "style": "solid ink with torn organic edges",
+        "placement": "outer side of the left hand, wrist and forearm"
+      },
+      "description": "A single-hand fill of solid black ink that climbs the outer side of the left hand from the forearm to the knuckle base, with torn, jagged edges. The thumb side is consumed by the spreading mass while the fingers stay untouched."
+    },
+    {
+      "id": "CO 36 Corruption Hand L2 Male",
+      "label": "CO  36  Corruption Hand L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Hand L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "demonic glyph row",
+        "style": "rune-like ink script",
+        "placement": "outer side of the right wrist with a small hook on the upper hand"
+      },
+      "description": "A vertical column of small angular runes runs down the outer wrist of the right hand, capped by a curled hook-glyph just above the thumb on the back of the hand. The marks read like a short cursed inscription set into the skin."
+    },
+    {
+      "id": "CO 38 Mitsukami Hands Male",
+      "label": "CO  38  Mitsukami Hands Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\38 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spiral and eye-rune pair",
+        "style": "bold occult glyph",
+        "placement": "back of both hands at the wrist crease and just above the knuckles"
+      },
+      "description": "A flat spiral sits on the back of each wrist, fed by a short tendril, and a second mark — a stylised slit-eye inside a horseshoe — sits just above the knuckle base. The pair reads like a paired occult sigil rather than a continuous band."
+    },
+    {
+      "id": "CO 39 Runic Shade Hands Male",
+      "label": "CO  39  Runic Shade Hands Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "vertical column of small runes",
+        "style": "fine rune script",
+        "placement": "outer edge of both hands from wrist to little finger"
+      },
+      "description": "A narrow strip of small angular runes runs along the outer pinky-side edge of each hand, from the wrist down to the base of the little finger. The glyphs are tightly stacked but the rest of the hand and the back of the knuckles stay completely bare."
+    },
+    {
+      "id": "CO 40 Feranas Left Hand L1 Male",
+      "label": "CO  40  Feranas Left Hand L 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Hand L1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single-hand swirl tendril",
+        "style": "bold tribal curls",
+        "placement": "back of the right hand and wrist"
+      },
+      "description": "A single-hand mark on the back of the right hand: a tall hooked tendril with a coiled spiral terminal rises from the wrist toward the knuckles, with a smaller separate spiral curl sitting below it on the wrist. The other hand is left bare."
+    },
+    {
+      "id": "CO 40 Feranas Left Hand L2 Male",
+      "label": "CO  40  Feranas Left Hand L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Hand L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single-hand swirl tendril, denser variant",
+        "style": "bold tribal curls",
+        "placement": "back of the right hand, knuckle base and wrist"
+      },
+      "description": "A single-hand design only, with the right hand carrying a denser stack of tribal curls that climbs from the wrist over the back of the hand and onto the knuckle ridge. Multiple coiled spirals interlock with hook-tipped tendrils for a thicker tier."
+    },
+    {
+      "id": "CO 40 Feranas Left Hand L3 Male",
+      "label": "CO  40  Feranas Left Hand L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Hand L3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted vine outline",
+        "style": "small fading stipple",
+        "placement": "back of the right hand and outer wrist"
+      },
+      "description": "A single-hand mark only, on the right hand: a faint dotted outline of the L2 tendril, rendered as tiny stipple dots that climb from the wrist toward the knuckles with a small spiral terminal. Reads as a faded scar of the heavier design."
+    },
+    {
+      "id": "CO 42 Stripes Hands Male",
+      "label": "CO  42  Stripes Hands Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\42 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "animal-stripe brush slashes",
+        "style": "thick brush strokes",
+        "placement": "back of both hands at the knuckle base, fanning over the fingers"
+      },
+      "description": "Five short, vertical brush-stroke stripes sit at the base of the knuckles on each hand, fanning slightly toward the fingertips. The strokes are thick and slightly tapered, giving an animal-fur-pattern look across the back of the hand."
+    },
+    {
+      "id": "CO 43 Natura Hands Base Male",
+      "label": "CO  43  Natura Hands Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Hands Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ragged ink overgrowth",
+        "style": "solid ink with torn organic edges",
+        "placement": "outer side of both hands, wrists and lower forearm-cuff"
+      },
+      "description": "A solid-fill creeping mass of ink runs up the outer thumb-side of each hand, the wrist and the lower forearm, with shredded, torn edges that look like spreading bark or rot. The fingers and the centre of the back of the hand stay clear."
+    },
+    {
+      "id": "CO 43 Natura Hands L2 Male",
+      "label": "CO  43  Natura Hands L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Hands L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ragged ink fragments with sharp claws",
+        "style": "broken solid-ink shards",
+        "placement": "outer side of both hands, wrists and lower forearm-cuff"
+      },
+      "description": "A broken-up version of the heavy overgrowth: solid black shards with hooked, claw-tipped extensions wrap the outer side of each hand, the wrist and the lower forearm. The shapes look like jagged ink-scales rather than a continuous fill."
+    },
+    {
+      "id": "CO 43 Natura Hands L3 Male",
+      "label": "CO  43  Natura Hands L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Hands L3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched runic and dotted detailing",
+        "style": "fine stippled glyphwork",
+        "placement": "outer side of both hands, wrists and lower forearm-cuff"
+      },
+      "description": "A delicate stippled overlay made of tiny dotted runes, sun-disc glyphs, leaf clusters and short hatch bars, arranged along the outer hand and wrist where the heavier tier sits. The detail reads as a fine etched continuation of an existing ink mass."
+    },
+    {
+      "id": "CO 46 High Kraisas Hands Male",
+      "label": "CO  46  High Kraisas Hands Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\46 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "angular tribal crest",
+        "style": "bold blocky tribal",
+        "placement": "outer wrist and back of the hand at the knuckle base, both hands"
+      },
+      "description": "A chunky angular tribal crest sits on each outer wrist, formed of stacked zig-zag bars and a hooked talon-shape that reaches up onto the knuckle base of the hand. Heavy negative-space slits run inside the strokes."
+    },
+    {
+      "id": "CO 48 Faeri Hands Male",
+      "label": "CO  48  Faeri Hands Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\48 Hands M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filigree wrist band",
+        "style": "fine ornamental tribal",
+        "placement": "outer wrist of both hands, running down onto the lower forearm"
+      },
+      "description": "A long narrow filigree band wraps the outer wrist of each hand and trails down onto the lower forearm, made of small coiled scrolls, paired curls and tiny diamond accents. The hand itself stays bare and the design reads as etched jewellery."
+    },
+    {
+      "id": "CO Extra Vortex Hand Male",
+      "label": "CO Extra Vortex Hand Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\Extra Hand Vortex M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "concentric whorl with rib bars",
+        "style": "wood-grain spiral",
+        "placement": "back of the right hand and the inner wrist"
+      },
+      "description": "A single-hand design only, on the right hand. A round whorl ringed by short rib-bars sits on the back of the hand near the knuckle base, and a larger bell-shaped whorl with concentric rings sits on the inner wrist below it. Reads like wood-grain rings."
+    }
+  ]
+}

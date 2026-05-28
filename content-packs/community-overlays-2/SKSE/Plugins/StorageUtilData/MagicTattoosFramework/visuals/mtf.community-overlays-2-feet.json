@@ -1,0 +1,473 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.community-overlays-2-feet",
+  "label": "Community Overlays 2 (Feet)",
+  "area": "Feet",
+  "entries": [
+    {
+      "id": "CO 42 Stripes Feet Female",
+      "label": "CO  42  Stripes Feet Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\42 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "animal-stripe banding",
+        "style": "thick zebra brush strokes",
+        "placement": "top of both feet, ankles and toes"
+      },
+      "description": "Dense parallel zebra-stripe brushstrokes wrap the top of each foot, the ankle and the toes, with the heaviest banding running across the instep. The strokes follow the foot's contour like fur, leaving the soles mostly clear."
+    },
+    {
+      "id": "CO 32 Dalish Feet 1 Female",
+      "label": "CO  32  Dalish Feet  1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\32 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted tribal vines with curl accents",
+        "style": "stippled dot-and-line vines",
+        "placement": "top of both feet, ankles and the inner arch"
+      },
+      "description": "A network of stippled dotted vines runs over the top of each foot and curls around the ankle, with paired hook-spirals scattered along the inner arch and outer toe-line. The pattern reads as Dalish foliage stencilled in dots rather than solid ink."
+    },
+    {
+      "id": "CO 33 Dalish Feet 2 Female",
+      "label": "CO  33  Dalish Feet  2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\33 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled vines with leaf-and-branch cluster",
+        "style": "dotted Celtic-knot vines",
+        "placement": "top of both feet, ankles, and a central branch over the upper instep"
+      },
+      "description": "A dense leaf-and-branch motif rises from the upper instep of each foot, framed by stacked horizontal dotted-vine bands that wrap the ankle and the toes. Tiny dotted curls and short hatch dashes accent the outer foot edges."
+    },
+    {
+      "id": "CO 36 Corruption Foot Base Female",
+      "label": "CO  36  Corruption Foot Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ragged ink overgrowth",
+        "style": "solid ink with torn organic edges",
+        "placement": "top of both feet, ankles and shins"
+      },
+      "description": "A solid-fill creeping mass of ink covers the top of each foot, climbs the ankle and continues onto the lower shin with shredded, torn edges. The shape reads as a corrupting blot devouring the foot rather than a contained tattoo."
+    },
+    {
+      "id": "CO 36 Corruption Foot L2 Female",
+      "label": "CO  36  Corruption Foot L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Body L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "demonic glyph row",
+        "style": "rune-like ink script",
+        "placement": "outer ankle and outer side of both feet"
+      },
+      "description": "Scattered columns of small angular runes run down the outer ankle of each foot and curl across the outer instep, looking like a short cursed inscription. The toes and the top centre of the foot stay clear."
+    },
+    {
+      "id": "CO 43 Natura Feet Base Female",
+      "label": "CO  43  Natura Feet Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "flame-like ink overgrowth around a sun-disc",
+        "style": "solid ink with torn flame edges",
+        "placement": "top of both feet, ankles and the central instep"
+      },
+      "description": "A heavy solid-ink fill wraps the top of each foot and meets at a small sun-disc glyph on the central instep, with torn flame-like edges that ripple outward. Drips trail up onto the lower shin."
+    },
+    {
+      "id": "CO 43 Natura Feet L2 Female",
+      "label": "CO  43  Natura Feet L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "broken ink fragments with hooked claws",
+        "style": "broken solid-ink shards",
+        "placement": "top of both feet, ankles and the central instep"
+      },
+      "description": "The Base ink-mass broken up into solid black shards with claw-tipped extensions, still arranged around the central sun-disc on the instep. The fragments scatter across the foot top and the lower ankle."
+    },
+    {
+      "id": "CO 43 Natura Feet L3 Female",
+      "label": "CO  43  Natura Feet L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched runic and fern detailing",
+        "style": "fine stippled glyphwork",
+        "placement": "top of both feet, ankles and the central instep around a sun-disc"
+      },
+      "description": "A delicate stipple overlay of tiny fern fronds, dotted runes, leaf clusters and hatch bars tracing the same outline as the heavier tier, gathered around a central sun-disc on the instep. Reads as a fine etched continuation of the ink mass."
+    },
+    {
+      "id": "CO 43 Natura Feet L3 Variant Female",
+      "label": "CO  43  Natura Feet L 3  Variant Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body L3 Variant F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched runic and fern detailing, sparser variant",
+        "style": "fine stippled glyphwork",
+        "placement": "top of both feet, ankles and the central instep"
+      },
+      "description": "A sparser fine-stipple overlay along the same outline, with the dotted fern fronds and hatch bars more thinly spread and the central sun-disc accent removed. The remaining marks read as a faded etched continuation of the heavier tier."
+    },
+    {
+      "id": "CO 38 Mitsukami Feet Female",
+      "label": "CO  38  Mitsukami Feet Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\38 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered swirl-and-eye sigils",
+        "style": "bold occult glyphs",
+        "placement": "top of both feet, ankles, toes and inner arch"
+      },
+      "description": "Multiple paired sigils — flat spirals fed by short tendrils, plus a stylised slit-eye inside a horseshoe — scatter across the top of each foot, the ankle and the inner arch. Each glyph sits as its own small mark rather than connecting into a band."
+    },
+    {
+      "id": "CO 39 Runic Shade Feet Female",
+      "label": "CO  39  Runic Shade Feet Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Body Runes F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dense runic inscription",
+        "style": "fine rune script",
+        "placement": "top of both feet, ankles and toes"
+      },
+      "description": "A dense field of small angular runes blankets the top of each foot, wraps the ankle and continues over the toes, packed like rows of cursed text. The marks form an all-over inscription rather than a single band."
+    },
+    {
+      "id": "CO 40 Feranas Right Foot L1 Female",
+      "label": "CO  40  Feranas Right Foot L 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L1 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single-foot swirl tendril",
+        "style": "bold tribal curls",
+        "placement": "top of the right foot, ankle and outer instep"
+      },
+      "description": "A single-foot design only, on the right foot: a long hooked tendril with a coiled spiral terminal rises from the toes up the instep and wraps the outer ankle. The left foot is left bare."
+    },
+    {
+      "id": "CO 40 Feranas Right Foot L2 Female",
+      "label": "CO  40  Feranas Right Foot L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single-foot swirl tendril, denser variant",
+        "style": "bold tribal curls",
+        "placement": "top of the right foot, ankle, outer instep and toes"
+      },
+      "description": "A single-foot design only, on the right foot: a denser stack of tribal curls climbs from the toes over the instep and wraps the outer ankle, with multiple interlocking coiled spirals and hook-tipped tendrils. Reads as a thicker tier of the same motif."
+    },
+    {
+      "id": "CO 40 Feranas Right Foot L3 Female",
+      "label": "CO  40  Feranas Right Foot L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted vine outline",
+        "style": "small fading stipple",
+        "placement": "top of the right foot, ankle and outer instep"
+      },
+      "description": "A single-foot mark only, on the right foot: a faint dotted outline of the L2 tendril, rendered as tiny stipple dots that climb from the toes up the instep and around the outer ankle. Reads as a faded scar of the heavier design."
+    },
+    {
+      "id": "CO 48 Faeri Feet Female",
+      "label": "CO  48  Faeri Feet Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\48 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filigree ankle band with central scroll",
+        "style": "fine ornamental tribal",
+        "placement": "ankles, outer foot edges and a central scroll over the instep"
+      },
+      "description": "A narrow filigree band wraps each ankle and trails along the outer edge of the foot, with a small ornate scroll-and-curl cluster centred on the instep of each foot. Made of paired curls, tiny diamond accents and coiled scrolls, reading as etched jewellery."
+    },
+    {
+      "id": "CO 49 Azaer Tribe Feet Female",
+      "label": "CO  49  Azaer Tribe Feet Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\49 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dense interlocked maze-glyph",
+        "style": "thick maze-and-knot tribal",
+        "placement": "top of both feet, ankles, toes and inner arch"
+      },
+      "description": "A heavy all-over maze of interlocked thick-line knotwork covers the top of each foot, the ankle and the toes, with the densest convolutions over the instep. Stylised mask-like faces appear in the negative spaces, giving a primal tribal-armour look."
+    },
+    {
+      "id": "CO 42 Stripes Feet Male",
+      "label": "CO  42  Stripes Feet Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\42 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "animal-stripe banding",
+        "style": "thick zebra brush strokes",
+        "placement": "top of both feet, ankles and toes"
+      },
+      "description": "Dense parallel zebra-stripe brushstrokes wrap the top of each foot, the ankle and the toes, with the heaviest banding running across the instep. The strokes follow the foot's contour like fur, leaving the soles mostly clear."
+    },
+    {
+      "id": "CO 32 Dalish Feet 1 Male",
+      "label": "CO  32  Dalish Feet  1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\32 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted tribal vines with curl accents",
+        "style": "stippled dot-and-line vines",
+        "placement": "top of both feet, ankles and the inner arch"
+      },
+      "description": "A network of stippled dotted vines runs over the top of each foot and curls around the ankle, with paired hook-spirals scattered along the inner arch and outer toe-line. The pattern reads as Dalish foliage stencilled in dots rather than solid ink."
+    },
+    {
+      "id": "CO 33 Dalish Feet 2 Male",
+      "label": "CO  33  Dalish Feet  2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\33 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled vines with leaf-and-branch cluster",
+        "style": "dotted Celtic-knot vines",
+        "placement": "top of both feet, ankles, and a central branch over the upper instep"
+      },
+      "description": "A dense leaf-and-branch motif rises from the upper instep of each foot, framed by stacked horizontal dotted-vine bands that wrap the ankle and the toes. Tiny dotted curls and short hatch dashes accent the outer foot edges."
+    },
+    {
+      "id": "CO 36 Corruption Foot Base Male",
+      "label": "CO  36  Corruption Foot Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ragged ink overgrowth",
+        "style": "solid ink with torn organic edges",
+        "placement": "top of both feet, ankles and shins"
+      },
+      "description": "A solid-fill creeping mass of ink covers the top of each foot, climbs the ankle and continues onto the lower shin with shredded, torn edges. The shape reads as a corrupting blot devouring the foot rather than a contained tattoo."
+    },
+    {
+      "id": "CO 36 Corruption Foot L2 Male",
+      "label": "CO  36  Corruption Foot L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Body L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "demonic glyph row",
+        "style": "rune-like ink script",
+        "placement": "outer ankle and outer side of both feet"
+      },
+      "description": "Scattered columns of small angular runes run down the outer ankle of each foot and curl across the outer instep, looking like a short cursed inscription. The toes and the top centre of the foot stay clear."
+    },
+    {
+      "id": "CO 43 Natura Feet Base Male",
+      "label": "CO  43  Natura Feet Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "flame-like ink overgrowth around a sun-disc",
+        "style": "solid ink with torn flame edges",
+        "placement": "top of both feet, ankles and the central instep"
+      },
+      "description": "A heavy solid-ink fill wraps the top of each foot and meets at a small sun-disc glyph on the central instep, with torn flame-like edges that ripple outward. Drips trail up onto the lower shin."
+    },
+    {
+      "id": "CO 43 Natura Feet L2 Male",
+      "label": "CO  43  Natura Feet L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "broken ink fragments with hooked claws",
+        "style": "broken solid-ink shards",
+        "placement": "top of both feet, ankles and the central instep"
+      },
+      "description": "The Base ink-mass broken up into solid black shards with claw-tipped extensions, still arranged around the central sun-disc on the instep. The fragments scatter across the foot top and the lower ankle."
+    },
+    {
+      "id": "CO 43 Natura Feet L3 Male",
+      "label": "CO  43  Natura Feet L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Body L3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched runic and fern detailing",
+        "style": "fine stippled glyphwork",
+        "placement": "top of both feet, ankles and the central instep around a sun-disc"
+      },
+      "description": "A delicate stipple overlay of tiny fern fronds, dotted runes, leaf clusters and hatch bars tracing the same outline as the heavier tier, gathered around a central sun-disc on the instep. Reads as a fine etched continuation of the ink mass."
+    },
+    {
+      "id": "CO 38 Mitsukami Feet Male",
+      "label": "CO  38  Mitsukami Feet Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\38 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered swirl-and-eye sigils",
+        "style": "bold occult glyphs",
+        "placement": "top of both feet, ankles, toes and inner arch"
+      },
+      "description": "Multiple paired sigils — flat spirals fed by short tendrils, plus a stylised slit-eye inside a horseshoe — scatter across the top of each foot, the ankle and the inner arch. Each glyph sits as its own small mark rather than connecting into a band."
+    },
+    {
+      "id": "CO 39 Runic Shade Feet Male",
+      "label": "CO  39  Runic Shade Feet Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Body Runes M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dense runic inscription",
+        "style": "fine rune script",
+        "placement": "top of both feet, ankles and toes"
+      },
+      "description": "A dense field of small angular runes blankets the top of each foot, wraps the ankle and continues over the toes, packed like rows of cursed text. The marks form an all-over inscription rather than a single band."
+    },
+    {
+      "id": "CO 40 Feranas Right Foot L1 Male",
+      "label": "CO  40  Feranas Right Foot L 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L1 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single-foot swirl tendril",
+        "style": "bold tribal curls",
+        "placement": "top of the right foot, ankle and outer instep"
+      },
+      "description": "A single-foot design only, on the right foot: a long hooked tendril with a coiled spiral terminal rises from the toes up the instep and wraps the outer ankle. The left foot is left bare."
+    },
+    {
+      "id": "CO 40 Feranas Right Foot L2 Male",
+      "label": "CO  40  Feranas Right Foot L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single-foot swirl tendril, denser variant",
+        "style": "bold tribal curls",
+        "placement": "top of the right foot, ankle, outer instep and toes"
+      },
+      "description": "A single-foot design only, on the right foot: a denser stack of tribal curls climbs from the toes over the instep and wraps the outer ankle, with multiple interlocking coiled spirals and hook-tipped tendrils. Reads as a thicker tier of the same motif."
+    },
+    {
+      "id": "CO 40 Feranas Right Foot L3 Male",
+      "label": "CO  40  Feranas Right Foot L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\40 Body Right Leg L3 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted vine outline",
+        "style": "small fading stipple",
+        "placement": "top of the right foot, ankle and outer instep"
+      },
+      "description": "A single-foot mark only, on the right foot: a faint dotted outline of the L2 tendril, rendered as tiny stipple dots that climb from the toes up the instep and around the outer ankle. Reads as a faded scar of the heavier design."
+    },
+    {
+      "id": "CO 48 Faeri Feet Male",
+      "label": "CO  48  Faeri Feet Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\48 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filigree ankle band with central scroll",
+        "style": "fine ornamental tribal",
+        "placement": "ankles, outer foot edges and a central scroll over the instep"
+      },
+      "description": "A narrow filigree band wraps each ankle and trails along the outer edge of the foot, with a small ornate scroll-and-curl cluster centred on the instep of each foot. Made of paired curls, tiny diamond accents and coiled scrolls, reading as etched jewellery."
+    },
+    {
+      "id": "CO 49 Azaer Tribe Feet Male",
+      "label": "CO  49  Azaer Tribe Feet Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\49 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dense interlocked maze-glyph",
+        "style": "thick maze-and-knot tribal",
+        "placement": "top of both feet, ankles, toes and inner arch"
+      },
+      "description": "A heavy all-over maze of interlocked thick-line knotwork covers the top of each foot, the ankle and the toes, with the densest convolutions over the instep. Stylised mask-like faces appear in the negative spaces, giving a primal tribal-armour look."
+    }
+  ]
+}

@@ -1,0 +1,473 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.community-overlays-2-warpaint",
+  "label": "Community Overlays 2 (Warpaints)",
+  "area": "Face",
+  "entries": [
+    {
+      "id": "CO 32 Dalish Face 1 Female",
+      "label": "CO  32  Dalish Face  1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\32 Head F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "mirrored radiating dot crowns",
+        "style": "tribal blotted dot-work",
+        "placement": "both cheekbones under the eyes"
+      },
+      "description": "Two mirrored arcs of solid black blot-dots sit high on each cheekbone just under the eye. Each arc forms a curved crescent capping a fanned-out row of stretched oval beads that radiate downward and outward, evoking a ceremonial sunburst face-paint."
+    },
+    {
+      "id": "CO 33 Dalish Face 2 Female",
+      "label": "CO  33  Dalish Face  2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\33 Head F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted brow arc and curling leafy vine",
+        "style": "hand-inked botanical with stippled accents",
+        "placement": "left brow and right cheek"
+      },
+      "description": "A short curved row of small inky dots traces just above one brow, while the opposite cheek carries a winding vine of curling stems and tiny rounded leaves that climbs from the jaw up toward the temple. The composition is asymmetric, blending stippled tribal marks with naturalistic foliage."
+    },
+    {
+      "id": "CO 35 Voodoo Face Female",
+      "label": "CO  35  Voodoo Face Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\35 Head F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "flaming horned eye-masks and fanged lip motif",
+        "style": "spiky tribal silhouette",
+        "placement": "around both eyes and beneath the lower lip"
+      },
+      "description": "Sharp flame-like silhouettes flare outward from around each eye, sprouting jagged spikes that arc up like horns and down past the cheekbone in pointed tendrils. A smaller mirrored set of fangs hangs just below the lower lip, completing a fierce, ritual demon-mask warpaint."
+    },
+    {
+      "id": "CO 36 Corruption Face Base Female",
+      "label": "CO  36  Corruption Face Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Head Base F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "creeping ragged blot covering half the face",
+        "style": "tattered ink-stain with dripping fronds",
+        "placement": "left half of the face from forehead to jaw"
+      },
+      "description": "A heavy irregular blot of black ink overruns the entire left half of the face, climbing from the jaw up across the cheek, around the eye and onto the forehead with frayed, tattered edges. Wisps and drip-like fronds peel off into the clean side, suggesting creeping rot or shadowy corruption taking hold of the skin."
+    },
+    {
+      "id": "CO 36 Corruption Face L2 Female",
+      "label": "CO  36  Corruption Face L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Head L2 F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single curving tear-streak with hollow droplet",
+        "style": "calligraphic brush stroke",
+        "placement": "right cheek under the eye"
+      },
+      "description": "A thick, tapered black brush stroke arcs from just under the right eye down across the cheek, swelling near the bottom and tapering back to a fine point. A small hollow lens-shape sits inside the lower swell, reading like a single dark tear of cursed ink rolling down the face."
+    },
+    {
+      "id": "CO 37 DracoNordic Face Base Female",
+      "label": "CO  37  Draco Nordic Face Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\37 Head Base F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "twin serpentine S-curve bands",
+        "style": "thick smudged brush strokes",
+        "placement": "vertically across the right half of the face"
+      },
+      "description": "Two parallel S-shaped bands sweep vertically from the forehead down across the right eye and cheek to the jaw, painted in a heavy, dry-brushed black wash. The strokes echo dragon-scale ribbons or war-chief stripes, rough and smudged rather than crisp."
+    },
+    {
+      "id": "CO 37 DracoNordic Face L2 Female",
+      "label": "CO  37  Draco Nordic Face L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\37 Head L2 F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "two columns of angular rune-like glyphs",
+        "style": "hand-inked runic script",
+        "placement": "both cheeks beside the mouth"
+      },
+      "description": "A short stacked column of sharp, angular rune-like characters runs down each cheek alongside the mouth. The glyphs are made of crossed bars, hooks and slashes, evoking a Nordic ward-text scratched onto the skin in ink."
+    },
+    {
+      "id": "CO 38 Mitsukami Face Female",
+      "label": "CO  38  Mitsukami Face Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\38 Head F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate teardrop forehead crest with curling cheek tendrils",
+        "style": "ceremonial calligraphic flourishes",
+        "placement": "forehead between the brows, temples and cheekbones"
+      },
+      "description": "A pointed teardrop ornament sits between the brows with a spiraled inner eye and small spiked accents flanking it. Curling spiral motifs anchor each temple, with three tapered ray-strokes radiating outward across the cheekbones like ceremonial whiskers."
+    },
+    {
+      "id": "CO 39 Runic Shade Face Female",
+      "label": "CO  39  Runic Shade Face Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Head F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "rectangular blocks of dense rune script",
+        "style": "fine-line glyph patches",
+        "placement": "forehead, both temples, cheeks and chin"
+      },
+      "description": "Small rectangular patches packed with tightly-set angular runic glyphs sit on the upper forehead, both temples, both cheeks, and a thin column beneath the chin. The marks resemble inscribed grave-script or shaded ward-blocks etched on the skin."
+    },
+    {
+      "id": "CO 39 Runic Shade Alt Face Female",
+      "label": "CO  39  Runic Shade Alt Face Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Head Alt F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "long vertical columns of runic glyphs",
+        "style": "fine-line glyph script",
+        "placement": "forehead, both cheeks and down the neck"
+      },
+      "description": "Two tall, narrow columns of angular runic characters run from the brow down each cheek and continue along the neck, with two smaller stacks above the brows. The script reads as a long inscribed ward winding around the face in vertical bands."
+    },
+    {
+      "id": "CO 43 Natura Face Base Female",
+      "label": "CO  43  Natura Face Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Head Base F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spiked emblem over one eye and jagged collar band",
+        "style": "bold angular tribal silhouette",
+        "placement": "right eye and across the collarbones"
+      },
+      "description": "A sharp spiked emblem of stacked talon shapes and parallel ribs straddles the right eye, slashing diagonally from temple to cheek. A second ragged band wraps the lower neck and collarbones like a torn collar of fangs, all in a heavy bold-tribal silhouette."
+    },
+    {
+      "id": "CO 43 Natura Face L2 Female",
+      "label": "CO  43  Natura Face L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Head L2 F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small spiked talon cluster and jagged collar line",
+        "style": "thin angular tribal silhouette",
+        "placement": "right cheek under the eye and across the collarbones"
+      },
+      "description": "A smaller version of the spike-and-rib emblem perches just beside the right eye, with thin diagonal slashes trailing down the cheek. A jagged, toothed band of ink wraps the lower neck like a torn ceremonial collar."
+    },
+    {
+      "id": "CO 43 Natura Face L3 Female",
+      "label": "CO  43  Natura Face L 3  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Head L3 F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled spike streaks and ornate dotted collar band",
+        "style": "fine stippling and tribal flourishes",
+        "placement": "right cheek and across the collarbones"
+      },
+      "description": "Fine stippled lines and tapered streaks form a faint spiked accent down the right cheek beside the eye. A long horizontal collar of intricate dot-and-flourish motifs spans the collarbones, blending tiny spirals, ferns and beaded shapes."
+    },
+    {
+      "id": "CO 43 Natura Face L3 Variant Female",
+      "label": "CO  43  Natura Face L 3  Variant Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Head L3 Variant F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled spike streaks and ornate dotted collar band",
+        "style": "fine stippling and tribal flourishes",
+        "placement": "right cheek and across the collarbones"
+      },
+      "description": "A variant with the same faint stippled accent of tapered streaks beside the right eye and the long ornate collar of dotted spirals and beaded motifs running across the collarbones. The pattern shifts subtly along the band but reads as the same ritual look."
+    },
+    {
+      "id": "CO 46 High Kraisas Face Female",
+      "label": "CO  46  High Kraisas Face Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\46 Head F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "mirrored ornate horned masquerade mask",
+        "style": "bold tribal mask-work",
+        "placement": "across the brows, eyes and upper cheeks"
+      },
+      "description": "A heavy mirrored mask design wraps both eyes and the upper face, with hooked, wing-like horns sweeping out toward the temples and curling fangs hanging beneath each eye. A small pendant teardrop dangles between the brows, giving the whole face a regal, ceremonial masquerade look."
+    },
+    {
+      "id": "CO 48 Faeri Face Female",
+      "label": "CO  48  Faeri Face Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\48 Head F M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "four mirrored interlocking spiral clusters",
+        "style": "rolling Celtic-style swirls",
+        "placement": "above both brows and on both cheekbones"
+      },
+      "description": "Two mirrored pairs of small interlocking spiral clusters sit above the brows and across the upper cheekbones. Each cluster is a tight curl of three to four linked scrolls, evoking dainty fae-circle marks rather than heavy war-paint."
+    },
+    {
+      "id": "CO 32 Dalish Face 1 Male",
+      "label": "CO  32  Dalish Face  1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\32 Head M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "mirrored radiating dot crowns",
+        "style": "tribal blotted dot-work",
+        "placement": "both cheekbones under the eyes"
+      },
+      "description": "Two mirrored arcs of solid black blot-dots crown each cheekbone, each capped by a thick curved crescent and trailing a fanned row of stretched oval beads downward across the cheek. The pattern reads as a wide ceremonial sunburst spreading under both eyes."
+    },
+    {
+      "id": "CO 33 Dalish Face 2 Male",
+      "label": "CO  33  Dalish Face  2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\33 Head M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted brow arc and curling leafy vine",
+        "style": "hand-inked botanical with stippled accents",
+        "placement": "left brow and right cheek"
+      },
+      "description": "A short curved arc of inky dots sits just above one brow, balanced by a sprawling vine on the opposite cheek. The vine winds with curling stems and tiny rounded leaves climbing from jaw to temple, mixing stippled marks with naturalistic foliage."
+    },
+    {
+      "id": "CO 35 Voodoo Face Male",
+      "label": "CO  35  Voodoo Face Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\35 Head M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "flaming horned eye-masks and fanged lip motif",
+        "style": "spiky tribal silhouette",
+        "placement": "around both eyes and beneath the lower lip"
+      },
+      "description": "Jagged flame-shaped silhouettes flare around both eyes, arcing up into curving horn-like spikes and trailing pointed fangs down the cheekbones. A smaller cluster of teeth-like spikes hangs below the lower lip, completing a fierce demon-mask warpaint."
+    },
+    {
+      "id": "CO 36 Corruption Face Base Male",
+      "label": "CO  36  Corruption Face Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Head Base M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "creeping ragged blot covering half the face",
+        "style": "tattered ink-stain with dripping fronds",
+        "placement": "left half of the face from forehead to jaw"
+      },
+      "description": "A heavy black blot eats up the left half of the face, climbing from the jaw across the cheek and around the eye onto the forehead with frayed, jagged borders. Wisps and drip-like fronds peel off into the clean side, suggesting a creeping shadowy corruption."
+    },
+    {
+      "id": "CO 36 Corruption Face L2 Male",
+      "label": "CO  36  Corruption Face L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\36 Head L2 M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "single curving tear-streak with hollow droplet",
+        "style": "calligraphic brush stroke",
+        "placement": "right cheek under the eye"
+      },
+      "description": "A tapered black brush stroke arcs down from beneath the right eye, swelling slightly toward the bottom and tapering back to a fine point. A small hollow lens-shape sits inside the swell, reading like one dark tear of cursed ink trailing down the cheek."
+    },
+    {
+      "id": "CO 37 DracoNordic Face Base Male",
+      "label": "CO  37  Draco Nordic Face Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\37 Head Base M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "twin serpentine S-curve bands",
+        "style": "thick smudged brush strokes",
+        "placement": "vertically across the right half of the face"
+      },
+      "description": "Two heavy parallel S-curves run vertically from the forehead down across the right eye and cheek to the jaw, painted in a smudged dry-brushed black wash. The bands suggest dragon-scale ribbons or warrior stripes, rough and uneven rather than crisp."
+    },
+    {
+      "id": "CO 37 DracoNordic Face L2 Male",
+      "label": "CO  37  Draco Nordic Face L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\37 Head L2 M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "two columns of angular rune-like glyphs",
+        "style": "hand-inked runic script",
+        "placement": "both cheeks beside the mouth"
+      },
+      "description": "A short stacked column of sharp angular rune-like characters runs down each cheek alongside the mouth. The glyphs are crossed bars, hooks and slashes that evoke Nordic ward-script scratched in ink onto the skin."
+    },
+    {
+      "id": "CO 38 Mitsukami Face Male",
+      "label": "CO  38  Mitsukami Face Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\38 Head M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate teardrop forehead crest with curling cheek tendrils",
+        "style": "ceremonial calligraphic flourishes",
+        "placement": "forehead between the brows, temples and cheekbones"
+      },
+      "description": "A pointed teardrop emblem with a spiraled inner eye and small spiked side accents centers on the forehead between the brows. Two curling spirals anchor each temple and three tapered ray-strokes fan outward across each cheekbone like ceremonial whiskers."
+    },
+    {
+      "id": "CO 39 Runic Shade Face Male",
+      "label": "CO  39  Runic Shade Face Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Head M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "rectangular blocks of dense rune script",
+        "style": "fine-line glyph patches",
+        "placement": "forehead, both temples, cheeks and chin"
+      },
+      "description": "Small rectangular patches packed with tightly written angular runic characters sit on the upper forehead, both temples, both cheeks and a thin column under the chin. The effect resembles inscribed ward-blocks or grave-script etched directly onto the skin."
+    },
+    {
+      "id": "CO 39 Runic Shade Alt Face Male",
+      "label": "CO  39  Runic Shade Alt Face Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\39 Head Alt M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "long vertical columns of runic glyphs",
+        "style": "fine-line glyph script",
+        "placement": "forehead, both cheeks and down the neck"
+      },
+      "description": "Two tall narrow columns of angular runic glyphs descend from the brow down each cheek and continue along the neck, with smaller stacks above each brow. The marks read like a long inscribed ward wrapping the face in vertical strips of text."
+    },
+    {
+      "id": "CO 43 Natura Face Base Male",
+      "label": "CO  43  Natura Face Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Head Base M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spiked talon emblem over one eye",
+        "style": "bold angular tribal silhouette",
+        "placement": "right eye and cheek"
+      },
+      "description": "A sharp emblem of stacked talon shapes and parallel ribs straddles the right eye, slashing diagonally from temple to cheek with several tapered prongs. The silhouette is heavy and bold, like a curved claw-mark carved across the face."
+    },
+    {
+      "id": "CO 43 Natura Face L2 Male",
+      "label": "CO  43  Natura Face L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Head L2 M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small spiked talon cluster",
+        "style": "thin angular tribal silhouette",
+        "placement": "right cheek under the eye"
+      },
+      "description": "A smaller spiked emblem of slim talon shapes and short ribs perches just beside the right eye, with two thin diagonal slashes trailing down the cheek. The composition is lighter than the base version but keeps the same hooked-claw silhouette."
+    },
+    {
+      "id": "CO 43 Natura Face L3 Male",
+      "label": "CO  43  Natura Face L 3  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\43 Head L3 M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "stippled spike streaks beside the eye",
+        "style": "fine stippling and dotted accents",
+        "placement": "right cheek beside the eye"
+      },
+      "description": "Faint stippled streaks and short dotted lines form a delicate spiked accent down the right cheek beside the eye. The marks are subtle and broken, almost like scratched dotwork rather than a solid silhouette."
+    },
+    {
+      "id": "CO 46 High Kraisas Face Male",
+      "label": "CO  46  High Kraisas Face Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\46 Head M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "mirrored ornate horned masquerade mask",
+        "style": "bold tribal mask-work",
+        "placement": "across the brows, eyes and upper cheeks"
+      },
+      "description": "A heavy mirrored mask design wraps both eyes and the upper face, with hooked wing-like horns sweeping out toward each temple and curling fangs hanging beneath each eye. A small pendant teardrop dangles between the brows for a regal masquerade look."
+    },
+    {
+      "id": "CO 48 Faeri Face Male",
+      "label": "CO  48  Faeri Face Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 2\\48 Head M M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "four mirrored interlocking spiral clusters",
+        "style": "rolling Celtic-style swirls",
+        "placement": "above both brows and on both cheekbones"
+      },
+      "description": "Two pairs of mirrored spiral clusters sit above the brows and across the upper cheekbones. Each cluster is a tight knot of three to four linked scrolls and curls, giving a dainty fae-circle accent rather than heavy warpaint."
+    }
+  ]
+}

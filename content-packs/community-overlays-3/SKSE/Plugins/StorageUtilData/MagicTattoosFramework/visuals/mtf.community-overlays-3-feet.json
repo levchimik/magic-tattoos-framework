@@ -1,0 +1,338 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.community-overlays-3-feet",
+  "label": "Community Overlays 3 (Feet)",
+  "area": "Feet",
+  "entries": [
+    {
+      "id": "CO 66 Aquadynamis Feet Special",
+      "label": "CO  66  Aquadynamis Feet Special",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\66 Feet S.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tall tribal flourishes with curl-tails",
+        "style": "calligraphic tribal",
+        "placement": "outer side of both ankles and along the top of the foot"
+      },
+      "description": "A pair of mirrored vertical tribal flourishes: a sharp spearhead-and-curl at the outer ankle and a longer trailing curl-tail running across the top of the foot. The shapes flow like brushed cursive in a stylised aquatic script."
+    },
+    {
+      "id": "CO 51 Nexregiant Feet Female",
+      "label": "CO  51  Nexregiant Feet Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filled tribal foot-armour",
+        "style": "bold dragon-tribal silhouette",
+        "placement": "top of both feet, ankles, and lower calf"
+      },
+      "description": "Heavy mirrored tribal fills sheath the top of each foot and wrap up around the ankle into a thick cuff that climbs onto the lower calf. Curling negative-space slits and small dragon-head flourishes break up an otherwise near-solid mass of ink."
+    },
+    {
+      "id": "CO 52 Faedis Feet Female",
+      "label": "CO  52  Faedis Feet Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\52 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "solid ink stockings",
+        "style": "dense blotted ink with soft gradient top edge",
+        "placement": "full top of both feet, soles, ankles, and lower-to-mid leg"
+      },
+      "description": "A full blackout fill covering the entire foot — top, sole, and toes — that continues up the ankle and lower leg as a tall stocking. The upper edge feathers into a soft gradient, reading like thigh-high opera stockings dyed straight into the skin."
+    },
+    {
+      "id": "CO 54 Do'Tive Feet Base Female",
+      "label": "CO  54  Do'Tive Feet Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\54 Body Base F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted contour outlines",
+        "style": "fine dotwork",
+        "placement": "ankle, top of foot, and along the outer edge of the foot"
+      },
+      "description": "Long, looping chains of small dots trace soft contour lines across the top of the foot and around the ankle, with extra arcs at the outer edge near the little toe. The whole design reads as a stippled body-contour map rather than any single object."
+    },
+    {
+      "id": "CO 54 Do'Tive Feet Tertiary Female",
+      "label": "CO  54  Do'Tive Feet Tertiary Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\54 Body L3 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scrollwork dotted contours with rosette accents",
+        "style": "ornamental dotwork",
+        "placement": "ankle, top of foot, and outer edge of the foot"
+      },
+      "description": "A denser variant of the dotted contour layout, with the looping outlines thickened into beaded scrollwork and small rosette curls added at the ankle and the outer foot edge. The motif still reads as fine stippled ornament rather than a solid form."
+    },
+    {
+      "id": "CO 56 Smoke Bones Feet Base Female",
+      "label": "CO  56  Smoke Bones Feet Base Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "skeletal foot x-ray",
+        "style": "anatomical bone outline",
+        "placement": "top of both feet, toes, ankles, and lower leg"
+      },
+      "description": "A clean skeletal anatomy laid over each foot, with metatarsal and phalange bones running from the ankle out to every toe-tip and the tibia/fibula pair visible up the lower leg. The ankle joint is rendered like an x-ray plate."
+    },
+    {
+      "id": "CO 56 Smoke Bones Feet Tribal L1 Female",
+      "label": "CO  56  Smoke Bones Feet Tribal L 1  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Tribal F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered tribal sun-and-bone motifs",
+        "style": "bold tribal accents",
+        "placement": "top of both feet, ankles, and lower leg"
+      },
+      "description": "A mix of tribal accents: a small spoked sun-disc near the toe-base, short rib-bar clusters across the top of the foot, and longer ladder-and-curl shapes climbing the ankle and lower leg. The motifs sit loose rather than as one continuous piece."
+    },
+    {
+      "id": "CO 56 Smoke Bones Feet Tribal L2 Female",
+      "label": "CO  56  Smoke Bones Feet Tribal L 2  Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Tribal 2 F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "sparse tribal sparks and bars",
+        "style": "sparse tribal accents",
+        "placement": "top of both feet, ankles, and lower leg"
+      },
+      "description": "A loose pattern of tiny curl-hooks, short horizontal bars and dotted accents scattered across the top of the foot, the ankle, and up the lower leg. Nothing fills the design — it reads as drifting flecks of ink."
+    },
+    {
+      "id": "CO 57 Egyptaris Feet Female",
+      "label": "CO  57  Egyptaris Feet Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched tribal foot armour with central eye",
+        "style": "fine-line bold tribal",
+        "placement": "top of both feet, ankles, and lower leg"
+      },
+      "description": "A linework armour-wrap that traces the top of each foot with curling tendrils and stylised feather shapes, anchored by a large central eye-and-disc motif sitting between the ankles. Banded segments run up the lower leg with small ankh-like glyphs."
+    },
+    {
+      "id": "CO 62 Blood Curse Feet Female",
+      "label": "CO  62  Blood Curse Feet Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\62 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "branching vein cracks",
+        "style": "organic capillary linework",
+        "placement": "scattered across top of both feet, ankles, and lower leg"
+      },
+      "description": "A spread of thin, fractal capillary lines that branch like burst blood vessels or roots crawling over the top of each foot and up the ankle. There is no symmetry or central shape, only creeping, curse-like veins under the skin."
+    },
+    {
+      "id": "CO 65 Flora Iter Foot Female",
+      "label": "CO  65  Flora Iter Foot Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\65 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal henna-style foot-piece",
+        "style": "dense ornamental tribal",
+        "placement": "top of the left foot, ankle, and lower leg"
+      },
+      "description": "A single-foot design only — an ornate filigree of curls, eyes and chevrons fills the top of the left foot and wraps the ankle, with a row of triangular tooth-shapes running along the top edge. A second banded cuff sits on the lower leg."
+    },
+    {
+      "id": "CO 68 Brimflame Foot Female",
+      "label": "CO  68  Brimflame Foot Female",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\68 Body F.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spear-and-flame tribal cap",
+        "style": "bold tribal with jagged flame edges",
+        "placement": "top of both feet, ankles, and a band on the lower leg"
+      },
+      "description": "Heavy mirrored tribal fills with jagged, fire-like outer edges cover the top of each foot and the ankle, with a separate dense flame-cap wrapping the lower leg above. The interior is broken by curling negative-space lines that give it a banded-flame texture."
+    },
+    {
+      "id": "CO 51 Nexregiant Feet Male",
+      "label": "CO  51  Nexregiant Feet Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\51 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "filled tribal foot-armour",
+        "style": "bold dragon-tribal silhouette",
+        "placement": "top of both feet, ankles, and lower calf"
+      },
+      "description": "Heavy mirrored tribal fills sheath the top of each foot and wrap up around the ankle into a thick cuff that climbs onto the lower calf. Curling negative-space slits and small dragon-head flourishes interrupt an otherwise near-solid block of ink."
+    },
+    {
+      "id": "CO 52 Faedis Feet Male",
+      "label": "CO  52  Faedis Feet Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\52 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "solid ink stockings",
+        "style": "dense blotted ink with soft gradient top edge",
+        "placement": "full top of both feet, soles, ankles, and lower-to-mid leg"
+      },
+      "description": "A full blackout fill covering the entire foot — top, sole, and toes — that continues up the ankle and lower leg as a tall stocking. The upper edge feathers into a soft gradient, reading like thigh-high stockings dyed straight into the skin."
+    },
+    {
+      "id": "CO 54 Do'Tive Feet Base Male",
+      "label": "CO  54  Do'Tive Feet Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\54 Body Base M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dotted contour outlines",
+        "style": "fine dotwork",
+        "placement": "ankle, top of foot, and along the outer edge of the foot"
+      },
+      "description": "Long, looping chains of small dots trace soft contour lines across the top of the foot and around the ankle, with extra arcs at the outer edge near the little toe. The whole design reads as a stippled body-contour map rather than any single object."
+    },
+    {
+      "id": "CO 56 Smoke Bones Feet Base Male",
+      "label": "CO  56  Smoke Bones Feet Base Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "skeletal foot x-ray",
+        "style": "anatomical bone outline",
+        "placement": "top of both feet, toes, ankles, and lower leg"
+      },
+      "description": "A clean skeletal anatomy laid over each foot, with metatarsal and phalange bones running from the ankle out to every toe-tip and the tibia/fibula pair visible up the lower leg. The ankle joint is rendered like an x-ray plate."
+    },
+    {
+      "id": "CO 56 Smoke Bones Feet Tribal L1 Male",
+      "label": "CO  56  Smoke Bones Feet Tribal L 1  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Tribal M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered tribal sun-and-bone motifs",
+        "style": "bold tribal accents",
+        "placement": "top of both feet, ankles, and lower leg"
+      },
+      "description": "A mix of tribal accents: a small spoked sun-disc near the toe-base, short rib-bar clusters across the top of the foot, and longer ladder-and-curl shapes climbing the ankle and lower leg. The motifs sit loose rather than as one continuous piece."
+    },
+    {
+      "id": "CO 56 Smoke Bones Feet Tribal L2 Male",
+      "label": "CO  56  Smoke Bones Feet Tribal L 2  Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\56 Body Tribal 2 M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "sparse tribal sparks and bars",
+        "style": "sparse tribal accents",
+        "placement": "top of both feet, ankles, and lower leg"
+      },
+      "description": "A loose pattern of tiny curl-hooks, short horizontal bars and dotted accents scattered across the top of the foot, the ankle, and up the lower leg. Nothing fills the design — it reads as drifting flecks of ink."
+    },
+    {
+      "id": "CO 57 Egyptaris Feet Male",
+      "label": "CO  57  Egyptaris Feet Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\57 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "etched tribal foot armour with central eye",
+        "style": "fine-line bold tribal",
+        "placement": "top of both feet, ankles, and lower leg"
+      },
+      "description": "A linework armour-wrap that traces the top of each foot with curling tendrils and stylised feather shapes, anchored by a large central eye-and-disc motif sitting between the ankles. Banded segments run up the lower leg with small ankh-like glyphs."
+    },
+    {
+      "id": "CO 62 Blood Curse Feet Male",
+      "label": "CO  62  Blood Curse Feet Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\62 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "branching vein cracks",
+        "style": "organic capillary linework",
+        "placement": "scattered across top of both feet, ankles, and lower leg"
+      },
+      "description": "A spread of thin, fractal capillary lines that branch like burst blood vessels or roots crawling over the top of each foot and up the ankle. There is no symmetry or central shape, only creeping, curse-like veins under the skin."
+    },
+    {
+      "id": "CO 65 Flora Iter Foot Male",
+      "label": "CO  65  Flora Iter Foot Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\65 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal henna-style foot-piece",
+        "style": "dense ornamental tribal",
+        "placement": "top of the left foot, ankle, and lower leg"
+      },
+      "description": "A single-foot design only — an ornate filigree of curls, eyes and chevrons fills the top of the left foot and wraps the ankle, with a row of triangular tooth-shapes running along the top edge. A second banded cuff sits on the lower leg."
+    },
+    {
+      "id": "CO 68 Brimflame Foot Male",
+      "label": "CO  68  Brimflame Foot Male",
+      "layers": [
+        {
+          "texture": "Actors\\Character\\Overlays\\Community Overlays\\CO 3\\68 Body M.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spear-and-flame tribal cap",
+        "style": "bold tribal with jagged flame edges",
+        "placement": "top of both feet, ankles, and a band on the lower leg"
+      },
+      "description": "Heavy mirrored tribal fills with jagged, fire-like outer edges cover the top of each foot and the ankle, with a separate dense flame-cap wrapping the lower leg above. The interior is broken by curling negative-space lines that give it a banded-flame texture."
+    }
+  ]
+}
