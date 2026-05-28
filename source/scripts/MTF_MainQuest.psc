@@ -559,8 +559,54 @@ Function _onTrackedActorKilled(Actor victim)
     endif
     if !fadeArmed
         _rosterRemoveActor(victim)
-    elseif DebugMode
-        Debug.Notification("[MTF fade] death cleanup deferred — fade running on " + victim.GetDisplayName())
+    else
+        ; v0.3.1 (#A parallel-safe): eagerly arm fade params on every
+        ; (preset, area, baseSlot) for this actor. Without this, a
+        ; parallel fiber mid-tier-transition may not have flushed its
+        ; fadePacked to the Roster yet — the C++ DeathSink fires now,
+        ; finds entries with fade_armed=false, and the pulse continues
+        ; running on the corpse instead of fading out. Reads fade params
+        ; from per-preset cache directly (race-safe, no _s* dependence).
+        ; SetActorFade is idempotent — if the fiber later writes the
+        ; same params, no harm.
+        int j = 0
+        while j < n
+            string nmFade = GetActorPresetAt(victim, j)
+            if nmFade != ""
+                string ckFade = "mtf.scratch.cached." + nmFade
+                bool fEnabled  = StorageUtil.GetIntValue(None, ckFade + ".fadeondeath.enabled", 0) > 0
+                if fEnabled
+                    int fMode = StorageUtil.GetIntValue(None, ckFade + ".fadeondeath.mode", 0)
+                    int fDur  = StorageUtil.GetIntValue(None, ckFade + ".fadeondeath.durationms", 2000)
+                    if fMode < 0 || fMode > 2
+                        fMode = 0
+                    endif
+                    if fDur < 1
+                        fDur = 2000
+                    endif
+                    ; Inline scalar base reads (no _readActorAreaBases helper on main).
+                    ; Order matches _OVERLAY_PARTS(): Body/Face/Hands/Feet.
+                    Int[] fadeBases = new Int[4]
+                    fadeBases[0] = StorageUtil.GetIntValue(victim, "mtf.preset." + nmFade + ".Body.base",  -1)
+                    fadeBases[1] = StorageUtil.GetIntValue(victim, "mtf.preset." + nmFade + ".Face.base",  -1)
+                    fadeBases[2] = StorageUtil.GetIntValue(victim, "mtf.preset." + nmFade + ".Hands.base", -1)
+                    fadeBases[3] = StorageUtil.GetIntValue(victim, "mtf.preset." + nmFade + ".Feet.base",  -1)
+                    string[] fadeParts = _OVERLAY_PARTS()
+                    int k = 0
+                    while k < fadeParts.Length && k < fadeBases.Length
+                        int fBase = fadeBases[k]
+                        if fBase >= 0
+                            MTFPulse.SetActorFade(victim, fBase, fMode, fDur, _areaIndex(fadeParts[k]))
+                        endif
+                        k += 1
+                    endwhile
+                endif
+            endif
+            j += 1
+        endwhile
+        if DebugMode
+            Debug.Notification("[MTF fade] death cleanup deferred — fade armed on " + victim.GetDisplayName())
+        endif
     endif
     _setActorKilled(victim, true)
 EndFunction
