@@ -83,8 +83,22 @@ def validate_param(p: dict, breadcrumb: str) -> list[str]:
         errors.append(f"{breadcrumb}.label: must be non-empty string")
 
     has_menu = "menu" in p
+    is_text  = p.get("text") is True
+    if is_text and has_menu:
+        errors.append(
+            f"{breadcrumb}: cannot declare both `text: true` and `menu` on the same param"
+        )
     if "default" not in p:
-        errors.append(f"{breadcrumb}.default: required field missing")
+        # Text params: default is optional (defaults to "" — empty seed text).
+        if not is_text:
+            errors.append(f"{breadcrumb}.default: required field missing")
+    elif is_text:
+        # Text mode: default is a string (may be empty — the input dialog
+        # opens with no seed text). Any string is legal — roleplay flavor.
+        if not isinstance(p["default"], str):
+            errors.append(
+                f"{breadcrumb}.default: must be a string for text params"
+            )
     elif has_menu:
         # Menu mode: default is the id string of one of the options.
         if not isinstance(p["default"], str) or p["default"] == "":
@@ -95,6 +109,16 @@ def validate_param(p: dict, breadcrumb: str) -> list[str]:
         # Slider mode: default is a number.
         if not _is_number(p["default"]):
             errors.append(f"{breadcrumb}.default: must be a number (slider param)")
+
+    if is_text:
+        # Text mode: min/max/step/menu/format are all forbidden — the param
+        # is a free-form string fed into an MCM input dialog.
+        for k in ("min", "max", "step", "menu", "format"):
+            if k in p:
+                errors.append(
+                    f"{breadcrumb}.{k}: forbidden on text params"
+                )
+        return errors
 
     if has_menu:
         m = p["menu"]

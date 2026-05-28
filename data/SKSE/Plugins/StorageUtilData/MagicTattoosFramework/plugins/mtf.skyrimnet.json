@@ -1,0 +1,18 @@
+{
+  "schemaversion": 2,
+  "pluginid": "mtf.skyrimnet",
+  "pluginlabel": "SkyrimNet Bridge",
+  "conditions": [],
+  "effects": [
+    {
+      "id": "rp.text",
+      "label": "Special",
+      "description": "{param1}",
+      "param1": {
+        "label": "Roleplay text",
+        "text": true,
+        "default": ""
+      }
+    }
+  ]
+}

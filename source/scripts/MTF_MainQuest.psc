@@ -1079,6 +1079,19 @@ string Function GetEntryDescription(string packId, string entryId)
     return JsonUtil.GetPathStringValue(f, ".entries[" + idx + "].description", "")
 EndFunction
 
+; v0.3.x: anatomical placement tag (e.g. "lower abdomen, just below the
+; navel"). Near-universal across content packs; surfaced in the SkyrimNet
+; bio so the LLM knows WHERE the tattoo sits even when the prose
+; description omits it. Empty string when the pack entry has no tag.
+string Function GetEntryPlacement(string packId, string entryId)
+    string f = _packFileById(packId)
+    int idx = _findEntryIdx(packId, entryId)
+    if f == "" || idx < 0
+        return ""
+    endif
+    return JsonUtil.GetPathStringValue(f, ".entries[" + idx + "].tags.placement", "")
+EndFunction
+
 ; v0.1.20: optional pack-level description (e.g. "A set of fertility runes
 ; from the Reach"). Same fallback: empty string when missing.
 string Function GetPackDescription(string packId)
@@ -1232,7 +1245,10 @@ bool Function _condParam2IsMenu(string condKey)
     return p.GetConditionParam2MenuOptionCount(itemIdx) > 0
 EndFunction
 
-bool Function _effectParamIsMenu(string effKey, int n)
+; v0.3.x: true when paramN (de)serializes as a STRING — menu (string id) OR
+; free-text. Sliders serialize as int. Save/Load/scratch-load route on this
+; so text params persist their content instead of being coerced to int 0.
+bool Function _effectParamIsStr(string effKey, int n)
     if effKey == "" || n < 1 || n > 5
         return false
     endif
@@ -1244,7 +1260,7 @@ bool Function _effectParamIsMenu(string effKey, int n)
     if itemIdx < 0
         return false
     endif
-    return p.GetEffectParamMenuOptionCount(itemIdx, n) > 0
+    return p.GetEffectParamMenuOptionCount(itemIdx, n) > 0 || p.GetEffectParamIsText(itemIdx, n)
 EndFunction
 
 ; ── Per-slot display name (StorageUtil-backed, v0.2.9) ──────────────────────
@@ -2438,7 +2454,8 @@ bool Function SavePreset(string rawName)
                 ; param — menu params write string id, sliders write int.
                 int n = 1
                 while n <= 5
-                    if _effectParamIsMenu(fxKey, n)
+                    ; v0.3.x: menu OR text params serialize as string; sliders as int.
+                    if _effectParamIsStr(fxKey, n)
                         string sval = _readFxParamNStr(s, e, n, false)
                         if sval != ""
                             JsonUtil.SetPathStringValue(f, ep + ".param" + n, sval)
@@ -2603,8 +2620,10 @@ bool Function LoadPreset(string name)
                 ; v0.2.9: per-param menu-vs-slider routing on load too. Menu
                 ; params read string id (default = catalog's GetEffectParamDefaultId);
                 ; sliders read int (default = catalog's GetEffectParamDefault).
-                bool isMenuN = (itemIdxLoad >= 0 && pLoad.GetEffectParamMenuOptionCount(itemIdxLoad, n) > 0)
-                if isMenuN
+                ; v0.3.x: text params also read as string (same path as menus —
+                ; GetEffectParamDefaultId returns the catalog's default text).
+                bool isStrN = (itemIdxLoad >= 0 && (pLoad.GetEffectParamMenuOptionCount(itemIdxLoad, n) > 0 || pLoad.GetEffectParamIsText(itemIdxLoad, n)))
+                if isStrN
                     string svalLoad = JsonUtil.GetPathStringValue(f, ep + ".param" + n, "")
                     if svalLoad == "" && itemIdxLoad >= 0
                         svalLoad = pLoad.GetEffectParamDefaultId(itemIdxLoad, n)
@@ -6243,8 +6262,9 @@ bool Function _loadPresetToScratch(string name)
             while sn <= 5
                 ; v0.2.9: menu effect params read as string; sliders as int.
                 ; Catalog probe per param.
-                bool isMenuSn = (itemIdxX >= 0 && pLoadX.GetEffectParamMenuOptionCount(itemIdxX, sn) > 0)
-                if isMenuSn
+                ; v0.3.x: text params also read as string (same path as menus).
+                bool isStrSn = (itemIdxX >= 0 && (pLoadX.GetEffectParamMenuOptionCount(itemIdxX, sn) > 0 || pLoadX.GetEffectParamIsText(itemIdxX, sn)))
+                if isStrSn
                     string snStr = JsonUtil.GetPathStringValue(f, ep + ".param" + sn, "")
                     if snStr == "" && itemIdxX >= 0
                         snStr = pLoadX.GetEffectParamDefaultId(itemIdxX, sn)

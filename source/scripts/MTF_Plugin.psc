@@ -358,6 +358,15 @@ int Function GetEffectParamMenuOptionCount(int idx, int n)
     return JsonUtil.PathCount(_catalogFile(), ".effects[" + idx + "].param" + n + ".menu")
 EndFunction
 
+bool Function GetEffectParamIsText(int idx, int n)
+{v0.3.x: free-text input param. Returns true when the catalog declares
+ paramN.text=true. Mutually exclusive with menu and slider — text params
+ use AddInputOptionST in MCM and store via SetSlotEffectParamNStr (the
+ same per-effect string slot menu params use). The catalog validator
+ forbids text alongside menu/min/max/step/format.}
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".text", 0) > 0
+EndFunction
+
 string Function GetEffectParamMenuOptionId(int idx, int n, int optionIdx)
 {The stable id stored on the slot when option `optionIdx` is picked.
  Reorder-safe. v0.2.9 schema 2.}

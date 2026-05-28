@@ -169,10 +169,15 @@ int Function GetConditionCount()
     return 0
 EndFunction
 
-; ── Effects: none ───────────────────────────────────────────────────────────
-int Function GetEffectCount()
-    return 0
-EndFunction
+; ── Effects: JSON-driven via base class (v0.3.x) ───────────────────────────
+; The plugin now ships a catalog at
+;   Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.skyrimnet.json
+; containing a single "Text" effect with a free-form text param so
+; roleplayers can attach custom narrative copy to a tier. The text is
+; surfaced verbatim in the rendered Markdown bio (see _resolveParamValueLabel
+; and _substDescPlaceholders below) so the LLM reads it on every tier
+; transition. No engine-side effect — onActivate/onDeactivate stay base
+; no-ops; the visible "effect" IS the bio entry.
 
 ; (v0.2.1: plugin-level settings system removed framework-wide — the
 ; legacy `GetSettingCount() = 0` override is no longer needed because
@@ -411,6 +416,7 @@ String Function _renderBasePresetMd(MTF_MainQuest host, int tier, string actorNa
     endif
     string entryLabel = _findEntryLabel(host, packId, entryId)
     string visualDesc = host.GetEntryDescription(packId, entryId)
+    string placement = host.GetEntryPlacement(packId, entryId)
     float pulseRate = host.GetCondPulseRate(tier)
     int pulseDepth = host.GetCondPulseDepth(tier)
     string layersMd = _renderBaseLayersMd(host, tier, packId, entryId)
@@ -421,7 +427,7 @@ String Function _renderBasePresetMd(MTF_MainQuest host, int tier, string actorNa
     string condP1s = host.GetCondParamStr(tier)   ; v0.2.9 string-id for menu params
     string condP2s = host.GetCondParam2Str(tier)
     string conditionMd = _renderConditionMd(host, condKey, condP1s, condP1, condP2s, condP2)
-    return _composePresetMd("", tier, packLabel, entryLabel, visualDesc, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName)
+    return _composePresetMd("", tier, packLabel, entryLabel, visualDesc, placement, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName)
 EndFunction
 
 ; Stacked preset Markdown block. Reads from the preset JSON file directly
@@ -444,6 +450,7 @@ String Function _renderStackedPresetMd(MTF_MainQuest host, Actor a, string prese
     endif
     string entryLabel = _findEntryLabel(host, packId, entryId)
     string visualDesc = host.GetEntryDescription(packId, entryId)
+    string placement = host.GetEntryPlacement(packId, entryId)
     float pulseRate = JsonUtil.GetPathFloatValue(f, ".slot[" + tier + "].pulse.rate", 0.0)
     int pulseDepth = JsonUtil.GetPathIntValue(f, ".slot[" + tier + "].pulse.depth", 0)
     string layersMd = _renderStackedLayersMd(host, f, tier, packId, entryId)
@@ -455,7 +462,7 @@ String Function _renderStackedPresetMd(MTF_MainQuest host, Actor a, string prese
     string condP1s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.param",  "")
     string condP2s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.param2", "")
     string conditionMd = _renderConditionMd(host, condKey, condP1s, condP1, condP2s, condP2)
-    return _composePresetMd(displayName, tier, packLabel, entryLabel, visualDesc, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName)
+    return _composePresetMd(displayName, tier, packLabel, entryLabel, visualDesc, placement, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName)
 EndFunction
 
 ; Shared composition for both base and stacked presets. Output mirrors the
@@ -472,7 +479,7 @@ EndFunction
 ;
 ; Each subsection elides when its inputs are empty. Returns "" when ALL
 ; subsections elide (so the caller doesn't emit a phantom blank block).
-String Function _composePresetMd(string displayName, int tier, string packLabel, string entryLabel, string visualDesc, float pulseRate, int pulseDepth, string layersMd, string effectsMd, string conditionMd, string actorName) global
+String Function _composePresetMd(string displayName, int tier, string packLabel, string entryLabel, string visualDesc, string placement, float pulseRate, int pulseDepth, string layersMd, string effectsMd, string conditionMd, string actorName) global
     string md = ""
     ; Header line
     if displayName != ""
@@ -496,6 +503,12 @@ String Function _composePresetMd(string displayName, int tier, string packLabel,
     endif
     if visualLine != ""
         md = md + visualLine + "\n"
+    endif
+    ; v0.3.x: explicit anatomical placement. Structured so the LLM reliably
+    ; knows WHERE the tattoo sits even when visualDesc omits it; near-universal
+    ; across content packs (read from the entry's tags.placement).
+    if placement != ""
+        md = md + "Placement: " + placement + ".\n"
     endif
     ; Color block
     if layersMd != ""
@@ -639,6 +652,8 @@ String Function _renderOneEffectMd(MTF_MainQuest host, string key, string p1s, i
     string desc = ""
     string p1Val = ""
     string p2Val = ""
+    bool p1Declared = false
+    bool p2Declared = false
     if p != None
         int itemIdx = host._effectIdxFor(p, host._keyItemId(key))
         if itemIdx >= 0
@@ -646,15 +661,19 @@ String Function _renderOneEffectMd(MTF_MainQuest host, string key, string p1s, i
             desc = p.GetEffectDescription(itemIdx)
             ; Capture resolved value labels for description {param1}/{param2}
             ; substitution. Empty label = effect doesn't use that param slot.
+            ; v0.3.x: track declared-ness separately so text params with empty
+            ; user copy still substitute "{paramN}" -> "" (not left literal).
             if p.GetEffectParamLabel(itemIdx, 1) != ""
+                p1Declared = true
                 p1Val = _resolveParamValueLabel(p, itemIdx, 1, p1s, p1)
             endif
             if p.GetEffectParamLabel(itemIdx, 2) != ""
+                p2Declared = true
                 p2Val = _resolveParamValueLabel(p, itemIdx, 2, p2s, p2)
             endif
         endif
     endif
-    desc = _substDescPlaceholders(desc, p1Val, p2Val)
+    desc = _substDescPlaceholders(desc, p1Declared, p1Val, p2Declared, p2Val)
     if label == "" && desc == ""
         ; Unknown plugin / removed effect — emit a debug-friendly stub so
         ; the user can see the orphan key in the bio.
@@ -683,20 +702,24 @@ String Function _renderConditionMd(MTF_MainQuest host, string key, string p1s, i
     string desc = ""
     string p1Val = ""
     string p2Val = ""
+    bool p1Declared = false
+    bool p2Declared = false
     if p != None
         int itemIdx = host._condIdxFor(p, host._keyItemId(key))
         if itemIdx >= 0
             label = p.GetConditionLabel(itemIdx)
             desc = p.GetConditionDescription(itemIdx)
             if p.GetConditionParamLabel(itemIdx) != ""
+                p1Declared = true
                 p1Val = _resolveConditionParamValueLabel(p, itemIdx, false, p1s, p1)
             endif
             if p.GetConditionParam2Label(itemIdx) != ""
+                p2Declared = true
                 p2Val = _resolveConditionParamValueLabel(p, itemIdx, true, p2s, p2)
             endif
         endif
     endif
-    desc = _substDescPlaceholders(desc, p1Val, p2Val)
+    desc = _substDescPlaceholders(desc, p1Declared, p1Val, p2Declared, p2Val)
     if label == "" && desc == ""
         return ""
     endif
@@ -759,6 +782,15 @@ EndFunction
 ; both — the catalog menu count tells us which to use. `sId` empty + menu
 ; present = unset → return "(unset)".
 String Function _resolveParamValueLabel(MTF_Plugin p, int itemIdx, int n, string sId, int value) global
+    ; v0.3.x: text-param branch FIRST — raw user copy passes through verbatim.
+    ; Empty text is legitimate (the user simply hasn't filled it in yet); the
+    ; bio template gets an empty substitution rather than "(unset)" so the
+    ; effect bullet doesn't leak "(unset)" into the LLM prompt. The
+    ; declared-vs-empty distinction is handled by _renderOneEffectMd which
+    ; substitutes unconditionally for declared params (see callers).
+    if p.GetEffectParamIsText(itemIdx, n)
+        return sId
+    endif
     int optCount = p.GetEffectParamMenuOptionCount(itemIdx, n)
     if optCount > 0
         if sId == ""
@@ -855,17 +887,20 @@ String Function _formatNum(string fmt, int value) global
 EndFunction
 
 ; Substitute `{param1}` / `{param2}` placeholders in `desc` with the
-; already-resolved value labels. Either label may be empty (param slot
-; unused on this effect/condition) — in that case leave the placeholder
-; alone so the author can see they referenced an unused slot.
-String Function _substDescPlaceholders(string desc, string p1Val, string p2Val) global
+; already-resolved value labels. Substitution is gated on DECLARED-ness,
+; not on value-non-empty:
+;   - Param declared, value "" -> substitute "" (text params with empty
+;     user copy elide cleanly instead of leaving "{param1}" literal).
+;   - Param undeclared (label "")            -> leave placeholder alone
+;     so the author can see they referenced an unused slot.
+String Function _substDescPlaceholders(string desc, bool p1Declared, string p1Val, bool p2Declared, string p2Val) global
     if desc == ""
         return desc
     endif
-    if p1Val != ""
+    if p1Declared
         desc = _replaceAll(desc, "{param1}", p1Val)
     endif
-    if p2Val != ""
+    if p2Declared
         desc = _replaceAll(desc, "{param2}", p2Val)
     endif
     return desc

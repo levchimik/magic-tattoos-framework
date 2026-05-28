@@ -1888,8 +1888,13 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string p1St
         string lbl = p.GetEffectParamLabel(itemIdx, n)
         string sid = paramIds[n - 1]
         if lbl != "" && sid != ""
-            ; v0.2.9: menu vs slider — read string id or int per catalog.
-            if p.GetEffectParamMenuOptionCount(itemIdx, n) > 0
+            ; v0.3.x: three param types — text (input), menu (string id), slider (int).
+            ; Text takes priority over menu so a misconfigured "text+menu" catalog
+            ; doesn't silently fall through to menu render (validator catches it).
+            if p.GetEffectParamIsText(itemIdx, n)
+                string curText = MainQuest.GetSlotEffectParamNStr(slot, effectIdx, n)
+                AddInputOptionST(sid, "  " + lbl, _textRowLabel(curText))
+            elseif p.GetEffectParamMenuOptionCount(itemIdx, n) > 0
                 string curId = MainQuest.GetSlotEffectParamNStr(slot, effectIdx, n)
                 AddMenuOptionST(sid, "  " + lbl, _menuLabelForParam(p, itemIdx, n, curId))
             else
@@ -2027,16 +2032,24 @@ Function _defaultEffectParam(int effectIdx, int n)
     string key = MainQuest.GetSlotEffectKey(selectedCondition, effectIdx)
     MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
     int menuCnt = 0
+    bool isText = false
     int itemIdx = -1
     string fmt = "{0}"
     if p != None
         itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
         if itemIdx >= 0
+            isText  = p.GetEffectParamIsText(itemIdx, n)
             menuCnt = p.GetEffectParamMenuOptionCount(itemIdx, n)
-            fmt = p.GetEffectParamFormat(itemIdx, n)
+            fmt     = p.GetEffectParamFormat(itemIdx, n)
         endif
     endif
-    if menuCnt > 0 && p != None && itemIdx >= 0
+    if isText && p != None && itemIdx >= 0
+        ; v0.3.x: text default is a string (may be empty).
+        string defText = p.GetEffectParamDefaultId(itemIdx, n)
+        MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, defText)
+        MainQuest.SetSlotEffectParamN(selectedCondition, effectIdx, n, 0)
+        SetInputOptionValueST(_textRowLabel(defText))
+    elseif menuCnt > 0 && p != None && itemIdx >= 0
         ; v0.2.9: menu default is a string id.
         string defId = p.GetEffectParamDefaultId(itemIdx, n)
         MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, defId)
@@ -2051,6 +2064,37 @@ Function _defaultEffectParam(int effectIdx, int n)
         MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, "")
         SetSliderOptionValueST(defVal, fmt)
     endif
+EndFunction
+
+; ── v0.3.x: text-input param helpers ───────────────────────────────────────
+; Free-text params open SkyUI's input dialog (Skyrim's on-screen keyboard +
+; controller-friendly text entry). The text is stored as the string-id
+; variant via SetSlotEffectParamNStr — same storage slot menu params use.
+; The int slot is cleared so a switch from text → slider doesn't leave a
+; stale numeric residue.
+
+Function _openEffectParamInput(int effectIdx, int n)
+    SetInputDialogStartText(MainQuest.GetSlotEffectParamNStr(selectedCondition, effectIdx, n))
+EndFunction
+
+Function _acceptEffectParamInput(int effectIdx, int n, string text)
+    MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, text)
+    MainQuest.SetSlotEffectParamN(selectedCondition, effectIdx, n, 0)
+    SetInputOptionValueST(_textRowLabel(text))
+EndFunction
+
+; Truncate long text for the MCM row display. Empty -> "(empty)" so the
+; row visibly reads as unset rather than a blank widget. Soft cap matches
+; the menu-label width budget (no widget word-wrap; SkyUI clips silently).
+string Function _textRowLabel(string s) global
+    if s == ""
+        return "(empty)"
+    endif
+    int maxL = 40
+    if StringUtil.GetLength(s) > maxL
+        return StringUtil.Substring(s, 0, maxL - 3) + "..."
+    endif
+    return s
 EndFunction
 
 Function _openEffectParamMenu(int effectIdx, int n)
@@ -2328,6 +2372,12 @@ state SLOT_EFFECT_1_P1
     event OnHighlightST()
         _highlightEffectParam(0, 1)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(0, 1)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(0, 1, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_2_TYPE
@@ -2365,6 +2415,12 @@ state SLOT_EFFECT_2_P1
     endEvent
     event OnHighlightST()
         _highlightEffectParam(1, 1)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(1, 1)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(1, 1, text)
     endEvent
 endState
 
@@ -2404,6 +2460,12 @@ state SLOT_EFFECT_3_P1
     event OnHighlightST()
         _highlightEffectParam(2, 1)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(2, 1)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(2, 1, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_4_TYPE
@@ -2442,6 +2504,12 @@ state SLOT_EFFECT_4_P1
     event OnHighlightST()
         _highlightEffectParam(3, 1)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(3, 1)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(3, 1, text)
+    endEvent
 endState
 
 ; ── Per-effect param2 states (only shown when effect declares param2) ───────
@@ -2464,6 +2532,12 @@ state SLOT_EFFECT_1_P2
     event OnHighlightST()
         _highlightEffectParam(0, 2)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(0, 2)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(0, 2, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_2_P2
@@ -2484,6 +2558,12 @@ state SLOT_EFFECT_2_P2
     endEvent
     event OnHighlightST()
         _highlightEffectParam(1, 2)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(1, 2)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(1, 2, text)
     endEvent
 endState
 
@@ -2506,6 +2586,12 @@ state SLOT_EFFECT_3_P2
     event OnHighlightST()
         _highlightEffectParam(2, 2)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(2, 2)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(2, 2, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_4_P2
@@ -2526,6 +2612,12 @@ state SLOT_EFFECT_4_P2
     endEvent
     event OnHighlightST()
         _highlightEffectParam(3, 2)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(3, 2)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(3, 2, text)
     endEvent
 endState
 
@@ -2571,6 +2663,12 @@ state SLOT_EFFECT_5_P1
     event OnHighlightST()
         _highlightEffectParam(4, 1)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(4, 1)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(4, 1, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_5_P2
@@ -2591,6 +2689,12 @@ state SLOT_EFFECT_5_P2
     endEvent
     event OnHighlightST()
         _highlightEffectParam(4, 2)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(4, 2)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(4, 2, text)
     endEvent
 endState
 
@@ -2630,6 +2734,12 @@ state SLOT_EFFECT_6_P1
     event OnHighlightST()
         _highlightEffectParam(5, 1)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(5, 1)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(5, 1, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_6_P2
@@ -2650,6 +2760,12 @@ state SLOT_EFFECT_6_P2
     endEvent
     event OnHighlightST()
         _highlightEffectParam(5, 2)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(5, 2)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(5, 2, text)
     endEvent
 endState
 
@@ -2689,6 +2805,12 @@ state SLOT_EFFECT_7_P1
     event OnHighlightST()
         _highlightEffectParam(6, 1)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(6, 1)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(6, 1, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_7_P2
@@ -2709,6 +2831,12 @@ state SLOT_EFFECT_7_P2
     endEvent
     event OnHighlightST()
         _highlightEffectParam(6, 2)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(6, 2)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(6, 2, text)
     endEvent
 endState
 
@@ -2748,6 +2876,12 @@ state SLOT_EFFECT_8_P1
     event OnHighlightST()
         _highlightEffectParam(7, 1)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(7, 1)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(7, 1, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_8_P2
@@ -2768,6 +2902,12 @@ state SLOT_EFFECT_8_P2
     endEvent
     event OnHighlightST()
         _highlightEffectParam(7, 2)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(7, 2)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(7, 2, text)
     endEvent
 endState
 
@@ -2797,6 +2937,12 @@ state SLOT_EFFECT_1_P3
     event OnHighlightST()
         _highlightEffectParam(0, 3)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(0, 3)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(0, 3, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_1_P4
@@ -2817,6 +2963,12 @@ state SLOT_EFFECT_1_P4
     endEvent
     event OnHighlightST()
         _highlightEffectParam(0, 4)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(0, 4)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(0, 4, text)
     endEvent
 endState
 
@@ -2839,6 +2991,12 @@ state SLOT_EFFECT_1_P5
     event OnHighlightST()
         _highlightEffectParam(0, 5)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(0, 5)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(0, 5, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_2_P3
@@ -2859,6 +3017,12 @@ state SLOT_EFFECT_2_P3
     endEvent
     event OnHighlightST()
         _highlightEffectParam(1, 3)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(1, 3)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(1, 3, text)
     endEvent
 endState
 
@@ -2881,6 +3045,12 @@ state SLOT_EFFECT_2_P4
     event OnHighlightST()
         _highlightEffectParam(1, 4)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(1, 4)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(1, 4, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_2_P5
@@ -2901,6 +3071,12 @@ state SLOT_EFFECT_2_P5
     endEvent
     event OnHighlightST()
         _highlightEffectParam(1, 5)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(1, 5)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(1, 5, text)
     endEvent
 endState
 
@@ -2923,6 +3099,12 @@ state SLOT_EFFECT_3_P3
     event OnHighlightST()
         _highlightEffectParam(2, 3)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(2, 3)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(2, 3, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_3_P4
@@ -2943,6 +3125,12 @@ state SLOT_EFFECT_3_P4
     endEvent
     event OnHighlightST()
         _highlightEffectParam(2, 4)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(2, 4)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(2, 4, text)
     endEvent
 endState
 
@@ -2965,6 +3153,12 @@ state SLOT_EFFECT_3_P5
     event OnHighlightST()
         _highlightEffectParam(2, 5)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(2, 5)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(2, 5, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_4_P3
@@ -2985,6 +3179,12 @@ state SLOT_EFFECT_4_P3
     endEvent
     event OnHighlightST()
         _highlightEffectParam(3, 3)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(3, 3)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(3, 3, text)
     endEvent
 endState
 
@@ -3007,6 +3207,12 @@ state SLOT_EFFECT_4_P4
     event OnHighlightST()
         _highlightEffectParam(3, 4)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(3, 4)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(3, 4, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_4_P5
@@ -3027,6 +3233,12 @@ state SLOT_EFFECT_4_P5
     endEvent
     event OnHighlightST()
         _highlightEffectParam(3, 5)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(3, 5)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(3, 5, text)
     endEvent
 endState
 
@@ -3055,6 +3267,12 @@ state SLOT_EFFECT_5_P3
     event OnHighlightST()
         _highlightEffectParam(4, 3)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(4, 3)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(4, 3, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_5_P4
@@ -3075,6 +3293,12 @@ state SLOT_EFFECT_5_P4
     endEvent
     event OnHighlightST()
         _highlightEffectParam(4, 4)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(4, 4)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(4, 4, text)
     endEvent
 endState
 
@@ -3097,6 +3321,12 @@ state SLOT_EFFECT_5_P5
     event OnHighlightST()
         _highlightEffectParam(4, 5)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(4, 5)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(4, 5, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_6_P3
@@ -3117,6 +3347,12 @@ state SLOT_EFFECT_6_P3
     endEvent
     event OnHighlightST()
         _highlightEffectParam(5, 3)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(5, 3)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(5, 3, text)
     endEvent
 endState
 
@@ -3139,6 +3375,12 @@ state SLOT_EFFECT_6_P4
     event OnHighlightST()
         _highlightEffectParam(5, 4)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(5, 4)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(5, 4, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_6_P5
@@ -3159,6 +3401,12 @@ state SLOT_EFFECT_6_P5
     endEvent
     event OnHighlightST()
         _highlightEffectParam(5, 5)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(5, 5)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(5, 5, text)
     endEvent
 endState
 
@@ -3181,6 +3429,12 @@ state SLOT_EFFECT_7_P3
     event OnHighlightST()
         _highlightEffectParam(6, 3)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(6, 3)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(6, 3, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_7_P4
@@ -3201,6 +3455,12 @@ state SLOT_EFFECT_7_P4
     endEvent
     event OnHighlightST()
         _highlightEffectParam(6, 4)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(6, 4)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(6, 4, text)
     endEvent
 endState
 
@@ -3223,6 +3483,12 @@ state SLOT_EFFECT_7_P5
     event OnHighlightST()
         _highlightEffectParam(6, 5)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(6, 5)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(6, 5, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_8_P3
@@ -3243,6 +3509,12 @@ state SLOT_EFFECT_8_P3
     endEvent
     event OnHighlightST()
         _highlightEffectParam(7, 3)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(7, 3)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(7, 3, text)
     endEvent
 endState
 
@@ -3265,6 +3537,12 @@ state SLOT_EFFECT_8_P4
     event OnHighlightST()
         _highlightEffectParam(7, 4)
     endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(7, 4)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(7, 4, text)
+    endEvent
 endState
 
 state SLOT_EFFECT_8_P5
@@ -3285,6 +3563,12 @@ state SLOT_EFFECT_8_P5
     endEvent
     event OnHighlightST()
         _highlightEffectParam(7, 5)
+    endEvent
+    event OnInputOpenST()
+        _openEffectParamInput(7, 5)
+    endEvent
+    event OnInputAcceptST(string text)
+        _acceptEffectParamInput(7, 5, text)
     endEvent
 endState
 
