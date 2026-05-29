@@ -248,6 +248,20 @@ event OnVersionUpdate(int Version)
     MainQuest._migrationLevel = 39
 endEvent
 
+; ── SkyrimNet bio refresh on MCM close ────────────────────────────────────────
+; The SkyrimNet bridge pre-renders the player's "## Magic Tattoos" bio block
+; to StorageUtil and only re-renders on tier transitions (HandleTierChange).
+; MCM mutations to effect text params, menu picks, slider values, condition
+; params, layer colors, pulse, etc. don't change the tier, so the bridge
+; never re-renders and the bio stays stale until the next state change.
+;
+; Audit-clean catch-all: rebuild on MCM close. One hook, all paths covered.
+; Cost is a few StorageUtil reads + string concat per close. See the
+; project_skyrimnet_decorator_cache memory's "audit ALL mutation paths" rule.
+Function OnConfigClose()
+    MTF_Plugin_SkyrimNet._rebuildRenderedFor(Game.GetPlayer())
+EndFunction
+
 ; ── Page rendering ────────────────────────────────────────────────────────────
 event OnPageReset(string page)
     _ensureMainQuest()

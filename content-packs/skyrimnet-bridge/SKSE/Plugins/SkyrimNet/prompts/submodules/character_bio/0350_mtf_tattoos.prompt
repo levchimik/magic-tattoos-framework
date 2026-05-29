@@ -3,12 +3,25 @@
        The Papyrus bridge MTF_Plugin_SkyrimNet pre-renders the full
        "## Magic Tattoos" Markdown block on every state mutation (tier
        change, preset apply/remove, load-game seed) and writes it to
-       StorageUtil under the per-actor key "mtf.bio.rendered". We read
-       the string here via SkyrimNet's built-in `papyrus_util` decorator,
-       whose cache key includes the actor UUID + storage key — so it
-       reads through to current state on every render, no staleness.
+       StorageUtil under two per-actor keys:
+         - "mtf.bio.rendered"          → bearer's POV (full effects block)
+         - "mtf.bio.rendered.external" → observer POV (effects redacted to
+                                          "unknown to observers")
+       We pick the right key based on render_mode below. Same bypass-cache
+       pattern as before — `papyrus_util` reads through to current state.
 
-       WHY THIS INSTEAD OF A CUSTOM DECORATOR:
+       WHY TWO VARIANTS:
+       Lore-consistent perspective gating. The bearer knows what their
+       magic tattoos do; an onlooker can SEE the tattoo (its visual
+       description, placement, colors, pulse) but doesn't know what
+       effects it has. So when the prompt is rendering an actor's own
+       first-person view of themselves (thoughts/full/transform — the
+       same set IntelEngine uses), we serve the full bio. When the
+       prompt is rendering an external observer's view (dialogue_target,
+       bio_appearance), we serve the redacted bio. Convention matches
+       0800_intel_facts.prompt's `first_person` set.
+
+       WHY STORAGEUTIL-BYPASS INSTEAD OF A CUSTOM DECORATOR:
        SkyrimNet's Inja PromptEngine caches custom-decorator results by
        (function_name, args_hash) for the lifetime of the dialogue
        warmup session. A mtf_active_tattoos(actorUUID) decorator would
@@ -23,10 +36,14 @@
        verbatim. The `{% if rendered != "" %}` gate keeps the section
        from emitting a phantom blank block.
 
-       Render-mode list mirrors sibling 0400_appearance.prompt. Slot
-       range 0300-0499 is the reserved character_bio range for mod
+       Slot range 0300-0499 is the reserved character_bio range for mod
        integrations. #}
-    {% set rendered = papyrus_util("GetStringValue", actorUUID, "mtf.bio.rendered", "") %}
+    {% set first_person = (render_mode == "transform" or render_mode == "full" or render_mode == "thoughts") %}
+    {% if first_person %}
+        {% set rendered = papyrus_util("GetStringValue", actorUUID, "mtf.bio.rendered", "") %}
+    {% else %}
+        {% set rendered = papyrus_util("GetStringValue", actorUUID, "mtf.bio.rendered.external", "") %}
+    {% endif %}
     {% if rendered != "" %}
         {{ rendered }}
     {% endif %}

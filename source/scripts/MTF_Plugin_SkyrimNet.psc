@@ -83,6 +83,17 @@ string Function _RENDERED_KEY() global
     return "mtf.bio.rendered"
 EndFunction
 
+; v0.3.x: external-observer bio variant. Same body as _RENDERED_KEY but
+; with the "Active effects in this state:" block replaced by a single
+; "Active effects in this state: unknown to observers." line. Used by
+; the prompt template when render_mode is external (dialogue_target /
+; bio_appearance) — bearer's own first_person modes (thoughts / full /
+; transform) keep using _RENDERED_KEY. Lore-consistent: the bearer
+; knows what their tattoos do; observers see only the visual.
+string Function _RENDERED_EXT_KEY() global
+    return "mtf.bio.rendered.external"
+EndFunction
+
 ; ── Identity ────────────────────────────────────────────────────────────────
 string Function GetPluginId()
     return "mtf.skyrimnet"
@@ -354,13 +365,25 @@ Function _rebuildRenderedFor(Actor a) global
     if host == None
         return
     endif
-    string text = _buildRenderedMarkdown(host, a)
+    ; Two variants: bearer's first_person view (full effects) and external
+    ; observer view (effects redacted to "unknown"). Prompt template picks
+    ; based on render_mode. See _RENDERED_EXT_KEY docstring.
+    string text = _buildRenderedMarkdown(host, a, false)
     StorageUtil.SetStringValue(a, _RENDERED_KEY(), text)
+    string textExt = _buildRenderedMarkdown(host, a, true)
+    StorageUtil.SetStringValue(a, _RENDERED_EXT_KEY(), textExt)
 EndFunction
 
 ; Build the full Markdown block. Returns "" when no preset (base or
 ; stacked) is active on the actor.
-String Function _buildRenderedMarkdown(MTF_MainQuest host, Actor a) global
+;
+; externalView=false → bearer's POV (first_person render_modes); effects
+; block shows full per-effect bullets.
+; externalView=true  → observer POV (dialogue_target / bio_appearance);
+; effects block is replaced by a single "unknown to observers" line.
+; The rest of the bio (visual / placement / color / pulse / condition)
+; is identical — observers can see everything except WHAT the tattoos do.
+String Function _buildRenderedMarkdown(MTF_MainQuest host, Actor a, bool externalView) global
     string body = ""
     string actorName = a.GetDisplayName()
     if actorName == ""
@@ -371,7 +394,7 @@ String Function _buildRenderedMarkdown(MTF_MainQuest host, Actor a) global
     if a == Game.GetPlayer()
         int baseTier = host.GetCurrentTier()
         if baseTier >= 0
-            string part = _renderBasePresetMd(host, baseTier, actorName)
+            string part = _renderBasePresetMd(host, baseTier, actorName, externalView)
             if part != ""
                 body = body + part
             endif
@@ -386,7 +409,7 @@ String Function _buildRenderedMarkdown(MTF_MainQuest host, Actor a) global
         if nm != ""
             int tier = StorageUtil.GetIntValue(a, "mtf.preset." + nm + ".tier", -1)
             if tier >= 0
-                string part = _renderStackedPresetMd(host, a, nm, tier, actorName)
+                string part = _renderStackedPresetMd(host, a, nm, tier, actorName, externalView)
                 if part != ""
                     if body != ""
                         body = body + "\n"
@@ -406,7 +429,7 @@ EndFunction
 
 ; Player base preset Markdown block. Reads from MainQuest's cond arrays +
 ; live runtime state.
-String Function _renderBasePresetMd(MTF_MainQuest host, int tier, string actorName) global
+String Function _renderBasePresetMd(MTF_MainQuest host, int tier, string actorName, bool externalView) global
     string packId = host.ResolveSlotPackId(tier)
     string entryId = host.ResolveSlotEntryId(tier)
     string packLabel = ""
@@ -427,12 +450,12 @@ String Function _renderBasePresetMd(MTF_MainQuest host, int tier, string actorNa
     string condP1s = host.GetCondParamStr(tier)   ; v0.2.9 string-id for menu params
     string condP2s = host.GetCondParam2Str(tier)
     string conditionMd = _renderConditionMd(host, condKey, condP1s, condP1, condP2s, condP2)
-    return _composePresetMd("", tier, packLabel, entryLabel, visualDesc, placement, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName)
+    return _composePresetMd("", tier, packLabel, entryLabel, visualDesc, placement, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName, externalView)
 EndFunction
 
 ; Stacked preset Markdown block. Reads from the preset JSON file directly
 ; via JsonUtil.
-String Function _renderStackedPresetMd(MTF_MainQuest host, Actor a, string presetName, int tier, string actorName) global
+String Function _renderStackedPresetMd(MTF_MainQuest host, Actor a, string presetName, int tier, string actorName, bool externalView) global
     string f = host._presetFile(presetName)
     if f == ""
         return ""
@@ -462,7 +485,7 @@ String Function _renderStackedPresetMd(MTF_MainQuest host, Actor a, string prese
     string condP1s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.param",  "")
     string condP2s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.param2", "")
     string conditionMd = _renderConditionMd(host, condKey, condP1s, condP1, condP2s, condP2)
-    return _composePresetMd(displayName, tier, packLabel, entryLabel, visualDesc, placement, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName)
+    return _composePresetMd(displayName, tier, packLabel, entryLabel, visualDesc, placement, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName, externalView)
 EndFunction
 
 ; Shared composition for both base and stacked presets. Output mirrors the
@@ -479,7 +502,7 @@ EndFunction
 ;
 ; Each subsection elides when its inputs are empty. Returns "" when ALL
 ; subsections elide (so the caller doesn't emit a phantom blank block).
-String Function _composePresetMd(string displayName, int tier, string packLabel, string entryLabel, string visualDesc, string placement, float pulseRate, int pulseDepth, string layersMd, string effectsMd, string conditionMd, string actorName) global
+String Function _composePresetMd(string displayName, int tier, string packLabel, string entryLabel, string visualDesc, string placement, float pulseRate, int pulseDepth, string layersMd, string effectsMd, string conditionMd, string actorName, bool externalView) global
     string md = ""
     ; Header line
     if displayName != ""
@@ -522,9 +545,17 @@ String Function _composePresetMd(string displayName, int tier, string packLabel,
     if conditionMd != ""
         md = md + conditionMd
     endif
-    ; Effects block
+    ; Effects block. The bearer's POV shows the full per-effect bullet list;
+    ; observer POV gets a single redaction line (effects exist but aren't
+    ; visible to onlookers — they can SEE the tattoo, can't tell what it
+    ; does). The detection still gates on effectsMd != "" so an actor with
+    ; no active effects gets no "unknown" line either.
     if effectsMd != ""
-        md = md + "Active effects in this state:\n" + effectsMd
+        if externalView
+            md = md + "Active effects in this state: unknown to observers.\n"
+        else
+            md = md + "Active effects in this state:\n" + effectsMd
+        endif
     endif
     return md
 EndFunction
