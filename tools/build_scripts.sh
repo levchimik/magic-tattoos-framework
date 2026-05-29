@@ -3,14 +3,27 @@
 # Usage:
 #   bash tools/build_scripts.sh                  # compile all
 #   bash tools/build_scripts.sh MTF_MainQuest    # compile one
+#
+# Portable paths — all machine-specific locations are env-overridable so the
+# repo / MO2 / toolchain folders can move without editing this script:
+#   MTF_PROJ      repo root              (default: auto-derived from this script)
+#   MTF_MO2_MODS  MO2 'mods' folder      (default: the dev modlist below)
+#   MTF_CAPRICA   Caprica.exe path
+#   MTF_FLAGS     Papyrus flags .flg path
 set -euo pipefail
 
-PROJ="F:/stuff/MagicTattoosFramework"
-CAPRICA="F:/stuff/Skyrim modding/tools/Caprica/Caprica.exe"
-FLAGS="S:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data/Source/Scripts/TESV_Papyrus_Flags.flg"
+# Repo root: env override, else parent of this script's dir (tools/..).
+# `pwd -W` emits the WINDOWS form (F:/…) MSYS bash gives /f/… by default, but
+# Caprica/spriggit/cmd are native Windows exes that can't resolve /f/… paths.
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJ="${MTF_PROJ:-$(cd "$SELF_DIR/.." && { pwd -W 2>/dev/null || pwd; })}"
+CAPRICA="${MTF_CAPRICA:-F:/stuff/Skyrim modding/tools/Caprica/Caprica.exe}"
+FLAGS="${MTF_FLAGS:-S:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data/Source/Scripts/TESV_Papyrus_Flags.flg}"
 SRC="$PROJ/source/scripts"
 DEPS="$PROJ/_deps"
-DEPLOY="F:/Modlists/Modding Essentials/mods/Magic Tattoos Framework/scripts"
+# MO2 'mods' dir — the base every deploy target hangs off of.
+MO2_MODS="${MTF_MO2_MODS:-F:/Modlists/Modding Essentials/mods}"
+DEPLOY="$MO2_MODS/Magic Tattoos Framework/scripts"
 
 # Pre-build: validate plugin catalog JSONs. Fast (~50ms total), catches
 # schema drift before the .pex hits MO2. See tools/validate_catalogs.py
@@ -67,7 +80,7 @@ fi
 # any other built-in JSONs). MO2 mirrors the same layout under the mod's
 # root so the StorageUtilData path resolves identically at runtime.
 DATA_SRC="$PROJ/data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework"
-DATA_DST="F:/Modlists/Modding Essentials/mods/Magic Tattoos Framework/SKSE/Plugins/StorageUtilData/MagicTattoosFramework"
+DATA_DST="$MO2_MODS/Magic Tattoos Framework/SKSE/Plugins/StorageUtilData/MagicTattoosFramework"
 if [[ -d "$DATA_SRC" && -d "$(dirname "$DATA_DST")" ]]; then
     mkdir -p "$DATA_DST"
     # -r recurses subdirs (plugins/, waveforms/, …); -u skips unchanged.
@@ -79,8 +92,7 @@ fi
 # Per-plugin ESPs (MTF_Plugin_*) live as standalone mods in MO2; their
 # scripts/ folder needs to hold the matching .pex or MO2's left-pane priority
 # can shadow them with stale copies. Mirror each MTF_Plugin_*.pex into its
-# own mod dir if one exists.
-MO2_MODS="F:/Modlists/Modding Essentials/mods"
+# own mod dir if one exists. (MO2_MODS defined at the top of the script.)
 for pex in "$SRC"/MTF_Plugin_*.pex; do
     name=$(basename "$pex" .pex)
     if [[ "$name" == "MTF_Plugin_Base" ]]; then

@@ -17,7 +17,11 @@
 
 set -euo pipefail
 
-PROJ="F:/stuff/MagicTattoosFramework"
+# Repo root: MTF_PROJ env override, else parent of this script's dir (tools/..).
+# `pwd -W` emits the WINDOWS form (F:/…); spriggit is a native Windows exe that
+# can't resolve MSYS /f/… paths.
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJ="${MTF_PROJ:-$(cd "$SELF_DIR/.." && { pwd -W 2>/dev/null || pwd; })}"
 SRC="$PROJ/spriggit"
 OUT="$PROJ/_build/esps"
 

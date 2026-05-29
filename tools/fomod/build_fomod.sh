@@ -23,7 +23,11 @@
 
 set -euo pipefail
 
-PROJ="F:/stuff/MagicTattoosFramework"
+# Repo root: MTF_PROJ env override, else two levels up (tools/fomod/../..).
+# `pwd -W` emits the WINDOWS form (F:/…); the sub-builds call native Windows
+# exes (Caprica via build_scripts, spriggit, cmd) that can't resolve /f/… paths.
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJ="${MTF_PROJ:-$(cd "$SELF_DIR/../.." && { pwd -W 2>/dev/null || pwd; })}"
 SRC_SCRIPTS="$PROJ/source/scripts"
 DATA="$PROJ/data"
 CONTENT="$PROJ/content-packs"
@@ -140,15 +144,16 @@ fi
 # Lookup order (most authoritative first):
 #   1. cpp-plugin/build/x64-release/Release/MTFPulse.dll  (actual build output)
 #   2. data/SKSE/Plugins/MTFPulse.dll                     (repo-staged copy)
-#   3. F:/Modlists/Modding Essentials/mods/*/SKSE/Plugins/MTFPulse.dll
-#                                                         (any MO2 deployment;
-#      the FOMOD-installed mod-folder name varies, so glob).
+#   3. $MTF_MO2_MODS/*/SKSE/Plugins/MTFPulse.dll          (any MO2 deployment;
+#      the installed mod-folder name varies, so both spellings are probed).
+# MO2 'mods' dir is env-overridable (MTF_MO2_MODS) so the deploy path can move.
+MO2_MODS="${MTF_MO2_MODS:-F:/Modlists/Modding Essentials/mods}"
 DLL=""
 for cand in \
     "$PROJ/cpp-plugin/build/x64-release/Release/MTFPulse.dll" \
     "$DATA/SKSE/Plugins/MTFPulse.dll" \
-    "F:/Modlists/Modding Essentials/mods/MagicTattoosFramework/SKSE/Plugins/MTFPulse.dll" \
-    "F:/Modlists/Modding Essentials/mods/Magic Tattoos Framework/SKSE/Plugins/MTFPulse.dll" \
+    "$MO2_MODS/MagicTattoosFramework/SKSE/Plugins/MTFPulse.dll" \
+    "$MO2_MODS/Magic Tattoos Framework/SKSE/Plugins/MTFPulse.dll" \
     ; do
     if [[ -f "$cand" ]]; then
         DLL="$cand"
