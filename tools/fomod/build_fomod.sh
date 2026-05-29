@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
 # Build the MTF FOMOD installer.
 #
-# Pulls fresh artifacts from the repo (ESPs rebuilt from spriggit/ YAML into
-# _build/esps/, .pex from source/scripts/, DLL/INI/waveforms from data/,
-# content-pack JSONs from content-packs/, NPC overlays skee64.ini from
-# tools/fomod/static/, test pack from test-pack/), arranges them into
-# option-folder subtrees under _build/fomod-stage/, copies the FOMOD
-# templates into fomod/, and produces an archive in _build/.
+# Pipeline: rebuild ESPs from spriggit/ YAML (_build/esps/), rebuild the
+# MTFPulse.dll SKSE plugin (cpp-plugin/build.bat), pull .pex from source/scripts/,
+# INI/waveforms from data/, content-pack JSONs from content-packs/, NPC overlays
+# skee64.ini from tools/fomod/static/, test pack from test-pack/; arrange them
+# into option-folder subtrees under _build/fomod-stage/; run the static release
+# gate (tools/release_check.sh); copy the FOMOD templates into fomod/; and
+# produce an archive in _build/.
 #
 # Usage:
 #   bash tools/fomod/build_fomod.sh                # build with auto-detected version
 #   MTF_VERSION=v0.1.18 bash tools/fomod/build_fomod.sh
 #
-# Requires: bash, cp, find, sed, git; 7z (preferred) or zip for archive.
+# Env flags:
+#   MTF_VERSION=vX.Y.Z   override version (else parsed from latest commit/tag)
+#   MTF_SKIP_DLL=1       reuse the existing MTFPulse.dll (skip cpp-plugin build)
+#   MTF_SKIP_CHECK=1     skip the release_check.sh pre-ship gate
+#
+# Requires: bash, cp, find, sed, git; cmd.exe + the C++ toolchain for the DLL
+# (unless MTF_SKIP_DLL=1); 7z (preferred) or zip for archive.
 
 set -euo pipefail
 
@@ -52,6 +59,36 @@ else
     fi
 fi
 echo "=== Building FOMOD for MTF $VERSION ==="
+
+# -----------------------------------------------------------------------------
+# Rebuild the MTFPulse.dll SKSE plugin (cpp-plugin/build.bat).
+#
+# build.bat is incremental — CMake/MSBuild no-op when nothing changed, so this
+# is cheap on an up-to-date tree and guarantees the FOMOD never ships a stale
+# DLL (the build only LOOKS for an existing .dll; it can't tell fresh from old).
+# Set MTF_SKIP_DLL=1 to reuse whatever binary is already on disk (fast iteration
+# when you know the DLL is current, or when the C++ toolchain is unavailable).
+# -----------------------------------------------------------------------------
+if [[ "${MTF_SKIP_DLL:-0}" == "1" ]]; then
+    echo "=== Skipping MTFPulse.dll rebuild (MTF_SKIP_DLL=1) ==="
+else
+    echo "=== Building MTFPulse.dll (cpp-plugin/build.bat) ==="
+    # Run the batch from its own dir. Two cmd.exe-under-MSYS gotchas to handle:
+    #   1. MSYS2_ARG_CONV_EXCL='*' stops MSYS path-mangling the cmd args.
+    #   2. The '.\' prefix is REQUIRED: this environment has
+    #      NoDefaultCurrentDirectoryInExePath=1, so cmd refuses to find a bare
+    #      'build.bat' in cwd ("not recognized") even though it's right there —
+    #      every form without './' fails identically. './build.bat' forces the
+    #      cwd-relative path.
+    if ( cd "$PROJ/cpp-plugin" && MSYS2_ARG_CONV_EXCL='*' cmd.exe /c ".\build.bat" ); then
+        echo "  MTFPulse.dll build OK"
+    else
+        echo "ERROR: MTFPulse.dll build failed. Fix the C++ build, or set" >&2
+        echo "       MTF_SKIP_DLL=1 to ship the existing binary." >&2
+        exit 1
+    fi
+fi
+echo
 
 # -----------------------------------------------------------------------------
 # Prereq check: required artifacts must exist
@@ -267,7 +304,11 @@ fi
 # -----------------------------------------------------------------------------
 # fomod/ — copy templates, substitute @MTF_VERSION@
 # -----------------------------------------------------------------------------
-sed "s/@MTF_VERSION@/$VERSION/g" "$TEMPLATES/info.xml" > "$STAGE/fomod/info.xml"
+# LC_ALL=C keeps sed byte-exact: the MSVC DLL build (vcvars64/cmake) earlier in
+# this script flips the shared console codepage, which otherwise made sed emit a
+# UTF-16 info.xml that FOMOD parsers choke on. Forcing the C locale here pins
+# UTF-8/ASCII output regardless of console state.
+LC_ALL=C sed "s/@MTF_VERSION@/$VERSION/g" "$TEMPLATES/info.xml" > "$STAGE/fomod/info.xml"
 cp "$TEMPLATES/ModuleConfig.xml" "$STAGE/fomod/ModuleConfig.xml"
 
 # Optional images
@@ -277,6 +318,30 @@ if [[ -d "$FOMOD_DIR/images" ]] && [[ -n "$(ls "$FOMOD_DIR/images" 2>/dev/null)"
 fi
 
 echo "=== Stage complete: $STAGE ==="
+echo
+
+# -----------------------------------------------------------------------------
+# Release gate: static pre-ship checks (tools/release_check.sh).
+#
+# Runs AFTER staging so it can validate the staged 00_base (no test/stress
+# artifacts in the required base step) on top of its source-level checks
+# (DebugMode default, leftover debug markers, catalog JSON, stale .pex,
+# version label). A FAIL aborts before we produce an archive. MTF_VERSION is
+# inherited from this script's environment, so its version check stays quiet on
+# an explicit version. Set MTF_SKIP_CHECK=1 to bypass.
+# -----------------------------------------------------------------------------
+if [[ "${MTF_SKIP_CHECK:-0}" == "1" ]]; then
+    echo "=== Skipping release_check (MTF_SKIP_CHECK=1) ==="
+else
+    echo "=== Running release_check.sh ==="
+    if bash "$PROJ/tools/release_check.sh"; then
+        echo "  release_check: clean"
+    else
+        echo "ERROR: release_check.sh reported FAIL(s) — aborting before archive." >&2
+        echo "       Fix the issues above, or set MTF_SKIP_CHECK=1 to override." >&2
+        exit 1
+    fi
+fi
 echo
 
 # -----------------------------------------------------------------------------

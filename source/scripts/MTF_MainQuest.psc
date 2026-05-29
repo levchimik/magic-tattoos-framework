@@ -1646,32 +1646,6 @@ Function SetCondLayerAlpha(int slot, int L, int val)
     StorageUtil.SetIntValue(self, "mtf.cond.layer.alpha." + slot + "." + L, val)
 EndFunction
 
-; ── TEMP DIAGNOSTIC (persistence-loss investigation) ─────────────────────────
-; Dumps persisted per-slot cond config to the Papyrus log + a compact toast so
-; a save/load round-trip can be checked for whether the mtf.cond.* StorageUtil
-; values actually survive. The RAW read uses a -999 sentinel: if it comes back
-; -999 the key never made it into the cosave (true persistence loss); a real
-; value means the data survived and the bug is downstream. Drive from console:
-;   cqf MTF_MainQuest SetCondLayerEmissiveMult 0 1 3.7
-;   cqf MTF_MainQuest SetCondLayerAlpha 0 1 55
-;   cqf MTF_MainQuest _dumpCondDiag presave
-;   (save, load)
-;   cqf MTF_MainQuest _dumpCondDiag postload
-; Remove before release.
-Function _dumpCondDiag(string tag)
-    Trace("[MTFdiag " + tag + "] ml=" + _migrationLevel + " arraysReady=" + _arraysReady + " cachedMaxC=" + _cachedMaxConditions)
-    float rawEmult = StorageUtil.GetFloatValue(self, "mtf.cond.layer.emult.0.1", -999.0)
-    int   rawAlpha = StorageUtil.GetIntValue(self,   "mtf.cond.layer.alpha.0.1", -999)
-    Trace("[MTFdiag " + tag + "] RAW s0L1 emult=" + rawEmult + " alpha=" + rawAlpha)
-    int s = 0
-    while s <= 7
-        Trace("[MTFdiag " + tag + "] slot " + s + " pack='" + GetCondPackId(s) + "' entry='" + GetCondEntryId(s) + "'" \
-            + " L0[emult=" + GetCondLayerEmissiveMult(s, 0) + " a=" + GetCondLayerAlpha(s, 0) + "]" \
-            + " L1[emult=" + GetCondLayerEmissiveMult(s, 1) + " a=" + GetCondLayerAlpha(s, 1) + "]")
-        s += 1
-    endwhile
-    Debug.Notification("MTFdiag " + tag + ": s0L1 emult=" + GetCondLayerEmissiveMult(0, 1) + " a=" + GetCondLayerAlpha(0, 1) + " raw=" + rawEmult)
-EndFunction
 
 int Function GetCondPersistMin(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
