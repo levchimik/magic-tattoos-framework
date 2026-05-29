@@ -1115,7 +1115,7 @@ string Function GetCondPluginId(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return ""
     endif
-    return StorageUtil.GetStringValue(self, "mtf.cond.pluginid." + slot, "")
+    return StorageUtil.GetStringValue(None, "mtf.cond.pluginid." + slot, "")
 EndFunction
 
 Function SetCondPluginId(int slot, string key)
@@ -1123,9 +1123,9 @@ Function SetCondPluginId(int slot, string key)
         return
     endif
     if key == ""
-        StorageUtil.UnsetStringValue(self, "mtf.cond.pluginid." + slot)
+        StorageUtil.UnsetStringValue(None, "mtf.cond.pluginid." + slot)
     else
-        StorageUtil.SetStringValue(self, "mtf.cond.pluginid." + slot, key)
+        StorageUtil.SetStringValue(None, "mtf.cond.pluginid." + slot, key)
     endif
 EndFunction
 
@@ -1177,7 +1177,7 @@ string Function GetCondParamStr(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return ""
     endif
-    return StorageUtil.GetStringValue(self, "mtf.cond.param." + slot + ".s", "")
+    return StorageUtil.GetStringValue(None, "mtf.cond.param." + slot + ".s", "")
 EndFunction
 
 Function SetCondParamStr(int slot, string val)
@@ -1185,9 +1185,9 @@ Function SetCondParamStr(int slot, string val)
         return
     endif
     if val == ""
-        StorageUtil.UnsetStringValue(self, "mtf.cond.param." + slot + ".s")
+        StorageUtil.UnsetStringValue(None, "mtf.cond.param." + slot + ".s")
     else
-        StorageUtil.SetStringValue(self, "mtf.cond.param." + slot + ".s", val)
+        StorageUtil.SetStringValue(None, "mtf.cond.param." + slot + ".s", val)
     endif
 EndFunction
 
@@ -1195,7 +1195,7 @@ string Function GetCondParam2Str(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return ""
     endif
-    return StorageUtil.GetStringValue(self, "mtf.cond.param2." + slot + ".s", "")
+    return StorageUtil.GetStringValue(None, "mtf.cond.param2." + slot + ".s", "")
 EndFunction
 
 Function SetCondParam2Str(int slot, string val)
@@ -1203,9 +1203,9 @@ Function SetCondParam2Str(int slot, string val)
         return
     endif
     if val == ""
-        StorageUtil.UnsetStringValue(self, "mtf.cond.param2." + slot + ".s")
+        StorageUtil.UnsetStringValue(None, "mtf.cond.param2." + slot + ".s")
     else
-        StorageUtil.SetStringValue(self, "mtf.cond.param2." + slot + ".s", val)
+        StorageUtil.SetStringValue(None, "mtf.cond.param2." + slot + ".s", val)
     endif
 EndFunction
 
@@ -1273,7 +1273,7 @@ string Function GetCondName(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return ""
     endif
-    return StorageUtil.GetStringValue(self, "mtf.cond.name." + slot, "")
+    return StorageUtil.GetStringValue(None, "mtf.cond.name." + slot, "")
 EndFunction
 
 Function SetCondName(int slot, string name)
@@ -1281,9 +1281,9 @@ Function SetCondName(int slot, string name)
         return
     endif
     if name == ""
-        StorageUtil.UnsetStringValue(self, "mtf.cond.name." + slot)
+        StorageUtil.UnsetStringValue(None, "mtf.cond.name." + slot)
     else
-        StorageUtil.SetStringValue(self, "mtf.cond.name." + slot, name)
+        StorageUtil.SetStringValue(None, "mtf.cond.name." + slot, name)
     endif
 EndFunction
 
@@ -1521,7 +1521,7 @@ string Function GetCondWaveform(int slot)
     if slot < 0 || slot >= 8
         return ""
     endif
-    return StorageUtil.GetStringValue(self, "mtf.cond.pulse.waveform." + slot, "")
+    return StorageUtil.GetStringValue(None, "mtf.cond.pulse.waveform." + slot, "")
 EndFunction
 
 Function SetCondWaveform(int slot, string name)
@@ -1529,9 +1529,9 @@ Function SetCondWaveform(int slot, string name)
         return
     endif
     if name == ""
-        StorageUtil.UnsetStringValue(self, "mtf.cond.pulse.waveform." + slot)
+        StorageUtil.UnsetStringValue(None, "mtf.cond.pulse.waveform." + slot)
     else
-        StorageUtil.SetStringValue(self, "mtf.cond.pulse.waveform." + slot, name)
+        StorageUtil.SetStringValue(None, "mtf.cond.pulse.waveform." + slot, name)
     endif
 EndFunction
 
@@ -1548,7 +1548,7 @@ string Function GetCondPackId(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return ""
     endif
-    return StorageUtil.GetStringValue(self, "mtf.cond.packid." + slot, "")
+    return StorageUtil.GetStringValue(None, "mtf.cond.packid." + slot, "")
 EndFunction
 
 Function SetCondPackId(int slot, string val)
@@ -1556,9 +1556,9 @@ Function SetCondPackId(int slot, string val)
         return
     endif
     if val == ""
-        StorageUtil.UnsetStringValue(self, "mtf.cond.packid." + slot)
+        StorageUtil.UnsetStringValue(None, "mtf.cond.packid." + slot)
     else
-        StorageUtil.SetStringValue(self, "mtf.cond.packid." + slot, val)
+        StorageUtil.SetStringValue(None, "mtf.cond.packid." + slot, val)
     endif
 EndFunction
 
@@ -1566,7 +1566,7 @@ string Function GetCondEntryId(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return ""
     endif
-    return StorageUtil.GetStringValue(self, "mtf.cond.entryid." + slot, "")
+    return StorageUtil.GetStringValue(None, "mtf.cond.entryid." + slot, "")
 EndFunction
 
 Function SetCondEntryId(int slot, string val)
@@ -1574,9 +1574,9 @@ Function SetCondEntryId(int slot, string val)
         return
     endif
     if val == ""
-        StorageUtil.UnsetStringValue(self, "mtf.cond.entryid." + slot)
+        StorageUtil.UnsetStringValue(None, "mtf.cond.entryid." + slot)
     else
-        StorageUtil.SetStringValue(self, "mtf.cond.entryid." + slot, val)
+        StorageUtil.SetStringValue(None, "mtf.cond.entryid." + slot, val)
     endif
 EndFunction
 

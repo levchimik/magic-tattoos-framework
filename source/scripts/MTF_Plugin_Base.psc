@@ -1031,6 +1031,11 @@ EndFunction
 ; point — see MTF_Plugin's onActivate docstring for the race rationale.
 ; Helpers no longer reach into _host()._getDispatch*() (which races against
 ; concurrent fibers during the cross-script yield).
+; v0.3+: lastKey moved from `target`-attached to None-attached with the
+; actor FormID baked in. Form-attached strings on ESL-flagged forms drop
+; from the PapyrusUtil cosave — see project_papyrusutil_form_string_cosave.
+; Losing this key would orphan the prior ModActorValue / resist spell with
+; no handle to subtract on next apply/remove, accumulating drift forever.
 Function _recomputeSkillShift(Actor target, int slot, int eff, string currentSkill, int delta)
     if target == None || currentSkill == "" || slot < 0 || eff < 0
         return
@@ -1039,15 +1044,15 @@ Function _recomputeSkillShift(Actor target, int slot, int eff, string currentSki
     if av == ""
         return  ; unrecognised id — silently skip rather than apply to wrong AV
     endif
-    string lastKey = "mtf.skill.last." + slot + "." + eff
-    string prevSkill = StorageUtil.GetStringValue(target, lastKey, "")
+    string lastKey = "mtf.skill.last." + target.GetFormID() + "." + slot + "." + eff
+    string prevSkill = StorageUtil.GetStringValue(None, lastKey, "")
     if prevSkill != "" && prevSkill != currentSkill
         string prevAv = _skillAVForId(prevSkill)
         if prevAv != ""
             _recomputeAbsShiftAV(prevAv, "modify.skill." + prevSkill, target, 0, false)
         endif
     endif
-    StorageUtil.SetStringValue(target, lastKey, currentSkill)
+    StorageUtil.SetStringValue(None, lastKey, currentSkill)
     _recomputeAbsShiftAV(av, "modify.skill." + currentSkill, target, delta, false)
 EndFunction
 
@@ -1055,14 +1060,14 @@ Function _removeSkillShift(Actor target, int slot, int eff)
     if target == None || slot < 0 || eff < 0
         return
     endif
-    string lastKey = "mtf.skill.last." + slot + "." + eff
-    string prevSkill = StorageUtil.GetStringValue(target, lastKey, "")
+    string lastKey = "mtf.skill.last." + target.GetFormID() + "." + slot + "." + eff
+    string prevSkill = StorageUtil.GetStringValue(None, lastKey, "")
     if prevSkill != ""
         string prevAv = _skillAVForId(prevSkill)
         if prevAv != ""
             _recomputeAbsShiftAV(prevAv, "modify.skill." + prevSkill, target, 0, false)
         endif
-        StorageUtil.UnsetStringValue(target, lastKey)
+        StorageUtil.UnsetStringValue(None, lastKey)
     endif
 EndFunction
 
@@ -1074,15 +1079,15 @@ Function _recomputeResistShift(Actor target, int slot, int eff, string currentRe
     if s == None
         return  ; unrecognised id
     endif
-    string lastKey = "mtf.resist.last." + slot + "." + eff
-    string prevResist = StorageUtil.GetStringValue(target, lastKey, "")
+    string lastKey = "mtf.resist.last." + target.GetFormID() + "." + slot + "." + eff
+    string prevResist = StorageUtil.GetStringValue(None, lastKey, "")
     if prevResist != "" && prevResist != currentResist
         Spell prevSpell = _resolveResistSpellById(prevResist)
         if prevSpell != None
             _absShiftSpellByKey(prevSpell, target, 0, "modify.resist." + prevResist)
         endif
     endif
-    StorageUtil.SetStringValue(target, lastKey, currentResist)
+    StorageUtil.SetStringValue(None, lastKey, currentResist)
     _absShiftSpellByKey(s, target, delta, "modify.resist." + currentResist)
 EndFunction
 
@@ -1090,14 +1095,14 @@ Function _removeResistShift(Actor target, int slot, int eff)
     if target == None || slot < 0 || eff < 0
         return
     endif
-    string lastKey = "mtf.resist.last." + slot + "." + eff
-    string prevResist = StorageUtil.GetStringValue(target, lastKey, "")
+    string lastKey = "mtf.resist.last." + target.GetFormID() + "." + slot + "." + eff
+    string prevResist = StorageUtil.GetStringValue(None, lastKey, "")
     if prevResist != ""
         Spell prevSpell = _resolveResistSpellById(prevResist)
         if prevSpell != None
             _absShiftSpellByKey(prevSpell, target, 0, "modify.resist." + prevResist)
         endif
-        StorageUtil.UnsetStringValue(target, lastKey)
+        StorageUtil.UnsetStringValue(None, lastKey)
     endif
 EndFunction
 
