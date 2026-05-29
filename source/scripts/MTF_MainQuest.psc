@@ -2260,16 +2260,70 @@ Function DispatchFlashCast(string tag)
 EndFunction
 
 ; ── Presets (PapyrusUtil JsonUtil, cross-save) ──────────────────────────────
-; One JSON file per preset under
-;   Data/SKSE/Plugins/StorageUtil/MagicTattoosFramework/presets/<name>.json
-; JsonUtil has no native delete, so each file carries a `valid` int (1=live,
-; 0=deleted). ListPresets filters by it so the file can stay on disk harmless.
+; Presets live in TWO sibling folders under
+; Data/SKSE/Plugins/StorageUtil/MagicTattoosFramework/:
+;   presets/          — USER presets. Writable: SavePreset/DeletePreset only
+;                       ever touch this folder. Shown in the MCM picker + the
+;                       Apply Tattoo spell.
+;   presets_builtin/  — READ-ONLY presets shipped with the framework (load-test
+;                       fixtures today; example presets later). Never written by
+;                       the mod, so a manual save can't clobber them. Hidden from
+;                       the user pickers but still enumerated + loadable by the
+;                       test runner (ListPresets includes them; ListVisiblePresets
+;                       does not).
+; JsonUtil has no native delete, so a deleted USER preset can't be removed — it
+; carries a `hidden` int (0/absent = live, 1 = deleted). The file lingers as a
+; reclaimable tombstone; re-saving the same name clears the flag. Built-in
+; presets are identified by folder, not by any flag.
 ; Captures slot config (cond + effects + cooldown + visuals) and each
 ; registered plugin's per-plugin Setting values. Globals (ModActive, etc.)
 ; are intentionally excluded.
 
-string Function _presetFile(string name)
+string Function _userPresetFile(string name)
+{Path to a USER preset (writable folder). SavePreset/DeletePreset use this.}
     return "MagicTattoosFramework/presets/" + name
+EndFunction
+
+string Function _builtinPresetFile(string name)
+{Path to a READ-ONLY built-in preset (shipped fixtures/examples).}
+    return "MagicTattoosFramework/presets_builtin/" + name
+EndFunction
+
+string Function _presetFile(string name)
+{Resolver for READS/loads: prefer a user preset of this name, else fall back to
+ a built-in. Callers JsonExists-check the result and bail if neither exists.
+ WRITES must NOT use this — they target _userPresetFile so they never touch the
+ read-only built-in folder.}
+    string uf = "MagicTattoosFramework/presets/" + name
+    if JsonUtil.JsonExists(uf)
+        return uf
+    endif
+    string bf = "MagicTattoosFramework/presets_builtin/" + name
+    if JsonUtil.JsonExists(bf)
+        return bf
+    endif
+    return uf
+EndFunction
+
+string Function _stripJsonExt(string raw)
+{Strip a trailing ".json" from a JsonInFolder entry. The dot>0 guard keeps the
+ PapyrusUtil Substring(s,0,0)=whole-string trap from firing on a leading dot.}
+    int dot = StringUtil.Find(raw, ".json")
+    if dot > 0
+        return StringUtil.Substring(raw, 0, dot)
+    endif
+    return raw
+EndFunction
+
+int Function _indexOfName(string[] arr, int count, string name)
+    int i = 0
+    while i < count
+        if arr[i] == name
+            return i
+        endif
+        i += 1
+    endwhile
+    return -1
 EndFunction
 
 ; ── Hex color helpers ────────────────────────────────────────────────────────
@@ -2369,9 +2423,19 @@ bool Function SavePreset(string rawName)
     if name == ""
         return false
     endif
-    string f = _presetFile(name)
+    ; A built-in (read-only) preset of this name exists — refuse. SavePreset
+    ; only writes the user folder, so saving here would create a user preset
+    ; that SHADOWS the built-in in _presetFile's resolver and hide it from the
+    ; test runner's by-name loads. Make the user pick another name instead.
+    if JsonUtil.JsonExists(_builtinPresetFile(name))
+        Notification("MTF: '" + rawName + "' is a reserved built-in preset name — choose another")
+        return false
+    endif
+    string f = _userPresetFile(name)
     JsonUtil.ClearAll(f)
-    JsonUtil.SetPathIntValue(f,    ".valid",         1)
+    ; hidden=0 marks this as a live, user-visible preset and clears any prior
+    ; deleted-tombstone flag when a previously-deleted name is reclaimed.
+    JsonUtil.SetPathIntValue(f,    ".hidden",        0)
     JsonUtil.SetPathStringValue(f, ".displayname",   rawName)
     ; v0.1.24: schema 8 — cooldown rework. cooldown.min/cooldown.mode replaced
     ; by persist.min, persist.allowOverride, cool.min. Old keys are NOT read
@@ -2530,8 +2594,8 @@ bool Function LoadPreset(string name)
     if !JsonUtil.JsonExists(f)
         return false
     endif
-    if JsonUtil.GetPathIntValue(f, ".valid", 0) != 1
-        return false
+    if JsonUtil.GetPathIntValue(f, ".hidden", 0) == 1
+        return false ; deleted tombstone — not loadable (fixtures, hidden==2, still load)
     endif
     if JsonUtil.GetPathIntValue(f, ".schemaversion", 1) < 4
         Notification("MTF: preset '" + name + "' uses an unsupported schema")
@@ -2766,37 +2830,55 @@ Function ResetEditor()
 EndFunction
 
 bool Function DeletePreset(string name)
-    string f = _presetFile(name)
+    ; Only USER presets are deletable; built-ins live in the read-only folder
+    ; and aren't selectable in the picker. Target the user file explicitly so a
+    ; built-in name can never be tombstoned.
+    string f = _userPresetFile(name)
     if !JsonUtil.JsonExists(f)
         return false
     endif
-    JsonUtil.SetIntValue(f, "valid", 0)
+    ; Soft-delete: flag hidden=1 (top-level, via the path API so ListPresets /
+    ; LoadPreset actually see it — the old SetIntValue("valid",0) wrote a
+    ; different storage slot than the readers used, so deletes never took).
+    ; JsonUtil can't remove files; the .json lingers as a reclaimable tombstone.
+    JsonUtil.SetPathIntValue(f, ".hidden", 1)
     JsonUtil.Save(f)
     ; Drop any cached scratch buffer for this preset (Plan B v2) — even
-    ; though the .valid flag will gate future cold loads, a stale cached
+    ; though the hidden=1 flag will gate future cold loads, a stale cached
     ; copy would still hit the warm path until invalidated.
     _invalidateScratchCache(name)
     return true
 EndFunction
 
 string[] Function ListPresets()
-{Returns a fixed-size 64 array. Valid names come first; empty strings after.
+{Fixed-size 64 array of the FULL catalog the test runner enumerates: every
+ non-deleted USER preset plus every built-in. Names first, empty strings after.
+ For the user-facing pickers use ListVisiblePresets (user, non-deleted only).
  Caller iterates and stops on the first empty string (or use ListPresetsCount).}
-    string[] raw = JsonUtil.JsonInFolder("MagicTattoosFramework/presets")
     string[] result = new string[64]
-    if raw == None || raw.Length == 0
-        return result
-    endif
+    ; Both JsonInFolder reads happen BEFORE any `== None` comparison — a
+    ; PapyrusUtil array return followed by a None check corrupts the array
+    ; ::temp register and would clobber the second return assignment (KB:
+    ; temp1-corruption). result is allocated first for the same reason.
+    string[] u = JsonUtil.JsonInFolder("MagicTattoosFramework/presets")
+    string[] b = JsonUtil.JsonInFolder("MagicTattoosFramework/presets_builtin")
     int n = 0
+    ; User folder: skip deleted (hidden==1).
     int i = 0
-    while i < raw.Length && n < 64
-        string nm = raw[i]
-        int dot = StringUtil.Find(nm, ".json")
-        if dot > 0
-            nm = StringUtil.Substring(nm, 0, dot)
-        endif
-        if JsonUtil.GetPathIntValue(_presetFile(nm), ".valid", 0) == 1
+    while u != None && i < u.Length && n < 64
+        string nm = _stripJsonExt(u[i])
+        if JsonUtil.GetPathIntValue(_userPresetFile(nm), ".hidden", 0) != 1
             result[n] = nm
+            n += 1
+        endif
+        i += 1
+    endwhile
+    ; Built-in folder: include all (skip a name already taken by a user preset).
+    i = 0
+    while b != None && i < b.Length && n < 64
+        string bnm = _stripJsonExt(b[i])
+        if _indexOfName(result, n, bnm) < 0
+            result[n] = bnm
             n += 1
         endif
         i += 1
@@ -2809,6 +2891,34 @@ int Function ListPresetsCount()
     if r == None
         return 0
     endif
+    int i = 0
+    while i < r.Length && r[i] != ""
+        i += 1
+    endwhile
+    return i
+EndFunction
+
+string[] Function ListVisiblePresets()
+{The user-facing catalog: USER presets that aren't deleted (hidden!=1). Built-in
+ presets are excluded entirely (they live in presets_builtin/ and are runner-
+ only). Fixed-size 64 array; names first, empty strings after.}
+    string[] result = new string[64]
+    string[] u = JsonUtil.JsonInFolder("MagicTattoosFramework/presets")
+    int n = 0
+    int i = 0
+    while u != None && i < u.Length && n < 64
+        string nm = _stripJsonExt(u[i])
+        if JsonUtil.GetPathIntValue(_userPresetFile(nm), ".hidden", 0) != 1
+            result[n] = nm
+            n += 1
+        endif
+        i += 1
+    endwhile
+    return result
+EndFunction
+
+int Function ListVisiblePresetsCount()
+    string[] r = ListVisiblePresets()
     int i = 0
     while i < r.Length && r[i] != ""
         i += 1
@@ -6184,8 +6294,8 @@ bool Function _loadPresetToScratch(string name)
     if !JsonUtil.JsonExists(f)
         return false
     endif
-    if JsonUtil.GetPathIntValue(f, ".valid", 0) != 1
-        return false
+    if JsonUtil.GetPathIntValue(f, ".hidden", 0) == 1
+        return false ; deleted tombstone — not loadable (fixtures, hidden==2, still load)
     endif
     if JsonUtil.GetPathIntValue(f, ".schemaversion", 1) < 4
         return false

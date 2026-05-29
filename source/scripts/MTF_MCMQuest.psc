@@ -4132,8 +4132,11 @@ string _editingPresetName    = ""
 string _editingPresetDisplay = ""
 
 function _refreshPresetNames()
-    _scratchPresetNames = MainQuest.ListPresets()
-    _scratchPresetCount = MainQuest.ListPresetsCount()
+    ; Visible-only: load-test/diagnostic presets flagged ".hidden": 1 are
+    ; kept out of the editor's Load/Delete picker (they remain runnable via
+    ; the test runner, which uses the unfiltered ListPresets).
+    _scratchPresetNames = MainQuest.ListVisiblePresets()
+    _scratchPresetCount = MainQuest.ListVisiblePresetsCount()
     if _scratchPresetCount == 0
         _selectedPresetIdx = -1
         return

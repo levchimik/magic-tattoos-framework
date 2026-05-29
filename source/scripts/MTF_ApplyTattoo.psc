@@ -25,8 +25,12 @@ Event OnEffectStart(Actor akTarget, Actor akCaster)
 EndEvent
 
 Function _showPresetMenu(MTF_MainQuest mq, Actor subject)
-    string[] presets = mq.ListPresets()
-    int count = mq.ListPresetsCount()
+    ; Visible-only: presets flagged ".hidden": 1 (load-test / diagnostic
+    ; fixtures) are omitted from the spell menu's apply list. Already-applied
+    ; presets still show in the [REMOVE] section regardless, since that's
+    ; built from the subject's live stack below, not this catalog.
+    string[] presets = mq.ListVisiblePresets()
+    int count = mq.ListVisiblePresetsCount()
     if count <= 0
         Debug.Notification("MTF: no presets — save one in MCM first")
         return
