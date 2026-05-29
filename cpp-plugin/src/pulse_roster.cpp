@@ -256,21 +256,19 @@ namespace MTFPulse {
             seeded.has_last_interp  = false;
         }
 
-        // Pin pulse phase so the wave hits peak (phase=0.5 for the cosine
-        // fallback, mid-LUT for custom waves) exactly when the transition
-        // ends. Without this, when the pulse modulation switches on at
-        // eased=1 the wave phase is essentially random — for slow rates
-        // the wave is often still low at that point, so `pulsed *
-        // target_em` pulls em DOWN below the smooth-ramp end value, which
-        // users see as a "blink" right when the color settles. Pinning to
-        // peak makes pulsed=1.0 at the handoff, so the steady-state value
-        // matches the lerp end exactly. Only applies to transitions with
-        // rate>0 — rate=0 entries (no pulse) don't need phase alignment.
+        // Pin pulse phase to its START (phase 0 = wave_lut[0], the trough for
+        // a heartbeat / standard pulse) exactly when the transition ends, so
+        // the pulse plays from the beginning of its cycle on tier entry. The
+        // Tick lerps the swap to the matching trough value (1 - depth)·ceiling,
+        // so steady_em == that value at handoff → seamless, no snap. A deep
+        // pulse (depth 1) thus enters at 0 and beats up from there instead of
+        // popping to the ceiling. (Earlier revisions pinned to peak (phase 0.5
+        // → bare ceiling) and mid (phase 0.25); both popped bright on entry and
+        // mis-landed on asymmetric waves like Heartbeat.) rate=0 (no pulse)
+        // entries don't need alignment; depth=0 makes trough == ceiling anyway.
         if (seeded.transition_duration > 0.0f && seeded.rate > 0.0f) {
-            const float cycle = 1.0f / seeded.rate;
             seeded.start_time = seeded.transition_start
-                              + seeded.transition_duration
-                              - 0.5f * cycle;
+                              + seeded.transition_duration;
         }
 
         if (slot < 0) {
@@ -630,19 +628,25 @@ namespace MTFPulse {
                 // diagnostic logging).
                 const float steady_em = pulsed * e.layer_base_em_mult[L];
 
-                // During transition: pure ceiling lerp from the last
-                // rendered em to the target ceiling, no wave/pulse
-                // modulation. Wave phase was pinned at Install so it
-                // hits peak at transition end, meaning pulsed≈1 at
-                // eased=1 → steady_em≈target_em → seamless handoff.
+                // During transition: smooth ramp from the last rendered em to
+                // the new tier's pulse START value — the trough (1-depth)·
+                // ceiling — with no wave modulation. The wave phase is pinned
+                // at Install to phase 0, so the pulse resumes from the start of
+                // its cycle at handoff and steady_em == this same trough value
+                // → seamless. Entering a deep-pulse tier (depth 1) thus starts
+                // at 0 and beats up, instead of popping to full brightness.
+                // depth 0 → trough == ceiling (unchanged for non-pulsing tiers).
                 // Steady state: pulse modulates the ceiling normally.
                 float em_no_flash;
                 if (transitioning) {
+                    const float land_trough = (1.0f - e.depth)
+                                            * e.layer_base_em_mult[L];
                     em_no_flash = e.from_em_mult[L]
-                                + (e.layer_base_em_mult[L] - e.from_em_mult[L]) * eased;
+                                + (land_trough - e.from_em_mult[L]) * eased;
                 } else {
                     em_no_flash = steady_em;
                 }
+
                 const float final_mult = em_no_flash + flash_add;
                 skee_bridge::WriteEmissiveMult(actor, e.is_female, node, final_mult);
                 // Track post-pulse rendered em (sans transient flash) so
