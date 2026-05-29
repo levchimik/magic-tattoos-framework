@@ -11,7 +11,11 @@ Scriptname MTF_Plugin_OStim extends MTF_Plugin
  natives are callable.
 
  Conditions:
-   0  in.scene           — currently in an OStim scene (IsInOStim)
+   0  scene.composition  — in a scene; param menu picks the composition
+                           (any/solo/1m1f/2f/2m/mmf/mff/4p). "any" == legacy
+                           in.scene (IsInOStim). Composition options resolve
+                           OActor.GetThreadID -> OThread.GetActors and count
+                           males by HasSchlong; need OStim API 7.3.5c+.
    1  excitement         — OActor excitement >= param
    2  times.climaxed     — per-scene climax count >= param
    3  climax.stalled     — IsClimaxStalled flag matches (param 0/1)
@@ -46,11 +50,40 @@ bool Function checkCondition(Actor target, int param, string cid)
     if target == None
         return false
     endif
-    ; in.scene + has.schlong are valid regardless of scene state.
-    if cid == "in.scene"
-        return OActor.IsInOStim(target)
-    elseif cid == "has.schlong"
+    ; has.schlong is valid regardless of scene state.
+    if cid == "has.schlong"
         return OActor.HasSchlong(target)
+    endif
+    ; scene.composition: "any" == legacy in.scene (just in a scene). Specific
+    ; compositions walk the thread roster; see _matchComposition. Gated on
+    ; IsInOStim first so the GetThreadID/GetActors natives (OStim 7.3.5c+) only
+    ; fire for actors actually in a scene.
+    if cid == "scene.composition"
+        if !OActor.IsInOStim(target)
+            return false
+        endif
+        string want = _host().GetEvalParamStr()
+        if want == "" || want == "any"
+            return true
+        endif
+        int tid = OActor.GetThreadID(target)
+        if tid < 0
+            return false
+        endif
+        Actor[] acts = OThread.GetActors(tid)
+        int n = acts.Length
+        if n < 1
+            return false
+        endif
+        int males = 0
+        int i = 0
+        while i < n
+            if acts[i] != None && OActor.HasSchlong(acts[i])
+                males += 1
+            endif
+            i += 1
+        endwhile
+        return _matchComposition(want, n, males, n - males)
     endif
     ; Everything else (excitement, times.climaxed, climax.stalled) is
     ; per-scene state in OStim. Outside a scene the underlying natives
@@ -76,6 +109,29 @@ bool Function checkCondition(Actor target, int param, string cid)
     return false
 EndFunction
 
+; Maps a roster headcount + male/female tally onto the menu ids declared in
+; mtf.ostim.json. Sex is schlong-based (OStim assigns scene positions the same
+; way), so a futa fills a male slot — 1m1f, not 2f. 4p is any scene of 4+
+; actors (foursome or larger), any mix — covers 5-actor scenes like 4f1m.
+bool Function _matchComposition(string want, int n, int males, int females)
+    if want == "solo"
+        return n == 1
+    elseif want == "1m1f"
+        return n == 2 && males == 1 && females == 1
+    elseif want == "2f"
+        return n == 2 && females == 2
+    elseif want == "2m"
+        return n == 2 && males == 2
+    elseif want == "mmf"
+        return n == 3 && males == 2 && females == 1
+    elseif want == "mff"
+        return n == 3 && males == 1 && females == 2
+    elseif want == "4p"
+        return n >= 4
+    endif
+    return false
+EndFunction
+
 ; ── Dispatch ────────────────────────────────────────────────────────────────
 ; trigger.*, excitement.* are one-shot bursts on activate — no rolling state
 ; to clean up. climax.stall is the only effect with rolling state: we issue
@@ -92,8 +148,9 @@ Function onActivate(Actor target, int param, int param2, string eid, int slot, i
     ; Modify/SetExcitement, StallClimax. Outside an active scene the
     ; natives are no-ops at best, silently corrupt at worst. Skip the
     ; whole dispatch if the actor isn't in a scene. Callers should pair
-    ; these effects with the `in.scene` condition so the tier never
-    ; activates outside a scene in the first place — this is a defensive
+    ; these effects with the `scene.composition` condition (any value gates
+    ; on IsInOStim) so the tier never activates outside a scene in the first
+    ; place — this is a defensive
     ; backstop for misconfigured presets.
     if !OActor.IsInOStim(target)
         return

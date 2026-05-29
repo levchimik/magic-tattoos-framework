@@ -136,7 +136,7 @@ Effects: skill XP grants, cum layer add/clear.]]></description>
 
 Auto-recommended if OStim.esp is active.
 
-Conditions: in.scene, excitement threshold.
+Conditions: scene.composition (solo/1m1f/2f/2m/mmf/mff/4p, or any), excitement threshold.
 Effects: excitement.mult.set (scale excitement while preset active).]]></description>
               <files>
                 <folder source="13_plugin_ostim" destination="" priority="0"/>

@@ -4,9 +4,47 @@
   "pluginlabel": "OStim Standalone",
   "conditions": [
     {
-      "id": "in.scene",
-      "label": "In Scene",
-      "description": "Triggers while the actor is engaged in an intimate scene."
+      "id": "scene.composition",
+      "label": "Scene Composition",
+      "description": "Triggers while the actor is in an OStim scene of the selected composition. (Anything other than \"Any\" needs OStim API 7.3.5c+.)",
+      "param": {
+        "label": "Composition",
+        "default": "any",
+        "menu": [
+          {
+            "label": "Any (in scene)",
+            "id": "any"
+          },
+          {
+            "label": "Solo",
+            "id": "solo"
+          },
+          {
+            "label": "1 Male + 1 Female",
+            "id": "1m1f"
+          },
+          {
+            "label": "2 Females",
+            "id": "2f"
+          },
+          {
+            "label": "2 Males",
+            "id": "2m"
+          },
+          {
+            "label": "2 Males + 1 Female",
+            "id": "mmf"
+          },
+          {
+            "label": "1 Male + 2 Females",
+            "id": "mff"
+          },
+          {
+            "label": "Foursome+ (4 or more actors)",
+            "id": "4p"
+          }
+        ]
+      }
     },
     {
       "id": "excitement",

@@ -77,12 +77,14 @@ Requires OStim Standalone (not classic OStim).
 
 Excitement-family conditions are scene-gated in `MTF_Plugin_OStim.checkCondition`
 (return false outside `IsInOStim`), and effects are scene-gated in `onActivate`
-— OStim's own API already no-ops outside scenes, so no explicit `+ in.scene`
-conjunction is needed inside the preset's slot conditions.
+— OStim's own API already no-ops outside scenes, so no explicit scene gate
+is needed inside the preset's slot conditions. (`scene.composition` with the
+`any` value is the explicit in-scene gate when you do want one.)
 
 | Preset | What it exercises | How to trigger | Expected evidence |
 |---|---|---|---|
 | **Test_OStim** | Excitement-ladder state machine. Slot 1 `times.climaxed>=2` → `sound.play` (highest priority — overrides everything post-2nd-climax). Slot 2 `excitement>=60` → `trigger.climax`. Slot 3 `excitement>=30` → `excitement.set 50`. Slot 4 `excitement>=10` → `excitement.mult.set 3`. | Start an OStim scene. Watch excitement rise: tier→4 at 10 (mult kicks in, excitement starts climbing 3×), tier→3 at 30 (jumps to 50), tier→2 at 60 (climax fires). After 2nd climax (typically manual via OStim UI since excitement doesn't reset post-climax), tier→1 (sfx). | NotificationLog: rapid tier sequence 4→3→2 as excitement climbs; tier stays at 2 post-climax since OStim doesn't reset excitement. Trigger a 2nd climax manually → tier→1 sfx plays. |
+| **Test_OStim_Composition** | `scene.composition` ladder — one slot per composition, each with a distinct sfx. Slot 1 `solo`→`ui_level_up`, 2 `1m1f`→`ui_skill_up`, 3 `2f`→`ui_new_quest`, 4 `2m`→`ui_quest_update`, 5 `mmf`→`ui_quest_complete`, 6 `mff`→`ui_shout_learned`, 7 `4p`→`ui_perk_select`. Sex is schlong-based (futa fills the male slot). Needs OStim API 7.3.5c+. | Start OStim scenes of varying composition (use `player.placeatme` to add partners, then start a scene). | NotificationLog: tier matches the actor's current scene composition (e.g. a 1-male-1-female scene → tier 2, `ui_skill_up`); changes if the roster changes mid-scene. |
 
 ### D2. Multi-area overlays (Phase 1-3)
 

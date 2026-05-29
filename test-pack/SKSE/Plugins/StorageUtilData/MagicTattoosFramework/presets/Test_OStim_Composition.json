@@ -1,0 +1,179 @@
+{
+  "displayname": "Test: OStim composition",
+  "int": {
+    "valid": 0
+  },
+  "schemaversion": 8,
+  "transition": {
+    "duration": 0.3
+  },
+  "slot": [
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": 0,
+        "pluginid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": "solo",
+        "pluginid": "mtf.ostim:scene.composition"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_level_up"
+        }
+      ]
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": "1m1f",
+        "pluginid": "mtf.ostim:scene.composition"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_skill_up"
+        }
+      ]
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": "2f",
+        "pluginid": "mtf.ostim:scene.composition"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_new_quest"
+        }
+      ]
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": "2m",
+        "pluginid": "mtf.ostim:scene.composition"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_quest_update"
+        }
+      ]
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": "mmf",
+        "pluginid": "mtf.ostim:scene.composition"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_quest_complete"
+        }
+      ]
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": "mff",
+        "pluginid": "mtf.ostim:scene.composition"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_shout_learned"
+        }
+      ]
+    },
+    {
+      "cond": {
+        "entryid": "",
+        "packid": "",
+        "param": "4p",
+        "pluginid": "mtf.ostim:scene.composition"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:sound.play",
+          "param2": 3,
+          "extras": {
+            "volume": 100
+          },
+          "param1": "ui_perk_select"
+        }
+      ]
+    }
+  ],
+  "valid": 1
+}
