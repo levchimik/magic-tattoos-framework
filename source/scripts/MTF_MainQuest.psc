@@ -1636,6 +1636,33 @@ Function SetCondLayerAlpha(int slot, int L, int val)
     StorageUtil.SetIntValue(self, "mtf.cond.layer.alpha." + slot + "." + L, val)
 EndFunction
 
+; ── TEMP DIAGNOSTIC (persistence-loss investigation) ─────────────────────────
+; Dumps persisted per-slot cond config to the Papyrus log + a compact toast so
+; a save/load round-trip can be checked for whether the mtf.cond.* StorageUtil
+; values actually survive. The RAW read uses a -999 sentinel: if it comes back
+; -999 the key never made it into the cosave (true persistence loss); a real
+; value means the data survived and the bug is downstream. Drive from console:
+;   cqf MTF_MainQuest SetCondLayerEmissiveMult 0 1 3.7
+;   cqf MTF_MainQuest SetCondLayerAlpha 0 1 55
+;   cqf MTF_MainQuest _dumpCondDiag presave
+;   (save, load)
+;   cqf MTF_MainQuest _dumpCondDiag postload
+; Remove before release.
+Function _dumpCondDiag(string tag)
+    Trace("[MTFdiag " + tag + "] ml=" + _migrationLevel + " arraysReady=" + _arraysReady + " cachedMaxC=" + _cachedMaxConditions)
+    float rawEmult = StorageUtil.GetFloatValue(self, "mtf.cond.layer.emult.0.1", -999.0)
+    int   rawAlpha = StorageUtil.GetIntValue(self,   "mtf.cond.layer.alpha.0.1", -999)
+    Trace("[MTFdiag " + tag + "] RAW s0L1 emult=" + rawEmult + " alpha=" + rawAlpha)
+    int s = 0
+    while s <= 7
+        Trace("[MTFdiag " + tag + "] slot " + s + " pack='" + GetCondPackId(s) + "' entry='" + GetCondEntryId(s) + "'" \
+            + " L0[emult=" + GetCondLayerEmissiveMult(s, 0) + " a=" + GetCondLayerAlpha(s, 0) + "]" \
+            + " L1[emult=" + GetCondLayerEmissiveMult(s, 1) + " a=" + GetCondLayerAlpha(s, 1) + "]")
+        s += 1
+    endwhile
+    Debug.Notification("MTFdiag " + tag + ": s0L1 emult=" + GetCondLayerEmissiveMult(0, 1) + " a=" + GetCondLayerAlpha(0, 1) + " raw=" + rawEmult)
+EndFunction
+
 int Function GetCondPersistMin(int slot)
     if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return 0
@@ -2036,8 +2063,32 @@ Function _applyPulse(float forcedTDur = -1.0)
         tints[i]     = GetCondLayerTint(_pulseTier, i)
         alphas[i]    = GetCondLayerAlpha(_pulseTier, i)
         emissives[i] = GetCondLayerEmissive(_pulseTier, i)
+        ; v0.2.9: a layer left at emissive 0 renders its base ink (the dark
+        ; "lit-by-emissive" diffuse) as a black blob at alpha 100. Bump a 0
+        ; emissive to a hair above 0 so the dark diffuse isn't exposed raw.
+        ; 0.001 contributes no visible glow on its own. (Kept as a band-aid
+        ; while the real fix — settings reverting to default em on reload — is
+        ; investigated; that's why the blob reappears when cond resets.)
+        if emMults[i] <= 0.0
+            emMults[i] = 0.001
+        endif
         i += 1
     endwhile
+
+    ; [MTFblack] TEMPORARY: log, per layer of the drawn tier, whether the
+    ; alpha/emult StorageUtil keys are STORED vs returning the accessor default.
+    ; Decides the black-blob fix: aSet=False means the slot is unconfigured
+    ; (alpha=100 is the default → opaque near-black glow). Remove before release.
+    if DebugMode
+        int d = 0
+        while d < _pulseLayerN
+            Debug.Trace("[MTFblack] tier=" + _pulseTier + " L" + d \
+                + " a=" + alphas[d] + " aSet=" + StorageUtil.HasIntValue(self, "mtf.cond.layer.alpha." + _pulseTier + "." + d) \
+                + " em=" + emMults[d] + " emSet=" + StorageUtil.HasFloatValue(self, "mtf.cond.layer.emult." + _pulseTier + "." + d) \
+                + " emcol=" + emissives[d] + " pack='" + ResolveSlotPackId(_pulseTier) + "'")
+            d += 1
+        endwhile
+    endif
 
     ; v0.1.29 different-texture cross-blend Phase A: keep OLD texture
     ; (currentTier still points at OLD, so emMults/tints/emissives above

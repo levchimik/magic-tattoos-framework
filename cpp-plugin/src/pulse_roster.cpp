@@ -406,6 +406,16 @@ namespace MTFPulse {
             return;
         }
 
+        // [MTFdiag] TEMPORARY: dump the player's live per-layer shader values
+        // ~2x/sec so we can read em/alpha/gloss/spec at the black-blob moment
+        // without per-frame log spam. Player only (formID 0x14). Remove before
+        // release.
+        static float s_lastDiag = -100.0f;
+        const bool diagTime = (now - s_lastDiag) > 0.5f;
+        if (diagTime) {
+            s_lastDiag = now;
+        }
+
         // Deferred-removal list for one-shot fade entries that complete
         // during this Tick. We can't RemoveAtLocked mid-iteration (it
         // swaps with the last entry, breaking the forward walk), so we
@@ -665,7 +675,22 @@ namespace MTFPulse {
                 // em>=1 still gloss=5/spec=1 (full shine), and intermediate
                 // em values get proportional shine that matches the
                 // visible emissive intensity.
-                const float em_norm = std::clamp(em_no_flash, 0.0f, 1.0f);
+                // v0.2.9 black-blob fix: derive gloss/spec from the emissive
+                // CEILING, not the pulse-modulated live em. The near-black glow
+                // diffuse relies on a broad specular sheen (gloss=5) to stay
+                // visible; afc0a25/e516154 coupled spec to the live pulsed em,
+                // so spec→0 at every pulse trough exposed the black diffuse as
+                // an opaque blob (alpha stays at target_alpha). Pre-V4 keyed
+                // gloss on the STATIC per-tier ceiling, so a glow layer
+                // (ceiling>0) kept its sheen through the whole pulse. Use the
+                // (lerped during transition) ceiling: matte layers (ceiling 0)
+                // stay matte; glow layers never go pure black mid-pulse. The
+                // transition path still ramps gloss/spec smoothly via the
+                // ceiling lerp (preserves e516154's no-snap cross-blend fix).
+                const float gloss_basis = transitioning
+                    ? em_no_flash                  // == lerped ceiling (no pulse mid-transition)
+                    : e.layer_base_em_mult[L];     // steady state: unpulsed ceiling
+                const float em_norm = std::clamp(gloss_basis, 0.0f, 1.0f);
                 const float gloss   = 5.0f * em_norm;
                 const float spec    = 1.0f * em_norm;
                 skee_bridge::WriteGlossiness(actor, e.is_female, node, gloss);
@@ -696,6 +721,16 @@ namespace MTFPulse {
                 e.last_interp_alpha[L]    = alpha;
                 e.last_interp_tint[L]     = tint;
                 e.last_interp_emissive[L] = emissive;
+
+                // [MTFdiag] TEMPORARY player-only per-layer readout.
+                if (diagTime && e.actor_formID == 0x14) {
+                    spdlog::info("[MTFdiag] {} L{} em_live={:.3f} ceil={:.3f} gloss={:.2f} spec={:.2f} alpha={:.1f} tint=0x{:06x} emcol=0x{:06x} trans={} eased={:.2f}",
+                                 node, li, em_no_flash, e.layer_base_em_mult[L],
+                                 gloss, spec, alpha,
+                                 static_cast<std::uint32_t>(tint) & 0xFFFFFFu,
+                                 static_cast<std::uint32_t>(emissive) & 0xFFFFFFu,
+                                 transitioning ? 1 : 0, eased);
+                }
             }
             e.has_last_interp = true;
         }
