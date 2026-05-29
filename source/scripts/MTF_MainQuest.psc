@@ -2063,32 +2063,11 @@ Function _applyPulse(float forcedTDur = -1.0)
         tints[i]     = GetCondLayerTint(_pulseTier, i)
         alphas[i]    = GetCondLayerAlpha(_pulseTier, i)
         emissives[i] = GetCondLayerEmissive(_pulseTier, i)
-        ; v0.2.9: a layer left at emissive 0 renders its base ink (the dark
-        ; "lit-by-emissive" diffuse) as a black blob at alpha 100. Bump a 0
-        ; emissive to a hair above 0 so the dark diffuse isn't exposed raw.
-        ; 0.001 contributes no visible glow on its own. (Kept as a band-aid
-        ; while the real fix — settings reverting to default em on reload — is
-        ; investigated; that's why the blob reappears when cond resets.)
-        if emMults[i] <= 0.0
-            emMults[i] = 0.001
-        endif
+        ; em=0 black-blob floor lives in skee_bridge::WriteEmissiveMult
+        ; (clamps 0→0.001 at the SKEE write boundary). Papyrus sends
+        ; user intent unchanged so StorageUtil round-trips em=0 cleanly.
         i += 1
     endwhile
-
-    ; [MTFblack] TEMPORARY: log, per layer of the drawn tier, whether the
-    ; alpha/emult StorageUtil keys are STORED vs returning the accessor default.
-    ; Decides the black-blob fix: aSet=False means the slot is unconfigured
-    ; (alpha=100 is the default → opaque near-black glow). Remove before release.
-    if DebugMode
-        int d = 0
-        while d < _pulseLayerN
-            Debug.Trace("[MTFblack] tier=" + _pulseTier + " L" + d \
-                + " a=" + alphas[d] + " aSet=" + StorageUtil.HasIntValue(self, "mtf.cond.layer.alpha." + _pulseTier + "." + d) \
-                + " em=" + emMults[d] + " emSet=" + StorageUtil.HasFloatValue(self, "mtf.cond.layer.emult." + _pulseTier + "." + d) \
-                + " emcol=" + emissives[d] + " pack='" + ResolveSlotPackId(_pulseTier) + "'")
-            d += 1
-        endwhile
-    endif
 
     ; v0.1.29 different-texture cross-blend Phase A: keep OLD texture
     ; (currentTier still points at OLD, so emMults/tints/emissives above

@@ -141,6 +141,19 @@ namespace MTFPulse::skee_bridge {
         // attached node graph regardless of sex). The parameter is kept in
         // our public signature because the *persist* path AddNodeOverride
         // does need it, and we may add that variant later.
+
+        // v0.2.9 black-blob floor: SKEE overlay shaders couple diffuse
+        // visibility to emissive intensity — em=0 renders the base ink's
+        // dark "lit-by-emissive" diffuse as a near-black blob at alpha 100.
+        // Clamp 0 → 0.001 so the dark diffuse isn't exposed raw. 0.001
+        // contributes no visible glow on its own, and pulse_roster's
+        // gloss_basis still reads the unfloored ceiling, so a genuinely
+        // matte layer (ceiling 0) keeps gloss=0/spec=0. Lives here at the
+        // SKEE write boundary so every call path (steady pulse, fade-on-
+        // death, drain-one-shot) is covered uniformly.
+        if (mult <= 0.0f) {
+            mult = 0.001f;
+        }
         skee::FloatVariant variant{ mult };
         return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderEmissiveMultiple, variant);
     }
