@@ -214,10 +214,9 @@ EndFunction
 Function _rearmSlowTick()
 {Re-arm MainQuest's slow-tick state machine after save load / fresh init.
  State persists across save/load but RegisterForSingleUpdate TIMERS do
- NOT — so a GotoState("checkingAroused") is a no-op when the quest is
- already in that state, and the OnUpdate loop then never re-fires after
- reload. Cycle through the empty state first to force OnBeginState to
- fire on re-entry, which is what re-arms the slow tick that drives
+ NOT — so the OnUpdate loop never re-fires after reload unless we force
+ OnBeginState to run again. MainQuest.Rearm() cycles the state ("" →
+ checkingAroused) to do exactly that, re-arming the slow tick that drives
  _tickSlotEffects (slowTime, detectAll, cloak refreshes all rely on it).
  Also pokes setRedraw so the next slow tick re-runs drawOverlay.
 
@@ -230,10 +229,7 @@ Function _rearmSlowTick()
         return
     endif
     h.setRedraw()
-    if h.GetState() == "checkingAroused"
-        h.GotoState("")
-    endif
-    h.GotoState("checkingAroused")
+    h.Rearm()
 EndFunction
 
 ; ── PO3 PapyrusExtender lifecycle events ────────────────────────────────────

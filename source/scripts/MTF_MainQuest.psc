@@ -500,11 +500,12 @@ EndFunction
 Event OnInit()
     Trace("[MTF_Main] OnInit")
     EnsureArrays()
-    ; Test-branch convenience: auto-enable mod + debug toasts on new game so
-    ; we don't have to walk through MCM > General every iteration. Revert
-    ; before shipping.
+    ; Framework active by default: the base mod ships no content, so nothing
+    ; renders until the user assigns a pack + slot in MCM. DebugMode is left
+    ; at its declared default (false) — it was force-enabled here as a dev
+    ; convenience (tier-change toasts + lifecycle audit); users opt in via
+    ; MCM > General > Debug mode.
     ModActive = true
-    DebugMode = true
 EndEvent
 
 ; ── Lifecycle callbacks (called from MTF_HitListener via PO3 events) ───────
@@ -825,6 +826,17 @@ Function ForceReloadVisualCatalogs()
 
     ; Pass 1: folder scan
     string[] files = JsonUtil.JsonInFolder("MagicTattoosFramework/visuals")
+    ; Pre-allocate the Pass-2 "known" array HERE — immediately after the
+    ; JsonInFolder native return and BEFORE the `files != None` guard. A
+    ; PapyrusUtil array return followed by an `== None`/`!= None` comparison
+    ; corrupts the array ::temp register (KB: temp1-corruption); a `new
+    ; string[]` placed AFTER that comparison (the old Pass-2 layout) got
+    ; clobbered, so `known` came back None and every `known[k]` threw
+    ; "Cannot access an element of a None array" (+ "Cannot create an array").
+    ; Allocating before the guard matches the error-free ListPresets ordering.
+    string[] known = new string[2]
+    known[0] = "MagicTattoosFramework/visuals/mtf.lewdmarks-racemenu"
+    known[1] = "MagicTattoosFramework/visuals/mtf.lewdmarks-slavetats"
     if files != None
         rawCount = files.Length
         int i = 0
@@ -867,10 +879,8 @@ Function ForceReloadVisualCatalogs()
         endwhile
     endif
 
-    ; Pass 2: hardcoded probe for ship-included packs
-    string[] known = new string[2]
-    known[0] = "MagicTattoosFramework/visuals/mtf.lewdmarks-racemenu"
-    known[1] = "MagicTattoosFramework/visuals/mtf.lewdmarks-slavetats"
+    ; Pass 2: hardcoded probe for ship-included packs (uses the `known`
+    ; array allocated above, before the None guard — see note there).
     int k = 0
     while k < known.Length && visualPackCount < 32
         string kf = known[k]
@@ -4306,7 +4316,24 @@ Function _notifyTierChange(int tier)
     Notification(msg)
 EndFunction
 
+; ── Slow-tick re-arm ───────────────────────────────────────────────────────
+; Re-enter the update-loop state to force OnBeginState, which re-arms the
+; RegisterForSingleUpdate timer that drives the loop. Saves persist the STATE
+; but not pending timers, so after a load the loop would otherwise never
+; re-fire. Cycling through the empty state guarantees OnBeginState runs even
+; when we're already in checkingAroused. Defined on self so Caprica can
+; validate the state name — external callers (HitListener, MCMQuest) invoke
+; Rearm() rather than a cross-script GotoState the compiler can't verify (W4003).
+Function Rearm()
+    GotoState("")
+    GotoState("checkingAroused")
+EndFunction
+
 ; ── Update loop (state) ───────────────────────────────────────────────────────
+; NOTE: "checkingAroused" is a vestigial name from the mod's LewdMarks arousal
+; origins. It is now the generic condition-evaluation + effect-tick loop, not
+; arousal-specific. Not renamed: the state name is stored in saves, so a rename
+; would strand in-flight saves mid-loop.
 State checkingAroused
 
     Event OnBeginState()

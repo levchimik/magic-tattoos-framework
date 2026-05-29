@@ -83,7 +83,6 @@ event OnVersionUpdate(int Version)
     ; applied. Once we ship, the next migration must be a non-destructive
     ; ml<20 block added below this one.
     int ml = MainQuest._migrationLevel
-    Debug.Trace("[MTFwipe] OnVersionUpdate fired ml=" + ml + " pack0='" + MainQuest.GetCondPackId(0) + "' pack1='" + MainQuest.GetCondPackId(1) + "'")
     if ml >= 39
         return
     endif
@@ -200,7 +199,6 @@ event OnVersionUpdate(int Version)
     ; Default slot (idx 0): leave empty so the player sees no tattoo until
     ; they explicitly pick one in MCM. Loading visual catalogs is still
     ; required so the per-slot pickers can populate when opened.
-    Debug.Trace("[MTFwipe] *** DESTRUCTIVE SEED RUNNING *** ml was " + ml + " — resetting ALL cond fields (pack/entry/layers) to defaults")
     MainQuest.LoadVisualCatalogs()
     MainQuest.SetCondPackId(0,  "")
     MainQuest.SetCondEntryId(0, "")
@@ -436,8 +434,6 @@ function drawPresetEditorPage()
     MainQuest.EnsureArrays()
 
     int idx = selectedCondition
-
-    Debug.Trace("[MTFwipe] drawPresetEditorPage idx=" + idx + " pack0='" + MainQuest.GetCondPackId(0) + "' packIdx='" + MainQuest.GetCondPackId(idx) + "' idxL0alpha=" + MainQuest.GetCondLayerAlpha(idx, 0) + " idxL1emult=" + MainQuest.GetCondLayerEmissiveMult(idx, 1))
 
     ; ── LEFT COLUMN: preset management + transition + visual config ─────────
     ; Preset header groups file lifecycle (Editing status + Save / Save as /
@@ -691,7 +687,7 @@ state GEN_MOD_ACTIVE
         SetToggleOptionValueST(v)
         if v
             MainQuest.setRedraw()
-            MainQuest.GotoState("checkingAroused")
+            MainQuest.Rearm()
         endif
     endEvent
     event OnDefaultST()
@@ -1340,7 +1336,6 @@ state SLOT_PACK_PICK
                 MainQuest.SetCondEntryId(selectedCondition, "")
             endif
         endif
-        Debug.Trace("[MTFwipe] PICK sel=" + selectedCondition + " newPack='" + newPack + "' readback='" + MainQuest.GetCondPackId(selectedCondition) + "'")
         SetMenuOptionValueST(_slotPackLabel(selectedCondition))
         MainQuest.setRedraw()
         ForcePageReset()
