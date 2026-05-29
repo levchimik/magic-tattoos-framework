@@ -650,39 +650,29 @@ namespace MTFPulse {
                 // value, not a static ceiling.
                 e.last_interp_em_mult[L] = em_no_flash;
 
-                // v0.1.29: glossiness / specular scale LINEARLY with em
-                // (clamped at em=1.0 to preserve the steady-state look for
-                // em>=1 tiers). The earlier binary threshold (em>0.001 →
-                // 5/1 else 0/0) created a visible discontinuity during a
-                // smooth em lerp: at the moment em crossed the threshold
-                // while alpha was still non-zero, gloss/spec snapped from
-                // 5/1 to 0/0, exposing the dark diffuse texture with no
-                // specular highlight — rendered as a black flash. Showed
-                // up as "two black blinks" during the different-texture
-                // cross-blend: one at Phase A end (em → 0) and one at
-                // Phase B start (em → NEW>0). Linear ramp eliminates the
-                // discontinuity; at em=0 still gloss=0/spec=0 (matte), at
-                // em>=1 still gloss=5/spec=1 (full shine), and intermediate
-                // em values get proportional shine that matches the
-                // visible emissive intensity.
-                // v0.2.9 black-blob fix: derive gloss/spec from the emissive
-                // CEILING, not the pulse-modulated live em. The near-black glow
-                // diffuse relies on a broad specular sheen (gloss=5) to stay
-                // visible; afc0a25/e516154 coupled spec to the live pulsed em,
-                // so spec→0 at every pulse trough exposed the black diffuse as
-                // an opaque blob (alpha stays at target_alpha). Pre-V4 keyed
-                // gloss on the STATIC per-tier ceiling, so a glow layer
-                // (ceiling>0) kept its sheen through the whole pulse. Use the
-                // (lerped during transition) ceiling: matte layers (ceiling 0)
-                // stay matte; glow layers never go pure black mid-pulse. The
-                // transition path still ramps gloss/spec smoothly via the
-                // ceiling lerp (preserves e516154's no-snap cross-blend fix).
-                const float gloss_basis = transitioning
-                    ? em_no_flash                  // == lerped ceiling (no pulse mid-transition)
-                    : e.layer_base_em_mult[L];     // steady state: unpulsed ceiling
-                const float em_norm = std::clamp(gloss_basis, 0.0f, 1.0f);
-                const float gloss   = 5.0f * em_norm;
-                const float spec    = 1.0f * em_norm;
+                // v0.3 black-smudge fix: specular sheen is driven by the
+                // layer's ALPHA (visibility), NOT its emissive. The ink
+                // diffuse is near-black by design and is only made visible by
+                // a broad specular sheen (gloss=5); afc0a25/e516154 coupled
+                // sheen to the emissive ceiling, so a matte layer (em 0) —
+                // including the base mark, which defaults to em 0 / alpha 100
+                // — collapsed to gloss=0/spec=0 and rendered the dark diffuse
+                // raw as an opaque black smudge. Emissive is "glow", alpha is
+                // "is this layer shown at all"; sheen belongs with the latter.
+                //
+                // Keying off alpha: a visible layer (alpha>0) always gets
+                // proportional sheen so its diffuse renders — at em 0 it's a
+                // matte ink (no glow), at em>0 emissive adds the glow on top.
+                // An invisible layer (alpha 0) gets sheen 0 (nothing to show).
+                // Transitions stay smooth because alpha itself lerps (no snap
+                // → no black flash, preserving e516154's no-snap cross-blend).
+                const float sheen_vis = std::clamp(
+                    transitioning
+                        ? (e.from_alpha[L] + (e.target_alpha[L] - e.from_alpha[L]) * eased)
+                        : e.target_alpha[L],
+                    0.0f, 1.0f);
+                const float gloss   = 5.0f * sheen_vis;
+                const float spec    = 1.0f * sheen_vis;
                 skee_bridge::WriteGlossiness(actor, e.is_female, node, gloss);
                 skee_bridge::WriteSpecular(actor, e.is_female, node, spec);
 
