@@ -1219,6 +1219,171 @@ Function SetCondParam2Str(int slot, string val)
     endif
 EndFunction
 
+; ── Multi-condition per slot (AND/OR) — v0.3.0 ──────────────────────────────
+; A slot can hold N conditions combined by ONE operator. Condition index 0
+; reuses the legacy scalar keys (GetCondPluginId/Param/... above) for 100%
+; back-compat with existing saves + presets; indices >= 1 live under the new
+; keyspace mtf.cond.x.<slot>.<j>.*. GetCondCount returns the effective count
+; (a legacy single-condition slot reports 1). Op: 0 = AND (all must pass),
+; 1 = OR (any passes). MAX_CONDS_PER_SLOT bounds the backend (MCM exposes 2).
+int Function MAX_CONDS_PER_SLOT() global
+    return 8
+EndFunction
+
+int Function GetCondOp(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return 0
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.op." + slot, 0)
+EndFunction
+
+Function SetCondOp(int slot, int op)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    if op == 0
+        StorageUtil.UnsetIntValue(self, "mtf.cond.op." + slot)
+    else
+        StorageUtil.SetIntValue(self, "mtf.cond.op." + slot, op)
+    endif
+EndFunction
+
+int Function GetCondCount(int slot)
+{Effective number of conditions in the slot. Legacy slots with no explicit
+ count report 1 when cond[0] is set, else 0 — so old presets evaluate
+ unchanged.}
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return 0
+    endif
+    int c = StorageUtil.GetIntValue(self, "mtf.cond.count." + slot, -1)
+    if c < 0
+        if GetCondPluginId(slot) != ""
+            return 1
+        endif
+        return 0
+    endif
+    return c
+EndFunction
+
+Function SetCondCount(int slot, int c)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    if c <= 1
+        ; 0 or 1 collapses to the legacy representation (no explicit key)
+        StorageUtil.UnsetIntValue(self, "mtf.cond.count." + slot)
+    else
+        StorageUtil.SetIntValue(self, "mtf.cond.count." + slot, c)
+    endif
+EndFunction
+
+; Indexed accessors. j == 0 delegates to the legacy scalar keys; j >= 1 uses
+; the mtf.cond.x.<slot>.<j>.* sub-keyspace. Strings live on the None scope
+; (matching the legacy string keys); ints on `self` (matching legacy int keys).
+string Function GetCondPluginIdAt(int slot, int j)
+    if j <= 0
+        return GetCondPluginId(slot)
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.cond.x." + slot + "." + j + ".pluginid", "")
+EndFunction
+
+Function SetCondPluginIdAt(int slot, int j, string key)
+    if j <= 0
+        SetCondPluginId(slot, key)
+        return
+    endif
+    if key == ""
+        StorageUtil.UnsetStringValue(None, "mtf.cond.x." + slot + "." + j + ".pluginid")
+    else
+        StorageUtil.SetStringValue(None, "mtf.cond.x." + slot + "." + j + ".pluginid", key)
+    endif
+EndFunction
+
+int Function GetCondParamAt(int slot, int j)
+    if j <= 0
+        return GetCondParam(slot)
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.x." + slot + "." + j + ".param", 0)
+EndFunction
+
+Function SetCondParamAt(int slot, int j, int val)
+    if j <= 0
+        SetCondParam(slot, val)
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.cond.x." + slot + "." + j + ".param", val)
+EndFunction
+
+int Function GetCondParam2At(int slot, int j)
+    if j <= 0
+        return GetCondParam2(slot)
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.x." + slot + "." + j + ".param2", 0)
+EndFunction
+
+Function SetCondParam2At(int slot, int j, int val)
+    if j <= 0
+        SetCondParam2(slot, val)
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.cond.x." + slot + "." + j + ".param2", val)
+EndFunction
+
+string Function GetCondParamStrAt(int slot, int j)
+    if j <= 0
+        return GetCondParamStr(slot)
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.cond.x." + slot + "." + j + ".param.s", "")
+EndFunction
+
+Function SetCondParamStrAt(int slot, int j, string val)
+    if j <= 0
+        SetCondParamStr(slot, val)
+        return
+    endif
+    if val == ""
+        StorageUtil.UnsetStringValue(None, "mtf.cond.x." + slot + "." + j + ".param.s")
+    else
+        StorageUtil.SetStringValue(None, "mtf.cond.x." + slot + "." + j + ".param.s", val)
+    endif
+EndFunction
+
+string Function GetCondParam2StrAt(int slot, int j)
+    if j <= 0
+        return GetCondParam2Str(slot)
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.cond.x." + slot + "." + j + ".param2.s", "")
+EndFunction
+
+Function SetCondParam2StrAt(int slot, int j, string val)
+    if j <= 0
+        SetCondParam2Str(slot, val)
+        return
+    endif
+    if val == ""
+        StorageUtil.UnsetStringValue(None, "mtf.cond.x." + slot + "." + j + ".param2.s")
+    else
+        StorageUtil.SetStringValue(None, "mtf.cond.x." + slot + "." + j + ".param2.s", val)
+    endif
+EndFunction
+
+; Clears every extra condition (index >= 1) for a slot back to empty, and
+; resets count/op to the legacy single-condition representation. Used by
+; LoadPreset before re-reading and by the MCM "clear slot" path.
+Function ClearSlotExtraConds(int slot)
+    int j = 1
+    while j < MAX_CONDS_PER_SLOT()
+        SetCondPluginIdAt(slot, j, "")
+        SetCondParamAt(slot, j, 0)
+        SetCondParam2At(slot, j, 0)
+        SetCondParamStrAt(slot, j, "")
+        SetCondParam2StrAt(slot, j, "")
+        j += 1
+    endwhile
+    SetCondCount(slot, 1)
+    SetCondOp(slot, 0)
+EndFunction
+
 ; ── Catalog probe helpers (v0.2.9) ──────────────────────────────────────────
 ; "Does this cond/effect param have a menu in the catalog?" Resolves the
 ; plugin + item from a slot key. Used by SavePreset/LoadPreset to route to
@@ -2475,6 +2640,33 @@ bool Function SavePreset(string rawName)
                 JsonUtil.SetPathIntValue(f, sp + ".cond.param2", p2)
             endif
         endif
+        ; v0.3.0 multi-condition: operator + extra conditions (index >= 1).
+        ; cond[0] above stays at .cond.* for back-compat; op/count under .cond.*;
+        ; extras at .cond.condx<j>.* (non-numeric object keys avoid JsonUtil
+        ; numeric-path ambiguity). Only emit op/count when non-default so legacy
+        ; single-condition presets keep clean, unchanged JSON.
+        int condN = GetCondCount(s)
+        if condN > 1 || GetCondOp(s) != 0
+            JsonUtil.SetPathIntValue(f, sp + ".cond.op", GetCondOp(s))
+            JsonUtil.SetPathIntValue(f, sp + ".cond.count", condN)
+        endif
+        int cjW = 1
+        while cjW < condN
+            string xpW = sp + ".cond.condx" + cjW
+            string xkeyW = GetCondPluginIdAt(s, cjW)
+            JsonUtil.SetPathStringValue(f, xpW + ".pluginid", xkeyW)
+            if _condParamIsMenu(xkeyW)
+                JsonUtil.SetPathStringValue(f, xpW + ".param", GetCondParamStrAt(s, cjW))
+            else
+                JsonUtil.SetPathIntValue(f, xpW + ".param", GetCondParamAt(s, cjW))
+            endif
+            if _condParam2IsMenu(xkeyW)
+                JsonUtil.SetPathStringValue(f, xpW + ".param2", GetCondParam2StrAt(s, cjW))
+            else
+                JsonUtil.SetPathIntValue(f, xpW + ".param2", GetCondParam2At(s, cjW))
+            endif
+            cjW += 1
+        endwhile
         ; v0.2.9 per-slot display name (sidecar to cond.*). Only emit when
         ; non-empty so untouched presets keep clean JSON. Empty fallback in
         ; MCMQuest._slotLabel handles the missing-field case.
@@ -2640,6 +2832,34 @@ bool Function LoadPreset(string name)
             SetCondParam2(s, JsonUtil.GetPathIntValue(f, sp + ".cond.param2", 0))
             SetCondParam2Str(s, "")
         endif
+        ; v0.3.0 multi-condition: wipe stale extras from a prior config, then
+        ; read the operator + extra conditions (index >= 1) into live StorageUtil.
+        ClearSlotExtraConds(s)
+        int condN = JsonUtil.GetPathIntValue(f, sp + ".cond.count", 1)
+        if condN < 1
+            condN = 1
+        endif
+        SetCondOp(s, JsonUtil.GetPathIntValue(f, sp + ".cond.op", 0))
+        SetCondCount(s, condN)
+        int cjR = 1
+        while cjR < condN
+            string xpR = sp + ".cond.condx" + cjR
+            string xkeyR = JsonUtil.GetPathStringValue(f, xpR + ".pluginid", "")
+            SetCondPluginIdAt(s, cjR, xkeyR)
+            if _condParamIsMenu(xkeyR)
+                SetCondParamStrAt(s, cjR, JsonUtil.GetPathStringValue(f, xpR + ".param", ""))
+                SetCondParamAt(s, cjR, 0)
+            else
+                SetCondParamAt(s, cjR, JsonUtil.GetPathIntValue(f, xpR + ".param", 0))
+                SetCondParamStrAt(s, cjR, "")
+            endif
+            if _condParam2IsMenu(xkeyR)
+                SetCondParam2StrAt(s, cjR, JsonUtil.GetPathStringValue(f, xpR + ".param2", ""))
+            else
+                SetCondParam2At(s, cjR, JsonUtil.GetPathIntValue(f, xpR + ".param2", 0))
+            endif
+            cjR += 1
+        endwhile
         ; v0.2.9 per-slot display name. Empty default = use canonical label.
         SetCondName(s,     JsonUtil.GetPathStringValue(f, sp + ".name", ""))
         _setCoolMin(s, JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
@@ -4008,6 +4228,98 @@ EndFunction
 ; (pre-scan for !allowOverride lock, then normal eval) is what enforces
 ; "block higher" semantics: once we find a locked slot at index i, we return
 ; immediately without giving slots 1..i-1 a chance to fire.
+; ── Multi-condition evaluation core (v0.3.0) ────────────────────────────────
+; _checkOneCond resolves a single condition's plugin + item and runs it,
+; setting the eval-param channel the plugin reads via host.GetEvalParam*.
+; Shared by the player-live, JSON-peek, and scratch eval paths so the
+; resolve/eval-param/checkCondition dance lives in exactly one place.
+bool Function _checkOneCond(Actor target, string key, int paramInt, int param2Int, string paramStr, string param2Str)
+    if key == ""
+        return false
+    endif
+    MTF_Plugin p = ResolvePluginByKey(key)
+    if p == None
+        return false
+    endif
+    int itemIdx = _condIdxFor(p, _keyItemId(key))
+    if itemIdx < 0
+        return false
+    endif
+    _setEvalParam2(param2Int)
+    _setEvalParamStr(paramStr)
+    _setEvalParam2Str(param2Str)
+    return p.checkCondition(target, paramInt, p.GetConditionId(itemIdx))
+EndFunction
+
+; Evaluate ALL conditions of a player-live slot (StorageUtil-backed), combined
+; by the slot's operator. op 0 = AND (every cond must pass), op 1 = OR (any).
+; Short-circuits. Empty slot (count 0) => false.
+bool Function _slotCondsMetLive(Actor target, int slot)
+    int n = GetCondCount(slot)
+    if n <= 0
+        return false
+    endif
+    int op = GetCondOp(slot)
+    int j = 0
+    while j < n
+        bool met = _checkOneCond(target, GetCondPluginIdAt(slot, j), GetCondParamAt(slot, j), GetCondParam2At(slot, j), GetCondParamStrAt(slot, j), GetCondParam2StrAt(slot, j))
+        if op == 0 && !met
+            return false
+        endif
+        if op == 1 && met
+            return true
+        endif
+        j += 1
+    endwhile
+    return op == 0
+EndFunction
+
+; Evaluate ALL conditions of a slot straight from a JSON preset file, combined
+; by the slot's operator. Used by the NPC/scratch + peek paths (the JSON file
+; is the source of truth for those). cond[0] lives at .cond.*; extras at
+; .cond.x.<j>.* (object keys, j>=1); op at .cond.op; count at .cond.count.
+; param2 int is not carried on these paths (matches prior behaviour) — only
+; the player-live path threads param2.
+bool Function _slotCondsMetJson(Actor target, string f, int slot)
+    string sp = ".slot[" + slot + "]"
+    if JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "") == ""
+        return false
+    endif
+    int n = JsonUtil.GetPathIntValue(f, sp + ".cond.count", 1)
+    if n < 1
+        n = 1
+    endif
+    int op = JsonUtil.GetPathIntValue(f, sp + ".cond.op", 0)
+    int j = 0
+    while j < n
+        string key
+        int pInt
+        string pStr
+        string p2Str
+        if j == 0
+            key = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
+            pInt = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
+            pStr = JsonUtil.GetPathStringValue(f, sp + ".cond.param", "")
+            p2Str = JsonUtil.GetPathStringValue(f, sp + ".cond.param2", "")
+        else
+            string xp = sp + ".cond.condx" + j
+            key = JsonUtil.GetPathStringValue(f, xp + ".pluginid", "")
+            pInt = JsonUtil.GetPathIntValue(f, xp + ".param", 0)
+            pStr = JsonUtil.GetPathStringValue(f, xp + ".param", "")
+            p2Str = JsonUtil.GetPathStringValue(f, xp + ".param2", "")
+        endif
+        bool met = _checkOneCond(target, key, pInt, 0, pStr, p2Str)
+        if op == 0 && !met
+            return false
+        endif
+        if op == 1 && met
+            return true
+        endif
+        j += 1
+    endwhile
+    return op == 0
+EndFunction
+
 int Function evaluateTier()
     if !_arraysReady
         return 0
@@ -4039,17 +4351,9 @@ int Function evaluateTier()
                     ; Persistence keeps slot winning.
                     return i
                 endif
-                MTF_Plugin p = ResolvePluginByKey(key)
-                if p != None
-                    int itemIdx = _condIdxFor(p, _keyItemId(key))
-                    if itemIdx >= 0
-                        _setEvalParam2(GetCondParam2(i))
-                        _setEvalParamStr(GetCondParamStr(i))
-                        _setEvalParam2Str(GetCondParam2Str(i))
-                        if p.checkCondition(PlayerRef, GetCondParam(i), p.GetConditionId(itemIdx))
-                            return i
-                        endif
-                    endif
+                ; v0.3.0: evaluate all conditions in the slot (AND/OR).
+                if _slotCondsMetLive(PlayerRef, i)
+                    return i
                 endif
             endif
         endif
@@ -6911,20 +7215,9 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
                 if now < persistEnd2
                     return i  ; persistence wins (allowOverride==1 since pre-scan didn't catch)
                 endif
-                MTF_Plugin p = ResolvePluginByKey(key)
-                if p != None
-                    int itemIdx = _condIdxFor(p, _keyItemId(key))
-                    if itemIdx >= 0
-                        int param = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
-                        string paramStr = JsonUtil.GetPathStringValue(f, sp + ".cond.param", "")
-                        string param2Str = JsonUtil.GetPathStringValue(f, sp + ".cond.param2", "")
-                        _setEvalParam2(0)
-                        _setEvalParamStr(paramStr)
-                        _setEvalParam2Str(param2Str)
-                        if p.checkCondition(target, param, p.GetConditionId(itemIdx))
-                            return i
-                        endif
-                    endif
+                ; v0.3.0: evaluate all conditions in the slot (AND/OR) from JSON.
+                if _slotCondsMetJson(target, f, i)
+                    return i
                 endif
             endif
         endif
@@ -6993,25 +7286,17 @@ int Function evaluateTierForActor(Actor target, string presetName, bool useScrat
                 if now < persistEnd
                     return i  ; persistence wins (allowOverride==1)
                 endif
-                MTF_Plugin p = ResolvePluginByKey(key)
-                if p != None
-                    int itemIdx = _condIdxFor(p, _keyItemId(key))
-                    if itemIdx >= 0
-                        ; Param2: only wired for the player path (non-scratch).
-                        ; NPC tracked-subject scratch presets don't carry
-                        ; param2 yet — reset to 0 so a stale value can't leak.
-                        if useScratch
-                            _setEvalParam2(0)
-                            _setEvalParamStr(_getScratchCondParamStr(i))
-                            _setEvalParam2Str("")
-                        else
-                            _setEvalParam2(GetCondParam2(i))
-                            _setEvalParamStr(GetCondParamStr(i))
-                            _setEvalParam2Str(GetCondParam2Str(i))
-                        endif
-                        if p.checkCondition(target, _g_condParam(i, useScratch), p.GetConditionId(itemIdx))
-                            return i
-                        endif
+                ; v0.3.0: evaluate all conditions in the slot (AND/OR). Scratch
+                ; (NPC tracked subjects) reads from the preset JSON — its source
+                ; of truth, loaded into scratch from the same file; player-live
+                ; (non-scratch) reads StorageUtil and threads param2.
+                if useScratch
+                    if _slotCondsMetJson(target, _presetFile(presetName), i)
+                        return i
+                    endif
+                else
+                    if _slotCondsMetLive(target, i)
+                        return i
                     endif
                 endif
             endif

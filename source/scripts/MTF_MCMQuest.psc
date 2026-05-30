@@ -551,8 +551,8 @@ function drawPresetEditorPage()
             endif
         endif
 
-        AddMenuOptionST("SLOT_COND_TYPE", "Condition type", _condTypeLabel(key))
         AddHeaderOption("Condition " + idx)
+        AddMenuOptionST("SLOT_COND_TYPE", "Condition type", _condTypeLabel(key))
 
         if p != None && itemIdx >= 0
             string paramLabel = p.GetConditionParamLabel(itemIdx)
@@ -575,6 +575,42 @@ function drawPresetEditorPage()
                 else
                     AddSliderOptionST("SLOT_COND_PARAM2", param2Label, MainQuest.GetCondParam2(idx), p.GetConditionParam2Format(itemIdx))
                 endif
+            endif
+        endif
+
+        ; v0.3.0: optional SECOND condition + match mode. MCM exposes up to 2
+        ; (the backend supports N via the .At accessors / GetCondCount). Only
+        ; offered once condition 1 is set; the match mode appears once cond 2 is.
+        if key != ""
+            string key2 = MainQuest.GetCondPluginIdAt(idx, 1)
+            AddMenuOptionST("SLOT_COND2_TYPE", "Condition 2 type", _condTypeLabel(key2))
+            if key2 != ""
+                MTF_Plugin p2 = MainQuest.ResolvePluginByKey(key2)
+                int itemIdx2 = -1
+                if p2 != None
+                    itemIdx2 = MainQuest._condIdxFor(p2, MainQuest._keyItemId(key2))
+                endif
+                if p2 != None && itemIdx2 >= 0
+                    string paramLabel2 = p2.GetConditionParamLabel(itemIdx2)
+                    if paramLabel2 != ""
+                        if p2.GetConditionParamMenuOptionCount(itemIdx2) > 0
+                            AddMenuOptionST("SLOT_COND2_PARAM", paramLabel2, \
+                                _menuLabelForCondParam(p2, itemIdx2, MainQuest.GetCondParamStrAt(idx, 1)))
+                        else
+                            AddSliderOptionST("SLOT_COND2_PARAM", paramLabel2, MainQuest.GetCondParamAt(idx, 1), p2.GetConditionParamFormat(itemIdx2))
+                        endif
+                    endif
+                    string param2Label2 = p2.GetConditionParam2Label(itemIdx2)
+                    if param2Label2 != ""
+                        if p2.GetConditionParam2MenuOptionCount(itemIdx2) > 0
+                            AddMenuOptionST("SLOT_COND2_PARAM2", param2Label2, \
+                                _menuLabelForCondParam2(p2, itemIdx2, MainQuest.GetCondParam2StrAt(idx, 1)))
+                        else
+                            AddSliderOptionST("SLOT_COND2_PARAM2", param2Label2, MainQuest.GetCondParam2At(idx, 1), p2.GetConditionParam2Format(itemIdx2))
+                        endif
+                    endif
+                endif
+                AddMenuOptionST("SLOT_COND_OP", "Match mode", _condOpLabel(MainQuest.GetCondOp(idx)))
             endif
         endif
 
@@ -2219,6 +2255,360 @@ string Function _menuLabelForCondParam2(MTF_Plugin p, int itemIdx, string curId)
     endif
     return "Custom: " + curId
 EndFunction
+
+; ── v0.3.0 second-condition (index 1) MCM support ───────────────────────────
+string Function _condOpLabel(int op)
+    if op == 1
+        return "OR (any)"
+    endif
+    return "AND (all)"
+endFunction
+
+; Index-1 mirrors of the cond param-menu helpers. Same logic, but read/write
+; through the .At(slot, 1) accessors and compute the dialog start index inline.
+Function _openCond2ParamMenu()
+    string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetConditionParamMenuOptionCount(itemIdx)
+    if n <= 0
+        return
+    endif
+    string curId = MainQuest.GetCondParamStrAt(selectedCondition, 1)
+    string[] opts = _newOpts(n)
+    int cur = 0
+    int i = 0
+    while i < n
+        opts[i] = p.GetConditionParamMenuOptionLabel(itemIdx, i)
+        if p.GetConditionParamMenuOptionId(itemIdx, i) == curId
+            cur = i
+        endif
+        i += 1
+    endwhile
+    SetMenuDialogStartIndex(cur)
+    SetMenuDialogDefaultIndex(0)
+    SetMenuDialogOptions(opts)
+EndFunction
+
+Function _acceptCond2ParamMenu(int index)
+    if index < 0
+        return
+    endif
+    string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetConditionParamMenuOptionCount(itemIdx)
+    if index >= n
+        return
+    endif
+    string newId = p.GetConditionParamMenuOptionId(itemIdx, index)
+    MainQuest.SetCondParamStrAt(selectedCondition, 1, newId)
+    MainQuest.SetCondParamAt(selectedCondition, 1, 0)
+    SetMenuOptionValueST(p.GetConditionParamMenuOptionLabel(itemIdx, index))
+EndFunction
+
+Function _openCond2Param2Menu()
+    string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetConditionParam2MenuOptionCount(itemIdx)
+    if n <= 0
+        return
+    endif
+    string curId = MainQuest.GetCondParam2StrAt(selectedCondition, 1)
+    string[] opts = _newOpts(n)
+    int cur = 0
+    int i = 0
+    while i < n
+        opts[i] = p.GetConditionParam2MenuOptionLabel(itemIdx, i)
+        if p.GetConditionParam2MenuOptionId(itemIdx, i) == curId
+            cur = i
+        endif
+        i += 1
+    endwhile
+    SetMenuDialogStartIndex(cur)
+    SetMenuDialogDefaultIndex(0)
+    SetMenuDialogOptions(opts)
+EndFunction
+
+Function _acceptCond2Param2Menu(int index)
+    if index < 0
+        return
+    endif
+    string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+    MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+    if p == None
+        return
+    endif
+    int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+    if itemIdx < 0
+        return
+    endif
+    int n = p.GetConditionParam2MenuOptionCount(itemIdx)
+    if index >= n
+        return
+    endif
+    string newId = p.GetConditionParam2MenuOptionId(itemIdx, index)
+    MainQuest.SetCondParam2StrAt(selectedCondition, 1, newId)
+    MainQuest.SetCondParam2At(selectedCondition, 1, 0)
+    SetMenuOptionValueST(p.GetConditionParam2MenuOptionLabel(itemIdx, index))
+EndFunction
+
+; Condition #2 type picker. Mirrors SLOT_COND_TYPE but writes index 1 and
+; maintains the slot's condition count (1 ⇄ 2).
+state SLOT_COND2_TYPE
+    event OnMenuOpenST()
+        string curKey = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+        MainQuest.BuildVisibleConditionMenu(curKey)
+        string[] keys   = MainQuest.menuKeys
+        string[] labels = MainQuest.menuLabels
+        int n = MainQuest.menuCount
+        int sz = n + 1
+        if sz > 127
+            sz = 127
+        endif
+        string[] opts = _newOpts(sz)
+        opts[0] = "Not set"
+        int curIdx = 0
+        int i = 0
+        while i < n && (i + 1) < sz
+            opts[i + 1] = labels[i]
+            if keys[i] == curKey
+                curIdx = i + 1
+            endif
+            i += 1
+        endwhile
+        SetMenuDialogStartIndex(curIdx)
+        SetMenuDialogDefaultIndex(0)
+        SetMenuDialogOptions(opts)
+    endEvent
+    event OnMenuAcceptST(int index)
+        if index < 0
+            return
+        endif
+        int slot = selectedCondition
+        string newKey = ""
+        if index > 0
+            string[] keys = MainQuest.menuKeys
+            int n = MainQuest.menuCount
+            if (index - 1) < n && keys != None
+                newKey = keys[index - 1]
+            endif
+        endif
+        MainQuest.SetCondPluginIdAt(slot, 1, newKey)
+        MainQuest.SetCondParamStrAt(slot, 1, "")
+        MainQuest.SetCondParam2StrAt(slot, 1, "")
+        if newKey == ""
+            MainQuest.SetCondParamAt(slot, 1, 0)
+            MainQuest.SetCondParam2At(slot, 1, 0)
+            MainQuest.SetCondCount(slot, 1)
+        else
+            MTF_Plugin p = MainQuest.ResolvePluginByKey(newKey)
+            int itemIdx = -1
+            if p != None
+                itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(newKey))
+            endif
+            if itemIdx >= 0
+                MainQuest.SetCondParamAt(slot, 1, p.GetConditionParamDefault(itemIdx))
+                MainQuest.SetCondParam2At(slot, 1, p.GetConditionParam2Default(itemIdx))
+            else
+                MainQuest.SetCondParamAt(slot, 1, 0)
+                MainQuest.SetCondParam2At(slot, 1, 0)
+            endif
+            MainQuest.SetCondCount(slot, 2)
+        endif
+        SetMenuOptionValueST(_condTypeLabel(newKey))
+        ForcePageReset()
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetCondPluginIdAt(selectedCondition, 1, "")
+        MainQuest.SetCondParamAt(selectedCondition, 1, 0)
+        MainQuest.SetCondParam2At(selectedCondition, 1, 0)
+        MainQuest.SetCondParamStrAt(selectedCondition, 1, "")
+        MainQuest.SetCondParam2StrAt(selectedCondition, 1, "")
+        MainQuest.SetCondCount(selectedCondition, 1)
+        SetMenuOptionValueST(_condTypeLabel(""))
+        ForcePageReset()
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Optional second condition for this slot. Combined with condition 1 via the Match mode setting.")
+    endEvent
+endState
+
+state SLOT_COND2_PARAM
+    event OnSliderOpenST()
+        string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        if p == None
+            return
+        endif
+        int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+        if itemIdx < 0
+            return
+        endif
+        SetSliderDialogStartValue(MainQuest.GetCondParamAt(selectedCondition, 1))
+        SetSliderDialogDefaultValue(p.GetConditionParamDefault(itemIdx))
+        SetSliderDialogRange(p.GetConditionParamMin(itemIdx), p.GetConditionParamMax(itemIdx))
+        SetSliderDialogInterval(1)
+    endEvent
+    event OnSliderAcceptST(float value)
+        string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        string fmt = "{0}"
+        if p != None
+            int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                fmt = p.GetConditionParamFormat(itemIdx)
+            endif
+        endif
+        MainQuest.SetCondParamAt(selectedCondition, 1, value as int)
+        SetSliderOptionValueST(value as int, fmt)
+    endEvent
+    event OnMenuOpenST()
+        _openCond2ParamMenu()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptCond2ParamMenu(index)
+    endEvent
+    event OnDefaultST()
+        string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        int defVal = 0
+        int menuCnt = 0
+        string fmt = "{0}"
+        int itemIdx = -1
+        if p != None
+            itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                defVal = p.GetConditionParamDefault(itemIdx)
+                menuCnt = p.GetConditionParamMenuOptionCount(itemIdx)
+                fmt = p.GetConditionParamFormat(itemIdx)
+            endif
+        endif
+        if menuCnt > 0 && p != None && itemIdx >= 0
+            string defId = p.GetConditionParamDefaultId(itemIdx)
+            MainQuest.SetCondParamStrAt(selectedCondition, 1, defId)
+            MainQuest.SetCondParamAt(selectedCondition, 1, 0)
+            SetMenuOptionValueST(_menuLabelForCondParam(p, itemIdx, defId))
+        else
+            MainQuest.SetCondParamAt(selectedCondition, 1, defVal)
+            MainQuest.SetCondParamStrAt(selectedCondition, 1, "")
+            SetSliderOptionValueST(defVal, fmt)
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Threshold value for condition 2.")
+    endEvent
+endState
+
+state SLOT_COND2_PARAM2
+    event OnSliderOpenST()
+        string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        if p == None
+            return
+        endif
+        int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+        if itemIdx < 0
+            return
+        endif
+        SetSliderDialogStartValue(MainQuest.GetCondParam2At(selectedCondition, 1))
+        SetSliderDialogDefaultValue(p.GetConditionParam2Default(itemIdx))
+        SetSliderDialogRange(p.GetConditionParam2Min(itemIdx), p.GetConditionParam2Max(itemIdx))
+        SetSliderDialogInterval(p.GetConditionParam2Step(itemIdx))
+    endEvent
+    event OnSliderAcceptST(float value)
+        string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        string fmt = "{0}"
+        if p != None
+            int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                fmt = p.GetConditionParam2Format(itemIdx)
+            endif
+        endif
+        MainQuest.SetCondParam2At(selectedCondition, 1, value as int)
+        SetSliderOptionValueST(value as int, fmt)
+    endEvent
+    event OnMenuOpenST()
+        _openCond2Param2Menu()
+    endEvent
+    event OnMenuAcceptST(int index)
+        _acceptCond2Param2Menu(index)
+    endEvent
+    event OnDefaultST()
+        string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        int defVal = 0
+        int menuCnt = 0
+        string fmt = "{0}"
+        int itemIdx = -1
+        if p != None
+            itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                defVal = p.GetConditionParam2Default(itemIdx)
+                menuCnt = p.GetConditionParam2MenuOptionCount(itemIdx)
+                fmt = p.GetConditionParam2Format(itemIdx)
+            endif
+        endif
+        if menuCnt > 0 && p != None && itemIdx >= 0
+            string defId2 = p.GetConditionParam2DefaultId(itemIdx)
+            MainQuest.SetCondParam2StrAt(selectedCondition, 1, defId2)
+            MainQuest.SetCondParam2At(selectedCondition, 1, 0)
+            SetMenuOptionValueST(_menuLabelForCondParam2(p, itemIdx, defId2))
+        else
+            MainQuest.SetCondParam2At(selectedCondition, 1, defVal)
+            MainQuest.SetCondParam2StrAt(selectedCondition, 1, "")
+            SetSliderOptionValueST(defVal, fmt)
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Second threshold for condition 2 (if it has one).")
+    endEvent
+endState
+
+state SLOT_COND_OP
+    event OnMenuOpenST()
+        string[] opts = _newOpts(2)
+        opts[0] = "AND (all)"
+        opts[1] = "OR (any)"
+        SetMenuDialogOptions(opts)
+        SetMenuDialogStartIndex(MainQuest.GetCondOp(selectedCondition))
+        SetMenuDialogDefaultIndex(0)
+    endEvent
+    event OnMenuAcceptST(int index)
+        if index < 0
+            return
+        endif
+        MainQuest.SetCondOp(selectedCondition, index)
+        SetMenuOptionValueST(_condOpLabel(index))
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetCondOp(selectedCondition, 0)
+        SetMenuOptionValueST(_condOpLabel(0))
+    endEvent
+    event OnHighlightST()
+        SetInfoText("AND = every condition in this slot must pass. OR = any one passing activates the slot.")
+    endEvent
+endState
 
 Function _openCondParamMenu()
     string key = MainQuest.GetCondPluginId(selectedCondition)
