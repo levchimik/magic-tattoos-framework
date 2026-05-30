@@ -102,7 +102,15 @@ Event OnPlayerLoadGame()
     ; See MTF_MainQuest._postLoadFreezeUntilRT.
     MTF_MainQuest hostFreeze = _host()
     if hostFreeze != None
-        hostFreeze.ArmPostLoadFreeze(5.0)
+        ; v0.3.x: 5.0 -> 3.0. The freeze gates the slow-tick redraw that
+        ; actually repaints the tattoo on load. The floor is SKEE's async
+        ; override-store restore (~1-3s post-load, see KB "SKEE post-load
+        ; race"); redrawing before SKEE settles leaves the overlay invisible
+        ; until the next tier change. 3.0 sits just above that floor, halving
+        ; the visible post-load delay (~5s -> ~3s) without risking the race.
+        ; The 0.5s postLoadRedrawNow kick still fires first as a best-effort
+        ; early draw for the case where SKEE happens to be ready sooner.
+        hostFreeze.ArmPostLoadFreeze(3.0)
     endif
 
     _registerLifecycleEvents()

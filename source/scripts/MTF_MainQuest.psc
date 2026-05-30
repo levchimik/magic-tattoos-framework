@@ -5488,17 +5488,38 @@ Function _applyOverlayDeferred(actor Target, bool isFemale, string Area, int Slo
  own the live shader uninterrupted; the lerp starts cleanly from prev's
  last_interp values.
 
- Texture binding (9) is the only property still written here. Glossiness
- (2) and specular strength (3) used to flip here based on Intensity > 0,
- but that fired INSTANTLY at tier-change moment while Tick was still
- lerping em_mult, producing a "high em + zero gloss" combo that rendered
- black for the whole transition window. Tick now derives gloss/spec from
- the current frame's em_no_flash so they stay synced with em through the
- entire lerp; the flip happens only when em actually crosses 0.
- Tint/Intensity/Alpha/Emissive parameters are kept on the signature for
- backward compatibility but no longer consulted.}
+ Texture binding (9) is written here. Glossiness (2) and specular strength
+ (3) are ALSO written here as of v0.3.x — but keyed off ALPHA (visibility),
+ NOT off emissive intensity. History: gloss/spec used to flip based on
+ Intensity > 0, which fired INSTANTLY at tier change while Tick was still
+ lerping em_mult high->0, producing a "high em + zero gloss" combo that
+ rendered black for the whole transition. V4 removed them entirely and let
+ Tick own them. But that reopened a DIFFERENT black flash: on a draw where
+ the texture is APPEARING (none->tattoo) or changing, ApplyNodeOverrides
+ re-derives the live shader from the store; with no gloss in the store the
+ reset frame paints the new texture at gloss 0, so the near-black ink
+ diffuse renders as a black smudge for the one frame until the next C++
+ Tick writes gloss. Writing gloss/spec to the STORE here (keyed off alpha,
+ matching Tick's current sheen_vis logic) makes the Apply frame paint a
+ visible layer with sheen instead of black; the store and Tick agree
+ because both key off alpha, so there is no high-em/zero-gloss combo. Tick
+ keeps owning gloss/spec live every frame after the Apply. A cleared slot
+ (alpha 0) still gets gloss 0 via _clearOverlayDeferred.
+
+ em mult (1), alpha (8), tint (7), emissive color (0) remain Tick-owned and
+ are NOT written here (writing them would reintroduce the 1-frame target
+ flash V4 fixed). Tint/Intensity/Emissive params unused; Alpha is consulted.}
     string Node = Area + " [ovl" + Slot + "]"
     NiOverride.AddNodeOverrideString(Target, isFemale, Node, 9, 0, Texture, true)
+    ; Sheen floor for the ApplyNodeOverrides reset frame (see docstring).
+    ; Visible layer (alpha>0) -> gloss 5 / spec 1 so the ink diffuse renders;
+    ; matches Tick's gloss=5*sheen_vis, spec=1*sheen_vis with sheen_vis=alpha.
+    float sheen = 0.0
+    if Alpha > 0.0
+        sheen = 1.0
+    endif
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 2, -1, 5.0 * sheen, true)
+    NiOverride.AddNodeOverrideFloat(Target, isFemale, Node, 3, -1, 1.0 * sheen, true)
 EndFunction
 
 Function _clearOverlayDeferred(actor Target, bool isFemale, string Area, int Slot)
@@ -5713,6 +5734,26 @@ Function postLoadRedrawNow()
     NiOverride.AddOverlays(PlayerRef)
     setRedraw()
 
+    ; v0.3.x early post-load draw. setRedraw() only sets the flag; the actual
+    ; drawOverlay -> ApplyNodeOverrides (which pushes the restored override
+    ; store -- texture + the v0.3.x gloss/spec sheen floor -- onto the live
+    ; shader) otherwise waits for the ~5s post-load freeze to expire, so the
+    ; tattoo visibly lags several seconds behind the load. currentTier is a
+    ; persisted script var holding the resting tier at save time, so we can
+    ; draw the MCM-base immediately here (we run at ~0.5s, during the freeze).
+    ; This is safe alongside the freeze: eval is still suspended, so nothing
+    ; competes; the freeze-gated slow-tick redraw remains the backstop that
+    ; re-evaluates and corrects the tier once condition sources have settled.
+    ; Skipped when currentTier < 0 (no base tattoo to draw). All draws below
+    ; pass deferApply=true and are collapsed into a SINGLE ApplyNodeOverrides
+    ; at the end -- N+1 separate Applies (base + one per stacked preset) would
+    ; each rebuild the live shader and cascade-flash on load.
+    bool needApply = false
+    if currentTier >= 0
+        drawOverlay(PlayerRef, currentTier, true)
+        needApply = true
+    endif
+
     float rtNow = Utility.GetCurrentRealTime()
     int n = GetActorPresetCount(PlayerRef)
     int i = 0
@@ -5721,11 +5762,21 @@ Function postLoadRedrawNow()
         if nm != "" && _loadPresetToScratch(nm)
             int storedTier = _getActorPresetTier(PlayerRef, nm)
             if storedTier >= 0
-                _rosterAddOrUpdate(PlayerRef, nm, storedTier, rtNow)
+                ; Early visual draw for stacked presets too, mirroring the
+                ; MCM-base draw above -- otherwise they wait out the freeze.
+                _drawPresetOnActor(PlayerRef, nm, storedTier, true)
+                needApply = true
+                ; snapNow=true: fresh post-load entries must restore their
+                ; resting visual instantly, not fade in over transition.duration.
+                _rosterAddOrUpdate(PlayerRef, nm, storedTier, rtNow, true)
             endif
         endif
         i += 1
     endwhile
+
+    if needApply
+        NiOverride.ApplyNodeOverrides(PlayerRef)
+    endif
 EndFunction
 
 ; ── NiOverride wrappers ───────────────────────────────────────────────────────
@@ -7702,7 +7753,7 @@ Function _rosterRemoveActor(Actor a)
     MTFPulse.ClearActor(a)
 EndFunction
 
-Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
+Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT, bool snapNow = false)
 {Snapshot the preset's tier params and push to the MTFPulse C++ roster,
  keyed by (a, preset's stored base_slot). Caller must have
  _loadPresetToScratch(name) loaded so the _g_* readers see this preset's
@@ -7744,6 +7795,9 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT)
     int   depth = _g_pulseDepth(tier, true)
     Float[] lut = _waveformLUTForTier(tier, true)
     Float   tDur = _g_transitionDuration(tier, true)
+    if snapNow
+        tDur = 0.0
+    endif
     int maxL = MAX_LAYERS_PER_SLOT()
     bool isFemale = a.GetLeveledActorBase().GetSex() as bool
 

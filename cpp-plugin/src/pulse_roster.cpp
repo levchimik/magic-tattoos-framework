@@ -243,12 +243,22 @@ namespace MTFPulse {
             seeded.transition_start = anchor_ts;
             seeded.has_last_interp  = false;  // Tick will repopulate this frame
         } else if (slot < 0 && src.transition_duration > 0.0f) {
-            // Fresh entry: from_ = target_ ⇒ visually instant.
+            // Fresh entry (no prior tier to fade from). Fade IN from invisible
+            // instead of snapping to target: a tier with no roster entry --
+            // e.g. a "<none>" tier, or first-apply / post-load recreation --
+            // would otherwise pop the tattoo on instantly while real->real
+            // tier changes fade. Seed from_alpha = 0 and from_em_mult = 0 so
+            // alpha and emissive rise 0 -> target over the window; tint and
+            // emissive COLOR are seeded at target (there is nothing visible to
+            // interpolate their color FROM, and the layer is invisible at the
+            // start of the lerp anyway, so a color lerp would only show as a
+            // wrong hue fading up). This mirrors the slot>=0 invisible-layer
+            // snap above (from_alpha < 0.01 -> snap tint/emissive to target).
             const std::int32_t copyN = std::clamp<std::int32_t>(src.layer_count, 0, 4);
             for (std::int32_t i = 0; i < copyN; ++i) {
                 const auto L = static_cast<std::size_t>(i);
-                seeded.from_em_mult[L]  = src.layer_base_em_mult[L];
-                seeded.from_alpha[L]    = src.target_alpha[L];
+                seeded.from_em_mult[L]  = 0.0f;
+                seeded.from_alpha[L]    = 0.0f;
                 seeded.from_tint[L]     = src.target_tint[L];
                 seeded.from_emissive[L] = src.target_emissive[L];
             }
