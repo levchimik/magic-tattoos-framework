@@ -350,12 +350,8 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; Slider param — `param` is the int threshold.
         return SLAFramework.GetActorArousal(target) >= param
     elseif cid == "arousal.lock"
-        ; Menu param — read the id via _host().GetEvalParamStr().
-        bool locked = SLAFramework.IsActorArousalLocked(target)
-        if _host().GetEvalParamStr() == "locked"
-            return locked
-        endif
-        return !locked
+        ; Parameterless boolean condition — fires when arousal is locked.
+        return SLAFramework.IsActorArousalLocked(target)
     endif
     return false
 EndFunction

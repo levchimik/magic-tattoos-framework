@@ -4,6 +4,70 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
+## [v0.3.4] — 2026-05-30
+
+### Added
+
+- **SLA NPC aura gender targeting.** The "NPC Arousal Rate" effect
+  (`arousal.rate.npc`) gains a third parameter — *Affects: Both / Females
+  only / Males only* — so a pheromone-aura tattoo can be oriented. The
+  game-time tick filters nearby actors by `GetActorBase().GetSex()` before
+  applying the exposure delta. Existing presets default to "Both".
+
+### Changed
+
+- **SLA "Arousal Locked" condition simplified.** Collapsed the
+  Unlocked/Locked dropdown to a single parameterless condition that fires
+  when the actor's arousal is locked. Old presets that stored a lock-state
+  id are read harmlessly (the id is ignored).
+- **Wider parameter ranges** for several base effects, sized to their stat:
+  carry-weight shift ±100 → **±1000** (step 10); max magicka / max stamina
+  shift ±100 → **±500** (step 5); magicka / stamina / health regen-rate
+  shift max 100 → **300** (step 5).
+- **Finer emission-strength control.** The per-layer *Emission strength*
+  slider now steps by **0.25** (was 0.5) for precise tuning in the low
+  glow band.
+
+## [v0.3.3] — 2026-05-30
+
+### Changed
+
+- **Plain-language condition/effect descriptions.** Rewrote every
+  SkyrimNet bio description (base, SLA, OStim, SexLab, FMR, BFNG) into
+  plain, in-world, third-person prose — dropping mod/engine jargon
+  (mod names, "exposure", "tier", "Burst —") that no character would
+  know, while keeping real terms (ovulation, arousal) and all
+  `{paramN}` placeholders. Bare predicate phrasing fixes a
+  double-"Triggered"/double-period artifact in the rendered bio.
+
+### Fixed
+
+- **Multi-condition bio narration.** The SkyrimNet bio now narrates
+  *all* conditions on a slot, joined by the slot's AND/OR operator —
+  previously only the first condition was described.
+
+## [v0.3.2] — 2026-05-30
+
+### Added
+
+- **OStim scene conditions.** `scene.action` (act type the actor is
+  giving/receiving) and `scene.partner` (in a scene with a named actor).
+- **SexLab scene partner condition** (`scene.partner`).
+
+### Removed
+
+- **SexLab cum conditions/effects** and the OStim `has.schlong` /
+  SexLab `has.strapon` equipment conditions, dropped as out-of-scope.
+
+## [v0.3.1] — 2026-05-30
+
+### Changed
+
+- **Conditions serialized as an array.** Per-slot conditions moved to a
+  `cond.items[]` array with a single `cond.op` operator (hard cutover
+  from the legacy scalar `cond` + indexed `condx<j>` keys). Presets and
+  live state round-trip the array, count, and operator.
+
 ## [v0.3.0] — 2026-05-30
 
 Rolls up 22 commits since v0.2.8,

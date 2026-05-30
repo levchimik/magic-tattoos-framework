@@ -9,14 +9,25 @@ LLM/AI integration) via these getters:
 - `MTF_MainQuest.GetEntryDescription(string packId, string entryId)`
 - `MTF_MainQuest.GetPackDescription(string packId)`
 
-All effect/condition descriptions below are already **baked into the
-.psc files** (committed). Pack/entry descriptions below are **drafts** —
-they live in the optional `description` field of each visuals/\*.json
-entry. The runtime falls back to the short label when `description` is
-empty, so you can refine these incrementally without breaking anything.
+> ⚠️ **STALE (pre-v0.3.x) — DO NOT TRUST THE TABLES BELOW.**
+> As of v0.3.x, condition/effect descriptions live in the **JSON catalogs**
+> at `Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/<id>.json`
+> (the `description` field of each condition/effect), **not** baked into the
+> `.psc` files. The catalogs are the single source of truth; edit them
+> directly (they hot-reload on game Load) and run `tools/validate_catalogs.py`.
+>
+> The plugin/condition/effect tables in this file were last refreshed before
+> the v0.3.x catalog rewrite and are **out of date**: the counts, ids, and
+> "Triggers when…" phrasing no longer match the shipped catalogs (descriptions
+> were rewritten into plain in-world prose, several ids were added/removed, and
+> the base counts changed). Treat this file as historical until it is
+> regenerated from the catalogs. The **content-pack entry** sections further
+> down still describe `visuals/*.json` entry descriptions, which remain valid.
 
-If you edit any description here, copy it into the matching source file
-(per "Editing" footnote in each section) and rebuild.
+Content-pack entry descriptions live in the optional `description` field of
+each `visuals/*.json` entry. The runtime falls back to the short label when
+`description` is empty, so you can refine these incrementally without
+breaking anything.
 
 ---
 
