@@ -61,13 +61,12 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; ExposureRate is float. Threshold is integer.
         return SLAFramework.GetActorExposureRate(target) >= (param as float)
     elseif cid == "arousal.lock"
-        ; v0.2.9: param1 is now a menu id ("locked" / "unlocked"), fetched via
-        ; host.GetEvalParamStr(). Int param ignored on this branch.
-        bool locked = SLAFramework.IsActorArousalLocked(target)
-        if _host().GetEvalParamStr() == "locked"
-            return locked
-        endif
-        return !locked
+        ; v0.3.3: collapsed to a single boolean — fires when arousal is locked.
+        ; The old "Unlocked"/"Locked" menu was dropped (arousal is unlocked by
+        ; default, so the "unlocked" option fired on the resting state and was
+        ; rarely useful). No param now; legacy presets that stored a lock-state
+        ; menu id simply ignore it and check the locked flag directly.
+        return SLAFramework.IsActorArousalLocked(target)
     endif
     return false
 EndFunction
@@ -145,6 +144,17 @@ Function onGameTime(Actor target, int param, int param2, string eid, int slot, i
             radiusM = 22
         endif
         float radius = (radiusM as float) * 70.0
+        ; v0.3.3: gender targeting. param3 menu id: "both" (default), "female",
+        ; or "male". Read via the race-free explicit-context string accessor
+        ; (menu ids live in the per-effect string slot), not the shared
+        ; dispatch context. Empty => treat as "both" (legacy presets).
+        string targetSex = _paramNStrEx(slot, effectIdx, useScratch, presetName, 3)
+        int wantSex = -1
+        if targetSex == "female"
+            wantSex = 1
+        elseif targetSex == "male"
+            wantSex = 0
+        endif
         int cap = PHEROMONE_MAX_TARGETS()
         Actor[] nearby = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
         if nearby == None
@@ -155,7 +165,14 @@ Function onGameTime(Actor target, int param, int param2, string eid, int slot, i
         while i < nearby.Length && affected < cap
             Actor a = nearby[i]
             if a != None && a != target && !a.IsDead()
-                if a.GetDistance(target) <= radius
+                ; Gender gate. GetActorBase().GetSex(): 0 = male, 1 = female.
+                ; wantSex -1 means "both" — skip the check entirely.
+                bool sexOk = true
+                if wantSex >= 0
+                    ActorBase ab = a.GetActorBase()
+                    sexOk = ab != None && ab.GetSex() == wantSex
+                endif
+                if sexOk && a.GetDistance(target) <= radius
                     int ar = SLAFramework.GetActorArousal(a)
                     if ar >= 0 && ar < 99
                         int curExp = SLAFramework.GetActorExposure(a)

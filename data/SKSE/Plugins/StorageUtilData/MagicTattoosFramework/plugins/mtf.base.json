@@ -339,8 +339,9 @@
       "param1": {
         "label": "Magicka regen rate shift (mult points; + faster, - slower)",
         "min": -100,
-        "max": 100,
-        "default": 0
+        "max": 300,
+        "default": 0,
+        "step": 5
       }
     },
     {
@@ -349,9 +350,10 @@
       "description": "Shifts the actor's carry-weight cap by {param1} while active.",
       "param1": {
         "label": "Carry weight shift (points; + buff, - drain)",
-        "min": -100,
-        "max": 100,
-        "default": 0
+        "min": -1000,
+        "max": 1000,
+        "default": 0,
+        "step": 10
       }
     },
     {
@@ -396,8 +398,9 @@
       "param1": {
         "label": "Stamina regen rate shift (mult points; + faster, - slower)",
         "min": -100,
-        "max": 100,
-        "default": 0
+        "max": 300,
+        "default": 0,
+        "step": 5
       }
     },
     {
@@ -449,8 +452,9 @@
       "param1": {
         "label": "Health regen rate shift (mult points; + faster, - slower)",
         "min": -100,
-        "max": 100,
-        "default": 0
+        "max": 300,
+        "default": 0,
+        "step": 5
       }
     },
     {
@@ -459,9 +463,10 @@
       "description": "Shifts the actor's maximum magicka by {param1} while active.",
       "param1": {
         "label": "Max magicka shift (points; + buff, - drain)",
-        "min": -100,
-        "max": 100,
-        "default": 0
+        "min": -500,
+        "max": 500,
+        "default": 0,
+        "step": 5
       }
     },
     {
@@ -470,9 +475,10 @@
       "description": "Shifts the actor's maximum stamina by {param1} while active.",
       "param1": {
         "label": "Max stamina shift (points; + buff, - drain)",
-        "min": -100,
-        "max": 100,
-        "default": 0
+        "min": -500,
+        "max": 500,
+        "default": 0,
+        "step": 5
       }
     },
     {

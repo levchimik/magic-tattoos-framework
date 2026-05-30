@@ -39,21 +39,7 @@
     {
       "id": "arousal.lock",
       "label": "Arousal Locked",
-      "description": "the actor's arousal is {param1} in place",
-      "param": {
-        "label": "Lock state",
-        "default": "locked",
-        "menu": [
-          {
-            "label": "Unlocked",
-            "id": "unlocked"
-          },
-          {
-            "label": "Locked",
-            "id": "locked"
-          }
-        ]
-      }
+      "description": "the actor's arousal is locked in place"
     }
   ],
   "effects": [
@@ -84,6 +70,24 @@
         "min": 0,
         "max": 100,
         "default": 5
+      },
+      "param3": {
+        "label": "Affects",
+        "default": "both",
+        "menu": [
+          {
+            "label": "Both",
+            "id": "both"
+          },
+          {
+            "label": "Females only",
+            "id": "female"
+          },
+          {
+            "label": "Males only",
+            "id": "male"
+          }
+        ]
       }
     },
     {

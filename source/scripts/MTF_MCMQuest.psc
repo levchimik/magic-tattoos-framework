@@ -4047,7 +4047,10 @@ Function _openLayerEmMult(int L)
     SetSliderDialogStartValue(MainQuest.GetCondLayerEmissiveMult(selectedCondition, L))
     SetSliderDialogDefaultValue(0.0)
     SetSliderDialogRange(0.0, 25.0)
-    SetSliderDialogInterval(0.5)
+    ; v0.3.3: 0.25 interval (was 0.5) — finer control in the 0-3 glow band
+    ; where it matters; the em≈0 -> invisible/black quirk makes the low end
+    ; sensitive, so smaller steps help dial in a faint glow.
+    SetSliderDialogInterval(0.25)
 EndFunction
 Function _acceptLayerEmMult(int L, float value)
     MainQuest.SetCondLayerEmissiveMult(selectedCondition, L, value)
