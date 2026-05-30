@@ -271,21 +271,40 @@ references live in `_deps/`.
 
 The `cpp-plugin/` subproject contains **MTFPulse**, an SKSE plugin
 that owns the per-frame pulse animation loop (offloaded from Papyrus
-for performance with many tracked actors). Built via xmake / vcpkg /
+for performance with many tracked actors). Built via CMake / vcpkg /
 CommonLibSSE-NG. See [`cpp-plugin/README.md`](cpp-plugin/README.md)
 for build details.
 
 ### FOMOD installer
 
 ```bash
-bash tools/fomod/build_fomod.sh
+MTF_VERSION=v0.3.0 bash tools/fomod/build_fomod.sh
 ```
 
-Output: `_build/MagicTattoosFramework-FOMOD-<version>.7z`. Bundles
-base MTF + all 7 integration plugins + texture pack adapters + the
-SkyrimNet prompt template + optional extras (NPC overlays helper, test
-pack). See [`tools/fomod/README.md`](tools/fomod/README.md) for the
-layout and how to add new integrations.
+This is the full release pipeline: it rebuilds the ESPs **and** the
+MTFPulse.dll, stages every component, runs the `release_check.sh`
+pre-ship gate (aborts before archiving on any shipping defect), and
+writes `_build/MagicTattoosFramework-FOMOD-<version>.7z`. Bundles base
+MTF + all 7 integration plugins + texture pack adapters + the SkyrimNet
+prompt template + optional extras (NPC overlays helper, test pack). See
+[`tools/fomod/README.md`](tools/fomod/README.md) for the layout and how
+to add new integrations.
+
+### Portable paths
+
+The build scripts auto-derive the repo root from their own location, so
+no editing is needed if you move the repo. Machine-specific locations
+are environment-overridable:
+
+| Var | Default | Purpose |
+|-----|---------|---------|
+| `MTF_PROJ` | auto-derived | repo root |
+| `MTF_MO2_MODS` | dev modlist | MO2 `mods` folder (deploy target) |
+| `MTF_CAPRICA` | bundled path | `Caprica.exe` (Papyrus compiler) |
+| `MTF_FLAGS` | game path | Papyrus `.flg` flags file |
+| `MTF_VERSION` | latest commit/tag | FOMOD version label |
+| `MTF_SKIP_DLL` | unset | `=1` reuse existing DLL (skip C++ build) |
+| `MTF_SKIP_CHECK` | unset | `=1` skip the release_check gate |
 
 ---
 

@@ -15,16 +15,30 @@ Output: `_build/MagicTattoosFramework-FOMOD-<version>.7z` (+ a `_build/fomod-sta
 folder you can drag into MO2's "Install from folder" if you want to test
 without re-zipping).
 
-The script calls `bash tools/build_esps.sh` first to rebuild all 8 ESPs
-from their Spriggit YAML mirrors (`spriggit/<PluginName>/`) into
-`_build/esps/*.esp`. Binary `.esp` files are not committed to git —
-only the YAML.
+The build runs as a full release pipeline:
 
-Version comes from the latest commit subject (e.g. `v0.1.x`), or `MTF_VERSION` env override:
+1. `bash tools/build_esps.sh` — rebuild all 8 ESPs from their Spriggit
+   YAML mirrors (`spriggit/<PluginName>/`) into `_build/esps/*.esp`.
+   Binary `.esp` files are not committed to git — only the YAML.
+2. `cpp-plugin/build.bat` — rebuild `MTFPulse.dll` (incremental; skip
+   with `MTF_SKIP_DLL=1`). Guarantees the FOMOD never ships a stale DLL.
+3. Stage all components into `_build/fomod-stage/`.
+4. `tools/release_check.sh` — static pre-ship gate (skip with
+   `MTF_SKIP_CHECK=1`). A FAIL **aborts before archiving** — guards
+   against forced debug mode, leftover debug scaffolding, test artifacts
+   in the Required base step, stale `.pex`, catalog drift, and version
+   mislabels.
+5. Archive to `_build/MagicTattoosFramework-FOMOD-<version>.7z`.
+
+Version comes from the latest commit subject (e.g. `v0.3.0`), or `MTF_VERSION` env override:
 
 ```bash
-MTF_VERSION=v0.1.x bash tools/fomod/build_fomod.sh
+MTF_VERSION=v0.3.0 bash tools/fomod/build_fomod.sh
 ```
+
+Other env flags: `MTF_SKIP_DLL=1` (reuse existing DLL), `MTF_SKIP_CHECK=1`
+(skip the gate), and `MTF_PROJ` / `MTF_MO2_MODS` path overrides (see the
+top-level README). All paths auto-derive otherwise.
 
 ## Layout
 
