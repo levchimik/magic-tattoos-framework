@@ -6,12 +6,12 @@
     {
       "id": "in.scene",
       "label": "In Scene",
-      "description": "Triggers while the actor is engaged in an intimate scene."
+      "description": "the actor is engaged in a sexual encounter"
     },
     {
       "id": "scene.partner",
       "label": "Scene Partner (by name)",
-      "description": "Triggers during a SexLab scene that includes an actor whose name matches one in this comma-separated list (e.g. Lydia,Serana).",
+      "description": "the actor is in a sexual encounter with one of these partners: {param1}",
       "param": {
         "label": "Partner name(s)",
         "text": true,
@@ -21,7 +21,7 @@
     {
       "id": "skill.vaginal",
       "label": "Skill — Vaginal",
-      "description": "Triggers when the actor's lifetime vaginal experience is at or above {param1}.",
+      "description": "the actor is experienced at vaginal sex (lifetime experience at least {param1})",
       "param": {
         "label": "Min skill XP",
         "min": 0,
@@ -32,7 +32,7 @@
     {
       "id": "skill.anal",
       "label": "Skill — Anal",
-      "description": "Triggers when the actor's lifetime anal experience is at or above {param1}.",
+      "description": "the actor is experienced at anal sex (lifetime experience at least {param1})",
       "param": {
         "label": "Min skill XP",
         "min": 0,
@@ -43,7 +43,7 @@
     {
       "id": "skill.oral",
       "label": "Skill — Oral",
-      "description": "Triggers when the actor's lifetime oral experience is at or above {param1}.",
+      "description": "the actor is experienced at oral sex (lifetime experience at least {param1})",
       "param": {
         "label": "Min skill XP",
         "min": 0,
@@ -54,7 +54,7 @@
     {
       "id": "purity",
       "label": "Purity (signed)",
-      "description": "Triggers when the actor's purity score is at or above {param1} (positive = pure, negative = lewd).",
+      "description": "the actor is more chaste than promiscuous by nature (at least {param1}; positive is pure, negative is lewd)",
       "param": {
         "label": "Min purity (signed)",
         "min": -500,
@@ -67,7 +67,7 @@
     {
       "id": "skill.add.xp",
       "label": "Add Skill XP",
-      "description": "Burst — gives the actor {param1} experience in her {param2} skill.",
+      "description": "The moment this mark activates, deepens the actor's experience with {param2} sex by {param1}.",
       "kind": "burst",
       "param2": {
         "label": "Skill",

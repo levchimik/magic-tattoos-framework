@@ -6,7 +6,7 @@
     {
       "id": "arousal",
       "label": "Arousal",
-      "description": "Triggers when the actor's arousal is at or above {param1}%.",
+      "description": "the actor is at least {param1}% aroused",
       "param": {
         "label": "Arousal threshold",
         "min": 0,
@@ -17,7 +17,7 @@
     {
       "id": "days.since.orgasm",
       "label": "Days Since Orgasm",
-      "description": "Triggers when the actor has gone without orgasm for at least {param1} day(s).",
+      "description": "the actor has gone at least {param1} day(s) without an orgasm",
       "param": {
         "label": "Min days since orgasm",
         "min": 0,
@@ -28,7 +28,7 @@
     {
       "id": "exposure.rate",
       "label": "Exposure Rate",
-      "description": "Triggers when the actor's arousal is climbing at least {param1} per check.",
+      "description": "the actor's arousal is rising quickly (by at least {param1} per hour)",
       "param": {
         "label": "Min exposure rate",
         "min": 0,
@@ -39,7 +39,7 @@
     {
       "id": "arousal.lock",
       "label": "Arousal Locked",
-      "description": "Triggers when the actor's arousal is {param1}.",
+      "description": "the actor's arousal is {param1} in place",
       "param": {
         "label": "Lock state",
         "default": "locked",
@@ -60,7 +60,7 @@
     {
       "id": "arousal.rate",
       "label": "Arousal Rate",
-      "description": "Steadily raises the actor's arousal by {param1}% every in-game hour while active.",
+      "description": "Slowly raises the actor's own arousal by {param1}% each hour while active.",
       "param1": {
         "label": "Exposure delta on self per game-hour",
         "min": 0,
@@ -71,7 +71,7 @@
     {
       "id": "arousal.rate.npc",
       "label": "NPC Arousal Rate",
-      "description": "Pheromone aura — steadily raises the arousal of nearby NPCs by {param1}% every in-game hour while active.",
+      "description": "Gives off an alluring aura that slowly raises the arousal of those nearby by {param1}% each hour while active.",
       "param2": {
         "label": "Aura radius (m)",
         "min": 5,
@@ -89,7 +89,7 @@
     {
       "id": "modify.arousal",
       "label": "Modify Arousal",
-      "description": "Burst — adds {param1}% to the actor's arousal when the tier activates.",
+      "description": "The moment this mark activates, sends a one-time rush of arousal through the actor, adding {param1}%.",
       "kind": "burst",
       "param1": {
         "label": "Burst exposure added to self on switch",
@@ -101,7 +101,7 @@
     {
       "id": "set.exposure.rate",
       "label": "Set Exposure Rate",
-      "description": "Sets the actor's arousal-climb speed to {param1} while active, then restores the previous value on deactivate.",
+      "description": "Sets how fast the actor's arousal builds to {param1} while active, restoring the old pace afterward.",
       "param1": {
         "label": "Exposure rate while active",
         "min": 0,
@@ -112,7 +112,7 @@
     {
       "id": "trigger.orgasm",
       "label": "Trigger Orgasm",
-      "description": "Burst — resets the actor's 'days since orgasm' counter to zero when the tier activates.",
+      "description": "Gives the actor a release, resetting the time since their last orgasm to zero.",
       "kind": "burst"
     }
   ]

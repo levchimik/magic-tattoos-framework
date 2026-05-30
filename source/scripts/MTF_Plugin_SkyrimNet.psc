@@ -444,12 +444,9 @@ String Function _renderBasePresetMd(MTF_MainQuest host, int tier, string actorNa
     int pulseDepth = host.GetCondPulseDepth(tier)
     string layersMd = _renderBaseLayersMd(host, tier, packId, entryId)
     string effectsMd = _renderBaseEffectsMd(host, tier)
-    string condKey = host.GetCondPluginId(tier)
-    int    condP1  = host.GetCondParam(tier)
-    int    condP2  = host.GetCondParam2(tier)
-    string condP1s = host.GetCondParamStr(tier)   ; v0.2.9 string-id for menu params
-    string condP2s = host.GetCondParam2Str(tier)
-    string conditionMd = _renderConditionMd(host, condKey, condP1s, condP1, condP2s, condP2)
+    ; v0.3.2: render ALL conditions configured on the slot (multi-condition
+    ; support), joined by the slot's AND/OR operator. Was single-condition.
+    string conditionMd = _renderBaseConditionsMd(host, tier)
     return _composePresetMd("", tier, packLabel, entryLabel, visualDesc, placement, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName, externalView)
 EndFunction
 
@@ -479,15 +476,9 @@ String Function _renderStackedPresetMd(MTF_MainQuest host, Actor a, string prese
     string layersMd = _renderStackedLayersMd(host, f, tier, packId, entryId)
     string effectsMd = _renderStackedEffectsMd(host, f, tier)
     string displayName = host.GetPresetDisplayName(presetName)
-    ; v0.3.1: conditions are an array; narrate the slot's primary condition
-    ; (items[0]). Multi-condition slots surface only their first condition in
-    ; flavor text — acceptable for narration.
-    string condKey  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.items[0].pluginid", "")
-    int    condP1   = JsonUtil.GetPathIntValue(f,    ".slot[" + tier + "].cond.items[0].param",  0)
-    int    condP2   = JsonUtil.GetPathIntValue(f,    ".slot[" + tier + "].cond.items[0].param2", 0)
-    string condP1s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.items[0].param",  "")
-    string condP2s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.items[0].param2", "")
-    string conditionMd = _renderConditionMd(host, condKey, condP1s, condP1, condP2s, condP2)
+    ; v0.3.2: render ALL conditions from the slot's .cond.items[] array,
+    ; joined by .cond.op (0=AND, 1=OR). Was items[0]-only narration.
+    string conditionMd = _renderStackedConditionsMd(host, f, tier)
     return _composePresetMd(displayName, tier, packLabel, entryLabel, visualDesc, placement, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName, externalView)
 EndFunction
 
@@ -720,14 +711,109 @@ String Function _renderOneEffectMd(MTF_MainQuest host, string key, string p1s, i
     return line + "\n"
 EndFunction
 
-; Condition predicate Markdown block. Returns "" when the slot has no
-; predicate (dormant / unconfigured). Output:
-;   "Triggered by: **<label>** — <desc with {paramN} substituted>.\n"
+; ── Condition predicate Markdown (v0.3.2: multi-condition) ──────────────────
+; A slot can carry up to MAX_CONDS_PER_SLOT conditions combined by an AND/OR
+; operator. These builders render EVERY configured condition, not just the
+; first. Output:
+;   single:  "Triggered by: **<label>** — <desc>.\n"
+;   multi:   "Triggered when all of: **<L1>** — <d1>; **<L2>** — <d2>.\n"
+;            (op 0 = AND -> "all of"; op 1 = OR -> "any of")
+; Returns "" when the slot has no resolvable condition.
+
+; BASE (MCM) preset: reads the slot's cond.* StorageUtil accessors via the
+; indexed *At APIs. GetCondCount reports the effective condition count
+; (legacy single-condition slots report 1).
+String Function _renderBaseConditionsMd(MTF_MainQuest host, int slot) global
+    int n = host.GetCondCount(slot)
+    if n < 1
+        return ""
+    endif
+    int op = host.GetCondOp(slot)
+    string acc = ""
+    int rendered = 0
+    int j = 0
+    while j < n
+        string key = host.GetCondPluginIdAt(slot, j)
+        if key != ""
+            string clause = _renderConditionClause(host, key, \
+                host.GetCondParamStrAt(slot, j), host.GetCondParamAt(slot, j), \
+                host.GetCondParam2StrAt(slot, j), host.GetCondParam2At(slot, j))
+            if clause != ""
+                if rendered > 0
+                    acc = acc + "; "
+                endif
+                acc = acc + clause
+                rendered += 1
+            endif
+        endif
+        j += 1
+    endwhile
+    return _finishConditionLine(acc, rendered, op)
+EndFunction
+
+; STACKED preset: reads the preset JSON's .cond.items[] array directly. op at
+; .cond.op (default 0 = AND). Mirrors _slotCondsMetJson's traversal so the
+; narrated conditions exactly match what the evaluator checks.
+String Function _renderStackedConditionsMd(MTF_MainQuest host, string f, int slot) global
+    string sp = ".slot[" + slot + "]"
+    int n = JsonUtil.PathCount(f, sp + ".cond.items")
+    if n < 1
+        return ""
+    endif
+    int op = JsonUtil.GetPathIntValue(f, sp + ".cond.op", 0)
+    string acc = ""
+    int rendered = 0
+    int j = 0
+    while j < n
+        string ip = sp + ".cond.items[" + j + "]"
+        string key = JsonUtil.GetPathStringValue(f, ip + ".pluginid", "")
+        if key != ""
+            int    p1  = JsonUtil.GetPathIntValue(f,    ip + ".param",  0)
+            int    p2  = JsonUtil.GetPathIntValue(f,    ip + ".param2", 0)
+            string p1s = JsonUtil.GetPathStringValue(f, ip + ".param",  "")
+            string p2s = JsonUtil.GetPathStringValue(f, ip + ".param2", "")
+            string clause = _renderConditionClause(host, key, p1s, p1, p2s, p2)
+            if clause != ""
+                if rendered > 0
+                    acc = acc + "; "
+                endif
+                acc = acc + clause
+                rendered += 1
+            endif
+        endif
+        j += 1
+    endwhile
+    return _finishConditionLine(acc, rendered, op)
+EndFunction
+
+; Frame accumulated clause(s) into the final line. One clause keeps the bare
+; "Triggered by:" phrasing; two or more get an "all of"/"any of" lead so the
+; LLM understands the combine semantics. Exactly ONE trailing period is added
+; here — the per-clause builder must NOT end clauses with a period (this is
+; what fixes the historic ".." double-period when a condition description
+; ended in its own full stop).
+String Function _finishConditionLine(string acc, int rendered, int op) global
+    if rendered < 1 || acc == ""
+        return ""
+    endif
+    if rendered == 1
+        return "Triggered by: " + acc + ".\n"
+    endif
+    string lead = "all of"
+    if op == 1
+        lead = "any of"
+    endif
+    return "Triggered when " + lead + ": " + acc + ".\n"
+EndFunction
+
+; One condition clause: "**<label>** — <desc with {paramN} substituted>".
+; Returns "" when the plugin/condition can't be resolved. NO prefix and NO
+; trailing punctuation — the caller frames the line and adds the period.
 ;
-; Same parenthetical-drop rationale as _renderOneEffectMd: every
-; parameterised condition description references its values via
-; {param1}/{param2}, so the trailing "(<label>: <value>)" was duplication.
-String Function _renderConditionMd(MTF_MainQuest host, string key, string p1s, int p1, string p2s, int p2) global
+; Same parenthetical-drop rationale as _renderOneEffectMd: every parameterised
+; condition description references its values via {param1}/{param2}, so a
+; trailing "(<label>: <value>)" would be pure duplication.
+String Function _renderConditionClause(MTF_MainQuest host, string key, string p1s, int p1, string p2s, int p2) global
     if key == ""
         return ""
     endif
@@ -757,11 +843,11 @@ String Function _renderConditionMd(MTF_MainQuest host, string key, string p1s, i
     if label == "" && desc == ""
         return ""
     endif
-    string line = "Triggered by: **" + label + "**"
+    string clause = "**" + label + "**"
     if desc != ""
-        line = line + " — " + desc
+        clause = clause + " — " + desc
     endif
-    return line + ".\n"
+    return clause
 EndFunction
 
 ; ── Shared utility helpers ─────────────────────────────────────────────────

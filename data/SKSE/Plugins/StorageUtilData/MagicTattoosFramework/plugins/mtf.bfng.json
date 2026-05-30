@@ -6,7 +6,7 @@
     {
       "id": "pregnancy",
       "label": "Pregnancy",
-      "description": "Triggers when the actor is pregnant and at least {param1}% through her pregnancy.",
+      "description": "the actor is pregnant and at least {param1}% through the pregnancy",
       "param": {
         "label": "Min belly stage (1-100)",
         "min": 1,
@@ -17,12 +17,12 @@
     {
       "id": "ovulation",
       "label": "Ovulation",
-      "description": "Triggers while the actor is ovulating."
+      "description": "the actor is ovulating and at her most fertile"
     },
     {
       "id": "cycle.phase",
       "label": "Cycle Phase",
-      "description": "Triggers when the actor is in the {param1} part of her cycle.",
+      "description": "the actor is in the {param1} part of her monthly cycle",
       "param": {
         "label": "Phase",
         "default": "ovulating",
@@ -49,7 +49,7 @@
     {
       "id": "baby.health",
       "label": "Baby Health",
-      "description": "Triggers while the actor is pregnant and the baby is at least {param1}% healthy.",
+      "description": "the actor is pregnant and the unborn baby is at least {param1}% healthy",
       "param": {
         "label": "Min baby health (0-100)",
         "min": 0,
@@ -60,7 +60,7 @@
     {
       "id": "num.births",
       "label": "Birth Count",
-      "description": "Triggers when the actor has given birth at least {param1} time(s) before.",
+      "description": "the actor has given birth at least {param1} time(s) before",
       "param": {
         "label": "Min births",
         "min": 0,
@@ -73,7 +73,7 @@
     {
       "id": "trigger.ovulation",
       "label": "Trigger Ovulation",
-      "description": "Burst — forces the actor to start ovulating (does nothing if she is already pregnant).",
+      "description": "Makes the actor begin ovulating (no effect if she is already pregnant).",
       "kind": "burst"
     }
   ]
