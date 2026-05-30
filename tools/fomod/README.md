@@ -70,7 +70,7 @@ All ESPs below come from `_build/esps/*.esp` (deserialized from
 | `13_plugin_ostim/` | `MTF_Plugin_OStim.esp` + `.pex` | Auto-recommend if `OStim.esp` active |
 | `14_plugin_bfng/` | `MTF_Plugin_BFNG.esp` + `.pex` | Auto-recommend if `BeeingFemale.esm` active |
 | `15_plugin_slavetats/` | `MTF_Plugin_SlaveTats.esp` + `.pex` | Auto-recommend if `SlaveTats.esp` active. Universal bridge — works for all pack roots, not just slavetats-prefixed ones (see `source/scripts/MTF_Plugin_SlaveTats.psc` docstring). |
-| `16_plugin_skyrimnet/` | `MTF_Plugin_SkyrimNet.esp` + `.pex` + `SKSE/Plugins/SkyrimNet/prompts/submodules/character_bio/0350_mtf_tattoos.prompt` | Auto-recommend if `SkyrimNet.esp` active. Registers `mtf_active_tattoos` decorator + listens for `MTF_TierChanged`; surfaces visible tattoos in LLM character_bio context. |
+| `16_plugin_skyrimnet/` | `MTF_Plugin_SkyrimNet.esp` + `.pex` + `SKSE/Plugins/SkyrimNet/prompts/submodules/character_bio/0350_mtf_tattoos.prompt` | Auto-recommend if `SkyrimNet.esp` active. Writes each actor's visible-tattoo bio block to StorageUtil for the character_bio prompt + listens for `MTF_TierChanged`; surfaces visible tattoos in LLM character_bio context. |
 | `20_content_lewdmarks/` … `29_content_co2/` | `content-packs/<pack>/` | Optional, manual checkbox |
 | `31_test_pack/` | `test-pack/SKSE/...` | Optional, manual checkbox |
 
