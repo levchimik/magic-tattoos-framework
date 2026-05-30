@@ -4825,6 +4825,11 @@ State checkingAroused
             ; written this tick.
             bool needPlayerApply = false
 
+            ; Capture before the clear below — the same-texture skip path
+            ; needs to know whether this pass was a forced full redraw (live
+            ; shader torn down, must re-stamp) vs a pure tier change (texture
+            ; unchanged, C++ Tick owns the visual delta).
+            bool wasForceRedraw = forceRedraw
             if forceRedraw || tierChanged
                 forceRedraw = false
                 if tierChanged && currentTier >= 0
@@ -4898,8 +4903,35 @@ State checkingAroused
                     ; until Phase B starts.
                 else
                     currentTier = newTier
-                    drawOverlay(PlayerRef, currentTier, true)
-                    needPlayerApply = true
+                    ; v0.3.x same-texture flash fix. When the new tier resolves
+                    ; to the SAME (pack, entry) as the previous draw, the
+                    ; overlay's TEXTURE binding is unchanged — only the
+                    ; C++-owned shader properties (em_mult/alpha/tint/emissive)
+                    ; differ between tiers. Re-running drawOverlay +
+                    ; ApplyNodeOverrides rebuilds the live shader from the
+                    ; override store, which (post-V4) no longer holds those
+                    ; properties NOR gloss/spec, producing a one-frame reset
+                    ; (white/black flash) before the next C++ Tick re-asserts
+                    ; them. Writing AFTER the Apply (RepushLiveNow) can't win
+                    ; that race — the render thread samples the reset frame
+                    ; between the Apply and the Papyrus re-push. So we SKIP the
+                    ; visual redraw entirely: there is nothing for
+                    ; ApplyNodeOverrides to do when the texture is identical,
+                    ; and the C++ roster transitions (or snaps, tDur=0) the
+                    ; colors with no reset window. forceRedraw still takes the
+                    ; full path — there the live shader was genuinely torn down
+                    ; (armor swap / 3D rebuild) and must be re-stamped.
+                    bool sameTexSkip = tierChanged && !diffTexture \
+                        && !wasForceRedraw && _prevPackId != ""
+                    if sameTexSkip
+                        ; Update the pulse cache for the new tier (drawOverlay
+                        ; would normally do this via _resyncPulseCache) without
+                        ; touching the override store or issuing an Apply.
+                        _resyncPulseCache(currentTier)
+                    else
+                        drawOverlay(PlayerRef, currentTier, true)
+                        needPlayerApply = true
+                    endif
                     ; Reset pulse phase so the new tier starts cleanly at sin(0)=0.
                     _pulseStartRT = now
                     if tierChanged

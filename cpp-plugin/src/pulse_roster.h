@@ -221,6 +221,17 @@ namespace MTFPulse {
         // Returns the count of entries removed.
         std::size_t ClearAllForActor(RE::Actor* actor);
 
+        // Immediately re-assert the live shader (em/alpha/tint/emissive +
+        // gloss/spec) for every entry this actor owns, using each entry's
+        // current on-screen frame value. Call right after a foreign
+        // NiOverride.ApplyNodeOverrides: that re-derives the live shader from
+        // the override store, which (post-V4) no longer holds the four
+        // pulse-owned properties NOR gloss/spec — so for the one frame until
+        // Tick's next pass the overlay sits at mesh material defaults
+        // (gloss/spec 0 -> near-black ink diffuse renders as a black smudge).
+        // No-op if the bridge isn't ready or the actor owns nothing.
+        void RepushLiveNow(RE::Actor* actor);
+
         void ClearAll();
 
         // ── Flash (v0.1.3) ────────────────────────────────────────────────

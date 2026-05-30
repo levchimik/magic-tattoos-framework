@@ -97,6 +97,12 @@ Function ClearActor(Actor aktor) Global Native
 ; v0.1.17 Phase 3 (multi-area): area param added (0=Body, 1=Face, 2=Hand, 3=Feet).
 Function ClearActorAt(Actor aktor, Int baseOverlaySlot, Int area) Global Native
 
+; Re-assert the live overlay shader for all of aktor's roster entries.
+; Call immediately after NiOverride.ApplyNodeOverrides to close the
+; one-frame black-smudge window where ApplyNodeOverrides has reset the
+; live shader to mesh defaults before the next C++ Tick re-asserts it.
+Function RepushLiveNow(Actor aktor) Global Native
+
 ; Empty the entire roster (e.g. on full plugin reset).
 Function ClearAll() Global Native
 

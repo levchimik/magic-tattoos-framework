@@ -362,6 +362,51 @@ namespace MTFPulse {
         return removed;
     }
 
+    void Roster::RepushLiveNow(RE::Actor* actor)
+    {
+        if (!actor || !skee_bridge::IsReady()) {
+            return;
+        }
+        std::lock_guard lock(mtx_);
+        const auto formID = actor->GetFormID();
+        for (std::int32_t i = 0; i < static_cast<std::int32_t>(count_); ++i) {
+            auto& e = entries_[i];
+            if (e.actor_formID != formID) {
+                continue;
+            }
+            char node[32];
+            const std::int32_t n = std::clamp<std::int32_t>(e.layer_count, 0, 4);
+            for (std::int32_t li = 0; li < n; ++li) {
+                const auto L = static_cast<std::size_t>(li);
+                std::snprintf(node, sizeof(node), "%s [ovl%d]",
+                              AreaName(e.area),
+                              static_cast<int>(e.base_slot + li));
+
+                // Use the current on-screen frame value. A steady entry has
+                // has_last_interp = true (Tick wrote it last frame). An entry
+                // whose lerp was JUST armed by Set() has has_last_interp =
+                // false (InstallLocked cleared it) — its from_* IS the lerp's
+                // start, i.e. the pre-swap on-screen frame, which is exactly
+                // what we want to hold until Tick's first lerp frame runs.
+                const float em    = e.has_last_interp ? e.last_interp_em_mult[L] : e.from_em_mult[L];
+                const float alpha = e.has_last_interp ? e.last_interp_alpha[L]   : e.from_alpha[L];
+                const std::int32_t tint = e.has_last_interp ? e.last_interp_tint[L]     : e.from_tint[L];
+                const std::int32_t emis = e.has_last_interp ? e.last_interp_emissive[L] : e.from_emissive[L];
+
+                // gloss/spec are keyed off alpha (visibility), matching Tick's
+                // v0.3 black-smudge rule — NOT off emissive.
+                const float sheen = std::clamp(alpha, 0.0f, 1.0f);
+
+                skee_bridge::WriteEmissiveMult(actor, e.is_female, node, em);
+                skee_bridge::WriteAlpha(actor, e.is_female, node, alpha);
+                skee_bridge::WriteTint(actor, e.is_female, node, tint);
+                skee_bridge::WriteEmissiveColor(actor, e.is_female, node, emis);
+                skee_bridge::WriteGlossiness(actor, e.is_female, node, 5.0f * sheen);
+                skee_bridge::WriteSpecular(actor, e.is_female, node, 1.0f * sheen);
+            }
+        }
+    }
+
     void Roster::ClearAll()
     {
         std::lock_guard lock(mtx_);

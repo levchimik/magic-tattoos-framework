@@ -356,6 +356,20 @@ namespace MTFPulse::Papyrus {
             Roster::Instance().ClearAll();
         }
 
+        // Re-assert the live shader for all of this actor's roster entries.
+        // Call right after NiOverride.ApplyNodeOverrides — that re-derives
+        // the live shader from the store, which post-V4 no longer holds the
+        // pulse-owned properties (em/alpha/tint/emissive/gloss/spec), so the
+        // overlay sits at mesh defaults (gloss 0 → black ink smudge) for one
+        // frame until Tick's next pass. This closes that window immediately.
+        void RepushLiveNow(RE::StaticFunctionTag* /*tag*/, RE::Actor* actor)
+        {
+            if (!actor) {
+                return;
+            }
+            Roster::Instance().RepushLiveNow(actor);
+        }
+
         void SetEnabled(RE::StaticFunctionTag* /*tag*/, bool on)
         {
             Roster::Instance().SetEnabled(on);
@@ -529,6 +543,7 @@ namespace MTFPulse::Papyrus {
         vm->RegisterFunction("ClearActor",                  kClassName, ClearActor);
         vm->RegisterFunction("ClearActorAt",  kClassName, ClearActorAt);
         vm->RegisterFunction("ClearAll",      kClassName, ClearAll);
+        vm->RegisterFunction("RepushLiveNow", kClassName, RepushLiveNow);
         vm->RegisterFunction("SetEnabled",    kClassName, SetEnabled);
         vm->RegisterFunction("Size",          kClassName, Size);
         vm->RegisterFunction("SetActorFlash",     kClassName, SetActorFlash);
