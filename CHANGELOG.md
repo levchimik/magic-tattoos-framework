@@ -4,18 +4,28 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
-## [v0.3.0] — 2026-05-29
+## [v0.3.0] — 2026-05-30
 
-Rolls up 21 commits since v0.2.8,
+Rolls up 22 commits since v0.2.8,
 including two on-disk schema bumps (menu-param **string ids, catalog
-schema v2**; **preset schema 9**), a reworked emissive/sheen render path,
-the dispatch-context race fix, the form-string persistence fix, a
-built-in/user preset split, and several new content-pack adapters.
-Existing saves migrate transparently; a new save is still recommended for
-first-time setup.
+schema v2**; **preset schema 9**), per-slot **multi-condition AND/OR**, a
+reworked emissive/sheen render path, the dispatch-context race fix, the
+form-string persistence fix, a built-in/user preset split, and several new
+content-pack adapters. Existing saves migrate transparently; a new save is
+still recommended for first-time setup.
 
 ### Added
 
+- **Per-slot multi-condition logic (AND/OR).** A condition slot can now
+  hold more than one condition combined by a single operator — **AND**
+  (all must pass) or **OR** (any passes). The MCM exposes up to two
+  conditions per slot with a *Match mode* toggle; the backend supports
+  more (`MAX_CONDS_PER_SLOT`). Fully back-compatible: legacy
+  single-condition slots evaluate bit-identically, a slot with no explicit
+  count reports 1, and old saves/presets are untouched. All four
+  evaluation paths (player-live and NPC scratch/quick-eval) honor the
+  operator via shared helpers, and presets round-trip the operator, count,
+  and extra conditions.
 - **SkyrimNet — free-text "Special" effect.** New `rp.text` effect
   surfaces roleplayer-authored copy directly in the actor's rendered bio.
   The framework gained a generic **text** parameter type alongside

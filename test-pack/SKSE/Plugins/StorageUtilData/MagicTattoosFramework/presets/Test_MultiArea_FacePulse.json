@@ -1,42 +1,105 @@
 {
-	"displayname" : "Test: Multi-area — Face pulse (2-layer w/ glow)",
-	"int" :
-	{
-		"valid" : 0
-	},
-	"schemaversion" : 7,
-	"transition" :
-	{
-		"duration" : 0.3
-	},
-	"slot" :
-	[
-		{
-			"cond" :
-			{
-				"entryid" : "01",
-				"packid" : "mtf.community-overlays-1-face",
-				"param" : 0,
-				"pluginid" : ""
-			},
-			"cooldown" : { "min" : 0, "mode" : 0 },
-			"pulse" :
-			{
-				"rate" : 1.0,
-				"depth" : 80
-			},
-			"layer" :
-			[
-				{ "tint" : "#FFFFFF", "emissive" : "#FF8040", "emissivemult" : 2.5, "alpha" : 100 }
-			]
-		},
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } },
-		{ "cond" : { "entryid" : "", "packid" : "", "param" : 0, "pluginid" : "" }, "cooldown" : { "min" : 0, "mode" : 0 } }
-	],
-	"valid" : 1
+  "displayname": "Test: Multi-area — Face pulse (2-layer w/ glow)",
+  "int": {
+    "valid": 0
+  },
+  "schemaversion": 9,
+  "transition": {
+    "duration": 0.3
+  },
+  "slot": [
+    {
+      "cond": {
+        "packid": "mtf.community-overlays-1-face",
+        "entryid": "01"
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "pulse": {
+        "rate": 1.0,
+        "depth": 80
+      },
+      "layer": [
+        {
+          "tint": "#FFFFFF",
+          "emissive": "#FF8040",
+          "emissivemult": 2.5,
+          "alpha": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    }
+  ],
+  "valid": 1
 }

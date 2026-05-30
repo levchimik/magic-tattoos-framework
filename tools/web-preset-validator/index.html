@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTF Preset Validator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>MTF Preset Validator</h1>
+        <p class="subtitle">
+            Paste or drop a
+            <a href="https://github.com/levchimik/magic-tattoos-framework" target="_blank" rel="noopener">Magic Tattoos Framework</a>
+            preset JSON &mdash; get a per-field validation report. If it passes,
+            grab a ready-to-install ZIP with the file dropped at the right
+            <code>SKSE/Plugins/StorageUtilData/&hellip;</code> path. Runs entirely
+            in your browser.
+        </p>
+        <p class="nav">
+            <a href="../">&larr; Content Pack Builder</a>
+            <a href="https://github.com/levchimik/magic-tattoos-framework" target="_blank" rel="noopener">GitHub</a>
+        </p>
+    </header>
+
+    <main>
+        <section class="input-card">
+            <h2>1. Preset JSON</h2>
+
+            <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="Drop a preset JSON here or click to browse">
+                <div class="drop-prompt">
+                    <strong>Drop a <code>.json</code> preset here</strong>
+                    <span>or click to browse</span>
+                </div>
+                <input type="file" id="fileInput" accept=".json,application/json" hidden>
+            </div>
+
+            <div class="divider">or paste below</div>
+
+            <textarea
+                id="jsonInput"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder='{
+  "displayname": "My Preset",
+  "schemaversion": 8,
+  "valid": 1,
+  "transition": { "duration": 0.3 },
+  "slot": [ /* exactly 8 slot objects */ ]
+}'></textarea>
+
+            <div class="input-controls">
+                <button id="validateBtn" type="button" class="primary">Validate</button>
+                <button id="clearBtn" type="button">Clear</button>
+                <button id="formatBtn" type="button">Pretty-print</button>
+            </div>
+        </section>
+
+        <section class="report-card" id="reportCard" hidden>
+            <h2>2. Report</h2>
+            <div id="reportContent"></div>
+        </section>
+
+        <section class="action-card" id="actionCard" hidden>
+            <h2>3. Package for install</h2>
+            <p class="action-name" id="actionName"></p>
+            <button id="downloadBtn" type="button" disabled>
+                Download installable ZIP
+            </button>
+            <p class="action-hint">
+                Drop the ZIP into MO2 / Vortex's &ldquo;Install from archive&rdquo;.
+                The preset will land at
+                <code>Data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets/&lt;name&gt;.json</code>
+                and show up in the MTF MCM's preset list on next save / load.
+            </p>
+        </section>
+
+        <details class="help-card">
+            <summary>What gets validated &amp; how to fix the common issues</summary>
+            <div class="help-body">
+                <p>
+                    <strong>Top-level shape.</strong> A preset is one JSON object with
+                    <code>displayname</code> (string),
+                    <code>schemaversion</code> (int &mdash; current is <code>9</code>),
+                    <code>valid</code> (<code>0</code> or <code>1</code>; <code>0</code> means
+                    the in-game MCM will treat it as deleted),
+                    optional <code>transition.duration</code> (seconds, float),
+                    optional <code>fadeondeath</code> block, and
+                    exactly <strong>8 slot</strong> entries.
+                </p>
+                <p>
+                    <strong>Per slot.</strong> Every slot is shaped:
+                </p>
+                <ul>
+                    <li><code>cond</code>: <code>{ pluginid, packid, entryid, param, param2 }</code> &mdash; empty strings &amp; <code>0</code> for the Default (slot 0) row. <code>param</code> / <code>param2</code> may be int (slider) <em>or</em> string (menu id) depending on what the bound plugin declares.</li>
+                    <li><code>name</code> (optional, v0.2.9): per-slot display-name override. Empty string &rarr; use the plugin's canonical condition label.</li>
+                    <li><code>persist.min</code> / <code>persist.allowOverride</code> / <code>cool.min</code> &mdash; schema-8 cooldown rework. Old <code>cooldown.min</code> / <code>cooldown.mode</code> still validate but get ignored on load.</li>
+                    <li><code>pulse</code> (optional): <code>rate</code> (Hz), <code>depth</code> (0&ndash;100), <code>pause</code> (s), <code>waveform</code> (name from <code>waveforms/</code>).</li>
+                    <li><code>layer</code> (optional, up to 4): <code>tint</code> + <code>emissive</code> as <code>"#RRGGBB"</code> strings (or decimal int 0&ndash;16777215), <code>emissivemult</code> float, <code>alpha</code> 0&ndash;100.</li>
+                    <li><code>effect</code> (optional, up to 32): <code>key</code> in <code>pluginid:effectid</code> form (e.g. <code>mtf.base:damage.magicka</code>); <code>param1</code>&hellip;<code>param5</code> may be int (slider) or string (menu id) per the bound effect's declaration.</li>
+                </ul>
+                <p>
+                    <strong>Errors vs. warnings.</strong> Errors block the
+                    download button &mdash; they're things the in-game loader
+                    will reject or that will produce silently wrong behavior.
+                    Warnings are advisory: legacy keys still present after a
+                    schema bump, unknown fields that look like typos, or
+                    <code>valid: 0</code> which would make the preset show up as
+                    deleted in-game.
+                </p>
+                <p>
+                    <strong>Output filename.</strong> The file inside the ZIP is
+                    derived from <code>displayname</code>: kept chars are
+                    <code>A-Z a-z 0-9 _ -</code>, everything else becomes
+                    <code>_</code>, capped at 32 characters. That's exactly the
+                    same sanitization the in-game <code>SavePreset</code> uses,
+                    so your file lands where the MCM expects it.
+                </p>
+                <p>
+                    <strong>Privacy.</strong> Validation and ZIP packing run
+                    entirely in your browser. The preset never leaves your
+                    machine.
+                </p>
+                <p class="help-meta">
+                    Schema reference lives in
+                    <a href="https://github.com/levchimik/magic-tattoos-framework/blob/main/source/scripts/MTF_MainQuest.psc" target="_blank" rel="noopener">MTF_MainQuest.psc</a>
+                    (search for <code>SavePreset</code> / <code>LoadPreset</code>).
+                    ZIP packaging via <a href="https://stuk.github.io/jszip/" target="_blank" rel="noopener">JSZip</a>.
+                    Source: <a href="https://github.com/levchimik/magic-tattoos-framework/tree/main/tools/web-preset-validator" target="_blank" rel="noopener">tools/web-preset-validator/</a>.
+                </p>
+            </div>
+        </details>
+    </main>
+
+    <footer>
+        <p>
+            Part of <a href="https://github.com/levchimik/magic-tattoos-framework" target="_blank" rel="noopener">Magic Tattoos Framework</a>.
+            <a href="https://github.com/levchimik/magic-tattoos-framework/blob/main/LICENSE" target="_blank" rel="noopener">GPL-3.0</a>.
+        </p>
+    </footer>
+
+    <script src="vendor/jszip.min.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

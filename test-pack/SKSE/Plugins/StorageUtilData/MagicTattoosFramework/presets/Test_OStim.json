@@ -3,17 +3,15 @@
   "int": {
     "valid": 0
   },
-  "schemaversion": 8,
+  "schemaversion": 9,
   "transition": {
     "duration": 0.3
   },
   "slot": [
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -22,10 +20,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 2,
-        "pluginid": "mtf.ostim:times.climaxed"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:times.climaxed",
+            "param": 2
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -44,10 +47,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 60,
-        "pluginid": "mtf.ostim:excitement"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:excitement",
+            "param": 60
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -63,10 +71,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 30,
-        "pluginid": "mtf.ostim:excitement"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:excitement",
+            "param": 30
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -82,10 +95,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 10,
-        "pluginid": "mtf.ostim:excitement"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:excitement",
+            "param": 10
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -101,10 +119,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -113,10 +129,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -125,10 +139,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,

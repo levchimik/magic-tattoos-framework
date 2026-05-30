@@ -3,17 +3,15 @@
   "int": {
     "valid": 0
   },
-  "schemaversion": 8,
+  "schemaversion": 9,
   "transition": {
     "duration": 0.3
   },
   "slot": [
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -22,10 +20,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "solo",
-        "pluginid": "mtf.ostim:scene.composition"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:scene.composition",
+            "param": "solo"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -44,10 +47,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "1m1f",
-        "pluginid": "mtf.ostim:scene.composition"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:scene.composition",
+            "param": "1m1f"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -66,10 +74,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "2f",
-        "pluginid": "mtf.ostim:scene.composition"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:scene.composition",
+            "param": "2f"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -88,10 +101,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "2m",
-        "pluginid": "mtf.ostim:scene.composition"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:scene.composition",
+            "param": "2m"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -110,10 +128,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "mmf",
-        "pluginid": "mtf.ostim:scene.composition"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:scene.composition",
+            "param": "mmf"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -132,10 +155,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "mff",
-        "pluginid": "mtf.ostim:scene.composition"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:scene.composition",
+            "param": "mff"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -154,10 +182,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "4p",
-        "pluginid": "mtf.ostim:scene.composition"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.ostim:scene.composition",
+            "param": "4p"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,

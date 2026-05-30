@@ -3,17 +3,15 @@
   "int": {
     "valid": 0
   },
-  "schemaversion": 8,
+  "schemaversion": 9,
   "transition": {
     "duration": 0.3
   },
   "slot": [
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -32,10 +30,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -54,10 +50,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -76,10 +70,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -98,10 +90,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -110,10 +100,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -122,10 +110,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -134,10 +120,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,

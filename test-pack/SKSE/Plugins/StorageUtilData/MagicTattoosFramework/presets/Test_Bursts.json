@@ -1,141 +1,125 @@
 {
-	"displayname": "Test: Bursts (one-shot)",
-	"int": {
-		"valid": 0
-	},
-	"schemaversion": 8,
-	"transition": {
-		"duration": 0.3
-	},
-	"slot": [
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			},
-			"effect": [
-				{
-					"key": "mtf.base:damage.magicka",
-					"param2": 0,
-					"param1": -30
-				},
-				{
-					"key": "mtf.base:damage.stamina",
-					"param2": 0,
-					"param1": -30
-				},
-				{
-					"key": "mtf.base:burst.stagger",
-					"param2": 0,
-					"param1": 0
-				},
-				{
-					"key": "mtf.base:burst.blowCover",
-					"param2": 0,
-					"param1": 50
-				},
-				{
-					"key": "mtf.base:damage.health",
-					"param2": 0,
-					"param1": -10
-				},
-				{
-					"key": "mtf.base:burst.bounty",
-					"param2": 0,
-					"param1": 100
-				}
-			]
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		},
-		{
-			"cond": {
-				"entryid": "",
-				"packid": "",
-				"param": 0,
-				"pluginid": ""
-			},
-			"cooldown": {
-				"min": 0,
-				"mode": 0
-			}
-		}
-	],
-	"valid": 1
+  "displayname": "Test: Bursts (one-shot)",
+  "int": {
+    "valid": 0
+  },
+  "schemaversion": 9,
+  "transition": {
+    "duration": 0.3
+  },
+  "slot": [
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      },
+      "effect": [
+        {
+          "key": "mtf.base:damage.magicka",
+          "param2": 0,
+          "param1": -30
+        },
+        {
+          "key": "mtf.base:damage.stamina",
+          "param2": 0,
+          "param1": -30
+        },
+        {
+          "key": "mtf.base:burst.stagger",
+          "param2": 0,
+          "param1": 0
+        },
+        {
+          "key": "mtf.base:burst.blowCover",
+          "param2": 0,
+          "param1": 50
+        },
+        {
+          "key": "mtf.base:damage.health",
+          "param2": 0,
+          "param1": -10
+        },
+        {
+          "key": "mtf.base:burst.bounty",
+          "param2": 0,
+          "param1": 100
+        }
+      ]
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "cooldown": {
+        "min": 0,
+        "mode": 0
+      }
+    }
+  ],
+  "valid": 1
 }

@@ -1,0 +1,307 @@
+{
+  "displayname": "Test: Backend Priority Sweep",
+  "schemaversion": 9,
+  "transition": {
+    "duration": 0.3
+  },
+  "slot": [
+    {
+      "cond": {
+        "packid": "",
+        "entryid": ""
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "persist": {
+        "min": 0,
+        "allowOverride": 1
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 1
+          }
+        ]
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:magicka.below",
+            "param": 99
+          }
+        ]
+      },
+      "cool": {
+        "min": 0
+      }
+    },
+    {
+      "cond": {
+        "packid": "",
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:stamina.below",
+            "param": 99
+          }
+        ]
+      },
+      "cool": {
+        "min": 0
+      }
+    }
+  ],
+  "valid": 1
+}

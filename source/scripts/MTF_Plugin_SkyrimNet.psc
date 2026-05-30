@@ -479,11 +479,14 @@ String Function _renderStackedPresetMd(MTF_MainQuest host, Actor a, string prese
     string layersMd = _renderStackedLayersMd(host, f, tier, packId, entryId)
     string effectsMd = _renderStackedEffectsMd(host, f, tier)
     string displayName = host.GetPresetDisplayName(presetName)
-    string condKey  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.pluginid", "")
-    int    condP1   = JsonUtil.GetPathIntValue(f,    ".slot[" + tier + "].cond.param",  0)
-    int    condP2   = JsonUtil.GetPathIntValue(f,    ".slot[" + tier + "].cond.param2", 0)
-    string condP1s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.param",  "")
-    string condP2s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.param2", "")
+    ; v0.3.1: conditions are an array; narrate the slot's primary condition
+    ; (items[0]). Multi-condition slots surface only their first condition in
+    ; flavor text — acceptable for narration.
+    string condKey  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.items[0].pluginid", "")
+    int    condP1   = JsonUtil.GetPathIntValue(f,    ".slot[" + tier + "].cond.items[0].param",  0)
+    int    condP2   = JsonUtil.GetPathIntValue(f,    ".slot[" + tier + "].cond.items[0].param2", 0)
+    string condP1s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.items[0].param",  "")
+    string condP2s  = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.items[0].param2", "")
     string conditionMd = _renderConditionMd(host, condKey, condP1s, condP1, condP2s, condP2)
     return _composePresetMd(displayName, tier, packLabel, entryLabel, visualDesc, placement, pulseRate, pulseDepth, layersMd, effectsMd, conditionMd, actorName, externalView)
 EndFunction

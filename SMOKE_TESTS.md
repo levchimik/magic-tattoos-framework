@@ -48,6 +48,12 @@ in the preset dropdown.
 | **Test_Sounds_Stings_UI** | Inventory / UI stings (3s) | Load preset | UI click/chime stings play. |
 | **Test_Sounds_Volume** | Same SOUN with volume extras at 100/50/25/10% | Load preset | Volume audibly decreases across the 4 stacked plays. |
 
+### A2. Condition logic (multi-condition AND/OR)
+
+| Preset | What it exercises | How to trigger | Expected evidence |
+|---|---|---|---|
+| **Test_MultiCond_AND** | Per-slot **multi-condition** logic (schema 9): one Condition slot holds two conditions combined with the **AND** operator, so the slot fires only when *both* pass. Exercises `_checkOneCond` / `_slotCondsMetLive` and preset round-trip of `op` + `count` + extra (`condx`) conditions. | Load preset. Satisfy only one of the two conditions → slot must stay inactive. Satisfy both → slot activates. | NotificationLog: tier stays at 0 (Default) while only one condition is met; tier→1 only once **both** conditions are simultaneously true. Flip an OR variant by editing `op` and the slot should fire when *either* is met. |
+
 ### B. SLA — SexLab Aroused
 
 Requires OSL Aroused or SLO Aroused NG (portable `slaFrameWorkScr`).
@@ -152,7 +158,7 @@ testbed** — these presets exist for when the dependency lands.
 ```json
 {
   "displayname": "Test: <Short name>",
-  "schemaversion": 7,
+  "schemaversion": 9,
   "transition": { "duration": 0.3 },
   "slot": [
     {                                                    // slot 0 = Default
@@ -180,6 +186,13 @@ testbed** — these presets exist for when the dependency lands.
   them contiguous helps readability.
 - `extras` are per-effect bonus parameters declared by the plugin. The
   loader auto-discovers them; just include the keys the plugin expects.
+- **Multi-condition slots (schema 9):** a slot's `cond` can hold more than
+  one condition combined by a single operator. The primary condition stays
+  in `cond` (`pluginid` / `param` / `param2`); extra conditions serialize
+  alongside as `cond.condx1`, `cond.condx2`, … with `op` selecting **AND**
+  (all must pass) vs **OR** (any passes) and `count` recording how many
+  conditions the slot holds. A slot with no `count` reports 1 and evaluates
+  exactly like a legacy single-condition slot — old presets are untouched.
 
 ## Standing rules for smoke tests
 

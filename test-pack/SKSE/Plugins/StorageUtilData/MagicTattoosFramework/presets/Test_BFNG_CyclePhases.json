@@ -3,17 +3,15 @@
   "int": {
     "valid": 0
   },
-  "schemaversion": 8,
+  "schemaversion": 9,
   "transition": {
     "duration": 0.3
   },
   "slot": [
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -22,10 +20,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "follicular",
-        "pluginid": "mtf.bfng:cycle.phase"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.bfng:cycle.phase",
+            "param": "follicular"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -44,10 +47,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "ovulating",
-        "pluginid": "mtf.bfng:cycle.phase"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.bfng:cycle.phase",
+            "param": "ovulating"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -66,10 +74,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "luteal",
-        "pluginid": "mtf.bfng:cycle.phase"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.bfng:cycle.phase",
+            "param": "luteal"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -88,10 +101,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": "menstruating",
-        "pluginid": "mtf.bfng:cycle.phase"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.bfng:cycle.phase",
+            "param": "menstruating"
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
@@ -110,10 +128,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -122,10 +138,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -134,10 +148,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,

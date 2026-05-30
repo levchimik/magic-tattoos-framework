@@ -2616,57 +2616,34 @@ bool Function SavePreset(string rawName)
             s += 1
         else
         string sp = ".slot[" + s + "]"
-        JsonUtil.SetPathStringValue(f, sp + ".cond.pluginid", slotPid)
-        ; v0.2.9 menu-vs-slider routing: probe the catalog for this cond's
-        ; param shape. Menu params write a string id; sliders write an int.
-        ; Probe via _condParamIsMenu helper which resolves the plugin + item.
-        if _condParamIsMenu(slotPid)
-            string pStr = GetCondParamStr(s)
-            if pStr != ""
-                JsonUtil.SetPathStringValue(f, sp + ".cond.param", pStr)
-            endif
-        else
-            JsonUtil.SetPathIntValue(f, sp + ".cond.param", GetCondParam(s))
-        endif
-        ; param2 same shape (only emitted when non-default).
-        if _condParam2IsMenu(slotPid)
-            string p2Str = GetCondParam2Str(s)
-            if p2Str != ""
-                JsonUtil.SetPathStringValue(f, sp + ".cond.param2", p2Str)
-            endif
-        else
-            int p2 = GetCondParam2(s)
-            if p2 != 0
-                JsonUtil.SetPathIntValue(f, sp + ".cond.param2", p2)
-            endif
-        endif
-        ; v0.3.0 multi-condition: operator + extra conditions (index >= 1).
-        ; cond[0] above stays at .cond.* for back-compat; op/count under .cond.*;
-        ; extras at .cond.condx<j>.* (non-numeric object keys avoid JsonUtil
-        ; numeric-path ambiguity). Only emit op/count when non-default so legacy
-        ; single-condition presets keep clean, unchanged JSON.
+        ; v0.3.1: conditions serialized as an ARRAY (.cond.items[]) + a single
+        ; operator (.cond.op: 0=AND, 1=OR). No more special-cased cond[0] /
+        ; condx<j> — every condition is items[j], read back via PathCount.
+        ; cond[0] reuses the live scalar accessors through the At(s,0)
+        ; delegators, so the StorageUtil keyspace is unchanged. Slot is
+        ; "configured" iff items[0].pluginid is non-empty (count 0 => no array,
+        ; absent on load). _condParamIsMenu routes each param string-vs-int.
         int condN = GetCondCount(s)
-        if condN > 1 || GetCondOp(s) != 0
+        if condN >= 1
             JsonUtil.SetPathIntValue(f, sp + ".cond.op", GetCondOp(s))
-            JsonUtil.SetPathIntValue(f, sp + ".cond.count", condN)
+            int cjW = 0
+            while cjW < condN
+                string ipW = sp + ".cond.items[" + cjW + "]"
+                string ikeyW = GetCondPluginIdAt(s, cjW)
+                JsonUtil.SetPathStringValue(f, ipW + ".pluginid", ikeyW)
+                if _condParamIsMenu(ikeyW)
+                    JsonUtil.SetPathStringValue(f, ipW + ".param", GetCondParamStrAt(s, cjW))
+                else
+                    JsonUtil.SetPathIntValue(f, ipW + ".param", GetCondParamAt(s, cjW))
+                endif
+                if _condParam2IsMenu(ikeyW)
+                    JsonUtil.SetPathStringValue(f, ipW + ".param2", GetCondParam2StrAt(s, cjW))
+                else
+                    JsonUtil.SetPathIntValue(f, ipW + ".param2", GetCondParam2At(s, cjW))
+                endif
+                cjW += 1
+            endwhile
         endif
-        int cjW = 1
-        while cjW < condN
-            string xpW = sp + ".cond.condx" + cjW
-            string xkeyW = GetCondPluginIdAt(s, cjW)
-            JsonUtil.SetPathStringValue(f, xpW + ".pluginid", xkeyW)
-            if _condParamIsMenu(xkeyW)
-                JsonUtil.SetPathStringValue(f, xpW + ".param", GetCondParamStrAt(s, cjW))
-            else
-                JsonUtil.SetPathIntValue(f, xpW + ".param", GetCondParamAt(s, cjW))
-            endif
-            if _condParam2IsMenu(xkeyW)
-                JsonUtil.SetPathStringValue(f, xpW + ".param2", GetCondParam2StrAt(s, cjW))
-            else
-                JsonUtil.SetPathIntValue(f, xpW + ".param2", GetCondParam2At(s, cjW))
-            endif
-            cjW += 1
-        endwhile
         ; v0.2.9 per-slot display name (sidecar to cond.*). Only emit when
         ; non-empty so untouched presets keep clean JSON. Empty fallback in
         ; MCMQuest._slotLabel handles the missing-field case.
@@ -2815,51 +2792,47 @@ bool Function LoadPreset(string name)
     int mcmCap = MAX_CONDITIONS_MCM()
     while s <= maxC
         string sp = ".slot[" + s + "]"
-        string pluginIdHere = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
-        SetCondPluginId(s, pluginIdHere)
-        ; v0.2.9: param/param2 routing — menu params read as string, sliders as int.
-        if _condParamIsMenu(pluginIdHere)
-            SetCondParamStr(s, JsonUtil.GetPathStringValue(f, sp + ".cond.param", ""))
-            SetCondParam(s, 0)
-        else
-            SetCondParam(s, JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0))
-            SetCondParamStr(s, "")
-        endif
-        if _condParam2IsMenu(pluginIdHere)
-            SetCondParam2Str(s, JsonUtil.GetPathStringValue(f, sp + ".cond.param2", ""))
-            SetCondParam2(s, 0)
-        else
-            SetCondParam2(s, JsonUtil.GetPathIntValue(f, sp + ".cond.param2", 0))
-            SetCondParam2Str(s, "")
-        endif
-        ; v0.3.0 multi-condition: wipe stale extras from a prior config, then
-        ; read the operator + extra conditions (index >= 1) into live StorageUtil.
+        ; v0.3.1: conditions read from the .cond.items[] array. PathCount gives
+        ; the count; items[0].pluginid empty / array absent => unconfigured slot.
+        ; ClearSlotExtraConds wipes any stale extras (index >= 1) from the prior
+        ; preset first, then we repopulate item 0 (live scalar keys via the
+        ; At(s,0) delegators) and any extras.
         ClearSlotExtraConds(s)
-        int condN = JsonUtil.GetPathIntValue(f, sp + ".cond.count", 1)
+        int condN = JsonUtil.PathCount(f, sp + ".cond.items")
         if condN < 1
-            condN = 1
+            ; Unconfigured slot — reset item 0 to empty, count 1, op AND.
+            SetCondPluginId(s, "")
+            SetCondParam(s, 0)
+            SetCondParamStr(s, "")
+            SetCondParam2(s, 0)
+            SetCondParam2Str(s, "")
+            SetCondCount(s, 1)
+            SetCondOp(s, 0)
+        else
+            SetCondOp(s, JsonUtil.GetPathIntValue(f, sp + ".cond.op", 0))
+            int cjR = 0
+            while cjR < condN
+                string ipR = sp + ".cond.items[" + cjR + "]"
+                string ikeyR = JsonUtil.GetPathStringValue(f, ipR + ".pluginid", "")
+                SetCondPluginIdAt(s, cjR, ikeyR)
+                if _condParamIsMenu(ikeyR)
+                    SetCondParamStrAt(s, cjR, JsonUtil.GetPathStringValue(f, ipR + ".param", ""))
+                    SetCondParamAt(s, cjR, 0)
+                else
+                    SetCondParamAt(s, cjR, JsonUtil.GetPathIntValue(f, ipR + ".param", 0))
+                    SetCondParamStrAt(s, cjR, "")
+                endif
+                if _condParam2IsMenu(ikeyR)
+                    SetCondParam2StrAt(s, cjR, JsonUtil.GetPathStringValue(f, ipR + ".param2", ""))
+                    SetCondParam2At(s, cjR, 0)
+                else
+                    SetCondParam2At(s, cjR, JsonUtil.GetPathIntValue(f, ipR + ".param2", 0))
+                    SetCondParam2StrAt(s, cjR, "")
+                endif
+                cjR += 1
+            endwhile
+            SetCondCount(s, condN)
         endif
-        SetCondOp(s, JsonUtil.GetPathIntValue(f, sp + ".cond.op", 0))
-        SetCondCount(s, condN)
-        int cjR = 1
-        while cjR < condN
-            string xpR = sp + ".cond.condx" + cjR
-            string xkeyR = JsonUtil.GetPathStringValue(f, xpR + ".pluginid", "")
-            SetCondPluginIdAt(s, cjR, xkeyR)
-            if _condParamIsMenu(xkeyR)
-                SetCondParamStrAt(s, cjR, JsonUtil.GetPathStringValue(f, xpR + ".param", ""))
-                SetCondParamAt(s, cjR, 0)
-            else
-                SetCondParamAt(s, cjR, JsonUtil.GetPathIntValue(f, xpR + ".param", 0))
-                SetCondParamStrAt(s, cjR, "")
-            endif
-            if _condParam2IsMenu(xkeyR)
-                SetCondParam2StrAt(s, cjR, JsonUtil.GetPathStringValue(f, xpR + ".param2", ""))
-            else
-                SetCondParam2At(s, cjR, JsonUtil.GetPathIntValue(f, xpR + ".param2", 0))
-            endif
-            cjR += 1
-        endwhile
         ; v0.2.9 per-slot display name. Empty default = use canonical label.
         SetCondName(s,     JsonUtil.GetPathStringValue(f, sp + ".name", ""))
         _setCoolMin(s, JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
@@ -2897,7 +2870,7 @@ bool Function LoadPreset(string name)
         ; MCM-cap slots (0..mcmCap) still iterate unconditionally so
         ; stale bindings from a previous preset get cleared even when
         ; the new preset's slot is empty.
-        bool runEffectLoop = (s <= mcmCap) || (pluginIdHere != "")
+        bool runEffectLoop = (s <= mcmCap) || (GetCondPluginId(s) != "")
         int e = 0
         while runEffectLoop && e < maxE
             string ep = sp + ".effect[" + e + "]"
@@ -4282,32 +4255,22 @@ EndFunction
 ; the player-live path threads param2.
 bool Function _slotCondsMetJson(Actor target, string f, int slot)
     string sp = ".slot[" + slot + "]"
-    if JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "") == ""
-        return false
-    endif
-    int n = JsonUtil.GetPathIntValue(f, sp + ".cond.count", 1)
+    ; v0.3.1: conditions live in the .cond.items[] array. PathCount == 0 means
+    ; an unconfigured slot. op 0 = AND (all must pass), 1 = OR (any). Short-
+    ; circuits. param2 int isn't carried on the JSON path (matches prior
+    ; behaviour); only the player-live path threads it.
+    int n = JsonUtil.PathCount(f, sp + ".cond.items")
     if n < 1
-        n = 1
+        return false
     endif
     int op = JsonUtil.GetPathIntValue(f, sp + ".cond.op", 0)
     int j = 0
     while j < n
-        string key
-        int pInt
-        string pStr
-        string p2Str
-        if j == 0
-            key = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
-            pInt = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
-            pStr = JsonUtil.GetPathStringValue(f, sp + ".cond.param", "")
-            p2Str = JsonUtil.GetPathStringValue(f, sp + ".cond.param2", "")
-        else
-            string xp = sp + ".cond.condx" + j
-            key = JsonUtil.GetPathStringValue(f, xp + ".pluginid", "")
-            pInt = JsonUtil.GetPathIntValue(f, xp + ".param", 0)
-            pStr = JsonUtil.GetPathStringValue(f, xp + ".param", "")
-            p2Str = JsonUtil.GetPathStringValue(f, xp + ".param2", "")
-        endif
+        string ip = sp + ".cond.items[" + j + "]"
+        string key = JsonUtil.GetPathStringValue(f, ip + ".pluginid", "")
+        int pInt = JsonUtil.GetPathIntValue(f, ip + ".param", 0)
+        string pStr = JsonUtil.GetPathStringValue(f, ip + ".param", "")
+        string p2Str = JsonUtil.GetPathStringValue(f, ip + ".param2", "")
         bool met = _checkOneCond(target, key, pInt, 0, pStr, p2Str)
         if op == 0 && !met
             return false
@@ -6626,21 +6589,21 @@ bool Function _loadPresetToScratch(string name)
     int s = 0
     while s < 8
         string sp = ".slot[" + s + "]"
-        string slotCondKey = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
+        ; v0.3.1: condition 0 now lives at .cond.items[0]. This scratch copy only
+        ; feeds the evaluateTierForActor pre-scan gate ("is slot configured" +
+        ; allowOverride); the real multi-condition AND/OR eval reads the full
+        ; .cond.items[] array via _slotCondsMetJson, so only item 0 is mirrored.
+        string slotCondKey = JsonUtil.GetPathStringValue(f, sp + ".cond.items[0].pluginid", "")
         localCondPluginId[s] = slotCondKey
-        ; v0.2.9: param/param2 menu-vs-slider routing. Menu params read string
-        ; id from the JSON; sliders read int. Both write into the slot's
-        ; matching scratch storage (the int array OR a string-typed namespaced
-        ; key) so eval-time can read whichever the catalog says.
         if _condParamIsMenu(slotCondKey)
-            _setScratchCondParamStr(s, JsonUtil.GetPathStringValue(f, sp + ".cond.param", ""))
+            _setScratchCondParamStr(s, JsonUtil.GetPathStringValue(f, sp + ".cond.items[0].param", ""))
             localCondParam[s] = 0
         else
-            localCondParam[s] = JsonUtil.GetPathIntValue(f, sp + ".cond.param", 0)
+            localCondParam[s] = JsonUtil.GetPathIntValue(f, sp + ".cond.items[0].param", 0)
             _setScratchCondParamStr(s, "")
         endif
         if _condParam2IsMenu(slotCondKey)
-            _setScratchCondParam2Str(s, JsonUtil.GetPathStringValue(f, sp + ".cond.param2", ""))
+            _setScratchCondParam2Str(s, JsonUtil.GetPathStringValue(f, sp + ".cond.items[0].param2", ""))
         else
             _setScratchCondParam2Str(s, "")
         endif
@@ -6761,18 +6724,19 @@ bool Function _loadPresetToScratch(string name)
     int sb = mcmCap + 1
     while sb <= maxC
         string sp_b = ".slot[" + sb + "]"
-        string pid_b = JsonUtil.GetPathStringValue(f, sp_b + ".cond.pluginid", "")
+        ; v0.3.1: backend-slot condition 0 at .cond.items[0] (see player-slot
+        ; loader above — scratch mirror only feeds the pre-scan gate).
+        string pid_b = JsonUtil.GetPathStringValue(f, sp_b + ".cond.items[0].pluginid", "")
         _setScratchCondPluginId(sb, pid_b)
-        ; v0.2.9: param/param2 menu-vs-slider routing for backend slots too.
         if _condParamIsMenu(pid_b)
-            _setScratchCondParamStr(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.param", ""))
+            _setScratchCondParamStr(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.items[0].param", ""))
             _setScratchCondParam(sb, 0)
         else
-            _setScratchCondParam(sb, JsonUtil.GetPathIntValue(f, sp_b + ".cond.param", 0))
+            _setScratchCondParam(sb, JsonUtil.GetPathIntValue(f, sp_b + ".cond.items[0].param", 0))
             _setScratchCondParamStr(sb, "")
         endif
         if _condParam2IsMenu(pid_b)
-            _setScratchCondParam2Str(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.param2", ""))
+            _setScratchCondParam2Str(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.items[0].param2", ""))
         else
             _setScratchCondParam2Str(sb, "")
         endif
@@ -7192,7 +7156,7 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
     int i = 1
     while i <= maxC
         string sp1 = ".slot[" + i + "]"
-        string k1 = JsonUtil.GetPathStringValue(f, sp1 + ".cond.pluginid", "")
+        string k1 = JsonUtil.GetPathStringValue(f, sp1 + ".cond.items[0].pluginid", "")
         if k1 != ""
             int allowOver = JsonUtil.GetPathIntValue(f, sp1 + ".persist.allowOverride", 1)
             float persistEnd = _getActorPresetPersistUntil(target, presetName, i)
@@ -7207,7 +7171,7 @@ int Function _quickEvalCondsFromJson(Actor target, string presetName)
     i = 1
     while i <= maxC
         string sp = ".slot[" + i + "]"
-        string key = JsonUtil.GetPathStringValue(f, sp + ".cond.pluginid", "")
+        string key = JsonUtil.GetPathStringValue(f, sp + ".cond.items[0].pluginid", "")
         if key != ""
             float coolEnd = _getActorPresetCoolUntil(target, presetName, i)
             if now >= coolEnd

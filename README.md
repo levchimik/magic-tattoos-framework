@@ -43,8 +43,9 @@ character starts wearing a reactive canvas.
 - **Reactive conditions out of the box.** The base framework ships with
   triggers for health / magicka / stamina percentage, combat state,
   sneaking, mounted, swimming, time of day, weather, location type,
-  worn armor, carry weight, current weapon, and more — composable per
-  tier.
+  worn armor, carry weight, current weapon, and more. Each slot can
+  combine **multiple conditions** with an **AND** (all must pass) or
+  **OR** (any passes) match mode, composable per tier.
 - **In-game effects out of the box.** Tiers can apply effects while
   visible: scale spell cost across all magic schools, modify actor
   values and skills, grant abilities and resistances, adjust speed and

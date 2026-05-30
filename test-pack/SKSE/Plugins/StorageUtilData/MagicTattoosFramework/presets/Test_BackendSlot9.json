@@ -3,17 +3,15 @@
   "int": {
     "valid": 0
   },
-  "schemaversion": 8,
+  "schemaversion": 9,
   "transition": {
     "duration": 0.3
   },
   "slot": [
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -22,10 +20,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -34,10 +30,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -46,10 +40,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -58,10 +50,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -70,10 +60,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -82,10 +70,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -94,10 +80,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -106,10 +90,8 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": ""
+        "entryid": ""
       },
       "cooldown": {
         "min": 0,
@@ -118,10 +100,15 @@
     },
     {
       "cond": {
-        "entryid": "",
         "packid": "",
-        "param": 0,
-        "pluginid": "mtf.base:magicka"
+        "entryid": "",
+        "op": 0,
+        "items": [
+          {
+            "pluginid": "mtf.base:magicka",
+            "param": 0
+          }
+        ]
       },
       "cooldown": {
         "min": 0,
