@@ -1309,25 +1309,26 @@ All **31** entries grounded from visual inspection of the rendered alpha-union o
 
 # How the SkyrimNet bridge uses these
 
-When SkyrimNet renders a prompt containing
-`{{mtf_active_tattoos(actorUUID)}}`, the bridge:
+As of v0.3.x the bridge pre-renders each actor's "Magic Tattoos" bio
+block in Papyrus and writes it to StorageUtil; the character-bio prompt
+template reads it back each warmup (there is **no** `mtf_active_tattoos`
+decorator — it was removed in the StorageUtil-bypass refactor). To build
+the block the bridge:
 
-1. Reads `host.currentTier` (the slot index whose conditions currently
-   win for the player).
-2. Reads `ResolveSlotPackId(tier)` / `ResolveSlotEntryId(tier)`, then
-   `GetEntryDescription(packId, entryId)` — falling back to
-   `"a <entryLabel> tattoo from the <packLabel> set"` if description is
-   empty.
-3. For every effect bound to that slot, calls `GetEffectDescription(eIdx)`
+1. Reads the actor's active preset(s) and the current tier of each.
+2. For each visible tattoo, reads `GetEntryDescription(packId, entryId)`
+   — falling back to `"a <entryLabel> tattoo from the <packLabel> set"`
+   if the description is empty — plus the slot's placement and pulse.
+3. Narrates the triggering condition(s) via `GetConditionDescription`,
+   joined by the slot's AND/OR operator.
+4. For every effect bound to that slot, reads `GetEffectDescription(eIdx)`
    on the owning plugin, falling back to `GetEffectLabel(eIdx)`.
-4. Joins them into:
-   `"The player has <tattoo description>. Its effect: <eff1> <eff2> …"`
 
-The same string is also pushed via
+The composed Markdown is written to StorageUtil per actor and surfaced
+verbatim in the bio. A short scene-context string is also pushed via
 `SkyrimNetApi.RegisterShortLivedEvent("mtf_tattoo_state", …, 30000ms,
 target, None)` on every `MTF_TierChanged` so NPCs get scene-context
-awareness even when the prompt template doesn't explicitly call the
-decorator.
+awareness of the transition.
 
 Better descriptions → better NPC roleplay. Bare-minimum LLM-usable
 output works today with what's baked in; richer pack-entry visuals

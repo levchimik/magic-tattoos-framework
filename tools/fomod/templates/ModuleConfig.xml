@@ -242,15 +242,15 @@ player's currently visible tattoos and their effects.
 Auto-recommended if SkyrimNet.esp is active.
 
 What it does:
- - Registers a `mtf_active_tattoos(actorUUID)` decorator with SkyrimNet so
-   prompt templates can inject a human-readable description of the
-   player's current tattoo + active effects.
+ - Adds a "Magic Tattoos" section to a character's SkyrimNet bio with a
+   human-readable description of their current tattoo + active effects,
+   so the AI knows what's on their skin.
  - Listens for MTF_TierChanged and fires SkyrimNetApi.RegisterShortLivedEvent
    (30s TTL, deduped) so a tier swap shows up in scene context for the
    next LLM call.
  - Ships a prompt submodule
    (SKSE/Plugins/SkyrimNet/prompts/submodules/character_bio/0350_mtf_tattoos.prompt)
-   that renders the decorator output as a "Magic Tattoos" section in
+   that renders the bio block as the "Magic Tattoos" section in
    character bios.
 
 Scope (v0.1.20):

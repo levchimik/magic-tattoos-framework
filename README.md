@@ -37,20 +37,20 @@ character starts wearing a reactive canvas.
 
 ## Features
 
-- **Layered, fading visuals.** Tattoos render through SKEE / NiOverride
-  overlay slots, fade smoothly between tiers, and survive armor swaps,
-  body 3D rebuilds, and BodyGen.
+- **Layered, fading visuals.** Tattoos render through RaceMenu's overlay
+  system, fade smoothly between states, and survive armor changes, body
+  swaps, and BodyGen rebuilds.
 - **Reactive conditions out of the box.** The base framework ships with
   triggers for health / magicka / stamina percentage, combat state,
   sneaking, mounted, swimming, time of day, weather, location type,
   worn armor, carry weight, current weapon, and more. Each slot can
   combine **multiple conditions** with an **AND** (all must pass) or
-  **OR** (any passes) match mode, composable per tier.
-- **In-game effects out of the box.** Tiers can apply effects while
-  visible: scale spell cost across all magic schools, modify actor
-  values and skills, grant abilities and resistances, adjust speed and
-  carry weight, trigger one-shot bursts (stagger, flash on hit), play
-  shaders and sounds, and more.
+  **OR** (any passes) match mode.
+- **In-game effects out of the box.** While a tattoo is visible, it can
+  apply effects: scale spell costs, modify stats and skills, grant
+  abilities and resistances, adjust speed and carry weight, trigger
+  one-shot bursts (stagger, flash on hit), play shaders and sounds, and
+  more.
 - **Integrates with your other mods.** MTF auto-detects supported mods
   at runtime and exposes their state as additional conditions and
   effects — no INI toggles, no hard masters, no extra setup. Without
@@ -62,17 +62,17 @@ character starts wearing a reactive canvas.
   stays for N minutes after activation, with optional override-lock)
   and a *cool* phase (next activation blocked for N minutes). Both
   range from seconds to a full in-game week.
-- **SkyrimNet bridge.** If [SkyrimNet] is installed, MTF exposes every
-  visible tattoo (with rendered condition and effect descriptions) into
-  the LLM character-bio prompt, so AI companions actually notice what's
-  on your skin. NPC reactions and player narration ride SkyrimNet's
-  Event Configuration UI.
-- **NPC-tracked subjects.** Apply MTF presets to specific NPCs via a
-  console-driven path (or other mod integrations); they evaluate
-  independently from the player.
+- **SkyrimNet bridge.** If [SkyrimNet] is installed, MTF tells it about
+  every visible tattoo — what it looks like, when it appears, and what
+  it does — so AI-driven characters actually notice and can comment on
+  what's on your skin. NPC reactions and player narration ride
+  SkyrimNet's Event Configuration UI.
+- **Works on NPCs too.** A Papyrus API (`MTF_AliasPresetApi`) lets other
+  mods apply MTF presets to specific NPCs; each NPC's tattoos react to
+  their own state, independently of the player.
 - **MCM-driven.** Everything is configurable in-game — per-slot
-  opacity, tier thresholds, preset selection, integration toggles,
-  cooldown timers.
+  transparency, trigger thresholds, preset selection, integration
+  toggles, cooldown timers.
 
 ---
 
@@ -136,7 +136,7 @@ consumed.
 | **MTF Plugin — OStim** | `MTF_Plugin_OStim.esp` (ESL) | optional | scene / excitement conditions from [OStim Standalone][ostim] |
 | **MTF Plugin — BFNG** | `MTF_Plugin_BFNG.esp` (ESL) | optional | pregnancy / cycle conditions from [Beeing Female NG][bfng] |
 | **MTF Plugin — SlaveTats Bridge** | `MTF_Plugin_SlaveTats.esp` (ESL) | optional | ghost-writes MTF tattoos into [SlaveTats][slavetats]'s state store so polling consumers (`has_tattoo` / `query_applied_tattoos`) see them |
-| **MTF Plugin — SkyrimNet** | `MTF_Plugin_SkyrimNet.esp` (ESL) | optional | LLM-readable tattoo descriptions: registers `mtf_active_tattoos` decorator + fires `mtf_tattoo_change` events on tier transitions ([SkyrimNet][skyrimnet]) |
+| **MTF Plugin — SkyrimNet** | `MTF_Plugin_SkyrimNet.esp` (ESL) | optional | LLM-readable tattoo descriptions: writes each actor's visible-tattoo bio block to StorageUtil for the character-bio prompt + fires `mtf_tattoo_change` events on tier transitions ([SkyrimNet][skyrimnet]) |
 
 ### Texture pack adapters (JSON-only — source textures installed separately)
 
@@ -160,20 +160,20 @@ internals and the wrapping recipe.
 When `MTF_Plugin_SkyrimNet.esp` is loaded alongside SkyrimNet, MTF:
 
 - **Exposes tattoos to the LLM.** Every currently-visible tattoo is
-  rendered into the `mtf_active_tattoos` decorator (visible in
-  SkyrimNet's character-bio prompts), with anatomy-aware placement
-  labels (e.g. "right buttock", "collarbone") and rendered condition /
-  effect descriptions.
+  rendered into the actor's character-bio prompt, with anatomy-aware
+  placement labels (e.g. "right buttock", "collarbone") and rendered
+  condition / effect descriptions. The bio block is pre-rendered to
+  StorageUtil and read back by the prompt template each warmup
+  (bypassing SkyrimNet's decorator cache so mid-session changes show).
 - **Fires `mtf_tattoo_change` events on tier transitions.** Both
   player and NPC events fire. The events are routed through
   SkyrimNet's short-lived event queue with the tattoo bearer as
   `sourceActor`. NPC reactions and player narration are enabled /
   cooldowned via SkyrimNet's standard **Event Configuration** page
   (the event auto-uses SkyrimNet's global reaction defaults).
-- **Live updates.** The decorator content is pre-rendered to
-  StorageUtil on every mutation (apply / remove / tier shift) and
-  re-read by the prompt on each warmup, bypassing SkyrimNet's
-  decorator cache.
+- **Live updates.** The bio block is refreshed on every mutation
+  (apply / remove / tier shift), so what the LLM reads always matches
+  the tattoos currently on the actor.
 
 The prompt template ships at
 `SKSE/Plugins/SkyrimNet/prompts/submodules/character_bio/0350_mtf_tattoos.prompt`
