@@ -561,6 +561,9 @@ function drawPresetEditorPage()
                     ; v0.2.9: menu params read string id; sliders read int.
                     AddMenuOptionST("SLOT_COND_PARAM", paramLabel, \
                         _menuLabelForCondParam(p, itemIdx, MainQuest.GetCondParamStr(idx)))
+                elseif p.GetConditionParamIsText(itemIdx)
+                    ; v0.3.2: free-text condition param (scene.tag, scene.partner).
+                    AddInputOptionST("SLOT_COND_PARAM", paramLabel, _textRowLabel(MainQuest.GetCondParamStr(idx)))
                 else
                     AddSliderOptionST("SLOT_COND_PARAM", paramLabel, MainQuest.GetCondParam(idx), p.GetConditionParamFormat(itemIdx))
                 endif
@@ -596,6 +599,8 @@ function drawPresetEditorPage()
                         if p2.GetConditionParamMenuOptionCount(itemIdx2) > 0
                             AddMenuOptionST("SLOT_COND2_PARAM", paramLabel2, \
                                 _menuLabelForCondParam(p2, itemIdx2, MainQuest.GetCondParamStrAt(idx, 1)))
+                        elseif p2.GetConditionParamIsText(itemIdx2)
+                            AddInputOptionST("SLOT_COND2_PARAM", paramLabel2, _textRowLabel(MainQuest.GetCondParamStrAt(idx, 1)))
                         else
                             AddSliderOptionST("SLOT_COND2_PARAM", paramLabel2, MainQuest.GetCondParamAt(idx, 1), p2.GetConditionParamFormat(itemIdx2))
                         endif
@@ -1050,6 +1055,11 @@ state SLOT_COND_TYPE
             endif
         endif
         MainQuest.SetCondPluginId(slot, newKey)
+        ; v0.3.2: clear the param STRING slot too. The inline reset only zeroes
+        ; the int params, leaving stale menu ids (e.g. "mff") or text in the
+        ; shared param-string slot when the condition type is swapped.
+        MainQuest.SetCondParamStr(slot, "")
+        MainQuest.SetCondParam2Str(slot, "")
         if newKey == ""
             MainQuest.SetCondParam(slot, 0)
             MainQuest.SetCondParam2(slot, 0)
@@ -1074,6 +1084,8 @@ state SLOT_COND_TYPE
         MainQuest.SetCondPluginId(selectedCondition, "")
         MainQuest.SetCondParam(selectedCondition, 0)
         MainQuest.SetCondParam2(selectedCondition, 0)
+        MainQuest.SetCondParamStr(selectedCondition, "")
+        MainQuest.SetCondParam2Str(selectedCondition, "")
         SetMenuOptionValueST(_condTypeLabel(""))
         ForcePageReset()
     endEvent
@@ -1116,6 +1128,13 @@ state SLOT_COND_PARAM
     endEvent
     event OnMenuAcceptST(int index)
         _acceptCondParamMenu(index)
+    endEvent
+    event OnInputOpenST()
+        SetInputDialogStartText(MainQuest.GetCondParamStr(selectedCondition))
+    endEvent
+    event OnInputAcceptST(string a_input)
+        MainQuest.SetCondParamStr(selectedCondition, a_input)
+        SetInputOptionValueST(_textRowLabel(a_input))
     endEvent
     event OnDefaultST()
         string key = MainQuest.GetCondPluginId(selectedCondition)
@@ -2414,6 +2433,9 @@ state SLOT_COND2_TYPE
             endif
         endif
         MainQuest.SetCondPluginIdAt(slot, 1, newKey)
+        ; v0.3.2: clear cond2's param string slot too (see SLOT_COND_TYPE).
+        MainQuest.SetCondParamStrAt(slot, 1, "")
+        MainQuest.SetCondParam2StrAt(slot, 1, "")
         MainQuest.SetCondParamStrAt(slot, 1, "")
         MainQuest.SetCondParam2StrAt(slot, 1, "")
         if newKey == ""
@@ -2440,6 +2462,8 @@ state SLOT_COND2_TYPE
     endEvent
     event OnDefaultST()
         MainQuest.SetCondPluginIdAt(selectedCondition, 1, "")
+        MainQuest.SetCondParamStrAt(selectedCondition, 1, "")
+        MainQuest.SetCondParam2StrAt(selectedCondition, 1, "")
         MainQuest.SetCondParamAt(selectedCondition, 1, 0)
         MainQuest.SetCondParam2At(selectedCondition, 1, 0)
         MainQuest.SetCondParamStrAt(selectedCondition, 1, "")
@@ -2487,6 +2511,13 @@ state SLOT_COND2_PARAM
     endEvent
     event OnMenuAcceptST(int index)
         _acceptCond2ParamMenu(index)
+    endEvent
+    event OnInputOpenST()
+        SetInputDialogStartText(MainQuest.GetCondParamStrAt(selectedCondition, 1))
+    endEvent
+    event OnInputAcceptST(string a_input)
+        MainQuest.SetCondParamStrAt(selectedCondition, 1, a_input)
+        SetInputOptionValueST(_textRowLabel(a_input))
     endEvent
     event OnDefaultST()
         string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)

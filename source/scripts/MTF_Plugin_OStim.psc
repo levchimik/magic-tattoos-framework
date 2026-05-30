@@ -19,7 +19,12 @@ Scriptname MTF_Plugin_OStim extends MTF_Plugin
    1  excitement         — OActor excitement >= param
    2  times.climaxed     — per-scene climax count >= param
    3  climax.stalled     — IsClimaxStalled flag matches (param 0/1)
-   4  has.schlong        — HasSchlong
+   4  scene.action       — actor is performing/receiving the given action type
+                           (param1 free-text, e.g. "vaginalsex"); GetThreadID ->
+                           GetScene + GetActorPosition -> FindActionForMate
+   5  scene.partner      — in a scene with an actor whose display name is in a
+                           comma-separated list (param1 free-text, e.g.
+                           "General Tullius,Lydia"); GetThreadID -> GetActors
 
  Effects:
    0  trigger.climax        — Climax(target, ignoreStall). param = 1 bypass
@@ -49,10 +54,6 @@ EndFunction
 bool Function checkCondition(Actor target, int param, string cid)
     if target == None
         return false
-    endif
-    ; has.schlong is valid regardless of scene state.
-    if cid == "has.schlong"
-        return OActor.HasSchlong(target)
     endif
     ; scene.composition: "any" == legacy in.scene (just in a scene). Specific
     ; compositions walk the thread roster; see _matchComposition. Gated on
@@ -93,6 +94,43 @@ bool Function checkCondition(Actor target, int param, string cid)
     if !OActor.IsInOStim(target)
         return false
     endif
+    ; scene.action: free-text param1 — an OStim action type this actor is
+    ; currently involved in, as performer OR receiver (e.g. "vaginalsex",
+    ; "blowjob", "cunnilingus", "analsex", "handjob"). Resolve the actor's thread
+    ; -> current scene id + this actor's scene position, then ask OMetadata
+    ; whether any action of that type has this actor as a "mate" (actor or
+    ; target). Action types are scene-author-defined, so free text (not a fixed
+    ; menu) matches whatever the user's animation packs actually ship.
+    if cid == "scene.action"
+        int actTid = OActor.GetThreadID(target)
+        if actTid < 0
+            return false
+        endif
+        string actSceneId = OThread.GetScene(actTid)
+        if actSceneId == ""
+            return false
+        endif
+        string wantAction = _host().GetEvalParamStr()
+        if wantAction == ""
+            return false
+        endif
+        int actPos = OThread.GetActorPosition(actTid, target)
+        if actPos < 0
+            return false
+        endif
+        return OMetadata.FindActionForMate(actSceneId, actPos, wantAction) >= 0
+    endif
+    ; scene.partner: in a scene that includes an actor whose display name matches
+    ; one of a comma-separated list (param1 free-text, e.g. "General Tullius,Lydia").
+    ; Walks the thread roster; excludes the evaluated actor so it matches a partner.
+    if cid == "scene.partner"
+        int prtTid = OActor.GetThreadID(target)
+        if prtTid < 0
+            return false
+        endif
+        Actor[] roster = OThread.GetActors(prtTid)
+        return _matchPartnerName(_host().GetEvalParamStr(), roster, target)
+    endif
     if cid == "excitement"
         return OActor.GetExcitement(target) >= (param as float)
     elseif cid == "times.climaxed"
@@ -130,6 +168,60 @@ bool Function _matchComposition(string want, int n, int males, int females)
         return n >= 4
     endif
     return false
+EndFunction
+
+; ── scene.partner name match ────────────────────────────────────────────────
+; Returns true if any scene actor other than `self` has a display name equal to
+; one of the comma-separated names in `csv`. Papyrus string == is case-
+; insensitive, so "lydia" matches "Lydia". Each CSV token is trimmed so
+; "General Tullius, Lydia" works.
+bool Function _matchPartnerName(string csv, Actor[] roster, Actor selfActor)
+    if csv == "" || roster == None
+        return false
+    endif
+    string[] names = StringUtil.Split(csv, ",")
+    if names.Length < 1
+        return false
+    endif
+    int i = 0
+    while i < roster.Length
+        Actor a = roster[i]
+        if a != None && a != selfActor
+            string dn = a.GetDisplayName()
+            int j = 0
+            while j < names.Length
+                string want = _trim(names[j])
+                if want != "" && want == dn
+                    return true
+                endif
+                j += 1
+            endwhile
+        endif
+        i += 1
+    endwhile
+    return false
+EndFunction
+
+; Strips leading/trailing spaces. StringUtil.Substring's len arg must be > 0
+; here (guarded by last >= start) to dodge PapyrusUtil's "len == 0 means
+; to-end-of-string" quirk.
+string Function _trim(string s)
+    int n = StringUtil.GetLength(s)
+    if n <= 0
+        return ""
+    endif
+    int start = 0
+    while start < n && StringUtil.GetNthChar(s, start) == " "
+        start += 1
+    endwhile
+    int last = n - 1
+    while last >= start && StringUtil.GetNthChar(s, last) == " "
+        last -= 1
+    endwhile
+    if last < start
+        return ""
+    endif
+    return StringUtil.Substring(s, start, last - start + 1)
 EndFunction
 
 ; ── Dispatch ────────────────────────────────────────────────────────────────

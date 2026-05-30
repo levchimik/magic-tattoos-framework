@@ -6,18 +6,14 @@ Scriptname MTF_Plugin_SexLab extends MTF_Plugin
 
  Conditions:
    0  in.scene       — IsActorActive (in a scene)
-   1  cum.total      — CountCumFx -1
-   2  cum.vaginal    — CountCumVaginal
-   3  cum.oral       — CountCumOral
-   4  cum.anal       — CountCumAnal
-   5..7  skill.*     — GetSkill("Vaginal"/"Anal"/"Oral")
-   8  purity         — GetPurity (signed, -500..500)
-   9  has.strapon    — HasStrapon
+   1  scene.partner  — in a scene with an actor whose name matches one of a
+                       comma-separated list (param1 text); SexLab P+
+                       GetActorController -> sslThreadController.GetPositions()
+   2..4  skill.*     — GetSkill("Vaginal"/"Anal"/"Oral")
+   5  purity         — GetPurity (signed, -500..500)
 
  Effects:
-   0  cum.apply      — AddCumFx / AddCumFxLayers (param = type, param2 = layers)
-   1  cum.remove     — RemoveCumFx (param = type, -1 = all)
-   2  skill.add.xp   — AddSkillXP (param = amount, param2 = skill enum)
+   0  skill.add.xp   — AddSkillXP (param = amount, param2 = skill enum)
 
  Soft-dep probe: Game.GetFormFromFile(0xD62, "SexLab.esm"). The same form is
  simultaneously SexLabFramework AND sslActorStats (legacy SL quirk —
@@ -58,14 +54,18 @@ bool Function checkCondition(Actor target, int param, string cid)
     endif
     if cid == "in.scene"
         return SexLab.IsActorActive(target)
-    elseif cid == "cum.total"
-        return SexLab.CountCumFx(target, -1) >= param
-    elseif cid == "cum.vaginal"
-        return SexLab.CountCumVaginal(target) >= param
-    elseif cid == "cum.oral"
-        return SexLab.CountCumOral(target) >= param
-    elseif cid == "cum.anal"
-        return SexLab.CountCumAnal(target) >= param
+    elseif cid == "scene.partner"
+        ; in a scene with an actor whose display name is in a comma-separated
+        ; list (param1 free-text, e.g. "Lydia,Serana"). Roster comes from the
+        ; actor's SexLab thread controller; exclude self so it matches a partner.
+        if !SexLab.IsActorActive(target)
+            return false
+        endif
+        sslThreadController tc = SexLab.GetActorController(target)
+        if tc == None
+            return false
+        endif
+        return _matchPartnerName(_host().GetEvalParamStr(), tc.GetPositions(), target)
     elseif cid == "skill.vaginal"
         if SLStats == None
             return false
@@ -88,8 +88,6 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; GetPurity returns float = (Pure - Lewd) * 1.5. Negative = lewd-
         ; leaning, 0 = neutral, positive = pure-leaning.
         return SLStats.GetPurity(target) >= (param as float)
-    elseif cid == "has.strapon"
-        return SexLab.HasStrapon(target)
     endif
     return false
 EndFunction
@@ -98,37 +96,7 @@ Function onActivate(Actor target, int param, int param2, string eid, int slot, i
     if SexLab == None || target == None
         return
     endif
-    if eid == "cum.apply"
-        ; v0.2.9: param1 is now a menu id (vaginal/oral/anal). Map to SexLab's
-        ; int enum. param2 = layers (1..5, slider, int).
-        int cumType = _cumTypeFromId(_paramNStrEx(slot, effectIdx, useScratch, presetName, 1))
-        if cumType < 0
-            return
-        endif
-        int layers = param2
-        if layers <= 0
-            layers = 1
-        endif
-        if layers == 1
-            SexLab.AddCumFx(target, cumType)
-        else
-            SexLab.AddCumFxLayers(target, cumType, layers)
-        endif
-    elseif eid == "cum.remove"
-        ; v0.2.9: param1 is now a menu id (all/vaginal/oral/anal). "all" maps
-        ; to SexLab's -1 sentinel; per-orifice ids map to 0/1/2.
-        string remId = _paramNStrEx(slot, effectIdx, useScratch, presetName, 1)
-        int removeType = -2
-        if remId == "all"
-            removeType = -1
-        else
-            removeType = _cumTypeFromId(remId)
-        endif
-        if removeType == -2
-            return
-        endif
-        SexLab.RemoveCumFx(target, removeType)
-    elseif eid == "skill.add.xp"
+    if eid == "skill.add.xp"
         ; v0.2.9: param1 = amount (slider int), param2 = menu id
         ; (vaginal/anal/oral/foreplay). The pre-refactor enum was
         ; 0=Vaginal, 1=Anal, 2=Oral, 3=Foreplay -- preserve that mapping
@@ -155,17 +123,56 @@ Function onActivate(Actor target, int param, int param2, string eid, int slot, i
     endif
 EndFunction
 
-; v0.2.9: Cum-type menu id → SexLab's AddCumFx / RemoveCumFx int enum.
-; (Vaginal = 0, Oral = 1, Anal = 2 — matches pre-refactor positional ints.)
-; Returns -2 on unknown id so callers can detect and bail; "all" is handled
-; separately in cum.remove via the -1 sentinel.
-int Function _cumTypeFromId(string id)
-    if id == "vaginal"
-        return 0
-    elseif id == "oral"
-        return 1
-    elseif id == "anal"
-        return 2
+; ── scene.partner name match ────────────────────────────────────────────────
+; Returns true if any scene actor other than `self` has a display name equal to
+; one of the comma-separated names in `csv`. Papyrus string == is case-
+; insensitive, so "lydia" matches "Lydia". Each CSV token is trimmed so
+; "General Tullius, Lydia" works.
+bool Function _matchPartnerName(string csv, Actor[] roster, Actor selfActor)
+    if csv == "" || roster == None
+        return false
     endif
-    return -2
+    string[] names = StringUtil.Split(csv, ",")
+    if names.Length < 1
+        return false
+    endif
+    int i = 0
+    while i < roster.Length
+        Actor a = roster[i]
+        if a != None && a != selfActor
+            string dn = a.GetDisplayName()
+            int j = 0
+            while j < names.Length
+                string want = _trim(names[j])
+                if want != "" && want == dn
+                    return true
+                endif
+                j += 1
+            endwhile
+        endif
+        i += 1
+    endwhile
+    return false
+EndFunction
+
+; Strips leading/trailing spaces. StringUtil.Substring's len arg must be > 0
+; here (guarded by last >= start) to dodge PapyrusUtil's "len == 0 means
+; to-end-of-string" quirk.
+string Function _trim(string s)
+    int n = StringUtil.GetLength(s)
+    if n <= 0
+        return ""
+    endif
+    int start = 0
+    while start < n && StringUtil.GetNthChar(s, start) == " "
+        start += 1
+    endwhile
+    int last = n - 1
+    while last >= start && StringUtil.GetNthChar(s, last) == " "
+        last -= 1
+    endwhile
+    if last < start
+        return ""
+    endif
+    return StringUtil.Substring(s, start, last - start + 1)
 EndFunction

@@ -9,47 +9,13 @@
       "description": "Triggers while the actor is engaged in an intimate scene."
     },
     {
-      "id": "cum.total",
-      "label": "Cum (Total Layers)",
-      "description": "Triggers when the actor has at least {param1} cum stain(s) on her body.",
+      "id": "scene.partner",
+      "label": "Scene Partner (by name)",
+      "description": "Triggers during a SexLab scene that includes an actor whose name matches one in this comma-separated list (e.g. Lydia,Serana).",
       "param": {
-        "label": "Min layers",
-        "min": 0,
-        "max": 30,
-        "default": 1
-      }
-    },
-    {
-      "id": "cum.vaginal",
-      "label": "Cum (Vaginal)",
-      "description": "Triggers when the actor has at least {param1} vaginal cum stain(s).",
-      "param": {
-        "label": "Min layers",
-        "min": 0,
-        "max": 30,
-        "default": 1
-      }
-    },
-    {
-      "id": "cum.oral",
-      "label": "Cum (Oral)",
-      "description": "Triggers when the actor has at least {param1} oral cum stain(s).",
-      "param": {
-        "label": "Min layers",
-        "min": 0,
-        "max": 30,
-        "default": 1
-      }
-    },
-    {
-      "id": "cum.anal",
-      "label": "Cum (Anal)",
-      "description": "Triggers when the actor has at least {param1} anal cum stain(s).",
-      "param": {
-        "label": "Min layers",
-        "min": 0,
-        "max": 30,
-        "default": 1
+        "label": "Partner name(s)",
+        "text": true,
+        "default": ""
       }
     },
     {
@@ -95,72 +61,9 @@
         "max": 500,
         "default": 0
       }
-    },
-    {
-      "id": "has.strapon",
-      "label": "Has Strapon",
-      "description": "Triggers when the actor has a strapon equipped."
     }
   ],
   "effects": [
-    {
-      "id": "cum.apply",
-      "label": "Apply Cum",
-      "description": "Burst — splatters {param2} {param1} cum stain(s) on the actor.",
-      "kind": "burst",
-      "param2": {
-        "label": "Layer count",
-        "min": 1,
-        "max": 5,
-        "default": 1
-      },
-      "param1": {
-        "label": "Cum type",
-        "default": "vaginal",
-        "menu": [
-          {
-            "label": "Vaginal",
-            "id": "vaginal"
-          },
-          {
-            "label": "Oral",
-            "id": "oral"
-          },
-          {
-            "label": "Anal",
-            "id": "anal"
-          }
-        ]
-      }
-    },
-    {
-      "id": "cum.remove",
-      "label": "Remove Cum",
-      "description": "Burst — wipes off {param1} cum stains from the actor.",
-      "kind": "burst",
-      "param1": {
-        "label": "Cum type to remove",
-        "default": "all",
-        "menu": [
-          {
-            "label": "All",
-            "id": "all"
-          },
-          {
-            "label": "Vaginal",
-            "id": "vaginal"
-          },
-          {
-            "label": "Oral",
-            "id": "oral"
-          },
-          {
-            "label": "Anal",
-            "id": "anal"
-          }
-        ]
-      }
-    },
     {
       "id": "skill.add.xp",
       "label": "Add Skill XP",

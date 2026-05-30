@@ -367,6 +367,17 @@ bool Function GetEffectParamIsText(int idx, int n)
     return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".text", 0) > 0
 EndFunction
 
+; v0.3.2: condition params can also be free-text (mtf.ostim:scene.tag,
+; *:scene.partner). Same "text": true marker as effects. The MCM renders these
+; as an AddInputOptionST row and stores via SetCondParamStr / SetCondParamStrAt.
+bool Function GetConditionParamIsText(int idx)
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".conditions[" + idx + "].param.text", 0) > 0
+EndFunction
+
+bool Function GetConditionParam2IsText(int idx)
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".conditions[" + idx + "].param2.text", 0) > 0
+EndFunction
+
 string Function GetEffectParamMenuOptionId(int idx, int n, int optionIdx)
 {The stable id stored on the slot when option `optionIdx` is picked.
  Reorder-safe. v0.2.9 schema 2.}

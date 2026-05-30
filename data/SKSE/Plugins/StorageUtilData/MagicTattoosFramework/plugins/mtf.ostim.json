@@ -88,9 +88,24 @@
       }
     },
     {
-      "id": "has.schlong",
-      "label": "Has Schlong",
-      "description": "Triggers when the actor has male genitals equipped."
+      "id": "scene.action",
+      "label": "Scene Action (act type)",
+      "description": "Triggers while the actor is performing or receiving the typed OStim action (e.g. vaginalsex, analsex, blowjob, cunnilingus, handjob, footjob). Exact action types depend on your installed animation packs.",
+      "param": {
+        "label": "Action type",
+        "text": true,
+        "default": ""
+      }
+    },
+    {
+      "id": "scene.partner",
+      "label": "Scene Partner (by name)",
+      "description": "Triggers during an OStim scene that includes an actor whose name matches one in this comma-separated list (e.g. General Tullius,Lydia).",
+      "param": {
+        "label": "Partner name(s)",
+        "text": true,
+        "default": ""
+      }
     }
   ],
   "effects": [
