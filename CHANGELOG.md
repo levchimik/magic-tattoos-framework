@@ -4,9 +4,9 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
-## [v0.3.0-RC1] — 2026-05-29
+## [v0.3.0] — 2026-05-29
 
-First release candidate for v0.3.0. Rolls up 21 commits since v0.2.8,
+Rolls up 21 commits since v0.2.8,
 including two on-disk schema bumps (menu-param **string ids, catalog
 schema v2**; **preset schema 9**), a reworked emissive/sheen render path,
 the dispatch-context race fix, the form-string persistence fix, a
@@ -103,4 +103,4 @@ first-time setup.
 - Visual stress runner (End key) — 4 stacked tattoos × N NPCs.
 - N-fiber concurrency stress runner (PgDn) with a UIListMenu picker.
 
-[v0.3.0-RC1]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
+[v0.3.0]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
