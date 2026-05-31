@@ -1,8 +1,8 @@
-# MTF Content Pack Builder (web)
+# MTF Tattoo Adapter Tool (web)
 
-A single-page, pure-browser tool that converts a Skyrim texture mod
+A single-page, pure-browser tool that converts a Skyrim overlay mod
 archive into a [Magic Tattoos Framework](https://github.com/levchimik/magic-tattoos-framework)-ready
-content pack ZIP.
+adapter ZIP (a thin pointer pack — the textures stay in the source mod).
 
 **Live:** https://levchimik.github.io/magic-tattoos-framework/
 
@@ -59,10 +59,10 @@ It's a single static page with one dependency vendored under
 
 ```bash
 # Just open the file:
-firefox tools/web-pack-builder/index.html
+firefox tools/tattoo-adapter-tool/index.html
 
 # Or serve over HTTP (avoids file:// drag-drop weirdness on some browsers):
-cd tools/web-pack-builder
+cd tools/tattoo-adapter-tool
 python -m http.server 8000
 # → http://localhost:8000/
 ```
@@ -70,7 +70,7 @@ python -m http.server 8000
 ## Layout
 
 ```
-tools/web-pack-builder/
+tools/tattoo-adapter-tool/
 ├── index.html                       ← page shell + form + drop zone
 ├── app.js                           ← ES module: archive read, catalog build,
 │                                     output ZIP compose
@@ -100,13 +100,13 @@ within ~1 minute of `git push`.
 JSZip 3.10.1:
 ```bash
 curl -sL https://cdn.jsdelivr.net/npm/jszip@<NEW>/dist/jszip.min.js \
-    -o tools/web-pack-builder/vendor/jszip.min.js
+    -o tools/tattoo-adapter-tool/vendor/jszip.min.js
 ```
 
 libarchive.js 2.0.2 — all four files together:
 ```bash
 V=<NEW>
-D=tools/web-pack-builder/vendor/libarchive
+D=tools/tattoo-adapter-tool/vendor/libarchive
 curl -sL "https://cdn.jsdelivr.net/npm/libarchive.js@${V}/dist/libarchive.js"       -o "$D/libarchive.js"
 curl -sL "https://cdn.jsdelivr.net/npm/libarchive.js@${V}/dist/worker-bundle.js"    -o "$D/worker-bundle.js"
 curl -sL "https://cdn.jsdelivr.net/npm/libarchive.js@${V}/dist/libarchive.wasm"     -o "$D/libarchive.wasm"

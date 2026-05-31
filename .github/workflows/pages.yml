@@ -1,4 +1,4 @@
-# Deploy tools/web-pack-builder/ to GitHub Pages.
+# Deploy tools/tattoo-adapter-tool/ to GitHub Pages.
 #
 # Live URL: https://levchimik.github.io/magic-tattoos-framework/
 #
@@ -8,13 +8,13 @@
 #
 # Concurrency guards against overlapping deploys clobbering each other.
 
-name: Deploy web pack builder to Pages
+name: Deploy tattoo adapter tool to Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - 'tools/web-pack-builder/**'
+      - 'tools/tattoo-adapter-tool/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -43,10 +43,10 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload artifact (tools/web-pack-builder)
+      - name: Upload artifact (tools/tattoo-adapter-tool)
         uses: actions/upload-pages-artifact@v3
         with:
-          path: tools/web-pack-builder
+          path: tools/tattoo-adapter-tool
 
       - name: Deploy to GitHub Pages
         id: deployment

@@ -1,4 +1,4 @@
-/* MTF Content Pack Builder — pure-browser archive→catalog converter.
+/* MTF Tattoo Adapter Tool — pure-browser archive→catalog converter.
  *
  * Pipeline:
  *   1. User picks/drops a Skyrim mod archive (zip, 7z, rar, tar, ...)

@@ -205,7 +205,7 @@ A **texture pack adapter** is a JSON catalog that points MTF at
 overlay textures from another mod (RaceMenu overlays, SlaveTats packs,
 nail / face overlays). No ESP, no plugin slot, no scripting.
 
-**Quick path — [Web Pack Builder][packbuilder]** (recommended for
+**Quick path — [Tattoo Adapter Tool][packbuilder]** (recommended for
 single-layer packs): drop a Skyrim mod archive (`.zip` / `.7z` / `.rar`
 / `.tar`), fill in three fields, get back an MO2-ready ZIP with the
 catalog wired up. 100% client-side, no upload. Best for Community
