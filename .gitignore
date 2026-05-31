@@ -1,6 +1,7 @@
 # Editor / backup / scratch
 *.bak
 *.bak-*
+*.bak.*
 *.bak2
 *.broken-stub.bak
 *.tmp
@@ -38,3 +39,8 @@ content-packs/obi-tattoos/
 # Internal-only docs (roadmaps, idea logs, draft Nexus copy, dev playbooks).
 # Kept locally for reference but not part of the public mod surface.
 docs/internal/
+
+# Local scratch dumps & perf/research notes (ad-hoc, not part of the mod).
+_research/
+_acts.txt
+_ml.txt
