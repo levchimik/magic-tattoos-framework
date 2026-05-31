@@ -285,7 +285,7 @@ MTF_VERSION=v0.3.0 bash tools/fomod/build_fomod.sh
 This is the full release pipeline: it rebuilds the ESPs **and** the
 MTFPulse.dll, stages every component, runs the `release_check.sh`
 pre-ship gate (aborts before archiving on any shipping defect), and
-writes `_build/MagicTattoosFramework-FOMOD-<version>.7z`. Bundles base
+writes `_build/MagicTattoosFramework-<version>.7z`. Bundles base
 MTF + all 7 integration plugins + texture pack adapters + the SkyrimNet
 prompt template + optional extras (NPC overlays helper, test pack). See
 [`tools/fomod/README.md`](tools/fomod/README.md) for the layout and how

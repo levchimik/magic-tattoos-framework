@@ -11,7 +11,7 @@ optional extra.
 bash tools/fomod/build_fomod.sh
 ```
 
-Output: `_build/MagicTattoosFramework-FOMOD-<version>.7z` (+ a `_build/fomod-stage/`
+Output: `_build/MagicTattoosFramework-<version>.7z` (+ a `_build/fomod-stage/`
 folder you can drag into MO2's "Install from folder" if you want to test
 without re-zipping).
 
@@ -28,7 +28,7 @@ The build runs as a full release pipeline:
    against forced debug mode, leftover debug scaffolding, test artifacts
    in the Required base step, stale `.pex`, catalog drift, and version
    mislabels.
-5. Archive to `_build/MagicTattoosFramework-FOMOD-<version>.7z`.
+5. Archive to `_build/MagicTattoosFramework-<version>.7z`.
 
 Version comes from the latest commit subject (e.g. `v0.3.0`), or `MTF_VERSION` env override:
 
@@ -146,7 +146,7 @@ the `sed` line patches them before xmllint loads the schema.
 ## Testing the installer
 
 1. `bash tools/fomod/build_fomod.sh`
-2. In MO2: **+ → Install a new mod from an archive**, point at `_build/MagicTattoosFramework-FOMOD-vX.Y.Z.7z`.
+2. In MO2: **+ → Install a new mod from an archive**, point at `_build/MagicTattoosFramework-vX.Y.Z.7z`.
 3. Step through the installer pages, verify:
    - Integrations whose master is active are pre-ticked
    - Integrations whose master is missing are unticked but still installable

@@ -353,7 +353,7 @@ echo
 # -----------------------------------------------------------------------------
 # Archive
 # -----------------------------------------------------------------------------
-ARCHIVE_BASE="MagicTattoosFramework-FOMOD-$VERSION"
+ARCHIVE_BASE="MagicTattoosFramework-$VERSION"
 rm -f "$DIST/$ARCHIVE_BASE.7z" "$DIST/$ARCHIVE_BASE.zip"
 
 # Locate 7z: try PATH first, then standard Windows install path.
