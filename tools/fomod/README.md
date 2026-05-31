@@ -1,7 +1,7 @@
 # MTF FOMOD installer
 
 Generates a Nexus-ready FOMOD archive that bundles base MTF (which now
-ships the `bPlayerOnly=0` skee64.ini override by default), all integration
+ships the `bPlayerOnly=0` skee64_custom.ini override by default), all integration
 plugins, the JSON-only texture pack adapters, and the test pack as an
 optional extra.
 
@@ -50,7 +50,7 @@ tools/fomod/
 │   ├── info.xml            ← FOMOD metadata; @MTF_VERSION@ substituted at build
 │   └── ModuleConfig.xml    ← FOMOD installer logic (validated against ModConfig5.0.xsd)
 ├── static/
-│   ├── 00_base/            ← skee64.ini override (bPlayerOnly=0); layered into 00_base stage
+│   ├── 00_base/            ← skee64_custom.ini override (bPlayerOnly=0); layered into 00_base stage
 │   └── _diagnostics/       ← loose-file probe marker (installed by <conditionalFileInstalls>)
 └── images/                 ← optional header / per-option images (auto-copied if present)
 ```
@@ -63,7 +63,7 @@ All ESPs below come from `_build/esps/*.esp` (deserialized from
 
 | Folder in stage | Source in repo | Always installed? |
 |---|---|---|
-| `00_base/` | `MagicTattoosFramework.esp` + base `*.pex` + `data/SKSE/Plugins/{MagicTattoosFramework.ini,MTFPulse.dll,StorageUtilData/.../waveforms/*.json}` + `tools/fomod/static/00_base/SKSE/Plugins/skee64.ini` (bPlayerOnly=0 override) | Yes (Required) |
+| `00_base/` | `MagicTattoosFramework.esp` + base `*.pex` + `data/SKSE/Plugins/{MagicTattoosFramework.ini,MTFPulse.dll,StorageUtilData/.../waveforms/*.json}` + `tools/fomod/static/00_base/SKSE/Plugins/skee64_custom.ini` (bPlayerOnly=0 override) | Yes (Required) |
 | `10_plugin_fmr/` | `MTF_Plugin_FMR.esp` + `MTF_Plugin_FMR.pex` | Auto-recommend if `Fertility Mode.esm` active |
 | `11_plugin_sla/` | `MTF_Plugin_SLA.esp` + `MTF_Plugin_SLA.pex` | Auto-recommend if `SexLabAroused.esm` active |
 | `12_plugin_sexlab/` | `MTF_Plugin_SexLab.esp` + `.pex` | Auto-recommend if `SexLab.esm` active |
@@ -154,4 +154,4 @@ the `sed` line patches them before xmllint loads the schema.
    - Texture pack adapters with no detectable source mod (Bardle, CommOv1 Face) are unticked
    - Extras are all unticked by default
 4. Confirm the resulting MO2 mod folder contains only the files you ticked,
-   and that `SKSE/Plugins/skee64.ini` is present in the base install.
+   and that `SKSE/Plugins/skee64_custom.ini` is present in the base install.

@@ -4,6 +4,22 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
+## [v0.3.6] — 2026-05-31
+
+A packaging fix. No script, schema, or save changes; drop-in over v0.3.5.
+
+### Changed
+
+- **NPC-overlay override now ships as `skee64_custom.ini`.** The base FOMOD
+  previously bundled a full copy of RaceMenu's `skee64.ini` just to flip
+  `[Overlays] bPlayerOnly=0` (the key that lets MTF apply tattoos to tracked
+  NPCs, not only the player). That copy created a loose-file conflict with
+  RaceMenu's own ini — it had to load *after* RaceMenu or NPC tattoos
+  silently broke, and it overwrote any user customizations in the file. MTF
+  now ships a minimal `skee64_custom.ini` (RaceMenu's official per-section
+  override mechanism) that changes only the one key, conflicts with nothing,
+  and is load-order independent. The in-game effect is identical.
+
 ## [v0.3.5] — 2026-05-31
 
 A visual-polish release for the cross-fade render path. No schema or save

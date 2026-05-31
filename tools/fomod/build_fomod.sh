@@ -208,11 +208,12 @@ cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/waveforms/"*.json \
 cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.base.json" \
    "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/"
 
-# skee64.ini override (bPlayerOnly=0). Shipped by default so MTF can apply
-# overlays to tracked NPCs out of the box. MO2 must load the MTF mod folder
-# AFTER RaceMenu so this file wins the loose-file conflict against SKEE's
-# stock ini.
-cp "$STATIC/00_base/SKSE/Plugins/skee64.ini" "$BASE/SKSE/Plugins/skee64.ini"
+# skee64_custom.ini override (bPlayerOnly=0). Shipped by default so MTF can
+# apply overlays to tracked NPCs out of the box. SKEE reads skee64.ini then
+# layers skee64_custom.ini on top per-section, so this minimal file flips just
+# the one key and leaves every other RaceMenu setting (and user customization)
+# untouched — no loose-file conflict with RaceMenu's ini, load-order independent.
+cp "$STATIC/00_base/SKSE/Plugins/skee64_custom.ini" "$BASE/SKSE/Plugins/skee64_custom.ini"
 
 echo "  staged 00_base ($(find "$BASE" -type f | wc -l) files)"
 

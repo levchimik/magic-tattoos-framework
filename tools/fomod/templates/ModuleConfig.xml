@@ -31,15 +31,17 @@ Hard requirements (you must have these installed first):
 This installer cannot auto-detect those because FOMOD only checks ESP/ESM
 files, not DLLs. If you don't have them, abort, install them, retry.
 
-Also ships a skee64.ini override that sets [Overlays] bPlayerOnly=0 so MTF
-can apply overlays to tracked NPCs. NiOverride only pre-allocates overlay
+Also ships a skee64_custom.ini override that sets [Overlays] bPlayerOnly=0 so
+MTF can apply overlays to tracked NPCs. NiOverride only pre-allocates overlay
 slots on the player by default; flipping this allocates them on every
 humanoid actor. RAM use grows roughly proportional to the active NPC
 population — RaceMenu's stock ini warns "NOT RECOMMENDED" for this reason,
 but every NPC-tattoo mod (SlaveTats, etc.) requires it.
 
-IMPORTANT MO2 ORDERING: place this mod AFTER "RaceMenu Anniversary Edition"
-in the left pane so MTF's skee64.ini wins the loose-file conflict.]]></description>
+This uses RaceMenu's own skee64_custom.ini override mechanism: SKEE reads
+skee64.ini, then layers skee64_custom.ini on top per-section. It changes only
+this one key and does NOT conflict with or overwrite RaceMenu's ini, so load
+order relative to RaceMenu does not matter for it.]]></description>
               <files>
                 <folder source="00_base" destination="" priority="0"/>
               </files>
