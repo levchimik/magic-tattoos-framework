@@ -377,7 +377,7 @@ bidirectional bridge in v0.1.19. SkyrimNet LLM integration in v0.1.20.
 <!-- Reference-style link definitions -->
 
 [nexus]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
-[packbuilder]: https://levchimik.github.io/magic-tattoos-framework/
+[packbuilder]: https://levchimik.github.io/magic-tattoos-framework/tools/tattoo-adapter-tool/
 
 [skse]: https://skse.silverlock.org/
 [addrlib]: https://www.nexusmods.com/skyrimspecialedition/mods/32444

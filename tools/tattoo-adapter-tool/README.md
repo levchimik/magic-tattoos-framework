@@ -4,7 +4,7 @@ A single-page, pure-browser tool that converts a Skyrim overlay mod
 archive into a [Magic Tattoos Framework](https://github.com/levchimik/magic-tattoos-framework)-ready
 adapter ZIP (a thin pointer pack — the textures stay in the source mod).
 
-**Live:** https://levchimik.github.io/magic-tattoos-framework/
+**Live:** https://levchimik.github.io/magic-tattoos-framework/tools/tattoo-adapter-tool/
 
 ## What it does
 
@@ -92,7 +92,7 @@ worker resolves `libarchive.wasm` relative to its own URL, and
 
 GitHub Pages auto-deploys this directory on every push to `main` via
 [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml).
-Local edits land at https://levchimik.github.io/magic-tattoos-framework/
+Local edits land at https://levchimik.github.io/magic-tattoos-framework/tools/tattoo-adapter-tool/
 within ~1 minute of `git push`.
 
 ## Updating vendored dependencies

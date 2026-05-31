@@ -1,6 +1,6 @@
 # Deploy tools/tattoo-adapter-tool/ to GitHub Pages.
 #
-# Live URL: https://levchimik.github.io/magic-tattoos-framework/
+# Live URL: https://levchimik.github.io/magic-tattoos-framework/tools/tattoo-adapter-tool/
 #
 # Triggered on:
 #   - push to main, if the web tool or this workflow itself changed
