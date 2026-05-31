@@ -17,6 +17,10 @@ adapter ZIP (a thin pointer pack — the textures stay in the source mod).
 3. The tool lists every `.dds` under `textures/` (auto-detecting
    `Data/textures/…` and arbitrary wrapper directories like
    `ZAO Pack/Data/Textures/…`), generates an MTF catalog JSON.
+   Textures sealed inside a bundled `.bsa` (Bethesda Archive) are read
+   too — the tool parses the BSA's internal name table directly (only
+   the few-KB index at the front of the file, never the texture data),
+   so BSA-packed mods like Community Overlays 1–3 work out of the box.
 4. You click download and get a thin **ZIP** containing just one file:
    ```
    SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/<packid>.json
@@ -39,6 +43,12 @@ upload, no telemetry.
 
 - **No preview.** Browsers can't render `.dds` natively; the tool
   doesn't try. Test in-game.
+- **No Fallout 4 `.ba2`.** Only Bethesda `.bsa` (versions 104 / 105) are
+  parsed. A `.ba2` (magic `BTDX`) is reported as unsupported rather than
+  mis-parsed — extract its `textures/` folder and re-zip by hand.
+- **No pretty labels for BSA packs.** BSA-packed mods usually register
+  via a compiled `.pex` (not a readable `.psc`), so entry labels fall
+  back to filename stems. Edit the JSON afterward.
 - **No auto-pair for multi-layer packs.** Packs like LewdMarks ship a
   base directory + a parallel `-glow/` directory; the tool emits one
   entry per DDS. Open the generated JSON and merge layers manually
@@ -74,6 +84,8 @@ tools/tattoo-adapter-tool/
 ├── index.html                       ← page shell + form + drop zone
 ├── app.js                           ← ES module: archive read, catalog build,
 │                                     output ZIP compose
+├── bsa.js                           ← ES module: pure-JS Bethesda Archive
+│                                     (.bsa) name-table reader (no WASM)
 ├── style.css                        ← dark UI, minimal
 ├── vendor/
 │   ├── jszip.min.js                 ← JSZip 3.10.1 (output ZIP writer)

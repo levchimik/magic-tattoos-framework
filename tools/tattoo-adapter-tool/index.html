@@ -73,7 +73,8 @@
                     <p class="drop-hint">
                         Expected layout: <code>textures/&hellip;/*.dds</code> at the root
                         (the same shape as any Nexus download).
-                        <code>Data/textures/&hellip;</code> also works.
+                        <code>Data/textures/&hellip;</code> also works, and textures
+                        sealed inside a bundled <code>.bsa</code> are read automatically.
                         Output is always <code>.zip</code>.
                     </p>
                 </div>
@@ -149,6 +150,17 @@
                     the script; respecting the .psc avoids surfacing those. If you
                     want every <code>.dds</code> regardless, pre-extract the archive
                     and remove the <code>.psc</code> before re-zipping.
+                </p>
+                <p>
+                    <strong>BSA-packed mods.</strong> A lot of overlay mods ship their
+                    textures inside a Bethesda Archive (<code>.bsa</code>) instead of as
+                    loose files (Community Overlays 1&ndash;3, for example). The tool reads
+                    the <code>.bsa</code>'s internal name table directly &mdash; only the
+                    few-KB index at the front of the file, never the texture data &mdash;
+                    so dropping the original Nexus archive just works. Entry labels fall
+                    back to filename stems for these (the registration script is usually a
+                    compiled <code>.pex</code>, not a readable <code>.psc</code>), so you
+                    may want to prettify <code>label</code> fields afterward.
                 </p>
                 <p>
                     <strong>Privacy.</strong> Everything happens in your browser.

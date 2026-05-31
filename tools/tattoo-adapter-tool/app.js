@@ -28,6 +28,7 @@
  */
 
 import { Archive } from './vendor/libarchive/libarchive.js';
+import { readBsaPaths } from './bsa.js';
 
 // ─── DOM refs ───────────────────────────────────────────────────────────
 const els = {
@@ -151,6 +152,12 @@ function deriveDefaults(filename) {
     // Strip recognized archive extensions (handle compound .tar.gz first).
     let stem = filename.replace(/\.(tar\.gz|tar\.xz|tar\.bz2)$/i, '');
     stem = stem.replace(/\.(zip|7z|rar|tar|tgz|iso)$/i, '');
+
+    // Strip a leading Nexus FOMOD category marker like "(4) " — these prefix
+    // many overlay downloads (e.g. "(4) Community Overlays 3 - Main - …") and
+    // would otherwise collapse the label to "(" because the digit-cut below
+    // hits the marker's number immediately.
+    stem = stem.replace(/^\s*\(\d+\)\s*/, '');
 
     // Take everything before the first digit. If the filename starts with
     // a digit, fall back to the whole stem.
@@ -451,6 +458,31 @@ async function handleArchive(file) {
         pscParsed = { paths: pscPaths, count: labels.size };
     }
 
+    // ── BSA expansion ───────────────────────────────────────────────────
+    // Many overlay mods ship their .dds sealed inside a Bethesda Archive
+    // (.bsa) rather than as loose files. libarchive lists the .bsa as a
+    // single opaque entry, so the .dds inside would be invisible to
+    // detectTexturesRoot(). We extract each .bsa, read ONLY its internal
+    // name table (a few KB at the front — never the texture data), and
+    // splice those virtual paths into allPaths so the rest of the pipeline
+    // treats them exactly like loose files. Slashes are normalized to '/'
+    // to match libarchive's path convention; toSkyrimPath() flips them back
+    // for the catalog.
+    const bsaEntries = entries.filter(e => (e.path + e.file.name).toLowerCase().endsWith('.bsa'));
+    let bsaInfo = []; // [{ name, count, warning? }]
+    for (const be of bsaEntries) {
+        const bsaPath = be.path + be.file.name;
+        try {
+            const bsaFile = await archive.extractSingleFile(bsaPath);
+            const { paths, warning } = await readBsaPaths(bsaFile);
+            for (const ip of paths) allPaths.push(ip.replace(/\\/g, '/'));
+            bsaInfo.push({ name: bsaPath, count: paths.length, warning });
+        } catch (err) {
+            console.warn(`Failed to read BSA ${bsaPath}:`, err);
+            bsaInfo.push({ name: bsaPath, count: 0, warning: 'error', error: String(err && err.message || err) });
+        }
+    }
+
     // Close the archive worker — we have all the metadata + .psc text we need.
     try { await archive.close(); } catch (e) { /* best-effort */ }
 
@@ -458,12 +490,25 @@ async function handleArchive(file) {
     if (!root) {
         els.dropMeta.innerHTML =
             `<strong>${escapeHtml(file.name)}</strong> (${formatBytes(file.size)})`;
-        showSummary(
-            `<strong>No <code>textures/</code> root found.</strong> ` +
-            `The archive needs to look like a Skyrim mod download &mdash; with ` +
-            `<code>textures/&hellip;/*.dds</code> at the root (or <code>Data/textures/&hellip;</code> ` +
-            `or under a single wrapper directory like <code>MyMod/Data/Textures/&hellip;</code>).`
-        );
+        // If a .bsa was present but yielded no usable names, say so —
+        // otherwise the generic "looks like a mod download" message is
+        // misleading (the textures ARE there, just unreadable).
+        const badBsa = state_bsaTrouble(bsaInfo);
+        if (badBsa) {
+            showSummary(
+                `<strong>Couldn't read the bundled <code>.bsa</code>.</strong> ${badBsa} ` +
+                `If it's a Fallout 4 <code>.ba2</code> or a non-standard archive, extract the ` +
+                `<code>textures/</code> folder yourself and re-zip it.`
+            );
+        } else {
+            showSummary(
+                `<strong>No <code>textures/</code> root found.</strong> ` +
+                `The archive needs to look like a Skyrim mod download &mdash; with ` +
+                `<code>textures/&hellip;/*.dds</code> at the root (or <code>Data/textures/&hellip;</code> ` +
+                `or under a single wrapper directory like <code>MyMod/Data/Textures/&hellip;</code>). ` +
+                `Textures inside a <code>.bsa</code> are read automatically.`
+            );
+        }
         return;
     }
 
@@ -501,6 +546,7 @@ async function handleArchive(file) {
         extraneousDDS:  extraneousDDS,
         labels:         labels,
         pscParsed:      pscParsed,
+        bsaInfo:        bsaInfo,
         // Filled by rebuildCatalog: one entry per non-empty area group.
         catalogs:       null,
     };
@@ -620,6 +666,25 @@ function rebuildCatalog() {
     addStatus('ok',
         `Texture root detected: <code>${escapeHtml(state.root)}</code>.`
     );
+
+    // BSA-sourcing report — note when textures came from inside a .bsa.
+    if (state.bsaInfo && state.bsaInfo.length > 0) {
+        for (const b of state.bsaInfo) {
+            if (b.count > 0) {
+                addStatus('ok',
+                    `Read <strong>${b.count}</strong> path${b.count === 1 ? '' : 's'} from ` +
+                    `the bundled archive <code>${escapeHtml(b.name)}</code> ` +
+                    `(name table only &mdash; texture data not extracted).`
+                );
+            } else {
+                addStatus('warn',
+                    `Bundled <code>${escapeHtml(b.name)}</code> yielded no paths` +
+                    `${b.warning === 'no-filenames' ? ' (no embedded file-name table)' :
+                       b.warning === 'error' ? ' (extract/parse failed)' : ''}.`
+                );
+            }
+        }
+    }
 
     // Per-catalog summary rows — one per output JSON.
     for (const cat of catalogs) {
@@ -746,6 +811,24 @@ els.downloadBtn.addEventListener('click', async () => {
 });
 
 // ─── Tiny helpers ───────────────────────────────────────────────────────
+
+/**
+ * Summarize BSA-read trouble for the failure path. Returns a human string
+ * if every .bsa present failed to yield names, else null (some/none present
+ * but not the cause of an empty result).
+ */
+function state_bsaTrouble(bsaInfo) {
+    if (!bsaInfo || bsaInfo.length === 0) return null;
+    const produced = bsaInfo.some(b => b.count > 0);
+    if (produced) return null; // .bsa parsed fine; emptiness is some other issue
+    const names = bsaInfo.map(b => `<code>${escapeHtml(b.name)}</code>`).join(', ');
+    const reason = bsaInfo.some(b => b.warning === 'no-filenames')
+        ? 'It has no embedded file-name table.'
+        : bsaInfo.some(b => b.warning === 'error')
+            ? 'It failed to extract or parse.'
+            : 'It produced no texture paths.';
+    return `${names}: ${reason}`;
+}
 
 function formatBytes(n) {
     if (n < 1024) return `${n} B`;
