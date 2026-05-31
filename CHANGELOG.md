@@ -4,6 +4,43 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
+## [v0.3.5] — 2026-05-31
+
+A visual-polish release for the cross-fade render path. No schema or save
+changes; drop-in over v0.3.4.
+
+### Fixed
+
+- **Same-texture tier-swap flash.** Switching between two tiers that share
+  the same overlay texture no longer flashes dark for a frame. The swap
+  used to re-run `drawOverlay → ApplyNodeOverrides`, which re-derives the
+  live shader from the override store; glossiness/specular aren't stored
+  there, so they reset to mesh defaults for one frame. MTF now skips the
+  redraw entirely when the texture is unchanged — the C++ pulse Tick
+  already owns em_mult / alpha / tint / emissive, so only the pulse cache
+  is resynced.
+- **Black blink when a tattoo first appears.** Going from no tattoo to a
+  tattoo (e.g. a condition turning on) no longer blinks black on the first
+  painted frame. Glossiness and specular strength are now written into the
+  override store keyed off alpha, so the `ApplyNodeOverrides` frame paints
+  with sheen instead of mesh-default flat black.
+- **Fresh tattoos fade in.** A newly-appearing tattoo now cross-fades from
+  alpha/emissive 0 instead of popping in at full strength, matching the
+  fade already used on tier changes.
+- **Faster post-load reappearance.** After loading a save the tattoo
+  redraws via an early batched draw, and the post-load freeze window was
+  trimmed (5s → 3s, snapping the repopulation), cutting the visible delay
+  from ~5s toward the SKEE async override-store restore floor (~1–3s).
+
+### Changed
+
+- **Pulse survives `tfc` (free camera).** The per-frame pulse Tick moved
+  off the player-actor update hook — which `tfc` suspends — onto a main
+  game-loop call-site hook (the canonical per-frame hook used by e.g. True
+  Directional Movement). Glow/pulse and live tier color changes now keep
+  running in free camera. A full game-pausing menu still halts the loop;
+  its own 3D rebuild repaints on close.
+
 ## [v0.3.4] — 2026-05-30
 
 ### Added
