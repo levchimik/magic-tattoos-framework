@@ -389,6 +389,11 @@ float _nextSlowRT = 0.0
 int   _pulseTier = -1
 int   _pulseLayerN = 0
 bool  _pulseIsFemale = false
+; v0.3.7 multi-area MCM-base: the active tier's pack can live in any area
+; (Body/Face/Hands/Feet). Cached by _resyncPulseCache so _applyPulse installs
+; the roster entry at the matching <Area>OverlaySlot / area index instead of
+; the old hardcoded Body slot.
+string _pulseArea = "Body"
 
 ; Per-preset fade-on-death config (v0.1.4). Edited via the MCM Preset
 ; Editor, persisted into the .fadeondeath block of the active preset
@@ -2121,8 +2126,16 @@ Function _resyncPulseCache(int tier)
     if packId == "" || packId == "<none>" || entryId == ""
         return
     endif
+    ; v0.3.7: the active tier's pack determines BOTH the texture and which
+    ; area it paints into. Cache that area so _applyPulse installs the C++
+    ; roster entry at the right <Area>OverlaySlot — the old code hardcoded
+    ; Body, so Face/Hands/Feet MCM-base overlays never got a roster entry,
+    ; their alpha/emissive were never driven, and they rendered invisible
+    ; (or black when alpha was forced up, since the em=0 floor lives in the
+    ; C++ Tick that never ran for them). Area cap must match too.
+    string area = GetPackArea(packId)
     int layerN = GetEntryLayerCount(packId, entryId)
-    int max = _maxLayerSlots()
+    int max = _maxLayerSlots(area)
     if layerN > max
         layerN = max
     endif
@@ -2134,6 +2147,7 @@ Function _resyncPulseCache(int tier)
         return
     endif
     _pulseIsFemale = PlayerRef.GetLeveledActorBase().GetSex() as bool
+    _pulseArea = area
     _pulseLayerN = layerN
     _pulseTier = tier
     if DebugMode && _sFadeOnDeathEnabled
@@ -2178,17 +2192,17 @@ Function _applyPulse(float forcedTDur = -1.0)
  If the MTFPulse plugin isn't loaded, the natives log a Papyrus warning
  once and the visual is just "no pulse" — graceful degradation.}
     if PlayerRef != None && PlayerRef.IsDead()
-        ; v0.1.17 Phase 3 (multi-area): player MCM-base pulse cache is
-        ; body-only — pass area=0 (kAreaBody).
-        MTFPulse.ClearActorAt(PlayerRef, OverlaySlot, 0)
+        ; v0.3.7: clear the MCM-base entry in EVERY area (was body-only).
+        _clearBaseAreaEntries()
         _pulseTier = -1
         return
     endif
     if _pulseTier < 0 || _pulseLayerN <= 0 || PlayerRef == None
-        ; Drop just the base-layer pulse entry. Stacked presets sit at
-        ; their own base_slots and must keep pulsing — only kill ours
-        ; (the MCM-driven OverlaySlot one).
-        MTFPulse.ClearActorAt(PlayerRef, OverlaySlot, 0)
+        ; Drop just the MCM-base pulse entries (every area). Stacked presets
+        ; sit at their own base_slots above the area base and must keep
+        ; pulsing — _clearBaseAreaEntries only touches <Area>OverlaySlot, so
+        ; preset entries are untouched.
+        _clearBaseAreaEntries()
         return
     endif
 
@@ -2262,27 +2276,59 @@ Function _applyPulse(float forcedTDur = -1.0)
     endif
 
     Float[] lut = _waveformLUTForTier(_pulseTier, false)
-    ; v0.1.17 Phase 3 (multi-area): player MCM-base pulse is body-only —
-    ; pass area=0 (kAreaBody). Face/Hand/Feet MCM-base packs apply
-    ; statically (no pulse on the MCM-driven base path; stacked-preset
-    ; pulse goes through _rosterAddOrUpdate which is multi-area aware).
-    MTFPulse.SetActorPulseWithTransition(PlayerRef, rate, depthPct, pause, \
-                                         _pulseLayerN, _pulseStartRT, emMults, \
-                                         OverlaySlot, _pulseIsFemale, lut, \
-                                         tints, alphas, emissives, tDur, 0)
     if DebugMode && _crossBlendActive
-        Debug.Trace("[MTF xb] _applyPulse sent tier=" + _pulseTier + " layerN=" + _pulseLayerN + " alpha0=" + alphas[0] + " tDur=" + tDur + " phaseA=" + _crossBlendInPhaseA + " endRT=" + _transitionEndRT)
+        Debug.Trace("[MTF xb] _applyPulse sent tier=" + _pulseTier + " area=" + _pulseArea + " layerN=" + _pulseLayerN + " alpha0=" + alphas[0] + " tDur=" + tDur + " phaseA=" + _crossBlendInPhaseA + " endRT=" + _transitionEndRT)
     endif
 
-    ; v0.1.4 per-preset fade: re-arm or clear after the roster entry is
-    ; up. Idempotent on the C++ side — re-issuing the same params each
-    ; tick is a no-op for an already-armed entry; an in-flight fade
-    ; (fade_active=true) isn't disturbed by SetActorFade either.
-    if _sFadeOnDeathEnabled
-        MTFPulse.SetActorFade(PlayerRef, OverlaySlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs, 0)
-    else
-        MTFPulse.ClearActorFade(PlayerRef, OverlaySlot, 0)
+    ; v0.3.7 multi-area MCM-base: install the roster entry at the active tier's
+    ; area (_pulseArea) and CLEAR the other three areas' base entries. Only one
+    ; area is ever lit on the MCM-base path (drawOverlayForActor paints exactly
+    ; the active tier's area, clearing the rest), so this mirrors the draw: one
+    ; install, three clears. Clearing the inactive areas every refresh is what
+    ; tears down the OLD area's entry on an area-switch (e.g. a Body tier giving
+    ; way to a Face tier) — without it the C++ Tick keeps driving the now-empty
+    ; old node. Mirrors _rosterAddOrUpdate's per-area loop. ClearActorAt on a
+    ; non-existent entry is a C++ no-op, so over-clearing inactive areas is fine.
+    string[] parts = _OVERLAY_PARTS()
+    int p = 0
+    while p < parts.Length
+        string area  = parts[p]
+        int areaIdx  = _areaIndex(area)
+        int baseSlot = _areaBaseSlot(area)
+        if area == _pulseArea
+            MTFPulse.SetActorPulseWithTransition(PlayerRef, rate, depthPct, pause, \
+                                                 _pulseLayerN, _pulseStartRT, emMults, \
+                                                 baseSlot, _pulseIsFemale, lut, \
+                                                 tints, alphas, emissives, tDur, areaIdx)
+            ; v0.1.4 per-preset fade: re-arm or clear after the roster entry is
+            ; up. Idempotent on the C++ side; an in-flight fade isn't disturbed.
+            if _sFadeOnDeathEnabled
+                MTFPulse.SetActorFade(PlayerRef, baseSlot, _sFadeOnDeathMode, _sFadeOnDeathDurationMs, areaIdx)
+            else
+                MTFPulse.ClearActorFade(PlayerRef, baseSlot, areaIdx)
+            endif
+        else
+            MTFPulse.ClearActorAt(PlayerRef, baseSlot, areaIdx)
+        endif
+        p += 1
+    endwhile
+EndFunction
+
+Function _clearBaseAreaEntries()
+{Clear the player MCM-base pulse roster entry in EVERY area
+ (Body/Face/Hands/Feet) — each at its <Area>OverlaySlot. Used when the base
+ path goes idle (no active tier, or player dead). Stacked presets live at
+ base_slots ABOVE the area base, so they are untouched. ClearActorAt on a
+ non-existent entry is a C++ no-op.}
+    if PlayerRef == None
+        return
     endif
+    string[] parts = _OVERLAY_PARTS()
+    int p = 0
+    while p < parts.Length
+        MTFPulse.ClearActorAt(PlayerRef, _areaBaseSlot(parts[p]), _areaIndex(parts[p]))
+        p += 1
+    endwhile
 EndFunction
 
 ; Hit-class counters (7 classes: ANY/BLUNT/BLADED/RANGED/FIRE/FROST/SHOCK).
@@ -2322,8 +2368,9 @@ Function DispatchFlashHit(string tag)
     if PlayerRef == None || tag == ""
         return
     endif
-    ; v0.1.17 Phase 3 (multi-area): player MCM-base flash is body-only.
-    MTFPulse.TriggerActorFlash(PlayerRef, OverlaySlot, tag, 0)
+    ; v0.3.7: target the active MCM-base area's entry. If no tier is active
+    ; the entry doesn't exist and TriggerActorFlash is a C++ no-op.
+    MTFPulse.TriggerActorFlash(PlayerRef, _areaBaseSlot(_pulseArea), tag, _areaIndex(_pulseArea))
 EndFunction
 
 int Function GetHitCount(int classIdx)
@@ -2395,7 +2442,8 @@ Function DispatchFlashCast(string tag)
     if PlayerRef == None || tag == ""
         return
     endif
-    MTFPulse.TriggerActorFlash(PlayerRef, OverlaySlot, tag, 0)
+    ; v0.3.7: target the active MCM-base area's entry (was body-only).
+    MTFPulse.TriggerActorFlash(PlayerRef, _areaBaseSlot(_pulseArea), tag, _areaIndex(_pulseArea))
 EndFunction
 
 ; ── Presets (PapyrusUtil JsonUtil, cross-save) ──────────────────────────────
