@@ -10,8 +10,8 @@
   "slot": [
     {
       "cond": {
-        "packid": "mtf.community-overlays-1-face",
-        "entryid": "01"
+        "packid": "mtf.community-overlays-2-face",
+        "entryid": "CO 32 Dalish Face 1 Female"
       },
       "cooldown": {
         "min": 0,
@@ -28,8 +28,8 @@
     },
     {
       "cond": {
-        "packid": "mtf.community-overlays-1-face",
-        "entryid": "20",
+        "packid": "mtf.community-overlays-2-face",
+        "entryid": "CO 33 Dalish Face 2 Female",
         "op": 0,
         "items": [
           {

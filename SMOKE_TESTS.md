@@ -95,7 +95,7 @@ is needed inside the preset's slot conditions. (`scene.composition` with the
 ### D2. Multi-area overlays (Phase 1-3)
 
 Requires content packs enabled in the modlist:
-- `MTF Content - Community Overlays 1 Face` — `mtf.community-overlays-1-face` (`"area": "Face"`)
+- `MTF Content - Community Overlays 2` — `mtf.community-overlays-2-face` (`"area": "Face"`, real alpha-channel face tattoos)
 - `MTF Content - Bardle Nail Polish` — `mtf.bardle-nail-polish` (`"area": "Hand"`)
 
 Tests the v0.1.17 work that lets MTF paint into NiOverride's Face / Hand /

@@ -126,4 +126,4 @@ curl -sL "https://cdn.jsdelivr.net/npm/libarchive.js@${V}/dist/libarchive.wasm" 
 
 Smoke-test by dropping at least one ZIP and one 7z and confirming the
 JSON output matches the existing catalog format (compare against
-`content-packs/community-overlays-1-face/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/mtf.community-overlays-1-face.json`).
+`content-packs/community-overlays-2/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/visuals/mtf.community-overlays-2-face.json`).

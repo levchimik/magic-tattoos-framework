@@ -273,7 +273,6 @@ stage_content() {
 # historical — only the order within ModuleConfig.xml controls the picklist.
 stage_content "23_content_bardle"     "bardle-nail-polish"
 stage_content "27_content_bitchcraft" "bitchcraft"
-stage_content "24_content_co1_face"   "community-overlays-1-face"
 stage_content "29_content_co2"        "community-overlays-2"
 stage_content "28_content_co3"        "community-overlays-3"
 stage_content "20_content_lewdmarks"  "lewdmarks"

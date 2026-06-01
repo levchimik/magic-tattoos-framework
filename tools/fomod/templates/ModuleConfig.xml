@@ -339,27 +339,12 @@ Area: Body.]]></description>
               </typeDescriptor>
             </plugin>
 
-            <plugin name="Community Overlays 1 — Face catalog">
-              <description><![CDATA[JSON catalog for Community Overlays 1 — Female Face Overlays.
-
-REQUIRES: Community Overlays 1 (Face) — install separately.
-
-Area: Face.]]></description>
-              <files>
-                <folder source="24_content_co1_face" destination="" priority="0"/>
-              </files>
-              <typeDescriptor>
-                <type name="Optional"/>
-              </typeDescriptor>
-            </plugin>
-
             <plugin name="Community Overlays 2 catalog">
-              <description><![CDATA[JSON catalogs for Community Overlays 2 — Main (CBBE and Male). Bundles five sub-catalogs covering 226 grounded entries:
+              <description><![CDATA[JSON catalogs for Community Overlays 2 — Main (CBBE and Male). Bundles four sub-catalogs covering 195 grounded entries:
 - mtf.community-overlays-2-body (96 entries) — Body
 - mtf.community-overlays-2-hand (36 entries) — Hands
 - mtf.community-overlays-2-feet (31 entries) — Feet
 - mtf.community-overlays-2-face (32 entries) — Face (FacePaint slots)
-- mtf.community-overlays-2-warpaint (31 entries) — Face (Warpaint slots)
 
 REQUIRES: (4) Community Overlays 2 - Main - CBBE and Male — install separately.
 Auto-recommended if CommunityOverlays2_31T50.esp is active.
@@ -384,12 +369,11 @@ Areas: Body, Hands, Feet, Face.]]></description>
             </plugin>
 
             <plugin name="Community Overlays 3 catalog">
-              <description><![CDATA[JSON catalogs for Community Overlays 3 — Main (CBBE and Male). Bundles five sub-catalogs covering 242 grounded entries:
+              <description><![CDATA[JSON catalogs for Community Overlays 3 — Main (CBBE and Male). Bundles four sub-catalogs covering 193 grounded entries:
 - mtf.community-overlays-3-body (92 entries) — Body
 - mtf.community-overlays-3-hand (30 entries) — Hands
 - mtf.community-overlays-3-feet (22 entries) — Feet
 - mtf.community-overlays-3-face (49 entries) — Face (FacePaint slots)
-- mtf.community-overlays-3-warpaint (49 entries) — Face (Warpaint slots)
 
 REQUIRES: (4) Community Overlays 3 - Main - CBBE and Male — install separately.
 Auto-recommended if CommunityOverlays3.esp is active.

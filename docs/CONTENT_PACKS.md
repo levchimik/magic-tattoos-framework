@@ -76,8 +76,20 @@ The file's top level:
 | `schemaVersion` | int | yes | Current schema version is **3**. MTF rejects unknown versions. |
 | `packId` | string | yes | Globally unique pack id. Convention: `mtf.<short-name>` (e.g. `mtf.lewdmarks-racemenu`). Must match the filename's `mtf.<packid>.json` portion. |
 | `label` | string | yes | Display name shown in MCM's pack picker dropdown. |
-| `area` | string | yes | One of `Body`, `Face`, `Hands`, `Feet`. Determines which NiOverride overlay-slot pool MTF writes to. Mixing areas in one pack is not supported — split into multiple packs. |
+| `area` | string | yes | One of `Body`, `Hands`, `Feet`. (`Face` is **not supported** — see the warning below.) Determines which NiOverride overlay-slot pool MTF writes to. Mixing areas in one pack is not supported — split into multiple packs. |
 | `entries` | array | yes | One element per tattoo / overlay in the pack. |
+
+> ### ⚠️ Face / facepaint / warpaint is NOT supported
+>
+> **MTF cannot drive face paint, war paint, or any `area: "Face"` content. Do not author Face packs.**
+>
+> Two independent engine walls make the face unusable, and we verified both empirically (2026-05-31):
+>
+> 1. **Face overlay textures must be transparent-background alpha masks** (DXT5/BC7 with a real alpha channel), exactly like body overlays. The common "head"/warpaint textures (e.g. Community Overlays 1's `## Head M.dds`) are **opaque DXT1 luminance masks** (white design on solid black, no alpha). Painted onto the NiOverride face overlay node they render as a **solid black face** — and SKEE exposes no blend mode to treat black as transparent.
+>
+> 2. **The vanilla tint-mask path can't be driven either.** Routing those luminance masks through Skyrim's warpaint *tint masks* (`Game.SetNthTintMaskColor` / `SetTintMaskTexturePath` / `UpdateTintMaskColors`) *does* render — but **`UpdateTintMaskColors` only fully re-composites the face from the input-handling phase** (e.g. an `OnKeyDown` keypress). From every automatic context MTF actually runs in — the OnUpdate tick, `RegisterForSingleUpdate`, or a mod-event handler — it re-composites **only when a tint slot's texture pointer changes**. So a tier-driven **color change on the same design is silently ignored**, and there is no way to trigger the input phase from automatic logic. Deferring via a mod-event hop and alternating tint slots were both tried; neither works.
+>
+> **Net:** the only face content that could ever render is alpha-channel overlays, and even then condition-driven recolouring is unreliable. Face is therefore out of scope. Use `Body` / `Hands` / `Feet` with proper alpha textures. All `*-warpaint` content packs (Community Overlays 1/2/3) have been removed for this reason.
 
 ### Per-entry fields
 
@@ -307,7 +319,7 @@ nothing gets pushed or shipped.
 | LewdMarks (SlaveTats) | `content-packs/lewdmarks/` | LewdMarks (SlaveTats variant) | Same 96 entries pointed at SlaveTats paths instead |
 | RX'Overlays | `content-packs/rx-overlays/` | RX'Overlays texture pack | 41 entries, body |
 | Bard's Nail Overlays | `content-packs/bardle-nail-polish/` | Bard's Nail Overlays by BinkBoink | 16 entries, hands |
-| Community Overlays 1 — Face | `content-packs/community-overlays-1-face/` | Community Overlays 1 by DomainWolf | 5 entries, face |
+| Community Overlays 1 — Body | `content-packs/community-overlays-1-body/` | Community Overlays 1 by DomainWolf | 57 entries, body. Descriptions/tags vision-grounded |
 
 Read the actual JSONs under each folder to see real-world examples
 of every schema field in use.

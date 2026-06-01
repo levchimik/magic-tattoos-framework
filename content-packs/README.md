@@ -18,7 +18,6 @@ the catalog's texture paths to resolve.
 | `lewdmarks/` | `mtf.lewdmarks-racemenu.json`, `mtf.lewdmarks-slavetats.json` | LewdMarks (by SavageDomain) — RaceMenu + SlaveTats variants | Body |
 | `rx-overlays/` | `mtf.rx-overlays.json` | RX Overlays (texture pack) | Body |
 | `bardle-nail-polish/` | `mtf.bardle-nail-polish.json` | Bard's Nail Overlays (by Bardledorf) | Hands |
-| `community-overlays-1-face/` | `mtf.community-overlays-1-face.json` | Community Overlays 1 — Female Face Overlays | Face |
 
 The `skyrimnet-bridge/` folder also lives here but is NOT a texture-pack
 adapter — it ships a SkyrimNet prompt template (`character_bio/0350_mtf_tattoos.prompt`)
