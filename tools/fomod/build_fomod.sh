@@ -352,7 +352,10 @@ echo
 # -----------------------------------------------------------------------------
 # Archive
 # -----------------------------------------------------------------------------
-ARCHIVE_BASE="MagicTattoosFramework-$VERSION"
+# Strip the leading "v" from the version for the archive filename only
+# (e.g. v0.3.7 -> 0.3.7). The in-FOMOD version label (info.xml) keeps the
+# "v" via $VERSION; this affects just the .7z/.zip name.
+ARCHIVE_BASE="MagicTattoosFramework-${VERSION#v}"
 rm -f "$DIST/$ARCHIVE_BASE.7z" "$DIST/$ARCHIVE_BASE.zip"
 
 # Locate 7z: try PATH first, then standard Windows install path.
