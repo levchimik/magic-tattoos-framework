@@ -163,10 +163,23 @@ Event OnPlayerLoadGame()
 EndEvent
 
 Event OnUpdate()
-{Second-chance redraw + C++ pulse roster repopulation. See
+{Post-load: re-scan the visual pack catalogs first (so content packs
+ installed or removed since last session are picked up automatically —
+ the same work as the MCM "Reload visual packs" button), THEN the
+ second-chance redraw + C++ pulse roster repopulation. See
  postLoadRedrawNow for details.}
     MTF_MainQuest h = _host()
     if h != None
+        ; Rescan BEFORE the redraw so postLoadRedrawNow and the freeze-gated
+        ; slow-tick eval see fresh catalog data (GetPackArea /
+        ; GetEntryLayerCount lookups resolve against the current pack set).
+        ; _visualsLoaded persists in the cosave, so without this the pack
+        ; registry stays frozen at the previous session's scan until the
+        ; user opens the MCM and clicks "Reload visual packs" by hand.
+        ; Gated by the "Rescan packs on load" MCM toggle (default ON).
+        if h.GetRescanOnLoad()
+            h.ForceReloadVisualCatalogs()
+        endif
         h.postLoadRedrawNow()
     endif
 EndEvent

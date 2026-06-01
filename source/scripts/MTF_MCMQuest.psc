@@ -353,6 +353,7 @@ function drawGeneralPage()
     AddSliderOptionST("SLOT_HAND_OVERLAY_SLOT", "Overlay slot (Hand)", MainQuest.HandOverlaySlot)
     AddSliderOptionST("SLOT_FEET_OVERLAY_SLOT", "Overlay slot (Feet)", MainQuest.FeetOverlaySlot)
     AddTextOptionST("GEN_RELOAD_VISUALS", "Reload visual packs", "(" + MainQuest.GetVisualPackCount() + " loaded)")
+    AddToggleOptionST("GEN_RESCAN_ON_LOAD",  "Rescan packs on load",   MainQuest.GetRescanOnLoad())
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
     ; Lifecycle audit lives on MTF_MainQuest as `DumpLifecycleAudit` /
     ; `ResetLifecycleAudit` (console: `cqf MTF_MainQuest DumpLifecycleAudit`).
@@ -784,6 +785,21 @@ state GEN_DEBUG_MODE
     endEvent
     event OnHighlightST()
         SetInfoText("Show a corner-notification toast whenever the active condition tier changes, listing what's being drained. Useful for verifying that conditions and side effects are firing correctly. Also enables the lifecycle audit counters — dump via `cqf MTF_MainQuest DumpLifecycleAudit`.")
+    endEvent
+endState
+
+state GEN_RESCAN_ON_LOAD
+    event OnSelectST()
+        bool v = !MainQuest.GetRescanOnLoad()
+        MainQuest.SetRescanOnLoad(v)
+        SetToggleOptionValueST(v)
+    endEvent
+    event OnDefaultST()
+        MainQuest.SetRescanOnLoad(true)
+        SetToggleOptionValueST(true)
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Automatically re-scan the visuals/ folder for content-pack JSONs every time a save loads, so packs installed or removed since last session are picked up without opening this menu. Same work as 'Reload visual packs', run on load. Default ON.")
     endEvent
 endState
 

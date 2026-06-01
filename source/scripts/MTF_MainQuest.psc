@@ -946,6 +946,23 @@ int Function GetVisualPackCount()
     return visualPackCount
 EndFunction
 
+bool Function GetRescanOnLoad()
+{Whether the post-load handler (MTF_HitListener) auto-rescans the visual
+ pack catalogs on every save load. Backed by StorageUtil rather than a
+ script var so it attaches cleanly on saves that predate this option —
+ a new Auto property/var added post-release doesn't reliably get backing
+ storage (KB: "Post-release Auto properties don't attach"). Default ON.}
+    return StorageUtil.GetIntValue(None, "mtf.rescanOnLoad", 1) != 0
+EndFunction
+
+Function SetRescanOnLoad(bool v)
+    int iv = 0
+    if v
+        iv = 1
+    endif
+    StorageUtil.SetIntValue(None, "mtf.rescanOnLoad", iv)
+EndFunction
+
 string Function GetVisualPackIdAt(int i)
     LoadVisualCatalogs()
     if i < 0 || i >= visualPackCount
