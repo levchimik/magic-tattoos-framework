@@ -1,115 +1,115 @@
 {
-  "displayname": "Test: Sounds",
-  "int": {
-    "valid": 0
-  },
-  "schemaversion": 9,
-  "transition": {
-    "duration": 0.3
-  },
-  "slot": [
+ "displayname": "Test: Sounds",
+ "int": {
+  "valid": 0
+ },
+ "schemaversion": 9,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 0,
-          "param1": "fire_body_on_fire"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 0,
-          "param1": "frost_concentration"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 0,
-          "param1": "shock_concentration"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 0,
-          "param1": "soul_trap_active_hum"
-        }
-      ]
+     "key": "mtf.fx:sound.play",
+     "param2": 0,
+     "param1": "fire_body_on_fire"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 0,
+     "param1": "frost_concentration"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 0,
+     "param1": "shock_concentration"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 0,
+     "param1": "soul_trap_active_hum"
     }
-  ],
-  "valid": 1
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  }
+ ],
+ "valid": 1
 }

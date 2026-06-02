@@ -1,115 +1,115 @@
 {
-  "displayname": "Test: Shaders",
-  "int": {
-    "valid": 0
-  },
-  "schemaversion": 9,
-  "transition": {
-    "duration": 0.3
-  },
-  "slot": [
+ "displayname": "Test: Shaders",
+ "int": {
+  "valid": 0
+ },
+ "schemaversion": 9,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.base:shader.play",
-          "param2": 0,
-          "param1": "fire_cloak"
-        },
-        {
-          "key": "mtf.base:shader.play",
-          "param2": 0,
-          "param1": "soul_trap"
-        },
-        {
-          "key": "mtf.base:shader.play",
-          "param2": 0,
-          "param1": "ward_shield"
-        },
-        {
-          "key": "mtf.base:shader.play",
-          "param2": 0,
-          "param1": "heal"
-        }
-      ]
+     "key": "mtf.fx:shader.play",
+     "param2": 0,
+     "param1": "fire_cloak"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:shader.play",
+     "param2": 0,
+     "param1": "soul_trap"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:shader.play",
+     "param2": 0,
+     "param1": "ward_shield"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:shader.play",
+     "param2": 0,
+     "param1": "heal"
     }
-  ],
-  "valid": 1
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  }
+ ],
+ "valid": 1
 }

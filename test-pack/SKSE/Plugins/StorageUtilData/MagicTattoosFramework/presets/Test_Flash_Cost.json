@@ -1,105 +1,105 @@
 {
-  "displayname": "Test: Flash + Cost",
-  "int": {
-    "valid": 0
-  },
-  "schemaversion": 9,
-  "transition": {
-    "duration": 0.3
-  },
-  "slot": [
+ "displayname": "Test: Flash + Cost",
+ "int": {
+  "valid": 0
+ },
+ "schemaversion": 9,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.base:scale.magickaCost",
-          "param2": 0,
-          "param1": 50
-        },
-        {
-          "key": "mtf.base:flash.onhit",
-          "param2": 300,
-          "param1": 1
-        }
-      ]
+     "key": "mtf.magic:scale.magickaCost",
+     "param2": 0,
+     "param1": 50
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:flash.onhit",
+     "param2": 300,
+     "param1": 1
     }
-  ],
-  "valid": 1
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  }
+ ],
+ "valid": 1
 }

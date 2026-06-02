@@ -1,110 +1,110 @@
 {
-  "displayname": "Test: SLA Days Since Orgasm (>=1)",
-  "int": {
-    "valid": 0
+ "displayname": "Test: SLA Days Since Orgasm (>=1)",
+ "int": {
+  "valid": 0
+ },
+ "schemaversion": 9,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
   },
-  "schemaversion": 9,
-  "transition": {
-    "duration": 0.3
-  },
-  "slot": [
+  {
+   "cond": {
+    "packid": "",
+    "entryid": "",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.sla:days.since.orgasm",
+      "param": 1
+     }
+    ]
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": "",
-        "op": 0,
-        "items": [
-          {
-            "pluginid": "mtf.sla:days.since.orgasm",
-            "param": 1
-          }
-        ]
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 5,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "dragon_flight_roar"
-        }
-      ]
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 5,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "dragon_flight_roar"
     }
-  ],
-  "valid": 1
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  }
+ ],
+ "valid": 1
 }

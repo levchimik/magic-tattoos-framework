@@ -1,170 +1,170 @@
 {
-  "displayname": "Test: Modifies (Stats)",
-  "int": {
-    "valid": 0
-  },
-  "schemaversion": 9,
-  "transition": {
-    "duration": 0.3
-  },
-  "slot": [
+ "displayname": "Test: Modifies (Stats)",
+ "int": {
+  "valid": 0
+ },
+ "schemaversion": 9,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.base:modify.magickaRegen",
-          "param2": 0,
-          "param1": 20
-        },
-        {
-          "key": "mtf.base:modify.carryWeight",
-          "param2": 0,
-          "param1": 50
-        },
-        {
-          "key": "mtf.base:modify.skill",
-          "param2": 20,
-          "param1": "sneak"
-        },
-        {
-          "key": "mtf.base:modify.movementSpeed",
-          "param2": 0,
-          "param1": 10
-        },
-        {
-          "key": "mtf.base:modify.staminaRegen",
-          "param2": 0,
-          "param1": 20
-        },
-        {
-          "key": "mtf.base:modify.attackDamage",
-          "param2": 0,
-          "param1": 20
-        },
-        {
-          "key": "mtf.base:modify.healthRegen",
-          "param2": 0,
-          "param1": 20
-        },
-        {
-          "key": "mtf.base:modify.maxMagicka",
-          "param2": 0,
-          "param1": 50
-        },
-        {
-          "key": "mtf.base:modify.maxStamina",
-          "param2": 0,
-          "param1": 50
-        },
-        {
-          "key": "mtf.base:modify.weaponSpeed",
-          "param2": 0,
-          "param1": 20
-        },
-        {
-          "key": "mtf.base:modify.unarmedDamage",
-          "param2": 0,
-          "param1": 10
-        },
-        {
-          "key": "mtf.base:modify.criticalChance",
-          "param2": 0,
-          "param1": 5
-        },
-        {
-          "key": "mtf.base:modify.bowSpeed",
-          "param2": 0,
-          "param1": 20
-        },
-        {
-          "key": "mtf.base:modify.absorbChance",
-          "param2": 0,
-          "param1": 20
-        },
-        {
-          "key": "mtf.base:modify.reflectDamage",
-          "param2": 0,
-          "param1": 20
-        }
-      ]
+     "key": "mtf.attributes:modify.magickaRegen",
+     "param2": 0,
+     "param1": 20
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.attributes:modify.carryWeight",
+     "param2": 0,
+     "param1": 50
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.attributes:modify.skill",
+     "param2": 20,
+     "param1": "sneak"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.attributes:modify.movementSpeed",
+     "param2": 0,
+     "param1": 10
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param2": 0,
+     "param1": 20
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.combat:modify.attackDamage",
+     "param2": 0,
+     "param1": 20
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.attributes:modify.healthRegen",
+     "param2": 0,
+     "param1": 20
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.attributes:modify.maxMagicka",
+     "param2": 0,
+     "param1": 50
+    },
+    {
+     "key": "mtf.attributes:modify.maxStamina",
+     "param2": 0,
+     "param1": 50
+    },
+    {
+     "key": "mtf.combat:modify.weaponSpeed",
+     "param2": 0,
+     "param1": 20
+    },
+    {
+     "key": "mtf.combat:modify.unarmedDamage",
+     "param2": 0,
+     "param1": 10
+    },
+    {
+     "key": "mtf.combat:modify.criticalChance",
+     "param2": 0,
+     "param1": 5
+    },
+    {
+     "key": "mtf.combat:modify.bowSpeed",
+     "param2": 0,
+     "param1": 20
+    },
+    {
+     "key": "mtf.magic:modify.absorbChance",
+     "param2": 0,
+     "param1": 20
+    },
+    {
+     "key": "mtf.magic:modify.reflectDamage",
+     "param2": 0,
+     "param1": 20
     }
-  ],
-  "valid": 1
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  }
+ ],
+ "valid": 1
 }

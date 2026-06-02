@@ -1,125 +1,125 @@
 {
-  "displayname": "Test: Spells + Cloaks",
-  "int": {
-    "valid": 0
-  },
-  "schemaversion": 9,
-  "transition": {
-    "duration": 0.3
-  },
-  "slot": [
+ "displayname": "Test: Spells + Cloaks",
+ "int": {
+  "valid": 0
+ },
+ "schemaversion": 9,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.base:spell.modifyArmor",
-          "param2": 0,
-          "param1": 100
-        },
-        {
-          "key": "mtf.base:spell.detectLife",
-          "param2": 0,
-          "param1": 100
-        },
-        {
-          "key": "mtf.base:spell.slowTime",
-          "param2": 0,
-          "param1": 60
-        },
-        {
-          "key": "mtf.base:spell.flameCloak",
-          "param2": 5,
-          "param1": 8
-        },
-        {
-          "key": "mtf.base:spell.frostCloak",
-          "param2": 5,
-          "param1": 8
-        },
-        {
-          "key": "mtf.base:spell.lightningCloak",
-          "param2": 5,
-          "param1": 8
-        }
-      ]
+     "key": "mtf.magic:spell.modifyArmor",
+     "param2": 0,
+     "param1": 100
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.magic:spell.detectLife",
+     "param2": 0,
+     "param1": 100
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.magic:spell.slowTime",
+     "param2": 0,
+     "param1": 60
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.magic:spell.flameCloak",
+     "param2": 5,
+     "param1": 8
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.magic:spell.frostCloak",
+     "param2": 5,
+     "param1": 8
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.magic:spell.lightningCloak",
+     "param2": 5,
+     "param1": 8
     }
-  ],
-  "valid": 1
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  }
+ ],
+ "valid": 1
 }

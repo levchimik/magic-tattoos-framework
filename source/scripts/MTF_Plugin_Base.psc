@@ -105,9 +105,18 @@ Event OnUpdate()
     ; the inner damage SPL at a hardcoded short radius (~5-12 ft) that ignores
     ; SetNthEffectArea, so to support large user-configurable radii we
     ; dispatch the inner SPL ourselves on every active cloak.
-    bool anyCloak = _cloakTickAll()
-    if anyCloak
-        RegisterForSingleUpdate(1.0)
+    ;
+    ; v0.3.9: gate on the Magic module. After the mtf.base split this script is
+    ; inherited by all 5 module instances; the cloak active-flag is actor-
+    ; attached and shared, so an ungated tick would have every instance apply
+    ; cloak damage (5× per frame). Cloak effects only ever dispatch to the
+    ; mtf.magic instance (its onActivate is the only one that arms a cloak), so
+    ; only that instance should run the tick.
+    if GetPluginId() == "mtf.magic"
+        bool anyCloak = _cloakTickAll()
+        if anyCloak
+            RegisterForSingleUpdate(1.0)
+        endif
     endif
 EndEvent
 
@@ -298,8 +307,17 @@ float Function HIT_VISIBLE_SECONDS() global
     return 8.0
 EndFunction
 
+; v0.3.9: the monolithic mtf.base pack was split into 5 themed modules
+; (mtf.attributes / mtf.combat / mtf.magic / mtf.world / mtf.fx). This script
+; keeps ALL the behaviour — checkCondition / onActivate / onDeactivate / onTick
+; dispatch purely on the id string, so it is theme-agnostic and every module
+; inherits it unchanged. The 4 sibling modules are thin subclasses
+; (MTF_Plugin_Combat / _Magic / _World / _Fx) that override only GetPluginId().
+; This instance (the original ESP quest, kept to avoid a save-breaking VMAD
+; script swap) serves the Attributes & Skills module. See
+; tools/build_base_catalog.py for the id→module map.
 string Function GetPluginId()
-    return "mtf.base"
+    return "mtf.attributes"
 EndFunction
 
 ; ── Conditions ──────────────────────────────────────────────────────────────

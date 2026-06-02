@@ -102,6 +102,11 @@ Event OnPlayerLoadGame()
     ; See MTF_MainQuest._postLoadFreezeUntilRT.
     MTF_MainQuest hostFreeze = _host()
     if hostFreeze != None
+        ; v0.3.9: one-shot mtf.base → themed-module key rewrite. Runs before
+        ; the slow-tick re-arms (the 3s freeze below covers it) so the first
+        ; eval already sees migrated keys. Version-gated; a no-op after the
+        ; first post-split load.
+        hostFreeze._migrateModuleSplit()
         ; v0.3.x: 5.0 -> 3.0. The freeze gates the slow-tick redraw that
         ; actually repaints the tattoo on load. The floor is SKEE's async
         ; override-store restore (~1-3s post-load, see KB "SKEE post-load

@@ -1,0 +1,25 @@
+FormKey: 00080E:MagicTattoosFramework.esp
+EditorID: MTF_Plugin_Combat
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MTF_Plugin_Combat
+  FileName: ''
+  Aliases:
+  - Property:
+      Name: ''
+      Object: 00080E:MagicTattoosFramework.esp
+      Alias: 0
+    Scripts:
+    - Name: MTF_PluginAliasKick
+Name:
+  TargetLanguage: English
+  Value: LME Plugin Combat
+Flags:
+- StartGameEnabled
+QuestFormVersion: 0
+NextAliasID: 1
+Aliases:
+- Name: PluginKickAlias
+  Flags: []
+  ForcedReference: 000014:Skyrim.esm
+  VoiceTypes: Null

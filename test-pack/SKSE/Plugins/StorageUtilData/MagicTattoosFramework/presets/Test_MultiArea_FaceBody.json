@@ -1,128 +1,128 @@
 {
-  "displayname": "Test: Multi-area — Body + Face independence",
-  "int": {
-    "valid": 0
-  },
-  "schemaversion": 9,
-  "transition": {
-    "duration": 0.3
-  },
-  "slot": [
+ "displayname": "Test: Multi-area — Body + Face independence",
+ "int": {
+  "valid": 0
+ },
+ "schemaversion": 9,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "001"
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "layer": [
     {
-      "cond": {
-        "packid": "mtf.lewdmarks-racemenu",
-        "entryid": "001"
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "layer": [
-        {
-          "tint": "#FFFFFF",
-          "emissive": "#FFFFFF",
-          "emissivemult": 0.0,
-          "alpha": 100
-        },
-        {
-          "tint": "#FFFFFF",
-          "emissive": "#FFFFFF",
-          "emissivemult": 0.0,
-          "alpha": 100
-        }
-      ]
+     "tint": "#FFFFFF",
+     "emissive": "#FFFFFF",
+     "emissivemult": 0.0,
+     "alpha": 100
     },
     {
-      "cond": {
-        "packid": "mtf.community-overlays-2-face",
-        "entryid": "CO 35 Voodoo Face Female",
-        "op": 0,
-        "items": [
-          {
-            "pluginid": "mtf.base:stamina.below",
-            "param": 99
-          }
-        ]
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "layer": [
-        {
-          "tint": "#FFFFFF",
-          "emissive": "#FFFFFF",
-          "emissivemult": 0.0,
-          "alpha": 100
-        },
-        {
-          "tint": "#FFFFFF",
-          "emissive": "#FFFFFF",
-          "emissivemult": 0.0,
-          "alpha": 100
-        }
-      ]
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "tint": "#FFFFFF",
+     "emissive": "#FFFFFF",
+     "emissivemult": 0.0,
+     "alpha": 100
     }
-  ],
-  "valid": 1
+   ]
+  },
+  {
+   "cond": {
+    "packid": "mtf.community-overlays-2-face",
+    "entryid": "CO 35 Voodoo Face Female",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 99
+     }
+    ]
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "layer": [
+    {
+     "tint": "#FFFFFF",
+     "emissive": "#FFFFFF",
+     "emissivemult": 0.0,
+     "alpha": 100
+    },
+    {
+     "tint": "#FFFFFF",
+     "emissive": "#FFFFFF",
+     "emissivemult": 0.0,
+     "alpha": 100
+    }
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  }
+ ],
+ "valid": 1
 }

@@ -185,10 +185,12 @@ Function RunAll()
         Debug.Notification("MTF tests: ABORT (no MainQuest)")
         return
     endif
-    MTF_Plugin_Base bp = mq.FindPlugin("mtf.base") as MTF_Plugin_Base
+    ; v0.3.9: mtf.base split into themed modules; the base script now serves
+    ; mtf.attributes. Just a registration sanity gate (bp is otherwise unused).
+    MTF_Plugin_Base bp = mq.FindPlugin("mtf.attributes") as MTF_Plugin_Base
     if bp == None
-        Debug.Trace("[MTF_TEST] FATAL: mtf.base plugin not registered")
-        Debug.Notification("MTF tests: ABORT (mtf.base missing)")
+        Debug.Trace("[MTF_TEST] FATAL: mtf.attributes (base) plugin not registered")
+        Debug.Notification("MTF tests: ABORT (base modules missing)")
         return
     endif
     Actor pl = Game.GetPlayer()
@@ -763,7 +765,7 @@ EndFunction
 ; ====================================================================
 
 Function _configureCondSlot(MTF_MainQuest mq, string cid, int param, int param2)
-    mq.SetCondPluginId(TEST_COND_SLOT, "mtf.base:" + cid)
+    mq.SetCondPluginId(TEST_COND_SLOT, mq._remapBaseKey("mtf.base:" + cid, "cond:"))
     mq.SetCondParam(TEST_COND_SLOT, param)
     mq.SetCondParam2(TEST_COND_SLOT, param2)
 EndFunction
@@ -944,7 +946,7 @@ Function _testFxAV(MTF_MainQuest mq, Actor pl, string eid, int p1, int p2, strin
     float beforeStorage = baseStorage
     float beforeAV      = pl.GetActorValue(av)
 
-    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "mtf.base:" + eid, p1, p2)
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, mq._remapBaseKey("mtf.base:" + eid, "eff:"), p1, p2)
     mq._activateSlotEffects(TEST_FX_SLOT)
 
     float afterStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
@@ -1018,7 +1020,7 @@ Function _testFxAVStr(MTF_MainQuest mq, Actor pl, string eid, string p1Id, int p
     ; String param FIRST so the explicit activate below dispatches with the
     ; right id rather than a previous test's stale empty value.
     mq.SetSlotEffectParamNStr(TEST_FX_SLOT, TEST_FX_IDX, 1, p1Id)
-    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "mtf.base:" + eid, 0, p2)
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, mq._remapBaseKey("mtf.base:" + eid, "eff:"), 0, p2)
     mq._activateSlotEffects(TEST_FX_SLOT)
 
     float afterStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
@@ -1088,7 +1090,7 @@ Function _testFxStorageAndSpell(MTF_MainQuest mq, Actor pl, string eid, int p1, 
     endif
 
     ; ACT
-    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "mtf.base:" + eid, p1, p2)
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, mq._remapBaseKey("mtf.base:" + eid, "eff:"), p1, p2)
     mq._activateSlotEffects(TEST_FX_SLOT)
 
     float afterStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)
@@ -1163,7 +1165,7 @@ Function _testFxResistAbility(MTF_MainQuest mq, Actor pl, string resistId, int d
     ; v0.2.11: explicit activate/deactivate — see _testFxAVStr docstring.
     ; String FIRST so the activate dispatch reads the right id.
     mq.SetSlotEffectParamNStr(TEST_FX_SLOT, TEST_FX_IDX, 1, resistId)
-    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "mtf.base:modify.resist", 0, delta)
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, mq._remapBaseKey("mtf.base:modify.resist", "eff:"), 0, delta)
     mq._activateSlotEffects(TEST_FX_SLOT)
 
     float afterStorage = StorageUtil.GetFloatValue(pl, storageKey, 0.0)

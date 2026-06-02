@@ -1,152 +1,152 @@
 {
-  "displayname": "Test: OStim ladder",
-  "int": {
-    "valid": 0
+ "displayname": "Test: OStim ladder",
+ "int": {
+  "valid": 0
+ },
+ "schemaversion": 9,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
   },
-  "schemaversion": 9,
-  "transition": {
-    "duration": 0.3
-  },
-  "slot": [
+  {
+   "cond": {
+    "packid": "",
+    "entryid": "",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.ostim:times.climaxed",
+      "param": 2
+     }
+    ]
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": "",
-        "op": 0,
-        "items": [
-          {
-            "pluginid": "mtf.ostim:times.climaxed",
-            "param": 2
-          }
-        ]
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 0,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "ui_skill_up"
-        }
-      ]
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": "",
-        "op": 0,
-        "items": [
-          {
-            "pluginid": "mtf.ostim:excitement",
-            "param": 60
-          }
-        ]
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.ostim:trigger.climax",
-          "param2": 0,
-          "param1": 1
-        }
-      ]
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": "",
-        "op": 0,
-        "items": [
-          {
-            "pluginid": "mtf.ostim:excitement",
-            "param": 30
-          }
-        ]
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.ostim:excitement.set",
-          "param2": 0,
-          "param1": 50
-        }
-      ]
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": "",
-        "op": 0,
-        "items": [
-          {
-            "pluginid": "mtf.ostim:excitement",
-            "param": 10
-          }
-        ]
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.ostim:excitement.mult.set",
-          "param2": 0,
-          "param1": 3
-        }
-      ]
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
-    },
-    {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 0,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "ui_skill_up"
     }
-  ],
-  "valid": 1
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": "",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.ostim:excitement",
+      "param": 60
+     }
+    ]
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
+    {
+     "key": "mtf.ostim:trigger.climax",
+     "param2": 0,
+     "param1": 1
+    }
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": "",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.ostim:excitement",
+      "param": 30
+     }
+    ]
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
+    {
+     "key": "mtf.ostim:excitement.set",
+     "param2": 0,
+     "param1": 50
+    }
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": "",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.ostim:excitement",
+      "param": 10
+     }
+    ]
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
+    {
+     "key": "mtf.ostim:excitement.mult.set",
+     "param2": 0,
+     "param1": 3
+    }
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  }
+ ],
+ "valid": 1
 }

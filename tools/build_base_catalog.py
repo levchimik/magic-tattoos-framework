@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
-"""Build mtf.base.json — the metadata catalog for MTF_Plugin_Base.
+"""Build the themed metadata catalogs split out of the old mtf.base pack.
 
 This script mirrors the dispatch logic that used to live in MTF_Plugin_Base.psc's
-Get*() metadata getters, producing a JSON file consumed by the JsonUtil-driven
+Get*() metadata getters, producing JSON files consumed by the JsonUtil-driven
 base class (MTF_Plugin.psc). One source of truth; re-run after any catalog
 change.
 
+v0.3.9: the single mtf.base catalog was split into 5 themed modules
+(mtf.attributes / mtf.combat / mtf.magic / mtf.world / mtf.fx). Each is a
+separate pluginid + thin MTF_Plugin_Base subclass; all behaviour is inherited
+(dispatch is id-keyed). See MODULES / CONDITION_MODULE / EFFECT_MODULE below.
+
 Run:  python3 tools/build_base_catalog.py
-Out:  data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.base.json
+Out:  data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/
+        mtf.attributes.json, mtf.combat.json, mtf.magic.json,
+        mtf.world.json, mtf.fx.json, and mtf.module_map.json (migrator input)
 
 The numbers in this file MUST stay in sync with the Papyrus-side helpers that
 remain in MTF_Plugin_Base.psc (the behaviour code that runs in onActivate /
@@ -28,8 +35,8 @@ def _to_id(label: str) -> str:
     """
     return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
 
-OUT = Path(__file__).resolve().parents[1] / "data" / "SKSE" / "Plugins" / \
-    "StorageUtilData" / "MagicTattoosFramework" / "plugins" / "mtf.base.json"
+PLUGINS_DIR = Path(__file__).resolve().parents[1] / "data" / "SKSE" / "Plugins" / \
+    "StorageUtilData" / "MagicTattoosFramework" / "plugins"
 
 # ── Helpers mirroring the Papyrus dispatch ────────────────────────────────────
 def is_abs_shift(idx: int) -> bool:
@@ -525,6 +532,83 @@ assert len(EFFECTS_RAW) == 35, f"expected 35 effects, got {len(EFFECTS_RAW)}"
 for i, t in enumerate(EFFECTS_RAW):
     assert t[0] == i, f"effect tuple {i} has idx {t[0]}"
 
+# ── Module split (v0.3.9) ─────────────────────────────────────────────────────
+# The monolithic mtf.base pack is split into 5 themed plugins. Each becomes its
+# own pluginid + catalog JSON + thin MTF_Plugin_Base subclass (GetPluginId-only;
+# all dispatch is id-keyed and inherited unchanged). Slots store the pluginid by
+# value, so this is a save-migrating change: tools/.../mtf.module_map.json (emitted
+# below) maps every id → its new pluginid, and the Papyrus one-shot migrator
+# rewrites any stored "mtf.base" reference to the new home. EFFECTS_RAW / CONDITIONS
+# stay as single global lists (the idx-keyed is_abs_shift / BASE_BURSTS helpers
+# depend on the original indices); only the OUTPUT is partitioned by module.
+MODULES = [
+    ("mtf.attributes", "Attributes & Skills"),
+    ("mtf.combat",     "Combat"),
+    ("mtf.magic",      "Magic"),
+    ("mtf.world",      "World & Exploration"),
+    ("mtf.fx",         "Visual & Sound"),
+]
+MODULE_LABELS = dict(MODULES)
+
+CONDITION_MODULE = {
+    # Attributes & Skills — vitals thresholds
+    "magicka": "mtf.attributes", "magicka.below": "mtf.attributes",
+    "stamina": "mtf.attributes", "stamina.below": "mtf.attributes",
+    "health":  "mtf.attributes", "health.below":  "mtf.attributes",
+    # Combat — combat triggers + worn armour gear
+    "combat.in": "mtf.combat", "combat.alerted": "mtf.combat",
+    "combat.hostile": "mtf.combat", "combat.hit": "mtf.combat",
+    "combat.casting": "mtf.combat", "state.weaponDrawn": "mtf.combat",
+    "worn.heavyArmor": "mtf.combat", "worn.lightArmor": "mtf.combat",
+    # Magic — "under a magic effect" afflictions
+    "magiceffect.kw.fire": "mtf.magic", "magiceffect.kw.frost": "mtf.magic",
+    "magiceffect.kw.shock": "mtf.magic", "magiceffect.kw.invisibility": "mtf.magic",
+    # World & Exploration — environment, social/economy, body states
+    "location.kw": "mtf.world", "weather": "mtf.world", "time.range": "mtf.world",
+    "faction.playerFollower": "mtf.world", "followers.any": "mtf.world",
+    "gold.aboveThousand": "mtf.world",
+    "state.sprinting": "mtf.world", "state.running": "mtf.world",
+    "state.sneaking": "mtf.world", "state.swimming": "mtf.world",
+    "state.mounted": "mtf.world", "state.bleedingOut": "mtf.world",
+    "state.loversEmbrace": "mtf.world",
+}
+
+EFFECT_MODULE = {
+    # Attributes & Skills — body stats, regen, vitals bursts, skills
+    "modify.magickaRegen": "mtf.attributes", "modify.staminaRegen": "mtf.attributes",
+    "modify.healthRegen": "mtf.attributes", "modify.maxMagicka": "mtf.attributes",
+    "modify.maxStamina": "mtf.attributes", "modify.carryWeight": "mtf.attributes",
+    "modify.movementSpeed": "mtf.attributes", "modify.skill": "mtf.attributes",
+    "damage.health": "mtf.attributes", "damage.magicka": "mtf.attributes",
+    "damage.stamina": "mtf.attributes",
+    # Combat — martial offense
+    "modify.attackDamage": "mtf.combat", "modify.weaponSpeed": "mtf.combat",
+    "modify.unarmedDamage": "mtf.combat", "modify.bowSpeed": "mtf.combat",
+    "modify.criticalChance": "mtf.combat", "burst.stagger": "mtf.combat",
+    # Magic — ability-spell-backed effects
+    "spell.flameCloak": "mtf.magic", "spell.frostCloak": "mtf.magic",
+    "spell.lightningCloak": "mtf.magic", "spell.detectLife": "mtf.magic",
+    "spell.slowTime": "mtf.magic", "spell.modifyArmor": "mtf.magic",
+    "modify.resist": "mtf.magic", "modify.absorbChance": "mtf.magic",
+    "modify.reflectDamage": "mtf.magic", "scale.magickaCost": "mtf.magic",
+    "toggle.muffle": "mtf.magic", "toggle.waterbreathing": "mtf.magic",
+    "toggle.waterWalking": "mtf.magic",
+    # World & Exploration — crime/stealth utility
+    "burst.blowCover": "mtf.world", "burst.bounty": "mtf.world",
+    # Visual & Sound — cosmetic
+    "flash.onhit": "mtf.fx", "shader.play": "mtf.fx", "sound.play": "mtf.fx",
+}
+
+# Every catalog id must be assigned to exactly one known module.
+_known = {m for m, _ in MODULES}
+for _cid, _t in [(t[0], t) for t in CONDITIONS]:
+    assert _cid in CONDITION_MODULE, f"condition {_cid!r} has no module"
+    assert CONDITION_MODULE[_cid] in _known, f"condition {_cid!r} → unknown module"
+for _e in EFFECTS_RAW:
+    _eid = _e[1]
+    assert _eid in EFFECT_MODULE, f"effect {_eid!r} has no module"
+    assert EFFECT_MODULE[_eid] in _known, f"effect {_eid!r} → unknown module"
+
 
 def _build_param(p_src):
     """Build one paramN block from a source dict. v0.2.9: menu params emit
@@ -648,24 +732,54 @@ def build_effect(idx, t):
 
 
 def main():
-    catalog = {
-        # v0.2.9: schema 2 — menu params migrated from {value:int, label}
-        # to {id:snake, label}; min/max dropped on menu params; default
-        # is now the matching id string. See tools/migrate_to_string_ids.py
-        # for the one-shot migrator that ran on the 6 sibling catalogs.
-        "schemaversion": 2,
-        "pluginid": "mtf.base",
-        "pluginlabel": "Base",
-        "conditions": [build_condition(i, t) for i, t in enumerate(CONDITIONS)],
-        "effects":    [build_effect(i, t)    for i, t in enumerate(EFFECTS_RAW)],
-    }
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUT, "w", encoding="utf-8") as f:
-        json.dump(catalog, f, indent=2, ensure_ascii=False)
+    # Build every entry once from the global lists (preserves the idx-keyed
+    # is_abs_shift / BASE_BURSTS backfill), then bucket by module.
+    all_conditions = [(t[0], build_condition(i, t)) for i, t in enumerate(CONDITIONS)]
+    all_effects    = [(t[1], build_effect(i, t))    for i, t in enumerate(EFFECTS_RAW)]
+
+    PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
+
+    for pid, label in MODULES:
+        conds = [c for cid, c in all_conditions if CONDITION_MODULE[cid] == pid]
+        effs  = [e for eid, e in all_effects    if EFFECT_MODULE[eid]    == pid]
+        catalog = {
+            # schema 2 — see tools/migrate_to_string_ids.py history. v0.3.9
+            # split the monolithic mtf.base into themed modules.
+            "schemaversion": 2,
+            "pluginid": pid,
+            "pluginlabel": label,
+            "conditions": conds,
+            "effects":    effs,
+        }
+        out = PLUGINS_DIR / f"{pid}.json"
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump(catalog, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        print(f"Wrote {out}  (conditions: {len(conds)}, effects: {len(effs)})")
+
+    # Migration map for the Papyrus one-shot migrator + preset remapper: every
+    # id → new pluginid. Written in PapyrusUtil's TYPE-GROUPED JsonUtil format
+    # ({"string": {...}}) so the migrator reads each entry by KEY via
+    # JsonUtil.GetStringValue(file, "cond:<id>"/"eff:<id>", "") — keys are dot-
+    # safe (only JsonUtil *paths* split on dots; keys do not). cond:/eff: prefix
+    # keeps the two namespaces distinct. The "_comment" key is ignored by
+    # GetStringValue (never queried). The Python preset remapper reads the same
+    # file. Single source of truth for the v0.3.9 mtf.base → module split.
+    strings = {"_comment": "v0.3.9 mtf.base split → themed modules; key = "
+                           "cond:<id> / eff:<id>, value = new pluginid."}
+    for cid, mod in sorted(CONDITION_MODULE.items()):
+        strings[f"cond:{cid}"] = mod
+    for eid, mod in sorted(EFFECT_MODULE.items()):
+        strings[f"eff:{eid}"] = mod
+    mig = {"string": strings}
+    # One level up from plugins/ so the per-catalog validator (which scans
+    # plugins/*.json) doesn't treat the map as a malformed catalog.
+    mig_out = PLUGINS_DIR.parent / "mtf.module_map.json"
+    with open(mig_out, "w", encoding="utf-8") as f:
+        json.dump(mig, f, indent=2, ensure_ascii=False)
         f.write("\n")
-    print(f"Wrote {OUT}")
-    print(f"  conditions: {len(catalog['conditions'])}")
-    print(f"  effects:    {len(catalog['effects'])}")
+    print(f"Wrote {mig_out}  (map: {len(CONDITION_MODULE)} conds, "
+          f"{len(EFFECT_MODULE)} effects)")
 
 
 if __name__ == "__main__":

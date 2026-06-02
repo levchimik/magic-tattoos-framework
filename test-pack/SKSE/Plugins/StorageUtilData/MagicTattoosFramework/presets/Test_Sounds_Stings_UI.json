@@ -1,167 +1,167 @@
 {
-  "displayname": "Test: Stings UI (3s)",
-  "int": {
-    "valid": 0
-  },
-  "schemaversion": 9,
-  "transition": {
-    "duration": 0.3
-  },
-  "slot": [
+ "displayname": "Test: Stings UI (3s)",
+ "int": {
+  "valid": 0
+ },
+ "schemaversion": 9,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   },
+   "effect": [
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      },
-      "effect": [
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 3,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "ui_level_up"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 3,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "ui_skill_up"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 3,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "ui_new_quest"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 3,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "ui_quest_update"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 3,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "ui_quest_complete"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 3,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "ui_shout_learned"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 3,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "ui_shout_pop_big"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 3,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "ui_perk_select"
-        },
-        {
-          "key": "mtf.base:sound.play",
-          "param2": 3,
-          "extras": {
-            "volume": 100
-          },
-          "param1": "ui_journal_open"
-        }
-      ]
+     "key": "mtf.fx:sound.play",
+     "param2": 3,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "ui_level_up"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 3,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "ui_skill_up"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 3,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "ui_new_quest"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 3,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "ui_quest_update"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 3,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "ui_quest_complete"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 3,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "ui_shout_learned"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 3,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "ui_shout_pop_big"
     },
     {
-      "cond": {
-        "packid": "",
-        "entryid": ""
-      },
-      "cooldown": {
-        "min": 0,
-        "mode": 0
-      }
+     "key": "mtf.fx:sound.play",
+     "param2": 3,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "ui_perk_select"
+    },
+    {
+     "key": "mtf.fx:sound.play",
+     "param2": 3,
+     "extras": {
+      "volume": 100
+     },
+     "param1": "ui_journal_open"
     }
-  ],
-  "valid": 1
+   ]
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  },
+  {
+   "cond": {
+    "packid": "",
+    "entryid": ""
+   },
+   "cooldown": {
+    "min": 0,
+    "mode": 0
+   }
+  }
+ ],
+ "valid": 1
 }

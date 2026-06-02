@@ -740,6 +740,83 @@ Function _migrateV124CooldownIfNeeded()
  any stale callsites compile (will be cleaned up in a follow-up sweep).}
 EndFunction
 
+; ── v0.3.9 mtf.base → themed-module migrator ─────────────────────────────────
+; The monolithic mtf.base pack was split into 5 themed modules (mtf.attributes
+; / mtf.combat / mtf.magic / mtf.world / mtf.fx). Slots persist the bound key
+; ("<pluginid>:<id>") by value in the cosave, so existing saves still carry
+; "mtf.base:<id>". This one-shot rewrites each stored key to "<module>:<id>"
+; using the generated id→module map. Idempotent and version-gated: bump
+; MODULE_SPLIT_SCHEMA() if a future split needs to re-run it. Preset JSON files
+; (shipped + the user's own) are remapped offline by tools/migrate_preset_modules.py,
+; so this only has to fix the live in-save slots.
+int Function MODULE_SPLIT_SCHEMA() global
+    return 1
+EndFunction
+
+string Function _moduleMapFile() global
+    ; Relative to Data/SKSE/Plugins/StorageUtilData/ (same root as catalogs).
+    return "MagicTattoosFramework/mtf.module_map.json"
+EndFunction
+
+; "mtf.base:<id>" → "<module>:<id>" via the JsonUtil map. `prefix` is "cond:"
+; or "eff:" (the two id namespaces are stored under distinct keys). Any key
+; not under mtf.base, or an id missing from the map, is returned UNCHANGED so
+; a partial/unknown entry is never corrupted.
+string Function _remapBaseKey(string key, string prefix)
+    if key == "" || _keyPluginId(key) != "mtf.base"
+        return key
+    endif
+    string id  = _keyItemId(key)
+    string mod = JsonUtil.GetStringValue(_moduleMapFile(), prefix + id, "")
+    if mod == ""
+        return key
+    endif
+    return mod + ":" + id
+EndFunction
+
+Function _migrateModuleSplit()
+{One-shot: rewrite every slot's stored mtf.base key to its themed module.
+ Called from MTF_HitListener.OnPlayerLoadGame, inside the post-load freeze.}
+    if StorageUtil.GetIntValue(None, "mtf.migrated.moduleSplit", 0) >= MODULE_SPLIT_SCHEMA()
+        return
+    endif
+    EnsureArrays()
+    int changed = 0
+    int slot = 0
+    int maxSlot = MAX_CONDITIONS_CACHED()
+    int maxE = MAX_EFFECTS_PER_SLOT()
+    while slot <= maxSlot
+        ; Conditions — every AND/OR entry j (slot 0/Default has none; the
+        ; loop just no-ops there because GetCondCount returns 0).
+        int cc = GetCondCount(slot)
+        int j = 0
+        while j < cc
+            string ck  = GetCondPluginIdAt(slot, j)
+            string nck = _remapBaseKey(ck, "cond:")
+            if nck != ck
+                SetCondPluginIdAt(slot, j, nck)
+                changed += 1
+            endif
+            j += 1
+        endwhile
+        ; Effect rows — rewrite only the ".key" string; params under
+        ; .param1.. are keyed separately and stay untouched.
+        int e = 0
+        while e < maxE
+            string ek  = _readFxKey(slot, e, false)
+            string nek = _remapBaseKey(ek, "eff:")
+            if nek != ek
+                _writeFxKey(slot, e, false, nek)
+                changed += 1
+            endif
+            e += 1
+        endwhile
+        slot += 1
+    endwhile
+    StorageUtil.SetIntValue(None, "mtf.migrated.moduleSplit", MODULE_SPLIT_SCHEMA())
+    Trace("[MTF_Main] module-split migrator: rewrote " + changed + " mtf.base key(s)")
+EndFunction
+
 ; ── Cooldown-phase StorageUtil-backed accessors (v0.1.24) ────────────────────
 ; The "cool" phase (post-persist re-arm lockout) lives entirely in StorageUtil
 ; rather than as new Auto array properties — adding Auto properties to a
@@ -2107,15 +2184,16 @@ EndFunction
 
 bool Function _slotHasFlashEffect(int slot)
 {Returns true if any of the slot's 4 effect rows is bound to the
- mtf.base:flash.onhit effect. Used by _resyncPulseCache to register a
+ mtf.fx:flash.onhit effect. Used by _resyncPulseCache to register a
  (rate=0) roster entry for flash-only tiers — the C++ Tick needs a live
- entry to run the additive flash lane on top of the (no-pulse) ceiling.}
+ entry to run the additive flash lane on top of the (no-pulse) ceiling.
+ v0.3.9: flash.onhit moved from mtf.base to the mtf.fx module on the split.}
     if slot < 0 || slot >= 8
         return false
     endif
     int e = 0
     while e < MAX_EFFECTS_PER_SLOT()
-        if GetSlotEffectKey(slot, e) == "mtf.base:flash.onhit"
+        if GetSlotEffectKey(slot, e) == "mtf.fx:flash.onhit"
             return true
         endif
         e += 1
@@ -3427,7 +3505,28 @@ MTF_Plugin Function ResolvePluginByKey(string key)
     if key == ""
         return None
     endif
-    return FindPlugin(_keyPluginId(key))
+    MTF_Plugin p = FindPlugin(_keyPluginId(key))
+    if p != None
+        return p
+    endif
+    ; v0.3.9 back-compat: an un-migrated "mtf.base:<id>" key. The save migrator
+    ; (_migrateModuleSplit) only rewrites keys already stored in the cosave; an
+    ; OLD preset FILE authored pre-split and loaded fresh still feeds raw
+    ; mtf.base keys through here. Map the id to its themed module on the fly so
+    ; old presets keep working. Zero cost for normal keys — only reached when
+    ; the direct lookup misses AND the key is mtf.base. cond/eff id namespaces
+    ; are disjoint, so try both; the bare id passed to checkCondition/onActivate
+    ; (via _keyItemId) is already correct regardless of the pluginid.
+    if _keyPluginId(key) == "mtf.base"
+        string nk = _remapBaseKey(key, "cond:")
+        if nk == key
+            nk = _remapBaseKey(key, "eff:")
+        endif
+        if nk != key
+            return FindPlugin(_keyPluginId(nk))
+        endif
+    endif
+    return None
 EndFunction
 
 ; ── Flattened condition view (for MCM dropdown) ──────────────────────────────
