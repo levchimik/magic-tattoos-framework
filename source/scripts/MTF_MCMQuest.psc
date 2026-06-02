@@ -861,16 +861,16 @@ state COND_RENAME
             ForcePageReset()
             return
         endif
-        string sanitized = MainQuest._sanitizePresetName(a_input)
+        string sanitized = MainQuest._sanitizeSlotName(a_input)
         if sanitized == ""
-            Debug.Notification("MTF: invalid slot name (use letters/digits/_/-)")
+            Debug.Notification("MTF: invalid slot name")
             return
         endif
         MainQuest.SetCondName(selectedCondition, sanitized)
         ForcePageReset()
     endEvent
     event OnHighlightST()
-        SetInfoText("Rename this slot for clarity (e.g. 'Magicka draught' instead of 'Condition 3'). Letters/digits/_/-, max 32 chars. Empty input restores the default 'Condition N' label. Save the preset to persist.")
+        SetInfoText("Rename this slot for clarity (e.g. 'Magicka Draught' instead of 'Condition 3'). Spaces and mixed case are fine; basic punctuation too; max 32 chars. Empty input restores the default 'Condition N' label. Save the preset to persist.")
     endEvent
 endState
 

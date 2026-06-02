@@ -2622,6 +2622,31 @@ string Function _sanitizePresetName(string raw)
     return out
 EndFunction
 
+string Function _sanitizeSlotName(string raw)
+    ; Display-only slot label. Unlike _sanitizePresetName (which sanitizes for a
+    ; FILENAME and underscores everything outside [A-Za-z0-9_-]), a slot name is
+    ; never a filename or JSON key — it's stored as a string VALUE (.name) and
+    ; only rendered in the MCM. So we keep spaces and mixed case, allow common
+    ; punctuation, and simply DROP anything JSON/Scaleform-unsafe rather than
+    ; underscoring it. Cap at 32 kept chars.
+    if raw == ""
+        return ""
+    endif
+    string allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-.,'()&!?:+%"
+    string out = ""
+    int i = 0
+    int maxL = 32
+    int rawLen = StringUtil.GetLength(raw)
+    while i < rawLen && StringUtil.GetLength(out) < maxL
+        string ch = StringUtil.Substring(raw, i, 1)
+        if StringUtil.Find(allowed, ch) >= 0
+            out += ch
+        endif
+        i += 1
+    endwhile
+    return out
+EndFunction
+
 bool Function SavePreset(string rawName)
     string name = _sanitizePresetName(rawName)
     if name == ""
