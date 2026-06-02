@@ -1,0 +1,415 @@
+{
+	"displayname" : "Magicka Tracker",
+	"fadeondeath" : 
+	{
+		"durationms" : 2000,
+		"enabled" : 0,
+		"mode" : 0
+	},
+	"hidden" : 0,
+	"schemaversion" : 9,
+	"slot" : 
+	[
+		{
+			"cond" : 
+			{
+				"entryid" : "BCT - Sanguine Back",
+				"packid" : "mtf.bitchcraft"
+			},
+			"cool" : 
+			{
+				"min" : 0
+			},
+			"layer" : 
+			[
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 1.75,
+					"tint" : "#8C6CD0"
+				},
+				{
+					"alpha" : 80,
+					"emissive" : "#AD0073",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				}
+			],
+			"name" : "Full Magicka",
+			"persist" : 
+			{
+				"allowOverride" : 1,
+				"min" : 0
+			},
+			"pulse" : 
+			{
+				"depth" : 100,
+				"pause" : 1.0,
+				"rate" : 0.5,
+				"waveform" : "doublehump"
+			}
+		},
+		{
+			"cond" : 
+			{
+				"entryid" : "",
+				"items" : 
+				[
+					{
+						"param" : 10,
+						"param2" : 0,
+						"pluginid" : "mtf.base:magicka.below"
+					}
+				],
+				"op" : 0,
+				"packid" : "<none>"
+			},
+			"cool" : 
+			{
+				"min" : 0
+			},
+			"layer" : 
+			[
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 4.25,
+					"tint" : "#EAAB00"
+				},
+				{
+					"alpha" : 80,
+					"emissive" : "#AD0073",
+					"emissivemult" : 2.5,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				}
+			],
+			"name" : "No Magicka",
+			"persist" : 
+			{
+				"allowOverride" : 1,
+				"min" : 0
+			},
+			"pulse" : 
+			{
+				"depth" : 100,
+				"rate" : 0.5
+			}
+		},
+		{
+			"cond" : 
+			{
+				"entryid" : "",
+				"items" : 
+				[
+					{
+						"param" : 40,
+						"param2" : 0,
+						"pluginid" : "mtf.base:magicka.below"
+					}
+				],
+				"op" : 0,
+				"packid" : ""
+			},
+			"cool" : 
+			{
+				"min" : 0
+			},
+			"layer" : 
+			[
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 3.0,
+					"tint" : "#CC0033"
+				},
+				{
+					"alpha" : 80,
+					"emissive" : "#AD0073",
+					"emissivemult" : 2.5,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				}
+			],
+			"name" : "Low Magicka",
+			"persist" : 
+			{
+				"allowOverride" : 1,
+				"min" : 0
+			},
+			"pulse" : 
+			{
+				"depth" : 80,
+				"rate" : 2.5
+			}
+		},
+		{
+			"cond" : 
+			{
+				"entryid" : "",
+				"items" : 
+				[
+					{
+						"param" : 70,
+						"param2" : 0,
+						"pluginid" : "mtf.base:magicka.below"
+					}
+				],
+				"op" : 0,
+				"packid" : ""
+			},
+			"cool" : 
+			{
+				"min" : 0
+			},
+			"layer" : 
+			[
+				{
+					"alpha" : 100,
+					"emissive" : "#EAAB00",
+					"emissivemult" : 4.0,
+					"tint" : "#EAAB00"
+				},
+				{
+					"alpha" : 80,
+					"emissive" : "#AD0073",
+					"emissivemult" : 2.5,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				}
+			],
+			"name" : "Medium Magicka",
+			"persist" : 
+			{
+				"allowOverride" : 1,
+				"min" : 0
+			},
+			"pulse" : 
+			{
+				"depth" : 85,
+				"rate" : 1.2999999523162842
+			}
+		},
+		{
+			"cond" : 
+			{
+				"entryid" : "",
+				"packid" : ""
+			},
+			"cool" : 
+			{
+				"min" : 0
+			},
+			"layer" : 
+			[
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 80,
+					"emissive" : "#AD0073",
+					"emissivemult" : 2.5,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				}
+			],
+			"persist" : 
+			{
+				"allowOverride" : 1,
+				"min" : 0
+			}
+		},
+		{
+			"cond" : 
+			{
+				"entryid" : "",
+				"packid" : ""
+			},
+			"cool" : 
+			{
+				"min" : 0
+			},
+			"layer" : 
+			[
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 80,
+					"emissive" : "#AD0073",
+					"emissivemult" : 2.5,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				}
+			],
+			"persist" : 
+			{
+				"allowOverride" : 1,
+				"min" : 0
+			}
+		},
+		{
+			"cond" : 
+			{
+				"entryid" : "",
+				"packid" : ""
+			},
+			"cool" : 
+			{
+				"min" : 0
+			},
+			"layer" : 
+			[
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 80,
+					"emissive" : "#AD0073",
+					"emissivemult" : 2.5,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				}
+			],
+			"persist" : 
+			{
+				"allowOverride" : 1,
+				"min" : 0
+			}
+		},
+		{
+			"cond" : 
+			{
+				"entryid" : "",
+				"packid" : ""
+			},
+			"cool" : 
+			{
+				"min" : 0
+			},
+			"layer" : 
+			[
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 80,
+					"emissive" : "#AD0073",
+					"emissivemult" : 2.5,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				},
+				{
+					"alpha" : 100,
+					"emissive" : "#FFFFFF",
+					"emissivemult" : 0.0,
+					"tint" : "#FFFFFF"
+				}
+			],
+			"persist" : 
+			{
+				"allowOverride" : 1,
+				"min" : 0
+			}
+		}
+	],
+	"transition" : 
+	{
+		"duration" : 1.5
+	}
+}

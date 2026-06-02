@@ -298,6 +298,20 @@ cp "$SRC_SCRIPTS/MTF_TestRunner.pex" "$STAGE/31_test_pack/scripts/"
 echo "  staged 31_test_pack ($(find "$STAGE/31_test_pack" -type f | wc -l) files)"
 
 # -----------------------------------------------------------------------------
+# 32_preset_magicka: ready-made "Magicka Tracker" example preset (examples/).
+#
+# A worked preset that turns one Body tattoo into a magicka gauge (Default +
+# three magicka.below tiers). References the Bitchcraft pack's "Sanguine Back"
+# entry, so it only renders if the Bitchcraft content pack is also installed;
+# the Default slot can be repointed to any Body pack from the MCM. Documented
+# in docs/MCM_OPTIONS.md ("Example — Magicka Tracker").
+# -----------------------------------------------------------------------------
+mkdir -p "$STAGE/32_preset_magicka/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets"
+cp "$PROJ/examples/presets/"*.json \
+   "$STAGE/32_preset_magicka/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets/"
+echo "  staged 32_preset_magicka ($(find "$STAGE/32_preset_magicka" -type f | wc -l) files)"
+
+# -----------------------------------------------------------------------------
 # _diagnostics/ — probe file installed conditionally via <conditionalFileInstalls>
 # -----------------------------------------------------------------------------
 if [[ -d "$STATIC/_diagnostics" ]]; then

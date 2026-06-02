@@ -537,6 +537,25 @@ to run the test scenarios documented in TEST_METHODOLOGY.md.]]></description>
             </typeDescriptor>
           </plugin>
 
+          <plugin name="Example preset: Magicka Tracker">
+            <description><![CDATA[A ready-made example preset that turns one Body tattoo into a live magicka gauge:
+
+  - Full magicka  -> calm violet tattoo (Sanguine Back), gentle pulse
+  - below 70%     -> amber, brighter glow
+  - below 40%     -> crimson, fast urgent pulse
+  - below 10%     -> tattoo hidden ("burned out")
+
+Load it from the MCM Presets dropdown ("Magicka Tracker"), then apply via the spell or alias. A good worked example of slot priority, magicka.below thresholds, inherited textures, and pulse — documented in docs/MCM_OPTIONS.md.
+
+Requires the Bitchcraft content pack (this FOMOD's Content step) for the texture it points at. Without it the preset loads but renders nothing until you repoint its Default slot to any Body pack in the MCM.]]></description>
+            <files>
+              <folder source="32_preset_magicka" destination="" priority="0"/>
+            </files>
+            <typeDescriptor>
+              <type name="Optional"/>
+            </typeDescriptor>
+          </plugin>
+
           </plugins>
         </group>
       </optionalFileGroups>
