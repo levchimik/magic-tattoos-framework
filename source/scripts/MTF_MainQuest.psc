@@ -750,7 +750,12 @@ EndFunction
 ; (shipped + the user's own) are remapped offline by tools/migrate_preset_modules.py,
 ; so this only has to fix the live in-save slots.
 int Function MODULE_SPLIT_SCHEMA() global
-    return 1
+    ; v2: the v1 migration used a camelCase JsonUtil map lookup that silently
+    ; missed every camelCase id (JsonUtil lowercases stored keys). Those slots
+    ; were left as stale "mtf.base:..." keys. Bumping forces a re-migrate now
+    ; that _remapBaseKey lowercases its lookup. (ResolvePluginByKey's fallback
+    ; also covers stale keys at runtime, but re-migrating persists the fix.)
+    return 2
 EndFunction
 
 string Function _moduleMapFile() global
@@ -762,12 +767,38 @@ EndFunction
 ; or "eff:" (the two id namespaces are stored under distinct keys). Any key
 ; not under mtf.base, or an id missing from the map, is returned UNCHANGED so
 ; a partial/unknown entry is never corrupted.
+; ASCII lowercaser. Papyrus has no built-in ToLower. Used to normalise the
+; module-map lookup key — JsonUtil lowercases STORED keys on load but does NOT
+; lowercase the query, so a camelCase query ("eff:modify.magickaRegen") misses
+; the lowercased store and silently returns the default. We lowercase the
+; lookup key here to match. (Memory: project_papyrusutil_lowercase.)
+string Function _toLowerAscii(string s)
+    string up = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    string lo = "abcdefghijklmnopqrstuvwxyz"
+    string out = ""
+    int i = 0
+    int n = StringUtil.GetLength(s)
+    while i < n
+        string c = StringUtil.GetNthChar(s, i)
+        int idx = StringUtil.Find(up, c)
+        if idx >= 0
+            out += StringUtil.GetNthChar(lo, idx)
+        else
+            out += c
+        endif
+        i += 1
+    endwhile
+    return out
+EndFunction
+
 string Function _remapBaseKey(string key, string prefix)
     if key == "" || _keyPluginId(key) != "mtf.base"
         return key
     endif
     string id  = _keyItemId(key)
-    string mod = JsonUtil.GetStringValue(_moduleMapFile(), prefix + id, "")
+    ; Lowercase the lookup key (NOT the id) — see _toLowerAscii. The returned
+    ; module key keeps the original camelCase id so it matches the catalogs.
+    string mod = JsonUtil.GetStringValue(_moduleMapFile(), _toLowerAscii(prefix + id), "")
     if mod == ""
         return key
     endif

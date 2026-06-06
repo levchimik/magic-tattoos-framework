@@ -272,6 +272,50 @@
         "max": 100,
         "default": 0
       }
+    },
+    {
+      "id": "modify.jumpHeight",
+      "label": "Modify Jump Height",
+      "description": "Shifts the actor's jump height by {param1} points (JumpingBonus actor value).",
+      "param1": {
+        "label": "Jump height shift (points; + higher, - lower)",
+        "min": -100,
+        "max": 300,
+        "default": 0
+      }
+    },
+    {
+      "id": "drain.health",
+      "label": "Drain Health",
+      "description": "Continuously drains {param1} health per second while the tier is active (separate from regen — drains current value).",
+      "param1": {
+        "label": "Health drain per second",
+        "min": 0,
+        "max": 100,
+        "default": 5
+      }
+    },
+    {
+      "id": "drain.magicka",
+      "label": "Drain Magicka",
+      "description": "Continuously drains {param1} magicka per second while the tier is active (separate from regen — drains current value).",
+      "param1": {
+        "label": "Magicka drain per second",
+        "min": 0,
+        "max": 100,
+        "default": 5
+      }
+    },
+    {
+      "id": "drain.stamina",
+      "label": "Drain Stamina",
+      "description": "Continuously drains {param1} stamina per second while the tier is active (separate from regen — drains current value).",
+      "param1": {
+        "label": "Stamina drain per second",
+        "min": 0,
+        "max": 100,
+        "default": 5
+      }
     }
   ]
 }

@@ -157,6 +157,69 @@
         "max": 100,
         "default": 0
       }
+    },
+    {
+      "id": "burst.ragdoll",
+      "label": "Ragdoll Burst",
+      "description": "Burst — knocks down every hostile within {param1}ft with force {param2} when the tier activates. Physical CC, no magic-resist check.",
+      "kind": "burst",
+      "param1": {
+        "label": "Knockdown radius (feet)",
+        "min": 3,
+        "max": 300,
+        "default": 25,
+        "step": 5
+      },
+      "param2": {
+        "label": "Knockback force",
+        "min": 1,
+        "max": 100,
+        "default": 10
+      }
+    },
+    {
+      "id": "ragdoll.onhit",
+      "label": "Ragdoll on Hit",
+      "description": "Knocks the attacker down (force {param1}) whenever the actor is struck. Player-only.",
+      "param1": {
+        "label": "Knockback force",
+        "min": 1,
+        "max": 100,
+        "default": 15
+      }
+    },
+    {
+      "id": "damage.fireOnHit",
+      "label": "Fire Damage on Hit",
+      "description": "Deals {param1} fire damage back to the attacker whenever the actor is struck. Player-only.",
+      "param1": {
+        "label": "Fire damage to attacker",
+        "min": 0,
+        "max": 200,
+        "default": 15
+      }
+    },
+    {
+      "id": "damage.frostOnHit",
+      "label": "Frost Damage on Hit",
+      "description": "Deals {param1} frost damage back to the attacker whenever the actor is struck. Player-only.",
+      "param1": {
+        "label": "Frost damage to attacker",
+        "min": 0,
+        "max": 200,
+        "default": 15
+      }
+    },
+    {
+      "id": "damage.shockOnHit",
+      "label": "Shock Damage on Hit",
+      "description": "Deals {param1} shock damage back to the attacker whenever the actor is struck. Player-only.",
+      "param1": {
+        "label": "Shock damage to attacker",
+        "min": 0,
+        "max": 200,
+        "default": 15
+      }
     }
   ]
 }

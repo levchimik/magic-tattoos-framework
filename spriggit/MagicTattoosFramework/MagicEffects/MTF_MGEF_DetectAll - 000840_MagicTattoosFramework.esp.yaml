@@ -5,9 +5,16 @@ Name:
   Value: Detect All (MTF)
 Flags:
 - Recover
+- FXPersist
+- Painless
 - HideInUI
 - NoDeathDispel
 MagicSkill: Alteration
+CastingLight: 03BA90:Skyrim.esm
+HitShader: 0DC209:Skyrim.esm
+ImageSpaceModifier: 02FB1E:Skyrim.esm
+CastingArt: 02FB1C:Skyrim.esm
 Archetype:
   MutagenObjectType: MagicEffectArchetype
+  Type: DetectLife
   ActorValue: DetectLifeRange

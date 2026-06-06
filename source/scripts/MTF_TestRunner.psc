@@ -307,7 +307,13 @@ Function _runConditions(MTF_MainQuest mq, Actor pl)
     _aaa_wornHeavyArmor(mq, pl)
     _aaa_wornLightArmor(mq, pl)
 
+    ; v0.4 — Dragonborn conditions (DragonSouls AV is force-able via ModActorValue)
+    _aaa_dragonsoulUnspent(mq, pl)
+    _aaa_dragonsoulAbsorbed(mq, pl)
+
     ; --- SKIPs ---
+    _skipCond("shout.cooldown",           "no Papyrus API to force voice-recovery state")
+    _skipCond("shout.equipped",           "needs a known + equipped shout (invasive to arrange)")
     ; location.kw is a single menu-typed condition (id strings: indoors /
     ; outdoors / city / town / dungeon / inn / shop / player_home). All
     ; eight branches gated on the same coc-renderer-crash workaround.
@@ -655,6 +661,81 @@ Function _aaa_goldAboveThousand(MTF_MainQuest mq, Actor pl)
     _recordCond(testName, err)
 EndFunction
 
+Function _aaa_dragonsoulUnspent(MTF_MainQuest mq, Actor pl)
+    ; Steady AV threshold. param=1 → ">= 1 unspent soul". Snapshot + restore
+    ; the real DragonSouls count so we don't perturb the player's progression.
+    string testName = "dragonsoul.unspent(p=1)"
+    string err = ""
+
+    float startSouls = pl.GetActorValue("DragonSouls")
+
+    ; ARRANGE — zero out souls
+    if startSouls > 0.0
+        pl.ModActorValue("DragonSouls", -startSouls)
+        Utility.Wait(0.2)
+    endif
+    _configureCondSlot(mq, "dragonsoul.unspent", 1, 0)
+    if pl.GetActorValue("DragonSouls") > 0.0
+        err = "arrange: DragonSouls won't go to 0 (still " + pl.GetActorValue("DragonSouls") + ")"
+    elseif mq.evaluateTier() == TEST_COND_SLOT
+        err = "arrange: expected 0 souls but tier=7"
+    endif
+
+    if err == ""
+        ; ACT — grant a soul
+        pl.ModActorValue("DragonSouls", 1.0)
+        Utility.Wait(0.2)
+        if mq.evaluateTier() != TEST_COND_SLOT
+            err = "assert: expected >=1 soul but tier=0 (souls=" + pl.GetActorValue("DragonSouls") + ")"
+        endif
+    endif
+
+    ; CLEANUP — restore exact prior soul count
+    float postSouls = pl.GetActorValue("DragonSouls")
+    if postSouls != startSouls
+        pl.ModActorValue("DragonSouls", startSouls - postSouls)
+    endif
+    _recordCond(testName, err)
+EndFunction
+
+Function _aaa_dragonsoulAbsorbed(MTF_MainQuest mq, Actor pl)
+    ; Transient — fires for a window right after the DragonSouls AV INCREMENTS.
+    ; The detector baselines on its first poll (returns false), then arms on
+    ; a rise. So: clear the per-actor transient keys, baseline via one eval
+    ; (arrange: not firing), then grant a soul and eval again (assert: firing).
+    string testName = "dragonsoul.absorbed(p=5)"
+    string err = ""
+
+    float startSouls = pl.GetActorValue("DragonSouls")
+    ; Clear any stale transient state from a prior run / session.
+    StorageUtil.UnsetFloatValue(pl, "mtf.transient.dragonsoul.absorbed.base")
+    StorageUtil.UnsetFloatValue(pl, "mtf.transient.dragonsoul.absorbed.until")
+
+    _configureCondSlot(mq, "dragonsoul.absorbed", 5, 0)
+    ; ARRANGE — first eval establishes the baseline and must NOT fire.
+    if mq.evaluateTier() == TEST_COND_SLOT
+        err = "arrange: baseline poll should not fire but tier=7"
+    endif
+
+    if err == ""
+        ; ACT — increment souls; next eval should detect the rise and arm.
+        pl.ModActorValue("DragonSouls", 1.0)
+        Utility.Wait(0.2)
+        if mq.evaluateTier() != TEST_COND_SLOT
+            err = "assert: expected transient fire after soul gain but tier=0"
+        endif
+    endif
+
+    ; CLEANUP — clear transient keys, restore exact prior soul count.
+    StorageUtil.UnsetFloatValue(pl, "mtf.transient.dragonsoul.absorbed.base")
+    StorageUtil.UnsetFloatValue(pl, "mtf.transient.dragonsoul.absorbed.until")
+    float postSouls = pl.GetActorValue("DragonSouls")
+    if postSouls != startSouls
+        pl.ModActorValue("DragonSouls", startSouls - postSouls)
+    endif
+    _recordCond(testName, err)
+EndFunction
+
 Function _aaa_wornHeavyArmor(MTF_MainQuest mq, Actor pl)
     string testName = "worn.heavyArmor"
     string err = ""
@@ -852,6 +933,10 @@ Function _runEffects(MTF_MainQuest mq, Actor pl)
     ; effect (schema v2). All 18 skills including Sneak are exercised by the
     ; id-driven loop below via _testFxAVStr.
     _testFxAV(mq, pl, "modify.movementSpeed",  5, 0, "mtf.shift.modify.movementSpeed", "SpeedMult",            5.0)
+    ; v0.4 — modify.jumpHeight routes through the generic abs-shift path
+    ; (_avNameFor → "JumpingBonus"). This test is the authoritative check that
+    ; ModActorValue("JumpingBonus") actually takes (the ~80%-confidence item).
+    _testFxAV(mq, pl, "modify.jumpHeight",     10, 0, "mtf.shift.modify.jumpHeight",   "JumpingBonus",        10.0)
     _testFxAV(mq, pl, "modify.staminaRegen",   5, 0, "mtf.shift.modify.staminaRegen",  "StaminaRateMult",      5.0)
     _testFxAV(mq, pl, "modify.healthRegen",    5, 0, "mtf.shift.modify.healthRegen",   "HealRateMult",         5.0)
     _testFxAV(mq, pl, "modify.maxMagicka",    10, 0, "mtf.shift.modify.maxMagicka",    "Magicka",             10.0)
@@ -928,6 +1013,15 @@ Function _runEffects(MTF_MainQuest mq, Actor pl)
     _skipFx("flash.onhit",          "needs hit event")
     _skipFx("shader.play",          "visual only")
     _skipFx("sound.play",           "audio only")
+    ; v0.4 additions
+    _skipFx("burst.ragdoll",        "burst, needs nearby hostiles + ragdoll physics")
+    _skipFx("drain.health",         "continuous irreversible AV damage, no apply/revert roundtrip")
+    _skipFx("drain.magicka",        "continuous irreversible AV damage, no apply/revert roundtrip")
+    _skipFx("drain.stamina",        "continuous irreversible AV damage, no apply/revert roundtrip")
+    _skipFx("ragdoll.onhit",        "needs hit event (retaliation flag set on activate)")
+    _skipFx("damage.fireOnHit",     "needs hit event (retaliation flag set on activate)")
+    _skipFx("damage.frostOnHit",    "needs hit event (retaliation flag set on activate)")
+    _skipFx("damage.shockOnHit",    "needs hit event (retaliation flag set on activate)")
 EndFunction
 
 Function _testFxAV(MTF_MainQuest mq, Actor pl, string eid, int p1, int p2, string storageKey, string av, float expectedDelta)

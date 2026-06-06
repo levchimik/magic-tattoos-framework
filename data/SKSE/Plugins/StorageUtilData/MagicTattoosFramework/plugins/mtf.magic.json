@@ -22,6 +22,38 @@
       "id": "magiceffect.kw.invisibility",
       "label": "Invisible",
       "description": "Triggers while the actor is invisible."
+    },
+    {
+      "id": "shout.cooldown",
+      "label": "Voice on Cooldown",
+      "description": "Triggers while the actor's Shout voice is still recovering (just shouted)."
+    },
+    {
+      "id": "shout.equipped",
+      "label": "Shout Equipped",
+      "description": "Triggers while the actor has any Shout readied in the voice slot."
+    },
+    {
+      "id": "dragonsoul.unspent",
+      "label": "Unspent Dragon Souls",
+      "description": "Triggers when the actor is hoarding at least {param1} unspent dragon souls.",
+      "param": {
+        "label": "Dragon soul threshold",
+        "min": 1,
+        "max": 100,
+        "default": 1
+      }
+    },
+    {
+      "id": "dragonsoul.absorbed",
+      "label": "Absorbed Dragon Soul",
+      "description": "Triggers for {param1}s right after the actor absorbs a dragon soul.",
+      "param": {
+        "label": "Glow duration (s)",
+        "min": 1,
+        "max": 30,
+        "default": 5
+      }
     }
   ],
   "effects": [

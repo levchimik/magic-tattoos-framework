@@ -57,7 +57,7 @@ def is_abs_shift(idx: int) -> bool:
 # state. Continuous is the default (kind field omitted in JSON). MCM
 # prepends a "[!] " badge automatically for kind == burst at render time —
 # don't put the prefix in labels here. Renumbered in v0.2.7.
-BASE_BURSTS = {2, 3, 7, 8, 21, 22}
+BASE_BURSTS = {2, 3, 7, 8, 21, 22, 36}
 
 # v0.2.9: menu enums migrated from {value: int, label: str} to
 # {id: snake_case, label: str}. Plugin consumers in MTF_Plugin_Base.psc
@@ -255,8 +255,30 @@ CONDITIONS = [
     # 46 — combat.casting
     ("combat.casting", "While Casting Spell",
      "Triggers while the actor is charging or holding a spell mid-cast.", None),
+    # ── Shout / Dragonborn (v0.4) ──────────────────────────────────────────
+    # Voice + dragon-soul reactive conditions. shout.cooldown / shout.equipped
+    # are pollable engine state; dragonsoul.unspent is a steady AV threshold;
+    # dragonsoul.absorbed is transient — fires for a window right AFTER the
+    # DragonSouls AV increments (the soul fully lands). The game already plays
+    # the blur + whirlwind VFX during the drink-in, so firing on completion is
+    # the intended beat; see _checkTransientIncrease in MTF_Plugin_Base. The
+    # word-wall "shout learned" idea (#8) has no pollable Papyrus signal and is
+    # deferred. shout.equipped is "any shout" only — per-shout selection would
+    # need a dropdown of every Shout form (deferred).
+    ("shout.cooldown", "Voice on Cooldown",
+     "Triggers while the actor's Shout voice is still recovering (just shouted).",
+     None),
+    ("shout.equipped", "Shout Equipped",
+     "Triggers while the actor has any Shout readied in the voice slot.",
+     None),
+    ("dragonsoul.unspent", "Unspent Dragon Souls",
+     "Triggers when the actor is hoarding at least {param1} unspent dragon souls.",
+     {"label": "Dragon soul threshold", "min": 1, "max": 100, "default": 1}),
+    ("dragonsoul.absorbed", "Absorbed Dragon Soul",
+     "Triggers for {param1}s right after the actor absorbs a dragon soul.",
+     {"label": "Glow duration (s)", "min": 1, "max": 30, "default": 5}),
 ]
-assert len(CONDITIONS) == 31, f"expected 31 conditions, got {len(CONDITIONS)}"
+assert len(CONDITIONS) == 35, f"expected 35 conditions, got {len(CONDITIONS)}"
 
 # ── Shader catalog (idx 55 menu) ──────────────────────────────────────────────
 # Labels match MTF_Plugin_Base._shaderLabel; ordering matches _shaderFormId.
@@ -526,8 +548,75 @@ EFFECTS_RAW = [
       "param2": {"label": "Duration (s, 0 = until removed)",
                  "min": 0, "max": 60, "default": 0},
       "extras": SOUND_VOLUME_EXTRAS}),
+
+    # ── v0.4 additions (idx 35+) ───────────────────────────────────────────
+    # Appended at idx 35+ to preserve the idx-keyed is_abs_shift / BASE_BURSTS
+    # helpers (which only reference idx <= 31). These declare param ranges
+    # EXPLICITLY rather than relying on the idx-based abs-shift backfill.
+    # Runtime classification uses the eid-prefix _isAbsShift / _isToggle, so
+    # modify.jumpHeight still routes through the generic abs-shift path with no
+    # new dispatch branch — only an _avNameFor entry. burst.ragdoll / drain.*
+    # get explicit branches in onActivate / onTick / onDeactivate. All pure
+    # Papyrus — no new ESP records.
+    (35, "modify.jumpHeight",
+     "Modify Jump Height",
+     "Shifts the actor's jump height by {param1} points (JumpingBonus actor value).",
+     "Jump height shift (points; + higher, - lower)",
+     {"param": {"min": -100, "max": 300, "default": 0}}),
+    (36, "burst.ragdoll",
+     "Ragdoll Burst",
+     "Burst — knocks down every hostile within {param1}ft with force {param2} when the tier activates. Physical CC, no magic-resist check.",
+     "Knockdown radius (feet)",
+     {"param":  {"min": 3, "max": 300, "default": 25, "step": 5},
+      "param2": {"label": "Knockback force", "min": 1, "max": 100, "default": 10}}),
+    (37, "drain.health",
+     "Drain Health",
+     "Continuously drains {param1} health per second while the tier is active (separate from regen — drains current value).",
+     "Health drain per second",
+     {"param": {"min": 0, "max": 100, "default": 5}}),
+    (38, "drain.magicka",
+     "Drain Magicka",
+     "Continuously drains {param1} magicka per second while the tier is active (separate from regen — drains current value).",
+     "Magicka drain per second",
+     {"param": {"min": 0, "max": 100, "default": 5}}),
+    (39, "drain.stamina",
+     "Drain Stamina",
+     "Continuously drains {param1} stamina per second while the tier is active (separate from regen — drains current value).",
+     "Stamina drain per second",
+     {"param": {"min": 0, "max": 100, "default": 5}}),
+
+    # ── On-hit retaliation (idx 40+, v0.4 idea #3) ─────────────────────────
+    # "Your tattoo bites back." While the tier is active these store a per-
+    # actor magnitude flag; MTF_HitListener.OnHit reads it and retaliates
+    # against the aggressor. PLAYER-ONLY — the OnHit alias only fires for the
+    # player (same limitation as flash.onhit's Papyrus path; NPC flash goes
+    # through the C++ sink, but retaliation has no C++ equivalent yet). The
+    # elemental rows reuse the existing cloak inner-damage spells (0x845/
+    # 0x849/0x84D) via DoCombatSpellApply — real typed damage with resist
+    # checks + vanilla impact FX, no new ESP records. Not bursts (persistent
+    # flag, event-driven), not abs-shift (explicit param ranges).
+    (40, "ragdoll.onhit",
+     "Ragdoll on Hit",
+     "Knocks the attacker down (force {param1}) whenever the actor is struck. Player-only.",
+     "Knockback force",
+     {"param": {"min": 1, "max": 100, "default": 15}}),
+    (41, "damage.fireOnHit",
+     "Fire Damage on Hit",
+     "Deals {param1} fire damage back to the attacker whenever the actor is struck. Player-only.",
+     "Fire damage to attacker",
+     {"param": {"min": 0, "max": 200, "default": 15}}),
+    (42, "damage.frostOnHit",
+     "Frost Damage on Hit",
+     "Deals {param1} frost damage back to the attacker whenever the actor is struck. Player-only.",
+     "Frost damage to attacker",
+     {"param": {"min": 0, "max": 200, "default": 15}}),
+    (43, "damage.shockOnHit",
+     "Shock Damage on Hit",
+     "Deals {param1} shock damage back to the attacker whenever the actor is struck. Player-only.",
+     "Shock damage to attacker",
+     {"param": {"min": 0, "max": 200, "default": 15}}),
 ]
-assert len(EFFECTS_RAW) == 35, f"expected 35 effects, got {len(EFFECTS_RAW)}"
+assert len(EFFECTS_RAW) == 44, f"expected 44 effects, got {len(EFFECTS_RAW)}"
 # Sanity: indices contiguous 0..34.
 for i, t in enumerate(EFFECTS_RAW):
     assert t[0] == i, f"effect tuple {i} has idx {t[0]}"
@@ -560,9 +649,12 @@ CONDITION_MODULE = {
     "combat.hostile": "mtf.combat", "combat.hit": "mtf.combat",
     "combat.casting": "mtf.combat", "state.weaponDrawn": "mtf.combat",
     "worn.heavyArmor": "mtf.combat", "worn.lightArmor": "mtf.combat",
-    # Magic — "under a magic effect" afflictions
+    # Magic — "under a magic effect" afflictions + Dragonborn/voice (Thu'um
+    # and dragon souls read as supernatural, so they live with the magic set).
     "magiceffect.kw.fire": "mtf.magic", "magiceffect.kw.frost": "mtf.magic",
     "magiceffect.kw.shock": "mtf.magic", "magiceffect.kw.invisibility": "mtf.magic",
+    "shout.cooldown": "mtf.magic", "shout.equipped": "mtf.magic",
+    "dragonsoul.unspent": "mtf.magic", "dragonsoul.absorbed": "mtf.magic",
     # World & Exploration — environment, social/economy, body states
     "location.kw": "mtf.world", "weather": "mtf.world", "time.range": "mtf.world",
     "faction.playerFollower": "mtf.world", "followers.any": "mtf.world",
@@ -579,12 +671,21 @@ EFFECT_MODULE = {
     "modify.healthRegen": "mtf.attributes", "modify.maxMagicka": "mtf.attributes",
     "modify.maxStamina": "mtf.attributes", "modify.carryWeight": "mtf.attributes",
     "modify.movementSpeed": "mtf.attributes", "modify.skill": "mtf.attributes",
+    "modify.jumpHeight": "mtf.attributes",
     "damage.health": "mtf.attributes", "damage.magicka": "mtf.attributes",
     "damage.stamina": "mtf.attributes",
+    # Attributes & Skills — continuous vitals drains (sit with the damage.*
+    # bursts; both bleed a current AV rather than shifting a cap/regen).
+    "drain.health": "mtf.attributes", "drain.magicka": "mtf.attributes",
+    "drain.stamina": "mtf.attributes",
     # Combat — martial offense
     "modify.attackDamage": "mtf.combat", "modify.weaponSpeed": "mtf.combat",
     "modify.unarmedDamage": "mtf.combat", "modify.bowSpeed": "mtf.combat",
     "modify.criticalChance": "mtf.combat", "burst.stagger": "mtf.combat",
+    "burst.ragdoll": "mtf.combat",
+    # Combat — on-hit retaliation (idea #3)
+    "ragdoll.onhit": "mtf.combat", "damage.fireOnHit": "mtf.combat",
+    "damage.frostOnHit": "mtf.combat", "damage.shockOnHit": "mtf.combat",
     # Magic — ability-spell-backed effects
     "spell.flameCloak": "mtf.magic", "spell.frostCloak": "mtf.magic",
     "spell.lightningCloak": "mtf.magic", "spell.detectLife": "mtf.magic",
@@ -765,12 +866,24 @@ def main():
     # keeps the two namespaces distinct. The "_comment" key is ignored by
     # GetStringValue (never queried). The Python preset remapper reads the same
     # file. Single source of truth for the v0.3.9 mtf.base → module split.
+    # CRITICAL: keys are LOWERCASED. PapyrusUtil JsonUtil lowercases stored
+    # keys on load, so a camelCase key like "eff:modify.magickaRegen" can never
+    # be matched by GetStringValue (the query "eff:modify.magickaRegen" misses
+    # the lowercased store and silently returns the default). The Papyrus reader
+    # (_remapBaseKey) lowercases its lookup key to match. The id VALUES in the
+    # catalogs stay camelCase — only this map's KEYS are lowercased. See memory
+    # note project_papyrusutil_lowercase. Asserts no case-collision below.
     strings = {"_comment": "v0.3.9 mtf.base split → themed modules; key = "
-                           "cond:<id> / eff:<id>, value = new pluginid."}
+                           "cond:<id> / eff:<id> (LOWERCASED — JsonUtil "
+                           "lowercases keys), value = new pluginid."}
     for cid, mod in sorted(CONDITION_MODULE.items()):
-        strings[f"cond:{cid}"] = mod
+        k = f"cond:{cid}".lower()
+        assert k not in strings, f"lowercased key collision: {k!r}"
+        strings[k] = mod
     for eid, mod in sorted(EFFECT_MODULE.items()):
-        strings[f"eff:{eid}"] = mod
+        k = f"eff:{eid}".lower()
+        assert k not in strings, f"lowercased key collision: {k!r}"
+        strings[k] = mod
     mig = {"string": strings}
     # One level up from plugins/ so the per-catalog validator (which scans
     # plugins/*.json) doesn't treat the map as a malformed catalog.

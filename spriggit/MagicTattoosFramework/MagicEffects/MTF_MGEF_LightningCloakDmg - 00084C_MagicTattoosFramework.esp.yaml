@@ -5,7 +5,6 @@ Name:
   Value: Lightning Cloak Damage (MTF)
 Flags:
 - Hostile
-- Recover
 - Detrimental
 - HideInUI
 - NoDeathDispel
@@ -18,6 +17,5 @@ Archetype:
   MutagenObjectType: MagicEffectArchetype
   ActorValue: Health
   Type: DualValueModifier
-Projectile: 034190:Skyrim.esm
 SecondActorValue: Magicka
 CastingArt: 058E9B:Skyrim.esm

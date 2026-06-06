@@ -411,6 +411,47 @@ bool Function _checkHit(int classIdx, int param)
     return now < h.GetHitArmedRT(classIdx)
 EndFunction
 
+; Transient "value just increased" detector for poll-driven conditions
+; (dragonsoul.absorbed). On each poll: establish a baseline on first
+; observation (no fire), then arm a `sustainSec` real-time window whenever the
+; polled value rises above the stored baseline. Returns true while the window
+; is open. Per-actor storage so NPC subjects don't share a baseline.
+;
+; Save/load: Utility.GetCurrentRealTime() resets to a small value on session
+; start, which would make a stale absolute arm-until time read as "still in the
+; future" for the rest of the old session's length. Guard: if the stored
+; arm-until is further out than one full window, treat it as a session reset —
+; re-baseline to the current value and clear the window (no spurious fire).
+bool Function _checkTransientIncrease(Actor target, string key, float current, float sustainSec)
+    if target == None
+        return false
+    endif
+    if sustainSec <= 0.0
+        sustainSec = 5.0
+    endif
+    string baseKey = "mtf.transient." + key + ".base"
+    string armKey  = "mtf.transient." + key + ".until"
+    float now = Utility.GetCurrentRealTime()
+    float armUntil = StorageUtil.GetFloatValue(target, armKey, 0.0)
+    if armUntil > now + sustainSec + 1.0
+        ; Session real-time reset — stored window is stale. Re-baseline.
+        StorageUtil.SetFloatValue(target, baseKey, current)
+        StorageUtil.UnsetFloatValue(target, armKey)
+        return false
+    endif
+    float prev = StorageUtil.GetFloatValue(target, baseKey, -1.0)
+    if prev < 0.0
+        ; First observation — establish baseline, do not fire.
+        StorageUtil.SetFloatValue(target, baseKey, current)
+        return false
+    elseif current > prev
+        StorageUtil.SetFloatValue(target, baseKey, current)
+        armUntil = now + sustainSec
+        StorageUtil.SetFloatValue(target, armKey, armUntil)
+    endif
+    return now < armUntil
+EndFunction
+
 bool Function checkCondition(Actor target, int param, string cid)
     if target == None
         return false
@@ -601,6 +642,21 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; always read false here (StorageUtil default).
         MTF_MainQuest h = _host()
         return h != None && h.IsCasting(target)
+    elseif cid == "shout.cooldown"
+        ; True while the Thu'um is recovering (just shouted). Meaningful for
+        ; the player; NPCs return 0.0 (no voice timer) → never fires.
+        return target.GetVoiceRecoveryTime() > 0.0
+    elseif cid == "shout.equipped"
+        return target.GetEquippedShout() != None
+    elseif cid == "dragonsoul.unspent"
+        ; Steady threshold — glow while hoarding unspent souls.
+        return target.GetActorValue("DragonSouls") >= param as float
+    elseif cid == "dragonsoul.absorbed"
+        ; Transient — arm a `param`-second window right after the DragonSouls
+        ; AV increments (soul fully absorbed). The game plays its own blur +
+        ; whirlwind during the drink-in, so firing on completion is the beat.
+        ; param = glow-sustain seconds.
+        return _checkTransientIncrease(target, "dragonsoul.absorbed", target.GetActorValue("DragonSouls"), param as float)
     endif
     return false
 EndFunction
@@ -688,40 +744,67 @@ EndFunction
 ; (v0.2.5) and route through _skillAVForId / _resolveResistSpellById
 ; from explicit branches in onActivate.
 string Function _avNameFor(string eid)
+    ; CRITICAL: flat if/return, NOT an elseif chain. This is a Quest-extending
+    ; script, and on this VM build a long elseIf chain silently returns ""
+    ; past the first branch (same quirk documented on _classMaskTagsById). An
+    ; elseif version of this (18 branches) caused EVERY generic modify.* abs-
+    ; shift effect to no-op: _recomputeAbsShift early-returns on av=="", so
+    ; storage + ModActorValue never fire (modify.skill/resist were unaffected
+    ; because they resolve AVs via _skillAVForId / _resolveResistSpellById, not
+    ; here). Keep each branch as if/return so adding effects can't reintroduce it.
     if eid == "modify.magickaRegen"
         return "MagickaRateMult"
-    elseif eid == "modify.carryWeight"
+    endif
+    if eid == "modify.carryWeight"
         return "CarryWeight"
-    elseif eid == "modify.movementSpeed"
+    endif
+    if eid == "modify.movementSpeed"
         return "SpeedMult"
-    elseif eid == "modify.staminaRegen"
+    endif
+    if eid == "modify.staminaRegen"
         return "StaminaRateMult"
-    elseif eid == "modify.attackDamage"
+    endif
+    if eid == "modify.attackDamage"
         return "AttackDamageMult"
-    elseif eid == "modify.healthRegen"
+    endif
+    if eid == "modify.healthRegen"
         return "HealRateMult"
-    elseif eid == "modify.maxMagicka"
+    endif
+    if eid == "modify.maxMagicka"
         return "Magicka"
-    elseif eid == "modify.maxStamina"
+    endif
+    if eid == "modify.maxStamina"
         return "Stamina"
-    elseif eid == "modify.weaponSpeed"
+    endif
+    if eid == "modify.weaponSpeed"
         return "WeaponSpeedMult"
-    elseif eid == "modify.unarmedDamage"
+    endif
+    if eid == "modify.unarmedDamage"
         return "UnarmedDamage"
-    elseif eid == "modify.criticalChance"
+    endif
+    if eid == "modify.criticalChance"
         return "CriticalChance"
-    elseif eid == "modify.bowSpeed"
+    endif
+    if eid == "modify.bowSpeed"
         return "BowSpeedBonus"
-    elseif eid == "modify.absorbChance"
+    endif
+    if eid == "modify.jumpHeight"
+        return "JumpingBonus"
+    endif
+    if eid == "modify.absorbChance"
         return "AbsorbChance"
-    elseif eid == "modify.reflectDamage"
+    endif
+    if eid == "modify.reflectDamage"
         return "ReflectDamage"
+    endif
     ; Toggle AVs (used by _recomputeToggle for the non-spell-routed branch).
-    elseif eid == "toggle.muffle"
+    if eid == "toggle.muffle"
         return "Muffled"
-    elseif eid == "toggle.waterbreathing"
+    endif
+    if eid == "toggle.waterbreathing"
         return "WaterBreathing"
-    elseif eid == "toggle.waterWalking"
+    endif
+    if eid == "toggle.waterWalking"
         return "WaterWalking"
     endif
     return ""
@@ -1325,10 +1408,15 @@ Function _applyDetectAll(Actor target, int paramFeet)
     if s == None
         return
     endif
-    ; DetectLife archetype is FAF + Duration like Aura Whisper. Magnitude is
-    ; range in feet.
-    float mag = paramFeet as float
-    s.SetNthEffectMagnitude(0, mag)
+    ; DetectLife archetype is FAF + Duration like Aura Whisper. The scan radius
+    ; is the effect's AREA (game units = feet × 21.336), NOT magnitude — setting
+    ; magnitude does nothing for DetectLife (see KNOWLEDGEBASE "DetectLife scan
+    ; radius is the spell effect's Area, NOT Magnitude").
+    int areaUnits = ((paramFeet as float) * 21.336) as int
+    if areaUnits < 1
+        areaUnits = 1
+    endif
+    s.SetNthEffectArea(0, areaUnits)
     StorageUtil.SetFloatValue(target, "mtf.shift.detectAll", paramFeet as float)
     StorageUtil.SetFloatValue(target, "mtf.shift.detectAll.cast", Utility.GetCurrentRealTime())
     ; Dispel first so the periodic refresh produces a fresh 60s instance —
@@ -1634,6 +1722,182 @@ Function _alertNearby(Actor target, int paramFeet)
         endif
         i += 1
     endwhile
+EndFunction
+
+; ── Ragdoll burst (v0.4) ─────────────────────────────────────────────────────
+; One-shot area knockdown — PushActorAway every hostile within paramFeet of the
+; source. Pure physics, no MGEF, so no magic-resist check (the backlog's
+; "physical CC" intent). Mirrors _alertNearby's scan; PushActorAway is called
+; on the SOURCE (pushes the victim away from source) with `force` magnitude.
+Function _ragdollBurst(Actor target, int paramFeet, int force)
+    if target == None || paramFeet <= 0
+        return
+    endif
+    float radius = (paramFeet as float) * 21.336
+    float mag = force as float
+    if mag <= 0.0
+        mag = 10.0
+    endif
+    Actor[] nearby = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
+    if nearby == None
+        return
+    endif
+    int i = 0
+    while i < nearby.Length
+        Actor a = nearby[i]
+        if a != None && a != target && !a.IsDead()
+            if a.IsHostileToActor(target)
+                if a.GetDistance(target) <= radius
+                    target.PushActorAway(a, mag)
+                endif
+            endif
+        endif
+        i += 1
+    endwhile
+EndFunction
+
+; ── Continuous drains (v0.4) ─────────────────────────────────────────────────
+; drain.health / drain.magicka / drain.stamina: bleed `param` points/sec off
+; the CURRENT actor value while the tier is active (distinct from the regen
+; modifiers, which scale replenishment). Implemented as a slow-tick
+; DamageActorValue scaled by the real-time delta since the last tick, so the
+; rate is wall-clock-accurate regardless of tick cadence — but dt is clamped to
+; the live tick size in _tickDrain so a paused span (menu/sleep/load) can't bill.
+; No revert on remove — drained value is genuinely spent (a cost), like a conc.
+string Function _drainAvForEid(string eid)
+    if eid == "drain.health"
+        return "Health"
+    elseif eid == "drain.magicka"
+        return "Magicka"
+    elseif eid == "drain.stamina"
+        return "Stamina"
+    endif
+    return ""
+EndFunction
+
+; Seed the per-(actor, av) last-tick timestamp on activate so the first onTick
+; charges only the elapsed slice, not a huge spike.
+Function _startDrain(Actor target, string av)
+    if target == None || av == ""
+        return
+    endif
+    StorageUtil.SetFloatValue(target, "mtf.drain." + av + ".last", Utility.GetCurrentRealTime())
+EndFunction
+
+Function _tickDrain(Actor target, string av, int ratePerSec)
+    if target == None || av == "" || ratePerSec <= 0
+        return
+    endif
+    string k = "mtf.drain." + av + ".last"
+    float now  = Utility.GetCurrentRealTime()
+    float last = StorageUtil.GetFloatValue(target, k, -1.0)
+    ; Unseeded, or session real-time reset (now < last) — reseed, no charge.
+    if last < 0.0 || now < last
+        StorageUtil.SetFloatValue(target, k, now)
+        return
+    endif
+    float dt = now - last
+    StorageUtil.SetFloatValue(target, k, now)
+    if dt <= 0.0
+        return
+    endif
+    ; This drain ticks on OUR MainQuest slow tick (interval = updateInterval), so a
+    ; normal dt is ~one tick. GetCurrentRealTime() advances through pauses but the
+    ; tick is SUSPENDED in menu mode and fires once on unpause, carrying the whole
+    ; paused span as a single huge dt — that's a menu, sleep/wait, load, or lag
+    ; stall, not play time. So clamp dt to the tick size: a normal tick bills its
+    ; true slice, and an oversized post-pause tick bills only one tick's worth
+    ; (negligible) instead of the paused span. Cap derives from the live tick so it
+    ; self-calibrates to the MCM update-rate slider — no magic number. A small
+    ; multiplier absorbs scheduling jitter so normal ticks are never under-billed.
+    float cap = 1.0
+    MTF_MainQuest h = _host()
+    if h != None && h.updateInterval > 0.0
+        cap = h.updateInterval * 3.0
+    endif
+    if dt > cap
+        dt = cap
+    endif
+    target.DamageActorValue(av, (ratePerSec as float) * dt)
+EndFunction
+
+Function _stopDrain(Actor target, string av)
+    if target == None || av == ""
+        return
+    endif
+    StorageUtil.UnsetFloatValue(target, "mtf.drain." + av + ".last")
+EndFunction
+
+; ── On-hit retaliation (v0.4, idea #3) ───────────────────────────────────────
+; The on-hit effects (ragdoll.onhit / damage.{fire,frost,shock}OnHit) don't act
+; on activate — they store a per-actor magnitude flag that MTF_HitListener.OnHit
+; reads to retaliate against the aggressor. set/clear keep the flag in sync with
+; the tier; onTick re-sets it so MCM slider edits take effect within ~2s.
+Function _setOnHit(Actor target, string kind, int mag)
+    if target == None
+        return
+    endif
+    if mag > 0
+        StorageUtil.SetFloatValue(target, "mtf.onhit." + kind, mag as float)
+    else
+        StorageUtil.UnsetFloatValue(target, "mtf.onhit." + kind)
+    endif
+EndFunction
+
+Function _clearOnHit(Actor target, string kind)
+    if target == None
+        return
+    endif
+    StorageUtil.UnsetFloatValue(target, "mtf.onhit." + kind)
+EndFunction
+
+; eid → on-hit storage kind suffix ("" if not an on-hit effect).
+string Function _onHitKindForEid(string eid)
+    if eid == "ragdoll.onhit"
+        return "ragdoll"
+    elseif eid == "damage.fireOnHit"
+        return "fire"
+    elseif eid == "damage.frostOnHit"
+        return "frost"
+    elseif eid == "damage.shockOnHit"
+        return "shock"
+    endif
+    return ""
+EndFunction
+
+; Called by MTF_HitListener.OnHit (player-only). Reads the victim's on-hit
+; flags and retaliates against the aggressor. Elemental rows reuse the cloak
+; inner-damage spells so the attacker takes REAL typed damage (resist checks +
+; vanilla impact FX) with no new ESP records — magnitude is set per-hit, same
+; shared-form caveat as the cost-penalty spell (documented on _applyCostPenalty).
+Function _onHitRetaliate(Actor victim, Actor aggressor)
+    if victim == None || aggressor == None || aggressor == victim || aggressor.IsDead()
+        return
+    endif
+    float force = StorageUtil.GetFloatValue(victim, "mtf.onhit.ragdoll", 0.0)
+    if force > 0.0
+        victim.PushActorAway(aggressor, force)
+    endif
+    float fireDmg = StorageUtil.GetFloatValue(victim, "mtf.onhit.fire", 0.0)
+    if fireDmg > 0.0
+        _retaliateSpell(_resolveFlameCloakDmgSpell(), victim, aggressor, fireDmg)
+    endif
+    float frostDmg = StorageUtil.GetFloatValue(victim, "mtf.onhit.frost", 0.0)
+    if frostDmg > 0.0
+        _retaliateSpell(_resolveFrostCloakDmgSpell(), victim, aggressor, frostDmg)
+    endif
+    float shockDmg = StorageUtil.GetFloatValue(victim, "mtf.onhit.shock", 0.0)
+    if shockDmg > 0.0
+        _retaliateSpell(_resolveLightningCloakDmgSpell(), victim, aggressor, shockDmg)
+    endif
+EndFunction
+
+Function _retaliateSpell(Spell s, Actor caster, Actor victim, float dmg)
+    if s == None || caster == None || victim == None
+        return
+    endif
+    s.SetNthEffectMagnitude(0, dmg)
+    caster.DoCombatSpellApply(s, victim)
 EndFunction
 ; v0.2.9: dispatch on shader id (was int position).
 int Function _shaderFormIdById(string id)
@@ -2072,6 +2336,12 @@ Function onActivate(Actor target, int param, int param2, string eid, int slot, i
         _burstDelta("Health", target, param)
     elseif eid == "burst.bounty"
         _modBounty(target, param)
+    elseif eid == "burst.ragdoll"
+        _ragdollBurst(target, param, param2)
+    elseif _drainAvForEid(eid) != ""
+        _startDrain(target, _drainAvForEid(eid))
+    elseif _onHitKindForEid(eid) != ""
+        _setOnHit(target, _onHitKindForEid(eid), param)
     elseif eid == "spell.modifyArmor"
         _applyFlesh(target, param)
     elseif eid == "spell.detectLife"
@@ -2106,6 +2376,10 @@ Function onDeactivate(Actor target, int param, int param2, string eid, int slot,
         _recomputeToggle(eid, target, false)
     elseif eid == "scale.magickaCost"
         _removeCostPenalty(target)
+    elseif _drainAvForEid(eid) != ""
+        _stopDrain(target, _drainAvForEid(eid))
+    elseif _onHitKindForEid(eid) != ""
+        _clearOnHit(target, _onHitKindForEid(eid))
     elseif eid == "spell.modifyArmor"
         _removeFlesh(target)
     elseif eid == "spell.detectLife"
@@ -2161,6 +2435,12 @@ Function onTick(Actor target, int param, int param2, string eid, int slot, int e
         if applied != wantMag
             _applyCostPenalty(target, clamped)
         endif
+    elseif _drainAvForEid(eid) != ""
+        ; Bleed the elapsed slice off the current AV every slow tick.
+        _tickDrain(target, _drainAvForEid(eid), param)
+    elseif _onHitKindForEid(eid) != ""
+        ; Re-sync the retaliation magnitude flag so MCM slider edits apply.
+        _setOnHit(target, _onHitKindForEid(eid), param)
     elseif eid == "spell.modifyArmor"
         ; Constant-effect ability — no time-based refresh needed. Just
         ; re-apply if magnitude (param) changed since last application.

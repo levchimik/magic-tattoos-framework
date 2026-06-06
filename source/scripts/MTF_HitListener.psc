@@ -76,6 +76,13 @@ Event OnHit(ObjectReference akAggressor, Form akSource, Projectile akProjectile,
     MTF_Plugin_Base p = Game.GetFormFromFile(0x80D, "MagicTattoosFramework.esp") as MTF_Plugin_Base
     if p != None
         p._onHit(cls)
+        ; v0.4 idea #3 — on-hit retaliation. Player-only (this alias only fires
+        ; for the player). Reads the player's mtf.onhit.* flags set by the
+        ; ragdoll.onhit / damage.*OnHit effects and hits the aggressor back.
+        Actor aggr = akAggressor as Actor
+        if aggr != None
+            p._onHitRetaliate(Game.GetPlayer(), aggr)
+        endif
     endif
     ; v0.1.3: flash dispatch on hit lives in the C++ TESHitEvent sink
     ; now (see MTFPulse cpp-plugin/src/hit_sink.cpp). That path covers
