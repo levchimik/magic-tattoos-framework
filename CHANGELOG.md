@@ -36,8 +36,6 @@ themed-module keys on load).
 - **Vitals drain effects** (Attributes): *Drain Health / Magicka / Stamina*
   continuously bleed a current attribute while the tier is active, with a
   menu/sleep/load-pause guard so paused time isn't billed as play time.
-- **Burst damage effects** (Attributes): *Damage Health / Magicka / Stamina*
-  deal or restore a percentage of base attribute on tier activation.
 - **SPID distributor add-on.** An optional plugin that auto-distributes MTF
   content via Spell Perk Item Distributor.
 - **Community Overlays 1 (Body) adapter.** FOMOD now wires in a catalog for
