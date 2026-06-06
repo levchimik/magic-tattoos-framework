@@ -355,6 +355,31 @@
         "default": 100,
         "step": 5
       }
+    },
+    {
+      "id": "toggle.ambientLight",
+      "label": "Ambient Light",
+      "description": "Emits light around the actor (radius {param1}, brightness {param2}%, colour {param3}) while active. No visible source.",
+      "param1": {
+        "label": "Light radius",
+        "min": 64,
+        "max": 1024,
+        "default": 350,
+        "step": 16
+      },
+      "param2": {
+        "label": "Brightness (%)",
+        "min": 10,
+        "max": 200,
+        "default": 100,
+        "step": 5,
+        "format": "{0}%"
+      },
+      "param3": {
+        "label": "Light colour",
+        "color": 1,
+        "default": 16777215
+      }
     }
   ]
 }

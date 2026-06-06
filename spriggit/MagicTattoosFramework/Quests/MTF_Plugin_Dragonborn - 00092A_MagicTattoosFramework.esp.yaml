@@ -1,0 +1,25 @@
+FormKey: 00092A:MagicTattoosFramework.esp
+EditorID: MTF_Plugin_Dragonborn
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MTF_Plugin_Dragonborn
+  FileName: ''
+  Aliases:
+  - Property:
+      Name: ''
+      Object: 00092A:MagicTattoosFramework.esp
+      Alias: 0
+    Scripts:
+    - Name: MTF_PluginAliasKick
+Name:
+  TargetLanguage: English
+  Value: LME Plugin Dragonborn
+Flags:
+- StartGameEnabled
+QuestFormVersion: 0
+NextAliasID: 1
+Aliases:
+- Name: PluginKickAlias
+  Flags: []
+  ForcedReference: 000014:Skyrim.esm
+  VoiceTypes: Null

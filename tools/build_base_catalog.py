@@ -658,6 +658,7 @@ MODULES = [
     ("mtf.attributes", "Attributes & Skills"),
     ("mtf.combat",     "Combat"),
     ("mtf.magic",      "Magic"),
+    ("mtf.dragonborn", "Dragonborn"),
     ("mtf.world",      "World & Exploration"),
     ("mtf.fx",         "Visual & Sound"),
 ]
@@ -673,13 +674,15 @@ CONDITION_MODULE = {
     "combat.hostile": "mtf.combat", "combat.hit": "mtf.combat",
     "combat.casting": "mtf.combat", "state.weaponDrawn": "mtf.combat",
     "worn.heavyArmor": "mtf.combat", "worn.lightArmor": "mtf.combat",
-    # Magic — "under a magic effect" afflictions + Dragonborn/voice (Thu'um
-    # and dragon souls read as supernatural, so they live with the magic set).
+    # Magic — "under a magic effect" afflictions.
     "magiceffect.kw.fire": "mtf.magic", "magiceffect.kw.frost": "mtf.magic",
     "magiceffect.kw.shock": "mtf.magic", "magiceffect.kw.invisibility": "mtf.magic",
-    "shout.cooldown": "mtf.magic", "shout.equipped": "mtf.magic",
-    "dragonsoul.unspent": "mtf.magic", "dragonsoul.absorbed": "mtf.magic",
-    "shout.learned": "mtf.magic", "word.unlocked": "mtf.magic",
+    # Dragonborn — Thu'um voice + dragon-soul reactivity. Its own themeable pack
+    # as of v0.4 (split out of Magic): a coherent fantasy a user can toggle on
+    # its own. Conditions-only for now.
+    "shout.cooldown": "mtf.dragonborn", "shout.equipped": "mtf.dragonborn",
+    "dragonsoul.unspent": "mtf.dragonborn", "dragonsoul.absorbed": "mtf.dragonborn",
+    "shout.learned": "mtf.dragonborn", "word.unlocked": "mtf.dragonborn",
     # World & Exploration — environment, social/economy, body states
     "location.kw": "mtf.world", "weather": "mtf.world", "time.range": "mtf.world",
     "faction.playerFollower": "mtf.world", "followers.any": "mtf.world",
@@ -718,11 +721,14 @@ EFFECT_MODULE = {
     "modify.resist": "mtf.magic", "modify.absorbChance": "mtf.magic",
     "modify.reflectDamage": "mtf.magic", "scale.magickaCost": "mtf.magic",
     "toggle.muffle": "mtf.magic", "toggle.waterbreathing": "mtf.magic",
-    "toggle.waterWalking": "mtf.magic", "toggle.ambientLight": "mtf.magic",
+    "toggle.waterWalking": "mtf.magic",
     # World & Exploration — crime/stealth utility
     "burst.blowCover": "mtf.world", "burst.bounty": "mtf.world",
-    # Visual & Sound — cosmetic
+    # Visual & Sound — cosmetic. ambient light is implemented as a magic-effect
+    # AttachLight ability, but to the user it's a pure visual (lights the area,
+    # no gameplay stat) — so it lives with the other cosmetics, not in Magic.
     "flash.onhit": "mtf.fx", "shader.play": "mtf.fx", "sound.play": "mtf.fx",
+    "toggle.ambientLight": "mtf.fx",
 }
 
 # Every catalog id must be assigned to exactly one known module.

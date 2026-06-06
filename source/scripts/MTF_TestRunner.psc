@@ -314,6 +314,11 @@ Function _runConditions(MTF_MainQuest mq, Actor pl)
     ; --- SKIPs ---
     _skipCond("shout.cooldown",           "no Papyrus API to force voice-recovery state")
     _skipCond("shout.equipped",           "needs a known + equipped shout (invasive to arrange)")
+    ; v0.4 transient stat conditions — QueryStat counters can't be forced via
+    ; Papyrus (no SetStat), so the real-stat path isn't arrangeable. The shared
+    ; _checkTransientIncrease mechanism they rely on IS covered (dragonsoul.absorbed).
+    _skipCond("shout.learned",            "QueryStat('Shouts Learned') not force-able; transient mechanism covered by dragonsoul.absorbed")
+    _skipCond("word.unlocked",            "QueryStat('Words Of Power Unlocked') not force-able; transient mechanism covered by dragonsoul.absorbed")
     ; location.kw is a single menu-typed condition (id strings: indoors /
     ; outdoors / city / town / dungeon / inn / shop / player_home). All
     ; eight branches gated on the same coc-renderer-crash workaround.
@@ -965,6 +970,9 @@ Function _runEffects(MTF_MainQuest mq, Actor pl)
     _testFxStorageAndSpell(mq, pl, "toggle.muffle", 0, 0, "mtf.shift.toggle.muffle", _resolveMuffleSpellForTest(), 1)
     _testFxAV(mq, pl, "toggle.waterbreathing",  0, 0, "mtf.shift.toggle.waterbreathing", "WaterBreathing",  1.0)
     _testFxAV(mq, pl, "toggle.waterWalking",    0, 0, "mtf.shift.toggle.waterWalking",   "WaterWalking",    1.0)
+    ; v0.4 — ambient light: FireAndForget AttachLight ability. Verifies the
+    ; spell adds/removes and the per-actor radius signature captures the param.
+    _testFxAmbientLight(mq, pl)
 
     ; Consolidated modify.skill -- loop ALL 18 menu ids (v0.2.9 schema v2).
     string[] skillIds = _skillIds()
@@ -1015,9 +1023,10 @@ Function _runEffects(MTF_MainQuest mq, Actor pl)
     _skipFx("sound.play",           "audio only")
     ; v0.4 additions
     _skipFx("burst.ragdoll",        "burst, needs nearby hostiles + ragdoll physics")
-    _skipFx("drain.health",         "continuous irreversible AV damage, no apply/revert roundtrip")
-    _skipFx("drain.magicka",        "continuous irreversible AV damage, no apply/revert roundtrip")
-    _skipFx("drain.stamina",        "continuous irreversible AV damage, no apply/revert roundtrip")
+    ; v0.4 — drain mechanism + dt-cap regression test (menu-pause over-drain fix).
+    _testFxDrain(mq, pl, "drain.health",  "Health",  10)
+    _testFxDrain(mq, pl, "drain.magicka", "Magicka", 10)
+    _testFxDrain(mq, pl, "drain.stamina", "Stamina", 10)
     _skipFx("ragdoll.onhit",        "needs hit event (retaliation flag set on activate)")
     _skipFx("damage.fireOnHit",     "needs hit event (retaliation flag set on activate)")
     _skipFx("damage.frostOnHit",    "needs hit event (retaliation flag set on activate)")
@@ -1237,6 +1246,144 @@ EndFunction
 Spell Function _resolveMuffleSpellForTest()
 {Mirror of MTF_Plugin_Base._resolveMuffleSpell -- form 0x83F.}
     return Game.GetFormFromFile(0x83F, "MagicTattoosFramework.esp") as Spell
+EndFunction
+
+Spell Function _resolveAmbientLightSpellForTest()
+{Mirror of MTF_Plugin_Base._resolveAmbientLightSpell -- form 0x925.}
+    return Game.GetFormFromFile(0x925, "MagicTattoosFramework.esp") as Spell
+EndFunction
+
+Function _testFxDrain(MTF_MainQuest mq, Actor pl, string eid, string av, int rate)
+{v0.4 — drain.health/magicka/stamina mechanism + dt-cap regression test.
+ Drain bleeds rate*dt off the AV each tick, with dt clamped to ~3 ticks
+ (updateInterval*3) so a menu/sleep/load pause span can't bill its whole
+ elapsed as play time. Can't be apply/revert-tested like modify.*; instead we
+ seed the per-(actor,av) last-tick FAR in the past (a fake pause span), tick
+ ONCE, and assert the AV dropped by a positive amount clamped to ~rate*cap —
+ NOT rate*100. That's the direct regression guard for the over-drain bug.
+ Deterministic (no Utility.Wait timing). Restores the AV in cleanup.}
+    MTF_Plugin_Base bp = mq.FindPlugin("mtf.attributes") as MTF_Plugin_Base
+    if bp == None
+        _skip += 1
+        string s = "SKIP effect " + eid + " - mtf.attributes plugin missing"
+        Debug.Trace("[MTF_TEST] " + s)
+        JsonUtil.StringListAdd(JSON_FILE, "rows", s)
+        return
+    endif
+
+    float cap = 1.0
+    if mq.updateInterval > 0.0
+        cap = mq.updateInterval * 3.0
+    endif
+
+    ; ARRANGE -- AV at full; seed last-tick to a tiny POSITIVE time so the
+    ; elapsed (now - 0.001 ≈ whole session uptime) is a large pause-like span
+    ; that _tickDrain must clamp to `cap`. NOT `now - 100`: GetCurrentRealTime is
+    ; seconds since game launch, so 100s-in-the-past underflows to a NEGATIVE
+    ; value early in a session, which _tickDrain treats as "unseeded" and
+    ; reseeds without charging (→ dropped 0, false failure).
+    pl.RestoreActorValue(av, 999999.0)
+    Utility.Wait(0.1)
+    float before = pl.GetActorValue(av)
+    StorageUtil.SetFloatValue(pl, "mtf.drain." + av + ".last", 0.001)
+
+    ; ACT -- one tick; the 100s elapsed MUST be clamped to `cap`.
+    bp._tickDrain(pl, av, rate)
+    float after = pl.GetActorValue(av)
+    float dropped = before - after
+
+    ; CLEANUP -- restore + clear the drain timestamp.
+    pl.RestoreActorValue(av, 999999.0)
+    StorageUtil.UnsetFloatValue(pl, "mtf.drain." + av + ".last")
+
+    ; ASSERT -- drained a positive amount, capped to ~rate*cap (NOT rate*100).
+    float wantMax = (rate as float) * (cap + 0.05)
+    bool pass = dropped > 0.0 && dropped <= wantMax
+    string row
+    if pass
+        _pass += 1
+        row = "PASS effect " + eid + "(rate=" + rate + "/s) av(" + av + ") dropped " + dropped + " (cap<=" + wantMax + ")"
+    else
+        _fail += 1
+        row = "FAIL effect " + eid + "(rate=" + rate + "/s) av(" + av + ") dropped " + dropped + " (want 0<d<=" + wantMax + "; cap=" + cap + ")"
+    endif
+    Debug.Trace("[MTF_TEST] " + row)
+    JsonUtil.StringListAdd(JSON_FILE, "rows", row)
+EndFunction
+
+Function _testFxAmbientLight(MTF_MainQuest mq, Actor pl)
+{v0.4 — toggle.ambientLight (po3-tunable magic-effect AttachLight ability).
+ ASSERT the FireAndForget ambient spell (0x925) is added on activate and
+ removed on deactivate, AND that the per-actor light signature (mtf.al.r)
+ captured the configured radius (proves the param-threaded config path ran).
+ po3-independent: we do NOT assert the live LIGH radius/colour (that needs
+ po3's getters and would flake when the DLL is absent) — the signature int is
+ the deterministic proxy. radius=param1, brightness=param2, colour=param3.}
+    string eid = "toggle.ambientLight"
+    Spell ambSpell = _resolveAmbientLightSpellForTest()
+    if ambSpell == None
+        _skip += 1
+        string skipRow = "SKIP effect " + eid + " - ambient spell 0x925 not found"
+        Debug.Trace("[MTF_TEST] " + skipRow)
+        JsonUtil.StringListAdd(JSON_FILE, "rows", skipRow)
+        return
+    endif
+
+    int radius = 350
+    int bright = 100
+    int colorInt = 16777215 ; 0xFFFFFF white
+
+    ; ARRANGE -- force a clean baseline (no other test touches ambient state).
+    pl.RemoveSpell(ambSpell)
+    StorageUtil.UnsetIntValue(pl, "mtf.al.r")
+    StorageUtil.UnsetIntValue(pl, "mtf.al.b")
+    StorageUtil.UnsetIntValue(pl, "mtf.al.c")
+
+    ; ACT -- activate with radius/brightness/colour params.
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, mq._remapBaseKey("mtf.base:" + eid, "eff:"), radius, bright)
+    mq.SetSlotEffectParamN(TEST_FX_SLOT, TEST_FX_IDX, 3, colorInt)
+    mq._activateSlotEffects(TEST_FX_SLOT)
+
+    bool afterHasSpell = pl.HasSpell(ambSpell)
+    int  afterSigR     = StorageUtil.GetIntValue(pl, "mtf.al.r", -1)
+
+    ; CLEANUP / deactivate
+    mq._deactivateSlotEffects(TEST_FX_SLOT)
+    mq.SetSlotEffectParamN(TEST_FX_SLOT, TEST_FX_IDX, 3, 0)
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "", 0, 0)
+
+    bool finalHasSpell = pl.HasSpell(ambSpell)
+    int  finalSigR     = StorageUtil.GetIntValue(pl, "mtf.al.r", -1)
+
+    bool spellAdded   = afterHasSpell
+    bool sigApplied   = afterSigR == radius
+    bool spellRemoved = !finalHasSpell
+    bool sigReverted  = finalSigR == -1
+
+    bool pass = spellAdded && sigApplied && spellRemoved && sigReverted
+    string row
+    if pass
+        _pass += 1
+        row = "PASS effect " + eid + "(r=" + radius + ",b=" + bright + ") hasSpell false->" + afterHasSpell + "->" + finalHasSpell + " sigR " + afterSigR
+    else
+        _fail += 1
+        string reasons = ""
+        if !spellAdded
+            reasons += "spell_not_added "
+        endif
+        if !sigApplied
+            reasons += "sig_apply(got=" + afterSigR + " want=" + radius + ") "
+        endif
+        if !spellRemoved
+            reasons += "spell_not_removed "
+        endif
+        if !sigReverted
+            reasons += "sig_revert(got=" + finalSigR + " want=-1) "
+        endif
+        row = "FAIL effect " + eid + "(r=" + radius + ",b=" + bright + ") " + reasons
+    endif
+    Debug.Trace("[MTF_TEST] " + row)
+    JsonUtil.StringListAdd(JSON_FILE, "rows", row)
 EndFunction
 
 Function _testFxResistAbility(MTF_MainQuest mq, Actor pl, string resistId, int delta)
