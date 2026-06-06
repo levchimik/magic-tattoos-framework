@@ -54,6 +54,28 @@
         "max": 30,
         "default": 5
       }
+    },
+    {
+      "id": "shout.learned",
+      "label": "Shout Learned",
+      "description": "Triggers for {param1}s right after the Dragonborn learns a new shout (reads a word wall).",
+      "param": {
+        "label": "Glow duration (s)",
+        "min": 1,
+        "max": 30,
+        "default": 5
+      }
+    },
+    {
+      "id": "word.unlocked",
+      "label": "Word of Power Unlocked",
+      "description": "Triggers for {param1}s right after the Dragonborn unlocks a word of power (spends a dragon soul).",
+      "param": {
+        "label": "Glow duration (s)",
+        "min": 1,
+        "max": 30,
+        "default": 5
+      }
     }
   ],
   "effects": [

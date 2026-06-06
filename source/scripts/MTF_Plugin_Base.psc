@@ -659,6 +659,17 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; whirlwind during the drink-in, so firing on completion is the beat.
         ; param = glow-sustain seconds.
         return _checkTransientIncrease(target, "dragonsoul.absorbed", target.GetActorValue("DragonSouls"), param as float)
+    elseif cid == "shout.learned"
+        ; Transient — fires for `param`s right after the player's "Shouts Learned"
+        ; stat increments (a new shout's first word read from a word wall).
+        ; QueryStat is a player-global stat, so it reflects the Dragonborn's
+        ; progress regardless of subject; the armed window is per-actor.
+        return _checkTransientIncrease(target, "shout.learned", Game.QueryStat("Shouts Learned") as float, param as float)
+    elseif cid == "word.unlocked"
+        ; Transient — fires for `param`s right after "Words Of Power Unlocked"
+        ; increments (a dragon soul spent to unlock a word). NB: there is no
+        ; "Words Of Power Learned" QueryStat — Unlocked is the pollable signal.
+        return _checkTransientIncrease(target, "word.unlocked", Game.QueryStat("Words Of Power Unlocked") as float, param as float)
     endif
     return false
 EndFunction

@@ -261,10 +261,14 @@ CONDITIONS = [
     # dragonsoul.absorbed is transient — fires for a window right AFTER the
     # DragonSouls AV increments (the soul fully lands). The game already plays
     # the blur + whirlwind VFX during the drink-in, so firing on completion is
-    # the intended beat; see _checkTransientIncrease in MTF_Plugin_Base. The
-    # word-wall "shout learned" idea (#8) has no pollable Papyrus signal and is
-    # deferred. shout.equipped is "any shout" only — per-shout selection would
-    # need a dropdown of every Shout form (deferred).
+    # the intended beat; see _checkTransientIncrease in MTF_Plugin_Base.
+    # shout.learned / word.unlocked are ALSO transient: they poll the player
+    # stats "Shouts Learned" / "Words Of Power Unlocked" via Game.QueryStat and
+    # fire for a window right after the count rises (NB: "Words Of Power Learned"
+    # is NOT a valid QueryStat string — Unlocked is the pollable one). These are
+    # player-global stats, so they reflect the Dragonborn regardless of subject.
+    # shout.equipped is "any shout" only — per-shout selection would need a
+    # dropdown of every Shout form (deferred).
     ("shout.cooldown", "Voice on Cooldown",
      "Triggers while the actor's Shout voice is still recovering (just shouted).",
      None),
@@ -277,8 +281,14 @@ CONDITIONS = [
     ("dragonsoul.absorbed", "Absorbed Dragon Soul",
      "Triggers for {param1}s right after the actor absorbs a dragon soul.",
      {"label": "Glow duration (s)", "min": 1, "max": 30, "default": 5}),
+    ("shout.learned", "Shout Learned",
+     "Triggers for {param1}s right after the Dragonborn learns a new shout (reads a word wall).",
+     {"label": "Glow duration (s)", "min": 1, "max": 30, "default": 5}),
+    ("word.unlocked", "Word of Power Unlocked",
+     "Triggers for {param1}s right after the Dragonborn unlocks a word of power (spends a dragon soul).",
+     {"label": "Glow duration (s)", "min": 1, "max": 30, "default": 5}),
 ]
-assert len(CONDITIONS) == 35, f"expected 35 conditions, got {len(CONDITIONS)}"
+assert len(CONDITIONS) == 37, f"expected 37 conditions, got {len(CONDITIONS)}"
 
 # ── Shader catalog (idx 55 menu) ──────────────────────────────────────────────
 # Labels match MTF_Plugin_Base._shaderLabel; ordering matches _shaderFormId.
@@ -669,6 +679,7 @@ CONDITION_MODULE = {
     "magiceffect.kw.shock": "mtf.magic", "magiceffect.kw.invisibility": "mtf.magic",
     "shout.cooldown": "mtf.magic", "shout.equipped": "mtf.magic",
     "dragonsoul.unspent": "mtf.magic", "dragonsoul.absorbed": "mtf.magic",
+    "shout.learned": "mtf.magic", "word.unlocked": "mtf.magic",
     # World & Exploration — environment, social/economy, body states
     "location.kw": "mtf.world", "weather": "mtf.world", "time.range": "mtf.world",
     "faction.playerFollower": "mtf.world", "followers.any": "mtf.world",
