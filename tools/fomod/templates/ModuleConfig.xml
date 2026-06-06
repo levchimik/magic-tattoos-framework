@@ -344,14 +344,24 @@ Area: Body.]]></description>
 - mtf.community-overlays-1-body (57 entries) — Body
 
 REQUIRES: Community Overlays 1 - Main — install separately.
-Texture-only source mod (no plugin to auto-detect), so this stays manual.
+Auto-recommended if CommunityOverlays1_0T30.esp is active.
 
 Area: Body.]]></description>
               <files>
                 <folder source="21_content_co1" destination="" priority="0"/>
               </files>
               <typeDescriptor>
-                <type name="Optional"/>
+                <dependencyType>
+                  <defaultType name="Optional"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies>
+                        <fileDependency file="CommunityOverlays1_0T30.esp" state="Active"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
               </typeDescriptor>
             </plugin>
 
