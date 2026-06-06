@@ -4,6 +4,52 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
+## [v0.4.0] — 2026-06-06
+
+The biggest feature wave since launch: the effect catalog is now split into
+toggleable themed modules, a Dragonborn fantasy pack lands, and a new
+actor-attached ambient light, on-hit retaliation, and vitals-drain effects
+join the roster. Drop-in over the v0.3.x line — existing presets and saves
+migrate automatically (the old `mtf.base:<id>` keys are rewritten to the new
+themed-module keys on load).
+
+### Added
+
+- **Themed module split.** The monolithic `mtf.base` catalog is now five
+  self-registering core modules — **Attributes**, **Combat**, **Magic**,
+  **World**, and **FX** — each its own toggleable pack. Mix and match the
+  thematic groups you want without touching the rest.
+- **Dragonborn module.** A new themeable pack of Thu'um / dragon-soul
+  reactive conditions you can toggle on its own: *Voice on Cooldown*,
+  *Shout Equipped*, *Shout Learned*, *Word of Power Unlocked*, *Unspent
+  Dragon Souls*, and *Dragon Soul Absorbed* (fires for a window right after
+  a soul lands).
+- **Ambient light effect.** *Ambient Light* (FX module) attaches an
+  invisible, flicker-free light that follows the actor — no visible orb,
+  smooth movement. Radius, brightness, and **colour** are tunable per tier
+  (colour via a new MCM colour-picker control). Light tuning is a soft
+  dependency on **po3's Papyrus Extender** — the effect still toggles
+  without it, just at the base light's fixed radius/colour.
+- **On-hit retaliation effects** (Combat): *Ragdoll on Hit* and *Fire /
+  Frost / Shock Damage on Hit* strike back at attackers when the actor is
+  struck (player-only).
+- **Vitals drain effects** (Attributes): *Drain Health / Magicka / Stamina*
+  continuously bleed a current attribute while the tier is active, with a
+  menu/sleep/load-pause guard so paused time isn't billed as play time.
+- **Burst damage effects** (Attributes): *Damage Health / Magicka / Stamina*
+  deal or restore a percentage of base attribute on tier activation.
+- **SPID distributor add-on.** An optional plugin that auto-distributes MTF
+  content via Spell Perk Item Distributor.
+- **Community Overlays 1 (Body) adapter.** FOMOD now wires in a catalog for
+  Community Overlays 1 body overlays.
+
+### Internal / dev
+
+- Self-test battery expanded to **76/104** automated F10 checks (was mostly
+  skipped): drain dt-cap regression, ambient-light signature, burst damage,
+  on-hit flag roundtrip, `time.range`, `shout.equipped`, and a spawn-based
+  combat/follower trio.
+
 ## [v0.3.6] — 2026-05-31
 
 A packaging fix. No script, schema, or save changes; drop-in over v0.3.5.
@@ -230,4 +276,5 @@ still recommended for first-time setup.
 - Visual stress runner (End key) — 4 stacked tattoos × N NPCs.
 - N-fiber concurrency stress runner (PgDn) with a UIListMenu picker.
 
+[v0.4.0]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
 [v0.3.0]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
