@@ -339,6 +339,22 @@ Area: Body.]]></description>
               </typeDescriptor>
             </plugin>
 
+            <plugin name="Community Overlays 1 catalog">
+              <description><![CDATA[JSON catalog for Community Overlays 1 — Main. Covers 57 grounded entries:
+- mtf.community-overlays-1-body (57 entries) — Body
+
+REQUIRES: Community Overlays 1 - Main — install separately.
+Texture-only source mod (no plugin to auto-detect), so this stays manual.
+
+Area: Body.]]></description>
+              <files>
+                <folder source="21_content_co1" destination="" priority="0"/>
+              </files>
+              <typeDescriptor>
+                <type name="Optional"/>
+              </typeDescriptor>
+            </plugin>
+
             <plugin name="Community Overlays 2 catalog">
               <description><![CDATA[JSON catalogs for Community Overlays 2 — Main (CBBE and Male). Bundles four sub-catalogs covering 195 grounded entries:
 - mtf.community-overlays-2-body (96 entries) — Body

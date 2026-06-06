@@ -87,7 +87,7 @@ ESP get pre-recommended too — LewdMarks (`LewdMarks.esp` OR
 `LewdMarksSlaveTats.esp`), RX (`RXOverlays.esp`), Lyru-1 (`LyruTat.esp`),
 Lyru-2 (`LyruTat2.esp`), Bitchcraft (`Bitchcraft Tats.esp`),
 Community Overlays 2 (`CommunityOverlays2_31T50.esp`), Community Overlays 3
-(`CommunityOverlays3.esp`). Bardle Nail Polish and Community Overlays 1 Face
+(`CommunityOverlays3.esp`). Bardle Nail Polish and Community Overlays 1 (Body)
 stay manual (their source mods are texture-only with no plugin file to detect).
 
 The "Texture Pack Adapters" picklist in the installer is ordered alphabetically

@@ -1,0 +1,863 @@
+{
+  "schemaVersion": 3,
+  "packId": "mtf.community-overlays-1-body",
+  "label": "Community Overlays 1 (Body)",
+  "area": "Body",
+  "entries": [
+    {
+      "id": "00 Body",
+      "label": "00 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\00 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "amoeboid blackwork fields with looping cell-like tendrils and ringed eyes",
+        "style": "organic blackwork with negative-space linework",
+        "placement": "chest, shoulders, belly, hips and outer thighs (centered, symmetrical, mirrored)"
+      },
+      "description": "Large solid black organic patches sprawl across the shoulders, flanks, belly and outer thighs, their inner surfaces carved out by curling tendril lines and small ringed circles that read like cells or eyes. A concentric bullseye sits dead-center on the upper sternum with a second smaller one over the pubic mound, and feathered scrollwork radiates outward from the chest centerline."
+    },
+    {
+      "id": "01 Body",
+      "label": "01 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\01 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "paired waistband sashes with central dip",
+        "style": "solid blackwork band",
+        "placement": "lower belly and hip line (mirrored, symmetrical)"
+      },
+      "description": "A pair of broad solid-black bands sit low across the belly and hips, each tapering to a small downward V-dip at center with a tiny dot beneath. The two halves mirror each other, reading like a low-slung waistband or sash."
+    },
+    {
+      "id": "02 Body",
+      "label": "02 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\02 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "paired filigree scrolls and spirals",
+        "style": "fine swirling blackwork",
+        "placement": "sternum, lower ribs and outer thighs (centered, symmetrical)"
+      },
+      "description": "Delicate curling filigree fills the sternum and ribs with tightly wound spirals fanning outward symmetrically, dropping into a small pointed flourish over the lower belly. Mirrored clusters of looping scrollwork sit low on each outer thigh, all rendered in thin wispy linework with no solid fills."
+    },
+    {
+      "id": "04 Body",
+      "label": "04 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\04 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "showers of tiny teardrop dashes forming faint radiating bursts",
+        "style": "fine dotwork stippling",
+        "placement": "chest, belly, thighs and outer arms (centered, symmetrical)"
+      },
+      "description": "A delicate scatter of small teardrop-shaped dashes drifts across the whole torso, denser along the vertical centerline and fanning into soft starburst shapes over the sternum, lower belly and thighs. Very light and airy, with no solid fills, like flecks of falling ink or rain."
+    },
+    {
+      "id": "05 Body",
+      "label": "05 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\05 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "fern fronds and tree-of-life sprays",
+        "style": "fine dotwork stipple",
+        "placement": "sternum, belly, outer thighs and lower legs (centered, symmetrical)"
+      },
+      "description": "Delicate teardrop stipples build a central upright fern over the sternum that fans into wing-like sprays across the chest. Matching stippled fronds repeat down the belly and bloom on the outer thighs and lower legs, all soft dotwork with no solid fills."
+    },
+    {
+      "id": "06 Body",
+      "label": "06 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\06 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "diamond lattice of teardrop dots",
+        "style": "fine stippled dotwork",
+        "placement": "chest, belly and thighs (centered, symmetrical, full coverage)"
+      },
+      "description": "Hundreds of tiny teardrop dots form a large overlapping diamond and starburst lattice spanning the whole torso, densest in a radiating rosette over the navel. The pattern tiles symmetrically across chest, belly and upper thighs in soft stippling with no outlines or solid shapes."
+    },
+    {
+      "id": "10 Body Back",
+      "label": "10 Body Back",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\10 Body Back.dds"
+        }
+      ],
+      "tags": {
+        "subject": "curling tribal crest and paired clawed scrolls",
+        "style": "bold tribal blackwork",
+        "placement": "upper back between the shoulder blades and lower spine (centered, symmetrical)"
+      },
+      "description": "A small symmetrical tribal crest of inward-curling hooks sits high between the shoulder blades, tapering to a thin spike below. Beneath it a pair of mirrored clawed scrolls curl outward like horns at the lower back. Compact and solid black."
+    },
+    {
+      "id": "10 Body Belly",
+      "label": "10 Body Belly",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\10 Body Belly.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horned tribal flourish",
+        "style": "bold tribal blackwork",
+        "placement": "lower belly (centered, symmetrical)"
+      },
+      "description": "A single compact tribal motif sits over the lower belly: a pair of upswept horn-like curves above a symmetrical knot of curling spikes and scrolls that tapers to a point. Smooth solid black with sharp tips, no fill texture."
+    },
+    {
+      "id": "10 Body Chest",
+      "label": "10 Body Chest",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\10 Body Chest.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small tribal sprig with curled tips",
+        "style": "bold tribal blackwork",
+        "placement": "center sternum (small, symmetrical)"
+      },
+      "description": "A single small tribal motif sits centered on the sternum: two short barbed arms curling outward like horns above a downward-pointing spike with a fine tapering tail. Solid black, compact, and mirror-symmetrical, with nothing else on the body."
+    },
+    {
+      "id": "10 Body Left Arm",
+      "label": "10 Body Left Arm",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\10 Body Left Arm.dds"
+        }
+      ],
+      "tags": {
+        "subject": "spiky barbed tribal sprig",
+        "style": "bold tribal blackwork",
+        "placement": "left forearm (single, off-center band)"
+      },
+      "description": "A short jagged tribal flourish runs along the forearm, all barbed spikes and small inward curls branching off a central stem. A faint detached fleck sits just above it. Sparse, with the rest of the field bare."
+    },
+    {
+      "id": "10 Body Left Leg",
+      "label": "10 Body Left Leg",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\10 Body Left Leg.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered tribal hooks and a flame cluster",
+        "style": "tribal blackwork",
+        "placement": "outer thigh and lower leg (one side)"
+      },
+      "description": "Loose tribal elements drift down one leg: a couple of small curling hooks up top and a denser knot of spiked, swirling flame-like tendrils lower down. Sparse and asymmetric, clearly the side-leg companion to a larger set."
+    },
+    {
+      "id": "10 Body Right Arm",
+      "label": "10 Body Right Arm",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\10 Body Right Arm.dds"
+        }
+      ],
+      "tags": {
+        "subject": "thorny branching vine",
+        "style": "organic tribal blackwork",
+        "placement": "one arm (horizontal band)"
+      },
+      "description": "A gnarled thorny vine runs horizontally as a single band, with hooked barbs, a couple of spiral knots and spiky offshoots branching off a central tendril. Solid black and asymmetric, sitting along one arm with a small detached fleck floating above."
+    },
+    {
+      "id": "10 Body Right Leg",
+      "label": "10 Body Right Leg",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\10 Body Right Leg.dds"
+        }
+      ],
+      "tags": {
+        "subject": "wispy tribal tendrils and a small hooked crest",
+        "style": "bold tribal blackwork",
+        "placement": "hip/upper thigh and lower leg (scattered, asymmetrical)"
+      },
+      "description": "A small hooked tribal flourish sits at the upper hip with a stray thin tendril nearby, while a larger spray of curling barbed tribal tendrils flares across the lower thigh and shin. Loose and scattered rather than continuous, mostly empty field between the elements."
+    },
+    {
+      "id": "10 Body",
+      "label": "10 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\10 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate tribal damask of horns, scrolls and spikes",
+        "style": "bold tribal blackwork",
+        "placement": "chest, belly, thighs and shoulders (centered, mirrored, symmetrical)"
+      },
+      "description": "A full mirrored tribal composition: upswept horned crests on the upper chest, interlocking spiked scrolls and barbed swirls cascading down the sternum and belly, with curling hooked flourishes spreading onto the shoulders and thighs. Dense, sharp-tipped solid blackwork throughout."
+    },
+    {
+      "id": "11 Body Back",
+      "label": "11 Body Back",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\11 Body Back.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ribbed spine-and-flame column",
+        "style": "tribal blackwork",
+        "placement": "center upper back (vertical, symmetrical)"
+      },
+      "description": "A narrow vertical column of flame-like tribal strokes runs up the center of the upper back, with a ladder of small ribs down its core and curling barbed wings flaring symmetrically to either side. Compact, solid black and tapering to points top and bottom."
+    },
+    {
+      "id": "11 Body Chest",
+      "label": "11 Body Chest",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\11 Body Chest.dds"
+        }
+      ],
+      "tags": {
+        "subject": "antler-like crest and a vertical spear of barbed lines",
+        "style": "fine tribal linework",
+        "placement": "upper chest/sternum and lower belly (centered, symmetrical)"
+      },
+      "description": "A small antler- or wing-shaped crest of thin curling prongs sits at the top of the sternum. Below it, over the lower belly, a slender vertical column of mirrored barbed lines and tapering spikes points downward. Fine and linear, no solid fills."
+    },
+    {
+      "id": "11 Body Left Arm",
+      "label": "11 Body Left Arm",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\11 Body Left Arm.dds"
+        }
+      ],
+      "tags": {
+        "subject": "raked claw-mark streaks",
+        "style": "rough brushed blackwork",
+        "placement": "upper arm (one side)"
+      },
+      "description": "A cluster of long horizontal slash-like streaks rakes across the arm, like dragged claw or brush marks layered over each other. Tapered, slightly ragged strokes with no enclosed shapes."
+    },
+    {
+      "id": "11 Body Left Leg",
+      "label": "11 Body Left Leg",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\11 Body Left Leg.dds"
+        }
+      ],
+      "tags": {
+        "subject": "torn vertical claw-rake streaks",
+        "style": "rough scratch blackwork",
+        "placement": "one leg, upper and lower (vertical streaks)"
+      },
+      "description": "Ragged vertical streaks like raking claw marks or dripping bark run down one leg in two clusters, upper and lower. The strokes are thin, frayed and slightly curved, with a few stray scratches off to the side, giving a torn shredded look rather than a defined motif."
+    },
+    {
+      "id": "11 Body Right Arm",
+      "label": "11 Body Right Arm",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\11 Body Right Arm.dds"
+        }
+      ],
+      "tags": {
+        "subject": "raked claw-marks and trailing wavy streaks",
+        "style": "loose brushed linework",
+        "placement": "forearm sweeping toward the wrist (single, off-center)"
+      },
+      "description": "A bundle of long wavy parallel streaks sweeps across the forearm like raked claw-marks or windblown strands, gathering toward a knotted snag near the wrist. Loose and brush-like, occupying one side with the rest of the field empty."
+    },
+    {
+      "id": "11 Body Right Leg",
+      "label": "11 Body Right Leg",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\11 Body Right Leg.dds"
+        }
+      ],
+      "tags": {
+        "subject": "torn vertical scratch streaks",
+        "style": "rough brushed blackwork",
+        "placement": "thigh and lower leg (one side)"
+      },
+      "description": "Ragged vertical scratch-marks run down the leg in two loose clusters, top and bottom, each a bundle of frayed thin streaks like torn fabric or scoring. Sparse, broken strokes with no solid mass."
+    },
+    {
+      "id": "11 Body",
+      "label": "11 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\11 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ribbed spine column with wing-like rakes",
+        "style": "tribal scratch blackwork",
+        "placement": "chest, belly and legs (centered, symmetrical, full coverage)"
+      },
+      "description": "A flame-like ribbed spine runs up the center of the torso from a round knot at the navel, sending horizontal raking strokes out across the chest and ribs like layered wings. Long frayed vertical streaks rain down both legs, all symmetrical and built from rough tapering tribal lines."
+    },
+    {
+      "id": "12 Body",
+      "label": "12 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\12 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dripping flame-like blackwork with a central slit eye and demon mask",
+        "style": "bold blackwork with negative-space detail",
+        "placement": "chest, ribs, belly, hips and thighs (centered, symmetrical, mirrored)"
+      },
+      "description": "Heavy black fields with flame-like dripping edges flood the ribs, belly, hips and thighs. A single vertical slit-pupil eye sits high on the sternum, and a horned demon-mask face with another small eye anchors the lower belly. The ink hangs in icicle-like points along its lower borders, giving a melting, downward-flowing feel."
+    },
+    {
+      "id": "13 Body",
+      "label": "13 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\13 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate plate-armor cuirass and pauldrons",
+        "style": "solid silhouette blackwork",
+        "placement": "torso, shoulders, hips and thighs (centered, mirrored, symmetrical)"
+      },
+      "description": "A full suit of heavy fantasy plate armor rendered as solid black silhouettes: a spiked, horned breastplate and gorget over the chest, segmented faulds and a codpiece down the belly, with matching pauldrons, hip plates and thigh guards laid out to either side. Reads as a painted-on armor set."
+    },
+    {
+      "id": "14 Body",
+      "label": "14 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\14 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "horned demonic mask and bands",
+        "style": "bold solid blackwork",
+        "placement": "chest, belly and thighs (centered, symmetrical, heavy fill)"
+      },
+      "description": "A large horned demon-like face dominates the torso: jagged solid-black antlers and brows up on the chest, a round dot at the navel, and a snarling fanged maw with two big eye-circles low on the belly. Heavy solid bands wrap across the chest and clawed shapes mirror down the thighs, all bold filled black."
+    },
+    {
+      "id": "15 Body",
+      "label": "15 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\15 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "an inverted triangular medallion with tribal teeth and a small heart",
+        "style": "ornamental tribal blackwork",
+        "placement": "upper chest/sternum (single, centered)"
+      },
+      "description": "A single small emblem sits centered on the upper chest: a downward-pointing solid triangle ringed by a beaded oval, topped with a row of little tribal teeth and flanked by curling motifs. The rest of the body is bare."
+    },
+    {
+      "id": "16 Body",
+      "label": "16 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\16 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small runic spine totem",
+        "style": "fine geometric linework",
+        "placement": "center sternum (centered, symmetrical)"
+      },
+      "description": "A tiny vertical totem sits centered on the sternum: a banded diamond head, a slender ladder-like spine with small side prongs, and a pointed diamond finial at the base. Thin, neat symmetrical linework, very small."
+    },
+    {
+      "id": "17 Body",
+      "label": "17 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\17 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small fish-bone arrow sliver",
+        "style": "fine linework",
+        "placement": "one side, mid (small, single)"
+      },
+      "description": "A single tiny motif resembling a fish skeleton or feathered arrowhead, a slim oval ringed with fine ribs and a pointed tail, sits alone on the left side. Faint, thin-lined and minimal, with the rest of the body bare."
+    },
+    {
+      "id": "19 Body Base",
+      "label": "19 Body Base",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\19 Body Base.dds"
+        }
+      ],
+      "tags": {
+        "subject": "a single wobbly double-outlined ring",
+        "style": "thin outline linework",
+        "placement": "lower belly/navel (single, centered)"
+      },
+      "description": "Just one irregular, hand-drawn double-outlined circle sits over the navel area, like a rough ring or portal sketch. No fill and nothing else on the body."
+    },
+    {
+      "id": "19 Body Secondary",
+      "label": "19 Body Secondary",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\19 Body Secondary.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ring of tiny runic marks",
+        "style": "fine scratchy linework",
+        "placement": "lower belly / navel (centered, symmetrical)"
+      },
+      "description": "A loose oval ring of small runic dashes and angular marks encircles the navel area, like a faint circlet of script. Delicate, broken strokes forming an open hoop with nothing filled inside."
+    },
+    {
+      "id": "20 Body Base",
+      "label": "20 Body Base",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\20 Body Base.dds"
+        }
+      ],
+      "tags": {
+        "subject": "rounded diamond ring and two pouches",
+        "style": "solid filled blackwork",
+        "placement": "lower belly and inner thighs (centered, symmetrical)"
+      },
+      "description": "A plump rounded-diamond shape with a hollow oval center sits over the lower belly, with two soft pouch-like solid blobs mirrored below on the upper inner thighs. All shapes are smooth, heavy solid black with no internal detail."
+    },
+    {
+      "id": "20 Body Secondary",
+      "label": "20 Body Secondary",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\20 Body Secondary.dds"
+        }
+      ],
+      "tags": {
+        "subject": "a beaded teardrop frame and thin sweeping swag lines",
+        "style": "fine dotted linework",
+        "placement": "lower belly and outer thighs (centered, symmetrical)"
+      },
+      "description": "A teardrop-shaped frame outlined in tiny beads and ticks encloses the lower belly, with a small forked sprig at its top point. Below and to the sides, faint dotted swag-lines arc gently across the thighs like delicate garlands. Very light, all stipple and thin line, no fills."
+    },
+    {
+      "id": "21 Body",
+      "label": "21 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\21 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "dripping torn ring / open wound",
+        "style": "heavy textured blackwork",
+        "placement": "belly and groin (centered, symmetrical)"
+      },
+      "description": "A large ragged black mass covers the belly with a bright open oval at its center, its edges breaking into countless dripping, melting tendrils that run downward. Reads like a torn ring or seeping wound smeared across the midsection."
+    },
+    {
+      "id": "22 Body",
+      "label": "22 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\22 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "tribal masks, hooks and curls",
+        "style": "polynesian tribal blackwork",
+        "placement": "chest, belly, shoulders and thighs (centered, symmetrical, full coverage)"
+      },
+      "description": "A dense Polynesian-style tribal field covers the whole torso: a mask-like crest down the sternum, banded hook and crescent shapes wrapping the ribs and shoulders, and curling tendril forms with small moons low on the thighs. Bold solid black, intricate and fully mirror-symmetrical."
+    },
+    {
+      "id": "23 Body",
+      "label": "23 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\23 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "interlaced antler and bramble thickets with a central crest",
+        "style": "organic blackwork tendrils",
+        "placement": "chest, belly, hips and thighs (centered, symmetrical, mirrored)"
+      },
+      "description": "Dense thickets of branching antler-like and bramble tendrils interlace across the torso and thighs, leaving jagged negative-space gaps between them. A fine symmetrical crest of thin prongs runs down the sternum centerline, with a small radiating cluster over the lower belly. Busy and woven, like a tangle of roots or horns."
+    },
+    {
+      "id": "24 Body Soft",
+      "label": "24 Body Soft",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\24 Body Soft.dds"
+        }
+      ],
+      "tags": {
+        "subject": "faint scattered feathers and wing wisps",
+        "style": "soft sketchy linework",
+        "placement": "chest, belly and thighs (loosely centered)"
+      },
+      "description": "Very faint, wispy strokes scatter across the torso: a small clustered swirl near the upper chest, a soft winged flick over the lower belly, and loose feather-like dashes drifting onto the belly and thighs. Subtle and sparse, almost a faded sketch."
+    },
+    {
+      "id": "24 Body",
+      "label": "24 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\24 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "scattered feathers and a swirling nest",
+        "style": "loose fine linework",
+        "placement": "upper chest and lower belly/thighs (scattered)"
+      },
+      "description": "Loose individual feather and leaf slivers scatter across the upper chest, swirling into a small whirlpool-like cluster, with a winged arc shape over the lower belly and more feathers drifting onto the thighs. Thin, sketchy and airy, like falling feathers caught mid-drift."
+    },
+    {
+      "id": "25 Body Base",
+      "label": "25 Body Base",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\25 Body Base.dds"
+        }
+      ],
+      "tags": {
+        "subject": "rising wispy flames and smoke streaks",
+        "style": "soft brushed blackwork",
+        "placement": "lower torso, hips and thighs rising upward (centered, symmetrical)"
+      },
+      "description": "Soft tongues of flame and smoke lick upward from the lower body across the hips and thighs, thinning into wispy streaks toward the belly. The strokes are feathery and semi-transparent rather than hard-edged, giving a smoldering, rising-heat look."
+    },
+    {
+      "id": "25 Body Secondary",
+      "label": "25 Body Secondary",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\25 Body Secondary.dds"
+        }
+      ],
+      "tags": {
+        "subject": "rising flame / smoke wisps",
+        "style": "soft brushed blackwork",
+        "placement": "thighs, lower belly and lower legs (mirrored)"
+      },
+      "description": "Slender upward-licking flame or smoke tendrils rise in clustered rows across the lower body, concentrated on the thighs and lower legs and thinning toward the belly. Soft tapered brush strokes, all flowing upward."
+    },
+    {
+      "id": "25 Body Tertiary",
+      "label": "25 Body Tertiary",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\25 Body Tertiary.dds"
+        }
+      ],
+      "tags": {
+        "subject": "fine streaky hair-like wisps",
+        "style": "delicate scratch linework",
+        "placement": "chest, belly and legs (scattered downward strokes)"
+      },
+      "description": "Faint short downward wisps like fine body hair or rain streaks are scattered loosely over the chest, belly and legs. Very thin and low-contrast, with no defined shape, reading as a subtle textured wash of tiny strokes across the lower body."
+    },
+    {
+      "id": "26 Body Base",
+      "label": "26 Body Base",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\26 Body Base.dds"
+        }
+      ],
+      "tags": {
+        "subject": "swirling marbled smoke and current-like eddies",
+        "style": "soft brushed blackwork",
+        "placement": "full torso, hips and thighs (allover, symmetrical)"
+      },
+      "description": "An allover wash of swirling, marbled smoke covers the whole body, full of curling spirals and flowing eddies like ink dropped in water. The tone is soft and cloudy with no hard outlines, denser and more turbulent toward the lower body."
+    },
+    {
+      "id": "26 Body Secondary",
+      "label": "26 Body Secondary",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\26 Body Secondary.dds"
+        }
+      ],
+      "tags": {
+        "subject": "faint wispy smoke curls",
+        "style": "very soft hazy blackwork",
+        "placement": "thighs and lower torso (scattered, mirrored)"
+      },
+      "description": "Barely-there hazy curls and short tendrils drift across the lower torso and thighs, like thin wisps of smoke. Extremely low-contrast and diffuse, the faintest scattering of soft swirling strokes with no defined edges."
+    },
+    {
+      "id": "29 Body",
+      "label": "29 Body",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\29 Body.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate map-like patch and branching sprig",
+        "style": "detailed ornamental blackwork",
+        "placement": "one shoulder/chest and one lower thigh (asymmetric)"
+      },
+      "description": "An irregular patch filled with fine maze-like swirling detail sits low on one thigh, paired with a small ribbed crescent fragment up on the opposite chest/shoulder. Below it a delicate branching antler-like sprig with curls and dots spreads over the lower belly, all asymmetric and finely detailed."
+    },
+    {
+      "id": "30 Body Base W",
+      "label": "30 Body Base W",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\30 Body Base W.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate tribal beasts and curling scrollwork with eye-spots",
+        "style": "decorative tribal blackwork",
+        "placement": "chest, shoulders, belly, hips and thighs (centered, symmetrical)"
+      },
+      "description": "Large ornate black shapes spread across the torso and thighs, their surfaces filled with curling whitework scrolls, dotted rows and small eye-spots so they read like stylized beasts or masks. Banded armlet-like motifs sit at the shoulders, a small diamond anchors the lower belly, and the whole design mixes solid black with intricate negative-space ornament."
+    },
+    {
+      "id": "30 Body Base",
+      "label": "30 Body Base",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\30 Body Base.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate sea-creature and tendril motifs (rays, eyes, scrolls)",
+        "style": "tribal silhouette with negative-space detail",
+        "placement": "chest, belly, thighs and shoulders (mirrored, asymmetric)"
+      },
+      "description": "Large solid-black shapes sprawl across the body with fine pale negative-space patterns cut into them, stingray-like forms, eye and leaf motifs, dotted bands and curling tendrils. Reads as an oceanic tribal composition, with banner-like clavicle pieces up top and big organic blobs flowing down the torso and thighs."
+    },
+    {
+      "id": "30 Body Secondary W",
+      "label": "30 Body Secondary W",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\30 Body Secondary W.dds"
+        }
+      ],
+      "tags": {
+        "subject": "faint dotted constellation trails",
+        "style": "sparse fine dotwork",
+        "placement": "belly and legs (scattered, faint)"
+      },
+      "description": "Very faint dotted and dashed trails wander loosely across the belly and legs, linking small ring and curl shapes like a sketchy constellation map. Extremely low-contrast and sparse, the design is hard to make out, reading mostly as scattered fine dots and broken thin lines."
+    },
+    {
+      "id": "30 Body Secondary",
+      "label": "30 Body Secondary",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\30 Body Secondary.dds"
+        }
+      ],
+      "tags": {
+        "subject": "faint dotted trails and broken curling threads",
+        "style": "sparse dotwork",
+        "placement": "belly, hips and thighs (scattered, loosely symmetrical)"
+      },
+      "description": "Thin broken trails of dots and short curling threads wander across the lower torso and thighs, looping into a few loose coils. Very faint and sparse, more a scattering of connect-the-dot lines than a solid design."
+    },
+    {
+      "id": "Extra Body Arm Xi",
+      "label": "Extra Body Arm Xi",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Arm Xi.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small crescent rune glyph",
+        "style": "fine linework",
+        "placement": "upper arm (one side, small)"
+      },
+      "description": "A single tiny glyph, a crescent-like hook with a short bisecting stroke, resembling a stylized rune or character, sits alone on the upper arm. Minimal and isolated."
+    },
+    {
+      "id": "Extra Body Back Moons",
+      "label": "Extra Body Back Moons",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Back Moons.dds"
+        }
+      ],
+      "tags": {
+        "subject": "crescent moon",
+        "style": "soft solid blackwork",
+        "placement": "center upper back (small, single)"
+      },
+      "description": "A single small crescent moon with a softly shaded inner disc sits centered on the upper back. Compact and simple, faintly inked, with nothing else on the body."
+    },
+    {
+      "id": "Extra Body Back Xi",
+      "label": "Extra Body Back Xi",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Back Xi.dds"
+        }
+      ],
+      "tags": {
+        "subject": "a small winged crest dripping teardrops",
+        "style": "compact tribal blackwork",
+        "placement": "upper back between the shoulder blades (single, centered)"
+      },
+      "description": "A single small emblem sits high on the back: a flattened winged or fanned crest with a tiny heart at its center, shedding a little cluster of teardrop dots beneath it. Compact and solid, with the rest of the back bare."
+    },
+    {
+      "id": "Extra Body Breasts Crescent",
+      "label": "Extra Body Breasts Crescent",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Breasts Crescent.dds"
+        }
+      ],
+      "tags": {
+        "subject": "paired facing crescents",
+        "style": "thin clean linework",
+        "placement": "chest / under-breasts (mirrored, symmetrical)"
+      },
+      "description": "Two small thin crescent arcs face away from each other across the chest, one cupping each breast like a pair of opposing moons. Very minimal, just two delicate curved lines."
+    },
+    {
+      "id": "Extra Body Chest Xi",
+      "label": "Extra Body Chest Xi",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Chest Xi.dds"
+        }
+      ],
+      "tags": {
+        "subject": "rising-sun rays over a curved cradle",
+        "style": "simple linework",
+        "placement": "center lower chest/sternum (small, symmetrical)"
+      },
+      "description": "A small symmetrical emblem centered on the lower sternum: a fan of short radiating rays, like a tiny sunburst, nested above a shallow upward-curving cradle line. Thin clean lines, compact and minimal."
+    },
+    {
+      "id": "Extra Body Feather",
+      "label": "Extra Body Feather",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Feather.dds"
+        }
+      ],
+      "tags": {
+        "subject": "a radiant sun disc framed by feathered fringes and tribal rays",
+        "style": "ornamental tribal linework",
+        "placement": "chest/sternum, collarbones and lower belly (centered, symmetrical)"
+      },
+      "description": "A spoked sun-disc sits at the center of the chest, ringed by short rays and bracketed by sweeping feathered fringes that arc up toward the collarbones. Rows of fine comb-like fringe run across the upper chest and a mirrored spear-and-fan motif points down over the lower belly. All thin linework and dashes, no solid fills."
+    },
+    {
+      "id": "Extra Body Gemstone",
+      "label": "Extra Body Gemstone",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Gemstone.dds"
+        }
+      ],
+      "tags": {
+        "subject": "ornate banded armlet / bracer band",
+        "style": "tribal linework with negative-space detail",
+        "placement": "upper arm (one side)"
+      },
+      "description": "A horizontal banded cuff wraps the upper arm, built from linked tribal segments with dotted rows, small eye-like cells and bracketed scrollwork picked out in fine pale lines. Reads like an ornamental armlet or bracer rather than a single gem."
+    },
+    {
+      "id": "Extra Body Leg Moon",
+      "label": "Extra Body Leg Moon",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Leg Moon.dds"
+        }
+      ],
+      "tags": {
+        "subject": "crescent moon",
+        "style": "soft solid blackwork",
+        "placement": "one lower leg (small, single)"
+      },
+      "description": "A single small softly-shaded crescent moon sits low on one leg. Tiny, faint and rounded, with no other markings."
+    },
+    {
+      "id": "Extra Body Loin Xi",
+      "label": "Extra Body Loin Xi",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Loin Xi.dds"
+        }
+      ],
+      "tags": {
+        "subject": "a tiny radiating eye/sun glyph",
+        "style": "fine tribal linework",
+        "placement": "pubic mound / lower groin (single, centered)"
+      },
+      "description": "A single very small glyph sits low at the groin: a little eye-like motif with short rays fanning out above it. The rest of the body is completely bare; the mark is minimal and easy to miss."
+    },
+    {
+      "id": "Extra Body Stomach Moon",
+      "label": "Extra Body Stomach Moon",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Stomach Moon.dds"
+        }
+      ],
+      "tags": {
+        "subject": "small full-moon orb",
+        "style": "soft shaded blackwork",
+        "placement": "lower belly / navel (centered)"
+      },
+      "description": "A single small softly-shaded oval orb sits centered on the lower belly, with faint mottled cratering across its face like a little moon. Low contrast, just one round motif and nothing else."
+    },
+    {
+      "id": "Extra Body Toosh Moon",
+      "label": "Extra Body Toosh Moon",
+      "layers": [
+        {
+          "texture": "actors\\character\\Overlays\\Community Overlays\\Extra Body Toosh Moon.dds"
+        }
+      ],
+      "tags": {
+        "subject": "paired crescent moons",
+        "style": "soft solid blackwork",
+        "placement": "both buttocks (small, mirrored)"
+      },
+      "description": "Two small crescent moons, one on each buttock, mirrored across the centerline. Each is a simple softly-shaded sliver, faintly inked and minimal."
+    }
+  ]
+}
