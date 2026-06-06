@@ -311,9 +311,16 @@ Function _runConditions(MTF_MainQuest mq, Actor pl)
     _aaa_dragonsoulUnspent(mq, pl)
     _aaa_dragonsoulAbsorbed(mq, pl)
 
+    ; v0.4 — Tier 1 skip coverage (pure-Papyrus, deterministic, reversible)
+    _aaa_timeRange(mq, pl)          ; state-free: arrange the window around "now"
+    _aaa_shoutEquipped(mq, pl)      ; uses the player's own equipped shout (else SKIP)
+
+    ; v0.4 — Tier 2 skip coverage (spawns a disposable skeever near the player)
+    _aaa_combatTrio(mq, pl)         ; combat.in / combat.alerted / combat.hostile
+    _aaa_followersAny(mq, pl)       ; followers.any
+
     ; --- SKIPs ---
     _skipCond("shout.cooldown",           "no Papyrus API to force voice-recovery state")
-    _skipCond("shout.equipped",           "needs a known + equipped shout (invasive to arrange)")
     ; v0.4 transient stat conditions — QueryStat counters can't be forced via
     ; Papyrus (no SetStat), so the real-stat path isn't arrangeable. The shared
     ; _checkTransientIncrease mechanism they rely on IS covered (dragonsoul.absorbed).
@@ -333,13 +340,8 @@ Function _runConditions(MTF_MainQuest mq, Actor pl)
     _skipCond("magiceffect.kw.fire",      "TODO: needs vanilla ability spell with MagicDamageFire kw")
     _skipCond("magiceffect.kw.frost",     "TODO: needs vanilla ability spell with MagicDamageFrost kw")
     _skipCond("magiceffect.kw.shock",     "TODO: needs vanilla ability spell with MagicDamageShock kw")
-    _skipCond("combat.in",                "needs active combat (hostile NPC required)")
-    _skipCond("combat.alerted",           "needs hostile NPCs nearby")
-    _skipCond("combat.hostile",           "needs hostile NPCs nearby")
     _skipCond("combat.hit",               "needs hit event")
     _skipCond("combat.casting",           "needs player mid-cast")
-    _skipCond("time.range",               "TODO: needs SetGameTime arrange")
-    _skipCond("followers.any",            "needs follower NPC nearby")
 EndFunction
 
 ; ---------- AV-percent threshold tests --------------------------------
@@ -741,6 +743,190 @@ Function _aaa_dragonsoulAbsorbed(MTF_MainQuest mq, Actor pl)
     _recordCond(testName, err)
 EndFunction
 
+Function _aaa_timeRange(MTF_MainQuest mq, Actor pl)
+{Tier 1 — state-free arrange. Rather than move the game clock, we set the
+ condition window AROUND the current in-game hour for the fire case and a
+ 2-hour block 3h ahead for the off case. time.range reads `from`=param and
+ `till`=param2 (threaded into the eval context by evaluateTier), wrapping when
+ from > till. Both windows are computed mod 24 so every hour-of-day is safe.}
+    string testName = "time.range(window around now)"
+    string err = ""
+
+    float t36 = Utility.GetCurrentGameTime()
+    float hf  = (t36 - Math.Floor(t36)) * 24.0
+    int   hi  = hf as int
+
+    ; ARRANGE -- off-window: [hi+3, hi+5) mod 24 never contains `now`.
+    int nfFrom = (hi + 3) % 24
+    int nfTill = (hi + 5) % 24
+    _configureCondSlot(mq, "time.range", nfFrom, nfTill)
+    if mq.evaluateTier() == TEST_COND_SLOT
+        err = "arrange: hour " + hf + " unexpectedly inside off-window [" + nfFrom + "," + nfTill + ")"
+    endif
+
+    if err == ""
+        ; ACT -- fire-window: [hi, hi+2) mod 24 always contains `now` (and the
+        ; clock only advances, never below hi within this call).
+        int fFrom = hi
+        int fTill = (hi + 2) % 24
+        _configureCondSlot(mq, "time.range", fFrom, fTill)
+        if mq.evaluateTier() != TEST_COND_SLOT
+            err = "assert: hour " + hf + " not matched by fire-window [" + fFrom + "," + fTill + ")"
+        endif
+    endif
+
+    _recordCond(testName, err)
+EndFunction
+
+Function _aaa_shoutEquipped(MTF_MainQuest mq, Actor pl)
+{Tier 1 — uses the player's OWN equipped shout so the arrange is fully
+ reversible (no AddShout/RemoveShout that would perturb progression). If no
+ shout is equipped we SKIP rather than inject one. shout.equipped reads
+ GetEquippedShout() != None.}
+    string testName = "shout.equipped"
+    string err = ""
+
+    Shout orig = pl.GetEquippedShout()
+    if orig == None
+        _skipCond(testName, "no shout equipped to arrange reversibly (injecting one would perturb progression)")
+        return
+    endif
+
+    _configureCondSlot(mq, "shout.equipped", 0, 0)
+
+    ; ARRANGE -- unequip the player's shout.
+    pl.UnequipShout(orig)
+    Utility.Wait(0.3)
+    if pl.GetEquippedShout() != None
+        err = "arrange: UnequipShout failed (shout still equipped)"
+    elseif mq.evaluateTier() == TEST_COND_SLOT
+        err = "arrange: expected no shout but tier=7"
+    endif
+
+    if err == ""
+        ; ACT -- re-equip the same shout.
+        pl.EquipShout(orig)
+        Utility.Wait(0.3)
+        if pl.GetEquippedShout() == None
+            err = "act: EquipShout failed (still none)"
+        elseif mq.evaluateTier() != TEST_COND_SLOT
+            err = "assert: shout equipped but tier=0"
+        endif
+    endif
+
+    ; CLEANUP -- guarantee the original shout is restored.
+    pl.EquipShout(orig)
+    _recordCond(testName, err)
+EndFunction
+
+Function _aaa_combatTrio(MTF_MainQuest mq, Actor pl)
+{Tier 2 — one disposable hostile drives all three combat conditions. The
+ skeever is ghosted (no damage either way) and force-pushed into two-way
+ combat: pl.StartCombat sets the PLAYER's combat state (combat.in reads
+ pl.IsInCombat()); the skeever's combat state + hostility satisfy the
+ po3-processing-level-0 scans behind combat.alerted (GetCombatState>0) and
+ combat.hostile (IsHostileToActor). Each condition records its own row;
+ cleanup ends combat and despawns. SKIPs all three if the spawn fails.}
+    Form npcBase = Game.GetForm(STRESS_NPC_FORMID)
+    if npcBase == None
+        _skipCond("combat.in",      "spawn base 0x" + _hex8(STRESS_NPC_FORMID) + " missing")
+        _skipCond("combat.alerted", "spawn base missing")
+        _skipCond("combat.hostile", "spawn base missing")
+        return
+    endif
+    Actor sk = pl.PlaceAtMe(npcBase) as Actor
+    if sk == None
+        _skipCond("combat.in",      "PlaceAtMe returned None")
+        _skipCond("combat.alerted", "PlaceAtMe returned None")
+        _skipCond("combat.hostile", "PlaceAtMe returned None")
+        return
+    endif
+    sk.SetGhost(true)
+    sk.IgnoreFriendlyHits(true)
+    sk.SetActorValue("Aggression", 3.0)
+    sk.SetActorValue("Confidence", 4.0)
+    sk.StartCombat(pl)
+    pl.StartCombat(sk)
+    Utility.Wait(0.6)
+
+    ; combat.in -- pure IsInCombat() (radius param unused).
+    string e1 = ""
+    _configureCondSlot(mq, "combat.in", 0, 0)
+    if mq.evaluateTier() != TEST_COND_SLOT
+        e1 = "expected player in combat but tier=0 (IsInCombat=" + pl.IsInCombat() + ")"
+    endif
+    _recordCond("combat.in", e1)
+
+    ; combat.alerted -- nearby actor with GetCombatState>0 within param*70u.
+    string e2 = ""
+    _configureCondSlot(mq, "combat.alerted", 50, 0)
+    if mq.evaluateTier() != TEST_COND_SLOT
+        e2 = "expected nearby combatant but tier=0 (sk.combatState=" + sk.GetCombatState() + ")"
+    endif
+    _recordCond("combat.alerted", e2)
+
+    ; combat.hostile -- nearby actor IsHostileToActor(player) within param*70u.
+    string e3 = ""
+    _configureCondSlot(mq, "combat.hostile", 50, 0)
+    if mq.evaluateTier() != TEST_COND_SLOT
+        e3 = "expected nearby hostile but tier=0 (sk.hostile=" + sk.IsHostileToActor(pl) + ")"
+    endif
+    _recordCond("combat.hostile", e3)
+
+    ; CLEANUP -- end combat both ways, despawn.
+    pl.StopCombat()
+    pl.StopCombatAlarm()
+    sk.StopCombat()
+    sk.Disable()
+    Utility.Wait(0.3)
+    sk.Delete()
+EndFunction
+
+Function _aaa_followersAny(MTF_MainQuest mq, Actor pl)
+{Tier 2 — followers.any (_scanNearbyFollower checks IsPlayerTeammate within
+ param*70u via the po3 processing-level-0 list). Spawn a ghosted+restrained
+ skeever, flip SetPlayerTeammate on for the ACT, assert, then unflag +
+ despawn. The scan only checks the teammate flag, not humanoid-ness, so any
+ disposable actor works.}
+    Form npcBase = Game.GetForm(STRESS_NPC_FORMID)
+    if npcBase == None
+        _skipCond("followers.any", "spawn base 0x" + _hex8(STRESS_NPC_FORMID) + " missing")
+        return
+    endif
+    Actor sk = pl.PlaceAtMe(npcBase) as Actor
+    if sk == None
+        _skipCond("followers.any", "PlaceAtMe returned None")
+        return
+    endif
+    sk.SetGhost(true)
+    sk.SetRestrained(true)
+    sk.IgnoreFriendlyHits(true)
+
+    string err = ""
+    _configureCondSlot(mq, "followers.any", 50, 0)
+
+    ; ARRANGE -- not a teammate yet.
+    if mq.evaluateTier() == TEST_COND_SLOT
+        err = "arrange: expected no follower but tier=7"
+    endif
+
+    if err == ""
+        ; ACT -- make it a player teammate.
+        sk.SetPlayerTeammate(true)
+        Utility.Wait(0.3)
+        if mq.evaluateTier() != TEST_COND_SLOT
+            err = "assert: teammate nearby but tier=0 (po3 scan / processing level?)"
+        endif
+    endif
+
+    ; CLEANUP -- unflag + despawn.
+    sk.SetPlayerTeammate(false)
+    sk.Disable()
+    Utility.Wait(0.3)
+    sk.Delete()
+    _recordCond("followers.any", err)
+EndFunction
+
 Function _aaa_wornHeavyArmor(MTF_MainQuest mq, Actor pl)
     string testName = "worn.heavyArmor"
     string err = ""
@@ -1007,9 +1193,10 @@ Function _runEffects(MTF_MainQuest mq, Actor pl)
     ; spell.modifyArmor: stores param as float, PeakValueModifier on DamageResist
     _testFxAV(mq, pl, "spell.modifyArmor", 100, 0, "mtf.shift.flesh", "DamageResist", 100.0)
 
-    _skipFx("damage.magicka",       "burst, no storage roundtrip")
-    _skipFx("damage.stamina",       "burst, no storage roundtrip")
-    _skipFx("damage.health",        "burst, no storage roundtrip")
+    ; v0.4 — Tier 1: burst damage. param is signed % of BASE AV (- damages).
+    _testFxBurstDamage(mq, pl, "damage.magicka", "Magicka")
+    _testFxBurstDamage(mq, pl, "damage.stamina", "Stamina")
+    _testFxBurstDamage(mq, pl, "damage.health",  "Health")
     _skipFx("burst.stagger",        "visual only")
     _skipFx("burst.blowCover",      "needs nearby NPCs")
     _skipFx("burst.bounty",         "invasive - modifies crime gold")
@@ -1027,10 +1214,14 @@ Function _runEffects(MTF_MainQuest mq, Actor pl)
     _testFxDrain(mq, pl, "drain.health",  "Health",  10)
     _testFxDrain(mq, pl, "drain.magicka", "Magicka", 10)
     _testFxDrain(mq, pl, "drain.stamina", "Stamina", 10)
-    _skipFx("ragdoll.onhit",        "needs hit event (retaliation flag set on activate)")
-    _skipFx("damage.fireOnHit",     "needs hit event (retaliation flag set on activate)")
-    _skipFx("damage.frostOnHit",    "needs hit event (retaliation flag set on activate)")
-    _skipFx("damage.shockOnHit",    "needs hit event (retaliation flag set on activate)")
+    ; v0.4 — Tier 1: on-hit retaliation FLAG roundtrip (no hit event needed).
+    ; activate stores mtf.onhit.<kind>=mag; deactivate (_clearOnHit) unsets it.
+    ; The actual retaliation (MTF_HitListener.OnHit) still needs a real hit and
+    ; stays out of scope — this guards the activate/deactivate flag plumbing.
+    _testFxOnHitFlag(mq, pl, "ragdoll.onhit",     "ragdoll", 15)
+    _testFxOnHitFlag(mq, pl, "damage.fireOnHit",  "fire",    15)
+    _testFxOnHitFlag(mq, pl, "damage.frostOnHit", "frost",   15)
+    _testFxOnHitFlag(mq, pl, "damage.shockOnHit", "shock",   15)
 EndFunction
 
 Function _testFxAV(MTF_MainQuest mq, Actor pl, string eid, int p1, int p2, string storageKey, string av, float expectedDelta)
@@ -1306,6 +1497,90 @@ Function _testFxDrain(MTF_MainQuest mq, Actor pl, string eid, string av, int rat
     else
         _fail += 1
         row = "FAIL effect " + eid + "(rate=" + rate + "/s) av(" + av + ") dropped " + dropped + " (want 0<d<=" + wantMax + "; cap=" + cap + ")"
+    endif
+    Debug.Trace("[MTF_TEST] " + row)
+    JsonUtil.StringListAdd(JSON_FILE, "rows", row)
+EndFunction
+
+Function _testFxBurstDamage(MTF_MainQuest mq, Actor pl, string eid, string av)
+{v0.4 — damage.health/magicka/stamina burst. param is a SIGNED % of the
+ BASE AV (- damages via DamageActorValue, + restores). Apply-only: there is
+ no storage roundtrip or revert (a burst is a one-shot), so we fill the AV,
+ activate with param=-20, and assert the AV dropped by ~20% of base. Cleanup
+ restores the AV. Deactivate is a no-op for bursts (no onDeactivate branch).}
+    int param = -20    ; damage 20% of base AV
+    pl.RestoreActorValue(av, 999999.0)
+    Utility.Wait(0.1)
+    float base   = pl.GetBaseActorValue(av)
+    float before = pl.GetActorValue(av)
+
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, mq._remapBaseKey("mtf.base:" + eid, "eff:"), param, 0)
+    mq._activateSlotEffects(TEST_FX_SLOT)
+    float after   = pl.GetActorValue(av)
+    float dropped = before - after
+
+    ; CLEANUP -- clear slot, restore AV.
+    mq._deactivateSlotEffects(TEST_FX_SLOT)
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "", 0, 0)
+    pl.RestoreActorValue(av, 999999.0)
+
+    ; ASSERT -- dropped ~= 20% of base (DamageActorValue is exact; tol covers
+    ; rounding + any passive regen between the two GetActorValue reads).
+    float want = base * 0.20
+    float TOL  = base * 0.02 + 0.5
+    bool pass = _floatNear(dropped, want, TOL)
+    string row
+    if pass
+        _pass += 1
+        row = "PASS effect " + eid + "(p=" + param + ") av(" + av + ") dropped " + dropped + " (want ~" + want + ")"
+    else
+        _fail += 1
+        row = "FAIL effect " + eid + "(p=" + param + ") av(" + av + ") dropped " + dropped + " (want ~" + want + " +/-" + TOL + " base=" + base + ")"
+    endif
+    Debug.Trace("[MTF_TEST] " + row)
+    JsonUtil.StringListAdd(JSON_FILE, "rows", row)
+EndFunction
+
+Function _testFxOnHitFlag(MTF_MainQuest mq, Actor pl, string eid, string kind, int mag)
+{v0.4 — on-hit retaliation FLAG roundtrip (ragdoll.onhit / damage.fire,
+ frost,shockOnHit). These don't act on activate; they store
+ mtf.onhit.<kind>=mag for MTF_HitListener.OnHit to read on a real hit.
+ We verify the activate→store / deactivate→clear plumbing only (the actual
+ retaliation needs a live hit event, out of scope). mag must be > 0 (the
+ dispatch unsets the flag for mag<=0). Sentinel default -1.0 distinguishes
+ "key removed" from a legitimately stored value.}
+    string key = "mtf.onhit." + kind
+    StorageUtil.UnsetFloatValue(pl, key)
+
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, mq._remapBaseKey("mtf.base:" + eid, "eff:"), mag, 0)
+    mq._activateSlotEffects(TEST_FX_SLOT)
+    float afterFlag = StorageUtil.GetFloatValue(pl, key, -1.0)
+
+    mq._deactivateSlotEffects(TEST_FX_SLOT)
+    mq.SetSlotEffectFull(TEST_FX_SLOT, TEST_FX_IDX, "", 0, 0)
+    float finalFlag = StorageUtil.GetFloatValue(pl, key, -1.0)
+
+    ; CLEANUP (idempotent).
+    StorageUtil.UnsetFloatValue(pl, key)
+
+    float TOL = 0.01
+    bool applied  = _floatNear(afterFlag, mag as float, TOL)
+    bool reverted = _floatNear(finalFlag, -1.0, TOL)   ; key removed by _clearOnHit
+    bool pass = applied && reverted
+    string row
+    if pass
+        _pass += 1
+        row = "PASS effect " + eid + "(mag=" + mag + ") onhit." + kind + " flag -1->" + afterFlag + "->" + finalFlag
+    else
+        _fail += 1
+        string reasons = ""
+        if !applied
+            reasons += "flag_apply(got=" + afterFlag + " want=" + mag + ") "
+        endif
+        if !reverted
+            reasons += "flag_revert(got=" + finalFlag + " want=-1/removed) "
+        endif
+        row = "FAIL effect " + eid + "(mag=" + mag + ") " + reasons
     endif
     Debug.Trace("[MTF_TEST] " + row)
     JsonUtil.StringListAdd(JSON_FILE, "rows", row)
