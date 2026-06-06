@@ -107,6 +107,12 @@ REQUIRED=(
     "$ESP_OUT/MTF_Plugin_SlaveTats.esp"
     "$ESP_OUT/MTF_Plugin_SkyrimNet.esp"
     "$SRC_SCRIPTS/MTF_MainQuest.pex"
+    "$SRC_SCRIPTS/MTF_Plugin_Base.pex"
+    "$SRC_SCRIPTS/MTF_Plugin_Combat.pex"
+    "$SRC_SCRIPTS/MTF_Plugin_Magic.pex"
+    "$SRC_SCRIPTS/MTF_Plugin_World.pex"
+    "$SRC_SCRIPTS/MTF_Plugin_Fx.pex"
+    "$SRC_SCRIPTS/MTF_Plugin_Dragonborn.pex"
     "$SRC_SCRIPTS/MTF_Plugin_FMR.pex"
     "$SRC_SCRIPTS/MTF_Plugin_SLA.pex"
     "$SRC_SCRIPTS/MTF_Plugin_SexLab.pex"
@@ -116,7 +122,13 @@ REQUIRED=(
     "$SRC_SCRIPTS/MTF_Plugin_SkyrimNet.pex"
     "$SRC_SCRIPTS/MTF_TestRunner.pex"
     "$DATA/SKSE/Plugins/MagicTattoosFramework.ini"
-    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.base.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/mtf.module_map.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.attributes.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.combat.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.magic.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.dragonborn.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.world.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.fx.json"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.fmr.json"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.sla.json"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.sexlab.json"
@@ -192,6 +204,11 @@ BASE_SCRIPTS=(
     MTF_Plugin
     MTF_PluginAliasKick
     MTF_Plugin_Base
+    MTF_Plugin_Combat
+    MTF_Plugin_Magic
+    MTF_Plugin_World
+    MTF_Plugin_Fx
+    MTF_Plugin_Dragonborn
 )
 for s in "${BASE_SCRIPTS[@]}"; do
     cp "$SRC_SCRIPTS/${s}.pex" "$BASE/scripts/"
@@ -202,11 +219,30 @@ cp "$DATA/SKSE/Plugins/MagicTattoosFramework.ini" "$BASE/SKSE/Plugins/"
 cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/waveforms/"*.json \
    "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/waveforms/"
 
-# Base plugin catalog (mtf.base.json). Drives MCM rendering for all
-# built-in conditions/effects. Without this, GetConditionCount() returns
-# -1 and MCM renders "(-1c, -1e)" on the Plugins page.
-cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.base.json" \
-   "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/"
+# Base plugin catalogs (v0.4 themed-module split). The monolithic mtf.base.json
+# is gone; the built-in conditions/effects now live in 6 self-registering core
+# modules (Attributes / Combat / Magic / Dragonborn / World / FX). Each module's
+# VMAD plugin script reads its own catalog to drive MCM rendering — without these
+# GetConditionCount()/GetEffectCount() return -1 and the Plugins page breaks.
+CORE_CATALOGS=(
+    mtf.attributes.json
+    mtf.combat.json
+    mtf.magic.json
+    mtf.dragonborn.json
+    mtf.world.json
+    mtf.fx.json
+)
+for c in "${CORE_CATALOGS[@]}"; do
+    cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/$c" \
+       "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/"
+done
+
+# Module map (mtf.module_map.json) — lives one level above plugins/. The save
+# migrator AND the runtime _remapBaseKey read it via JsonUtil to rewrite stored
+# "mtf.base:<id>" keys (from pre-v0.4 saves/presets) to "<module>:<id>". Must
+# ship or old saves can't resolve their bound conditions/effects.
+cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/mtf.module_map.json" \
+   "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/"
 
 # skee64_custom.ini override (bPlayerOnly=0). Shipped by default so MTF can
 # apply overlays to tracked NPCs out of the box. SKEE reads skee64.ini then
