@@ -1,0 +1,10 @@
+{
+  "rules": [
+    {
+      "npcs": ["0x000a2c94~skyrim.esm"],
+      "presets": ["MTF_Stress01", "MTF_Stress02"],
+      "weights": [50, 50],
+      "chance": 100
+    }
+  ]
+}

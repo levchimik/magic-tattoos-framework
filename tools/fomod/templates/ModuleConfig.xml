@@ -572,6 +572,24 @@ Requires the Bitchcraft content pack (this FOMOD's Content step) for the texture
             </typeDescriptor>
           </plugin>
 
+          <plugin name="SPID NPC Distribution (requires SPID)">
+            <description><![CDATA[Auto-applies MTF presets to NPCs by rule, the way SPID distributes spells/items. The mapping is MTF-owned JSON; SPID is only the per-NPC trigger (a self-deleting ability), so installing this is the only thing that pulls in a SPID dependency — core MTF never needs it.
+
+Ships:
+  - MTF_SPID_Distributor_DISTR.ini — distributes the "MTF Distribute" carrier ability to NPCs (edit its SPID filters to taste).
+  - distribution/sample.json — a sample rule (Lydia -> 50/50 between two presets). Edit/replace with your own rules.
+
+Rule filters: specific npcs, keywords (+ exclude), factions, races, formlists, sex, level range, chance, and weighted preset lists (one of N at given odds).
+
+REQUIRES: Spell Perk Item Distributor (SPID) — install separately. The sample targets Lydia with test-pack presets; repoint it at your own presets/NPCs.]]></description>
+            <files>
+              <folder source="24_content_spid" destination="" priority="0"/>
+            </files>
+            <typeDescriptor>
+              <type name="Optional"/>
+            </typeDescriptor>
+          </plugin>
+
           </plugins>
         </group>
       </optionalFileGroups>

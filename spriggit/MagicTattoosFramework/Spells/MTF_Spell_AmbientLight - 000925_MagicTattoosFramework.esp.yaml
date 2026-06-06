@@ -1,0 +1,15 @@
+FormKey: 000925:MagicTattoosFramework.esp
+EditorID: MTF_Spell_AmbientLight
+Name:
+  TargetLanguage: English
+  Value: MTF Ambient Light
+EquipmentType: 013F45:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+Type: Ability
+CastType: FireAndForget
+Effects:
+- BaseEffect: 000924:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 5

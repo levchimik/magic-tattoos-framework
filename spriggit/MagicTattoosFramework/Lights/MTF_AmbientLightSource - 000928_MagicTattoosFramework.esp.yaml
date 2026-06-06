@@ -1,0 +1,16 @@
+FormKey: 000928:MagicTattoosFramework.esp
+EditorID: MTF_AmbientLightSource
+Radius: 350
+Color: '#FFFFFF'
+Flags:
+- Dynamic
+FalloffExponent: 1
+Fov: 90
+NearClip: 1
+FlickerPeriod: 1
+FlickerIntensityAmplitude: 0
+FlickerMovementAmplitude: 0
+Value: 0
+Weight: 0
+FadeValue: 1
+Time: -1

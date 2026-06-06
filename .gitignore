@@ -44,3 +44,8 @@ docs/internal/
 _research/
 _acts.txt
 _ml.txt
+
+# Python bytecode cache
+tools/__pycache__/
+__pycache__/
+*.pyc

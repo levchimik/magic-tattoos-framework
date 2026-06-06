@@ -77,6 +77,7 @@
     "eff:spell.lightningcloak": "mtf.magic",
     "eff:spell.modifyarmor": "mtf.magic",
     "eff:spell.slowtime": "mtf.magic",
+    "eff:toggle.ambientlight": "mtf.magic",
     "eff:toggle.muffle": "mtf.magic",
     "eff:toggle.waterwalking": "mtf.magic",
     "eff:toggle.waterbreathing": "mtf.magic"

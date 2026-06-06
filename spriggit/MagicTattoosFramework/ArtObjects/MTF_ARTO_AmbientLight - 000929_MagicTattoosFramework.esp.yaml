@@ -1,0 +1,6 @@
+FormKey: 000929:MagicTattoosFramework.esp
+EditorID: MTF_ARTO_AmbientLight
+Model:
+  File: MTF\MTF_AmbientLightAttach.nif
+Type:
+- MagicHitEffect

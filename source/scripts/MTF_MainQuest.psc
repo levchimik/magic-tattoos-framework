@@ -6125,6 +6125,323 @@ bool Function IsTrackedActor(Actor target)
     return StorageUtil.FormListHas(self, "mtf.tracked", target)
 EndFunction
 
+; ── SPID-style NPC preset distribution (optional addon trigger) ───────────────
+; Rules in distribution/<pack>.json map a filter -> preset(s). The optional
+; MTF_SPID_Distributor addon delivers a self-deleting ability to NPCs via SPID;
+; that ability's effect calls DistributeToActor(akTarget) then RemoveSpell(self).
+; ALL selection is MTF-owned JSON — SPID is purely the per-NPC trigger (matching
+; how SlaveTats-SPID / Overlay-Distribution-Framework do it: the mapping never
+; lives in the distributed form). Mirrors the .cond.items[] reader idiom.
+;
+; Rules parse ONCE into StorageUtil caches (form refs resolved to forms at load;
+; eval touches only cheap engine calls + FormListGet/HasKeyword, never JsonUtil
+; per actor — the task-queued-native perf rule). mtf.distr.ver is the cache
+; sentinel, written LAST so a crash mid-parse forces a clean re-parse. Per-actor
+; mtf.distr.done makes evaluation one-shot. All form filters are 0xID~plugin
+; refs (npcs/factions/races/formlists/keywords) — uniform, avoids the fragile
+; keyword-editorID->form resolution.
+int Function DIST_SCHEMA() global
+    return 1
+EndFunction
+
+; "0xID~plugin.esp" -> Form (None on parse failure). GetFormFromFile masks the
+; load-order byte, so an 8-digit (00xxxxxx) or 6-digit id both resolve.
+Form Function _distRefToForm(string ref)
+    int tilde = StringUtil.Find(ref, "~")
+    if tilde <= 0
+        return None
+    endif
+    string idHex = StringUtil.Substring(ref, 0, tilde)
+    string plugin = StringUtil.Substring(ref, tilde + 1)
+    if StringUtil.Find(idHex, "0x") == 0 || StringUtil.Find(idHex, "0X") == 0
+        idHex = StringUtil.Substring(idHex, 2)
+    endif
+    int len = StringUtil.GetLength(idHex)
+    if len < 1 || plugin == ""
+        return None
+    endif
+    int result = 0
+    int i = 0
+    while i < len
+        int d = _hexCharToInt(StringUtil.Substring(idHex, i, 1))
+        if d < 0
+            return None
+        endif
+        result = result * 16 + d
+        i += 1
+    endwhile
+    return Game.GetFormFromFile(result, plugin)
+EndFunction
+
+Function _distClearRuleSlot(int ruleIdx)
+    string b = "mtf.distr." + ruleIdx + "."
+    StorageUtil.StringListClear(self, b + "presets")
+    StorageUtil.IntListClear(self, b + "weights")
+    StorageUtil.FormListClear(self, b + "npcs")
+    StorageUtil.FormListClear(self, b + "factions")
+    StorageUtil.FormListClear(self, b + "races")
+    StorageUtil.FormListClear(self, b + "formlists")
+    StorageUtil.FormListClear(self, b + "keywords")
+    StorageUtil.FormListClear(self, b + "kwexclude")
+EndFunction
+
+Function _distLoadFormList(string f, string jsonArrPath, string cacheKey, int ruleIdx)
+    int n = JsonUtil.PathCount(f, jsonArrPath)
+    int j = 0
+    while j < n
+        string ref = JsonUtil.GetPathStringValue(f, jsonArrPath + "[" + j + "]", "")
+        Form fm = _distRefToForm(ref)
+        if fm != None
+            StorageUtil.FormListAdd(self, "mtf.distr." + ruleIdx + "." + cacheKey, fm)
+        endif
+        j += 1
+    endwhile
+EndFunction
+
+; Load rule r of file f into cache slot ruleIdx. Returns false (slot left clean)
+; if the rule names no preset — caller does NOT advance ruleIdx then.
+bool Function _distLoadRule(string f, int r, int ruleIdx)
+    string rp = ".rules[" + r + "]"
+    string b = "mtf.distr." + ruleIdx + "."
+    _distClearRuleSlot(ruleIdx)   ; clean slot so a prior skipped rule can't bleed in
+    ; presets: array "presets" (+ optional parallel "weights"), else single "preset"
+    int pn = JsonUtil.PathCount(f, rp + ".presets")
+    if pn > 0
+        int j = 0
+        while j < pn
+            string nm = JsonUtil.GetPathStringValue(f, rp + ".presets[" + j + "]", "")
+            if nm != ""
+                StorageUtil.StringListAdd(self, b + "presets", nm)
+            endif
+            j += 1
+        endwhile
+        int wn = JsonUtil.PathCount(f, rp + ".weights")
+        int w = 0
+        while w < wn
+            StorageUtil.IntListAdd(self, b + "weights", JsonUtil.GetPathIntValue(f, rp + ".weights[" + w + "]", 1))
+            w += 1
+        endwhile
+    else
+        string single = JsonUtil.GetPathStringValue(f, rp + ".preset", "")
+        if single != ""
+            StorageUtil.StringListAdd(self, b + "presets", single)
+        endif
+    endif
+    if StorageUtil.StringListCount(self, b + "presets") < 1
+        return false
+    endif
+    _distLoadFormList(f, rp + ".npcs",             "npcs",      ruleIdx)
+    _distLoadFormList(f, rp + ".factions",         "factions",  ruleIdx)
+    _distLoadFormList(f, rp + ".races",            "races",     ruleIdx)
+    _distLoadFormList(f, rp + ".formlists",        "formlists", ruleIdx)
+    _distLoadFormList(f, rp + ".keywords",         "keywords",  ruleIdx)
+    _distLoadFormList(f, rp + ".keywords_exclude", "kwexclude", ruleIdx)
+    StorageUtil.SetIntValue(self, b + "chance",   JsonUtil.GetPathIntValue(f, rp + ".chance", 100))
+    StorageUtil.SetIntValue(self, b + "levelmin", JsonUtil.GetPathIntValue(f, rp + ".level_min", 0))
+    StorageUtil.SetIntValue(self, b + "levelmax", JsonUtil.GetPathIntValue(f, rp + ".level_max", 0))
+    string sx = JsonUtil.GetPathStringValue(f, rp + ".sex", "any")
+    int sxi = 0
+    if sx == "male" || sx == "m"
+        sxi = 1
+    elseif sx == "female" || sx == "f"
+        sxi = 2
+    endif
+    StorageUtil.SetIntValue(self, b + "sex", sxi)
+    return true
+EndFunction
+
+; Parse all distribution/*.json into the rule cache once (schema-versioned).
+Function _distEnsureLoaded()
+    if StorageUtil.GetIntValue(self, "mtf.distr.ver", 0) == DIST_SCHEMA()
+        return
+    endif
+    int oldN = StorageUtil.GetIntValue(self, "mtf.distr.count", 0)
+    int c = 0
+    while c < oldN
+        _distClearRuleSlot(c)
+        c += 1
+    endwhile
+    int ruleIdx = 0
+    string[] files = JsonUtil.JsonInFolder("MagicTattoosFramework/distribution")
+    if files != None
+        int fi = 0
+        while fi < files.Length
+            string f = "MagicTattoosFramework/distribution/" + files[fi]
+            int rn = JsonUtil.PathCount(f, ".rules")
+            int r = 0
+            while r < rn
+                if _distLoadRule(f, r, ruleIdx)
+                    ruleIdx += 1
+                endif
+                r += 1
+            endwhile
+            fi += 1
+        endwhile
+    endif
+    StorageUtil.SetIntValue(self, "mtf.distr.count", ruleIdx)
+    StorageUtil.SetIntValue(self, "mtf.distr.ver", DIST_SCHEMA())   ; sentinel LAST
+EndFunction
+
+bool Function _distRuleMatches(Actor target, int i)
+    string b = "mtf.distr." + i + "."
+    ActorBase ab = target.GetActorBase()
+    ; npcs: actor's base must be one of the listed base forms
+    if StorageUtil.FormListCount(self, b + "npcs") > 0 && !StorageUtil.FormListHas(self, b + "npcs", ab)
+        return false
+    endif
+    ; factions: in any listed faction
+    int fc = StorageUtil.FormListCount(self, b + "factions")
+    if fc > 0
+        bool ok = false
+        int j = 0
+        while j < fc && !ok
+            ok = target.IsInFaction(StorageUtil.FormListGet(self, b + "factions", j) as Faction)
+            j += 1
+        endwhile
+        if !ok
+            return false
+        endif
+    endif
+    ; races: current race in the list
+    if StorageUtil.FormListCount(self, b + "races") > 0 && !StorageUtil.FormListHas(self, b + "races", target.GetRace())
+        return false
+    endif
+    ; formlists: actor base contained in any listed FormList
+    int lc = StorageUtil.FormListCount(self, b + "formlists")
+    if lc > 0
+        bool ok2 = false
+        int k = 0
+        while k < lc && !ok2
+            FormList fl = StorageUtil.FormListGet(self, b + "formlists", k) as FormList
+            ok2 = fl != None && fl.HasForm(ab)
+            k += 1
+        endwhile
+        if !ok2
+            return false
+        endif
+    endif
+    ; keywords: has any listed keyword
+    int kc = StorageUtil.FormListCount(self, b + "keywords")
+    if kc > 0
+        bool ok3 = false
+        int m = 0
+        while m < kc && !ok3
+            ok3 = target.HasKeyword(StorageUtil.FormListGet(self, b + "keywords", m) as Keyword)
+            m += 1
+        endwhile
+        if !ok3
+            return false
+        endif
+    endif
+    ; keywords_exclude: has NONE of these
+    int xc = StorageUtil.FormListCount(self, b + "kwexclude")
+    int x = 0
+    while x < xc
+        if target.HasKeyword(StorageUtil.FormListGet(self, b + "kwexclude", x) as Keyword)
+            return false
+        endif
+        x += 1
+    endwhile
+    ; sex: 0 any / 1 male / 2 female
+    int sex = StorageUtil.GetIntValue(self, b + "sex", 0)
+    if sex > 0
+        int aSex = ab.GetSex()   ; 0 male, 1 female
+        if (sex == 1 && aSex != 0) || (sex == 2 && aSex != 1)
+            return false
+        endif
+    endif
+    ; level range (0 bound = open)
+    int lmin = StorageUtil.GetIntValue(self, b + "levelmin", 0)
+    int lmax = StorageUtil.GetIntValue(self, b + "levelmax", 0)
+    int lvl = target.GetLevel()
+    if (lmin > 0 && lvl < lmin) || (lmax > 0 && lvl > lmax)
+        return false
+    endif
+    return true
+EndFunction
+
+; Weighted pick from the rule's preset list (equal odds when no weights).
+string Function _distPickPreset(int i)
+    string b = "mtf.distr." + i + "."
+    int pc = StorageUtil.StringListCount(self, b + "presets")
+    if pc < 1
+        return ""
+    endif
+    if pc == 1
+        return StorageUtil.StringListGet(self, b + "presets", 0)
+    endif
+    int wc = StorageUtil.IntListCount(self, b + "weights")
+    int total = 0
+    int j = 0
+    while j < pc
+        int w = 1
+        if j < wc
+            w = StorageUtil.IntListGet(self, b + "weights", j)
+            if w < 0
+                w = 0
+            endif
+        endif
+        total += w
+        j += 1
+    endwhile
+    if total <= 0
+        return StorageUtil.StringListGet(self, b + "presets", Utility.RandomInt(0, pc - 1))
+    endif
+    int roll = Utility.RandomInt(1, total)
+    int acc = 0
+    int k = 0
+    while k < pc
+        int w2 = 1
+        if k < wc
+            w2 = StorageUtil.IntListGet(self, b + "weights", k)
+            if w2 < 0
+                w2 = 0
+            endif
+        endif
+        acc += w2
+        if roll <= acc
+            return StorageUtil.StringListGet(self, b + "presets", k)
+        endif
+        k += 1
+    endwhile
+    return StorageUtil.StringListGet(self, b + "presets", pc - 1)
+EndFunction
+
+; Public entry the optional SPID addon calls on each delivered NPC. One-shot per
+; actor. Returns the AddAppliedPreset code, 0 if no rule matched / already done,
+; -2 None, -8 player (distribution is NPC-only).
+int Function DistributeToActor(Actor target)
+    if target == None
+        return -2
+    endif
+    if target == PlayerRef
+        return -8
+    endif
+    if StorageUtil.GetIntValue(target, "mtf.distr.done", 0) == 1
+        return 0
+    endif
+    ; Mark done BEFORE the suspending AddAppliedPreset so a concurrent re-fire
+    ; (e.g. fast re-load) early-outs (KB: write storage before suspending calls).
+    StorageUtil.SetIntValue(target, "mtf.distr.done", 1)
+    _distEnsureLoaded()
+    int n = StorageUtil.GetIntValue(self, "mtf.distr.count", 0)
+    int i = 0
+    while i < n
+        if _distRuleMatches(target, i)
+            int chance = StorageUtil.GetIntValue(self, "mtf.distr." + i + ".chance", 100)
+            if chance >= 100 || Utility.RandomInt(1, 100) <= chance
+                string preset = _distPickPreset(i)
+                if preset != ""
+                    return AddAppliedPreset(target, preset)
+                endif
+            endif
+            return 0   ; first matching rule wins
+        endif
+        i += 1
+    endwhile
+    return 0
+EndFunction
+
 int Function AddAppliedPreset(Actor target, string name)
 {Apply preset `name` to `target`. For NPCs, also tracks the actor.
  Computes base slot + reserved layer count per overlay area. Rejects with

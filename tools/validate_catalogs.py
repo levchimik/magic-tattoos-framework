@@ -84,9 +84,14 @@ def validate_param(p: dict, breadcrumb: str) -> list[str]:
 
     has_menu = "menu" in p
     is_text  = p.get("text") is True
+    is_color = p.get("color") is True or p.get("color") == 1
     if is_text and has_menu:
         errors.append(
             f"{breadcrumb}: cannot declare both `text: true` and `menu` on the same param"
+        )
+    if is_color and (has_menu or is_text):
+        errors.append(
+            f"{breadcrumb}: `color` is mutually exclusive with `menu`/`text`"
         )
     if "default" not in p:
         # Text params: default is optional (defaults to "" — empty seed text).
@@ -117,6 +122,19 @@ def validate_param(p: dict, breadcrumb: str) -> list[str]:
             if k in p:
                 errors.append(
                     f"{breadcrumb}.{k}: forbidden on text params"
+                )
+        return errors
+
+    if is_color:
+        # Color mode: stored as a 0xRRGGBB int via SkyUI's color swatch.
+        # default must be a number; min/max/step/menu/format are forbidden
+        # (the swatch covers the full range).
+        if "default" in p and not _is_number(p["default"]):
+            errors.append(f"{breadcrumb}.default: must be a number (color param, 0xRRGGBB)")
+        for k in ("min", "max", "step", "menu", "format"):
+            if k in p:
+                errors.append(
+                    f"{breadcrumb}.{k}: forbidden on color params"
                 )
         return errors
 

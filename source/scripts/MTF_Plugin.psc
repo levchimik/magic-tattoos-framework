@@ -367,6 +367,14 @@ bool Function GetEffectParamIsText(int idx, int n)
     return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".text", 0) > 0
 EndFunction
 
+bool Function GetEffectParamIsColor(int idx, int n)
+{v0.4.x: color-picker param. Returns true when the catalog declares
+ paramN.color=true. Mutually exclusive with menu/text/slider — color params
+ render via AddColorOptionST in MCM and store the chosen 0xRRGGBB int through
+ the same per-effect int slot a slider uses (SetSlotEffectParamN).}
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".effects[" + idx + "].param" + n + ".color", 0) > 0
+EndFunction
+
 ; v0.3.2: condition params can also be free-text (mtf.ostim:scene.tag,
 ; *:scene.partner). Same "text": true marker as effects. The MCM renders these
 ; as an AddInputOptionST row and stores via SetCondParamStr / SetCondParamStrAt.

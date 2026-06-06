@@ -1976,7 +1976,10 @@ Function _drawEffectRow(int slot, int effectIdx, string typeStateId, string p1St
             ; v0.3.x: three param types — text (input), menu (string id), slider (int).
             ; Text takes priority over menu so a misconfigured "text+menu" catalog
             ; doesn't silently fall through to menu render (validator catches it).
-            if p.GetEffectParamIsText(itemIdx, n)
+            if p.GetEffectParamIsColor(itemIdx, n)
+                int curCol = MainQuest.GetSlotEffectParamN(slot, effectIdx, n)
+                AddColorOptionST(sid, "  " + lbl, curCol)
+            elseif p.GetEffectParamIsText(itemIdx, n)
                 string curText = MainQuest.GetSlotEffectParamNStr(slot, effectIdx, n)
                 AddInputOptionST(sid, "  " + lbl, _textRowLabel(curText))
             elseif p.GetEffectParamMenuOptionCount(itemIdx, n) > 0
@@ -2118,17 +2121,24 @@ Function _defaultEffectParam(int effectIdx, int n)
     MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
     int menuCnt = 0
     bool isText = false
+    bool isColor = false
     int itemIdx = -1
     string fmt = "{0}"
     if p != None
         itemIdx = MainQuest._effectIdxFor(p, MainQuest._keyItemId(key))
         if itemIdx >= 0
             isText  = p.GetEffectParamIsText(itemIdx, n)
+            isColor = p.GetEffectParamIsColor(itemIdx, n)
             menuCnt = p.GetEffectParamMenuOptionCount(itemIdx, n)
             fmt     = p.GetEffectParamFormat(itemIdx, n)
         endif
     endif
-    if isText && p != None && itemIdx >= 0
+    if isColor && p != None && itemIdx >= 0
+        int defCol = p.GetEffectParamDefault(itemIdx, n)
+        MainQuest.SetSlotEffectParamN(selectedCondition, effectIdx, n, defCol)
+        MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, "")
+        SetColorOptionValueST(defCol)
+    elseif isText && p != None && itemIdx >= 0
         ; v0.3.x: text default is a string (may be empty).
         string defText = p.GetEffectParamDefaultId(itemIdx, n)
         MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, defText)
@@ -2166,6 +2176,14 @@ Function _acceptEffectParamInput(int effectIdx, int n, string text)
     MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, text)
     MainQuest.SetSlotEffectParamN(selectedCondition, effectIdx, n, 0)
     SetInputOptionValueST(_textRowLabel(text))
+EndFunction
+
+; v0.4.x: color-picker param. SkyUI's swatch returns a 0xRRGGBB int via
+; OnColorAcceptST; we store it in the same int slot a slider uses.
+Function _acceptEffectParamColor(int effectIdx, int n, int color)
+    MainQuest.SetSlotEffectParamN(selectedCondition, effectIdx, n, color)
+    MainQuest.SetSlotEffectParamNStr(selectedCondition, effectIdx, n, "")
+    SetColorOptionValueST(color)
 EndFunction
 
 ; Truncate long text for the MCM row display. Empty -> "(empty)" so the
@@ -2829,6 +2847,9 @@ state SLOT_EFFECT_1_P1
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(0, 1, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(0, 1, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_2_TYPE
@@ -2872,6 +2893,9 @@ state SLOT_EFFECT_2_P1
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(1, 1, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(1, 1, color)
     endEvent
 endState
 
@@ -2917,6 +2941,9 @@ state SLOT_EFFECT_3_P1
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(2, 1, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(2, 1, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_4_TYPE
@@ -2961,6 +2988,9 @@ state SLOT_EFFECT_4_P1
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(3, 1, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(3, 1, color)
+    endEvent
 endState
 
 ; ── Per-effect param2 states (only shown when effect declares param2) ───────
@@ -2989,6 +3019,9 @@ state SLOT_EFFECT_1_P2
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(0, 2, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(0, 2, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_2_P2
@@ -3015,6 +3048,9 @@ state SLOT_EFFECT_2_P2
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(1, 2, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(1, 2, color)
     endEvent
 endState
 
@@ -3043,6 +3079,9 @@ state SLOT_EFFECT_3_P2
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(2, 2, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(2, 2, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_4_P2
@@ -3069,6 +3108,9 @@ state SLOT_EFFECT_4_P2
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(3, 2, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(3, 2, color)
     endEvent
 endState
 
@@ -3120,6 +3162,9 @@ state SLOT_EFFECT_5_P1
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(4, 1, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(4, 1, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_5_P2
@@ -3146,6 +3191,9 @@ state SLOT_EFFECT_5_P2
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(4, 2, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(4, 2, color)
     endEvent
 endState
 
@@ -3191,6 +3239,9 @@ state SLOT_EFFECT_6_P1
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(5, 1, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(5, 1, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_6_P2
@@ -3217,6 +3268,9 @@ state SLOT_EFFECT_6_P2
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(5, 2, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(5, 2, color)
     endEvent
 endState
 
@@ -3262,6 +3316,9 @@ state SLOT_EFFECT_7_P1
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(6, 1, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(6, 1, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_7_P2
@@ -3288,6 +3345,9 @@ state SLOT_EFFECT_7_P2
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(6, 2, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(6, 2, color)
     endEvent
 endState
 
@@ -3333,6 +3393,9 @@ state SLOT_EFFECT_8_P1
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(7, 1, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(7, 1, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_8_P2
@@ -3359,6 +3422,9 @@ state SLOT_EFFECT_8_P2
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(7, 2, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(7, 2, color)
     endEvent
 endState
 
@@ -3394,6 +3460,9 @@ state SLOT_EFFECT_1_P3
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(0, 3, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(0, 3, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_1_P4
@@ -3420,6 +3489,9 @@ state SLOT_EFFECT_1_P4
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(0, 4, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(0, 4, color)
     endEvent
 endState
 
@@ -3448,6 +3520,9 @@ state SLOT_EFFECT_1_P5
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(0, 5, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(0, 5, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_2_P3
@@ -3474,6 +3549,9 @@ state SLOT_EFFECT_2_P3
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(1, 3, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(1, 3, color)
     endEvent
 endState
 
@@ -3502,6 +3580,9 @@ state SLOT_EFFECT_2_P4
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(1, 4, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(1, 4, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_2_P5
@@ -3528,6 +3609,9 @@ state SLOT_EFFECT_2_P5
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(1, 5, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(1, 5, color)
     endEvent
 endState
 
@@ -3556,6 +3640,9 @@ state SLOT_EFFECT_3_P3
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(2, 3, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(2, 3, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_3_P4
@@ -3582,6 +3669,9 @@ state SLOT_EFFECT_3_P4
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(2, 4, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(2, 4, color)
     endEvent
 endState
 
@@ -3610,6 +3700,9 @@ state SLOT_EFFECT_3_P5
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(2, 5, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(2, 5, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_4_P3
@@ -3636,6 +3729,9 @@ state SLOT_EFFECT_4_P3
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(3, 3, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(3, 3, color)
     endEvent
 endState
 
@@ -3664,6 +3760,9 @@ state SLOT_EFFECT_4_P4
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(3, 4, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(3, 4, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_4_P5
@@ -3690,6 +3789,9 @@ state SLOT_EFFECT_4_P5
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(3, 5, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(3, 5, color)
     endEvent
 endState
 
@@ -3724,6 +3826,9 @@ state SLOT_EFFECT_5_P3
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(4, 3, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(4, 3, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_5_P4
@@ -3750,6 +3855,9 @@ state SLOT_EFFECT_5_P4
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(4, 4, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(4, 4, color)
     endEvent
 endState
 
@@ -3778,6 +3886,9 @@ state SLOT_EFFECT_5_P5
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(4, 5, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(4, 5, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_6_P3
@@ -3804,6 +3915,9 @@ state SLOT_EFFECT_6_P3
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(5, 3, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(5, 3, color)
     endEvent
 endState
 
@@ -3832,6 +3946,9 @@ state SLOT_EFFECT_6_P4
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(5, 4, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(5, 4, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_6_P5
@@ -3858,6 +3975,9 @@ state SLOT_EFFECT_6_P5
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(5, 5, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(5, 5, color)
     endEvent
 endState
 
@@ -3886,6 +4006,9 @@ state SLOT_EFFECT_7_P3
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(6, 3, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(6, 3, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_7_P4
@@ -3912,6 +4035,9 @@ state SLOT_EFFECT_7_P4
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(6, 4, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(6, 4, color)
     endEvent
 endState
 
@@ -3940,6 +4066,9 @@ state SLOT_EFFECT_7_P5
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(6, 5, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(6, 5, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_8_P3
@@ -3966,6 +4095,9 @@ state SLOT_EFFECT_8_P3
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(7, 3, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(7, 3, color)
     endEvent
 endState
 
@@ -3994,6 +4126,9 @@ state SLOT_EFFECT_8_P4
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(7, 4, text)
     endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(7, 4, color)
+    endEvent
 endState
 
 state SLOT_EFFECT_8_P5
@@ -4020,6 +4155,9 @@ state SLOT_EFFECT_8_P5
     endEvent
     event OnInputAcceptST(string text)
         _acceptEffectParamInput(7, 5, text)
+    endEvent
+    event OnColorAcceptST(int color)
+        _acceptEffectParamColor(7, 5, color)
     endEvent
 endState
 

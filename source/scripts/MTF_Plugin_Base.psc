@@ -38,6 +38,8 @@ Spell  Property _resistMagicSpell         Auto Hidden
 Spell  Property _resistDiseaseSpell       Auto Hidden
 Spell  Property _resistPoisonSpell        Auto Hidden
 Spell  Property _muffleSpell              Auto Hidden
+Spell  Property _ambientLightSpell        Auto Hidden
+Light  Property _ambientLightForm         Auto Hidden
 Spell  Property _criticalChanceSpell      Auto Hidden
 Spell  Property _detectAllSpell           Auto Hidden
 Spell  Property _slowTimeSpell            Auto Hidden
@@ -869,6 +871,12 @@ Function _recomputeToggle(string eid, Actor target, bool on)
     elseif eid == "toggle.waterWalking"
         _toggleSpell(_resolveWaterWalkingSpell(), target, on, eid)
         return
+    elseif eid == "toggle.ambientLight"
+        ; Fallback path (onActivate/Deactivate/onTick intercept ambient with its
+        ; params before _isToggle, so this is rarely hit). Apply with 0/0/0 →
+        ; _configAmbientLight leaves the ESP-default radius/colour untouched.
+        _applyAmbientLight(target, on, 0, 0, 0)
+        return
     endif
     string av = _avNameFor(eid)
     if av == ""
@@ -921,6 +929,84 @@ Spell Function _resolveWaterWalkingSpell()
         _waterWalkingSpell = Game.GetFormFromFile(0x835, "MagicTattoosFramework.esp") as Spell
     endif
     return _waterWalkingSpell
+EndFunction
+
+Spell Function _resolveAmbientLightSpell()
+    if _ambientLightSpell == None
+        _ambientLightSpell = Game.GetFormFromFile(0x925, "MagicTattoosFramework.esp") as Spell
+    endif
+    return _ambientLightSpell
+EndFunction
+
+Light Function _resolveAmbientLightForm()
+    if _ambientLightForm == None
+        _ambientLightForm = Game.GetFormFromFile(0x928, "MagicTattoosFramework.esp") as Light
+    endif
+    return _ambientLightForm
+EndFunction
+
+; Ambient light apply/refresh. The light is a magic-effect AttachLight ability
+; (SPEL 0x925) parented to the actor's 3D, so it follows smoothly with no
+; flicker. radius/brightness/colour are pushed to the shared LIGH form (0x928)
+; via po3 SetLightRadius/Fade/RGB, then the spell is (re)cast so the spawned
+; attach light snapshots the new values. A per-actor signature gates re-casting:
+; onTick calls this every slow tick, but we only reconfigure+recast when a param
+; actually changed (an unconditional recast every tick would flicker/thrash).
+;   radius 0 / brightnessPct 0  → skip that po3 setter (keep ESP default).
+Function _applyAmbientLight(Actor target, bool on, int radius, int brightnessPct, int colorInt)
+    Spell s = _resolveAmbientLightSpell()
+    if s == None || target == None
+        return
+    endif
+    if on
+        ; Signature = the param triple. Unchanged + already cast → no-op.
+        int sigR = StorageUtil.GetIntValue(target, "mtf.al.r", -1)
+        int sigB = StorageUtil.GetIntValue(target, "mtf.al.b", -1)
+        int sigC = StorageUtil.GetIntValue(target, "mtf.al.c", -1)
+        if sigR == radius && sigB == brightnessPct && sigC == colorInt && target.HasSpell(s)
+            return
+        endif
+        _configAmbientLight(radius, brightnessPct, colorInt)
+        ; Re-cast so the live attach light re-reads the LIGH form.
+        if target.HasSpell(s)
+            target.RemoveSpell(s)
+        endif
+        target.AddSpell(s, false)
+        StorageUtil.SetIntValue(target, "mtf.al.r", radius)
+        StorageUtil.SetIntValue(target, "mtf.al.b", brightnessPct)
+        StorageUtil.SetIntValue(target, "mtf.al.c", colorInt)
+        _setApplied("toggle.ambientLight", target, 1.0)
+    else
+        target.RemoveSpell(s)
+        StorageUtil.UnsetIntValue(target, "mtf.al.r")
+        StorageUtil.UnsetIntValue(target, "mtf.al.b")
+        StorageUtil.UnsetIntValue(target, "mtf.al.c")
+        _setApplied("toggle.ambientLight", target, 0.0)
+    endif
+EndFunction
+
+; Push ambient-light params onto the shared LIGH form via po3 PapyrusExtender.
+; Soft dependency: if po3's DLL is absent the natives no-op and the light keeps
+; its ESP-default radius/colour. colorInt is 0xRRGGBB; brightnessPct maps to the
+; LIGH FadeValue (100% = 1.0). 0 means "leave the ESP default" for that field.
+Function _configAmbientLight(int radius, int brightnessPct, int colorInt)
+    Light lite = _resolveAmbientLightForm()
+    if lite == None
+        return
+    endif
+    if radius > 0
+        PO3_SKSEFunctions.SetLightRadius(lite, radius as float)
+    endif
+    if brightnessPct > 0
+        PO3_SKSEFunctions.SetLightFade(lite, (brightnessPct as float) / 100.0)
+    endif
+    if colorInt > 0
+        int[] rgb = new int[3]
+        rgb[0] = (colorInt / 65536) % 256 ; R
+        rgb[1] = (colorInt / 256) % 256    ; G
+        rgb[2] = colorInt % 256            ; B
+        PO3_SKSEFunctions.SetLightRGB(lite, rgb)
+    endif
 EndFunction
 
 Spell Function _resolveMuffleSpell()
@@ -2318,6 +2404,10 @@ Function onActivate(Actor target, int param, int param2, string eid, int slot, i
         _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, param, "modify.criticalChance")
     elseif _isAbsShift(eid)
         _recomputeAbsShift(eid, target, param)
+    elseif eid == "toggle.ambientLight"
+        ; Magic-effect AttachLight ability with po3-tunable LIGH (radius=param1,
+        ; brightness%=param2, colour=param3 as 0xRRGGBB). Re-cast on param change.
+        _applyAmbientLight(target, true, param, param2, _paramNEx(slot, effectIdx, useScratch, presetName, 3))
     elseif _isToggle(eid)
         _recomputeToggle(eid, target, true)
     elseif eid == "damage.magicka"
@@ -2372,6 +2462,8 @@ Function onDeactivate(Actor target, int param, int param2, string eid, int slot,
         _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, 0, "modify.criticalChance")
     elseif _isAbsShift(eid)
         _recomputeAbsShift(eid, target, 0)
+    elseif eid == "toggle.ambientLight"
+        _applyAmbientLight(target, false, 0, 0, 0)
     elseif _isToggle(eid)
         _recomputeToggle(eid, target, false)
     elseif eid == "scale.magickaCost"
@@ -2416,6 +2508,10 @@ Function onTick(Actor target, int param, int param2, string eid, int slot, int e
         _absShiftSpellByKey(_resolveCriticalChanceSpell(), target, param, "modify.criticalChance")
     elseif _isAbsShift(eid)
         _recomputeAbsShift(eid, target, param)
+    elseif eid == "toggle.ambientLight"
+        ; Magic-effect AttachLight ability with po3-tunable LIGH (radius=param1,
+        ; brightness%=param2, colour=param3 as 0xRRGGBB). Re-cast on param change.
+        _applyAmbientLight(target, true, param, param2, _paramNEx(slot, effectIdx, useScratch, presetName, 3))
     elseif _isToggle(eid)
         _recomputeToggle(eid, target, true)
     elseif eid == "scale.magickaCost"

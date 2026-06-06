@@ -1,0 +1,15 @@
+FormKey: 000924:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_AmbientLight
+Name:
+  TargetLanguage: English
+  Value: Ambient Light (MTF)
+Flags:
+- FXPersist
+- HideInUI
+- PowerAffectsDuration
+MagicSkill: Alteration
+HitEffectArt: 000929:MagicTattoosFramework.esp
+Archetype:
+  MutagenObjectType: MagicEffectLightArchetype
+  Association: 000928:MagicTattoosFramework.esp
+CastType: FireAndForget

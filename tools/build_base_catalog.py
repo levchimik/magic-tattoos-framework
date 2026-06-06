@@ -615,8 +615,22 @@ EFFECTS_RAW = [
      "Deals {param1} shock damage back to the attacker whenever the actor is struck. Player-only.",
      "Shock damage to attacker",
      {"param": {"min": 0, "max": 200, "default": 15}}),
+    # Ambient light: Light-archetype ability (SPEL 0x925 -> MGEF 0x924, both
+    # FireAndForget; Light archetype associated to our LIGH 0x928; Hit-Effect-Art
+    # 0x929 = our model-less AttachLight NIF). Lights the surroundings with NO
+    # visible orb, parented to the actor's 3D so it follows smoothly. Radius /
+    # brightness / colour are applied to the shared LIGH form at (re)cast via
+    # po3 PapyrusExtender SetLightRadius/SetLightFade/SetLightRGB (soft dep —
+    # falls back to the ESP defaults if po3 is absent).
+    (44, "toggle.ambientLight",
+     "Ambient Light",
+     "Emits light around the actor (radius {param1}, brightness {param2}%, colour {param3}) while active. No visible source.",
+     "Light radius",
+     {"param":  {"label": "Light radius", "min": 64, "max": 1024, "default": 350, "step": 16},
+      "param2": {"label": "Brightness (%)", "min": 10, "max": 200, "default": 100, "step": 5, "format": "{0}%"},
+      "extras": [{"label": "Light colour", "color": True, "default": 0xFFFFFF}]}),
 ]
-assert len(EFFECTS_RAW) == 44, f"expected 44 effects, got {len(EFFECTS_RAW)}"
+assert len(EFFECTS_RAW) == 45, f"expected 45 effects, got {len(EFFECTS_RAW)}"
 # Sanity: indices contiguous 0..34.
 for i, t in enumerate(EFFECTS_RAW):
     assert t[0] == i, f"effect tuple {i} has idx {t[0]}"
@@ -693,7 +707,7 @@ EFFECT_MODULE = {
     "modify.resist": "mtf.magic", "modify.absorbChance": "mtf.magic",
     "modify.reflectDamage": "mtf.magic", "scale.magickaCost": "mtf.magic",
     "toggle.muffle": "mtf.magic", "toggle.waterbreathing": "mtf.magic",
-    "toggle.waterWalking": "mtf.magic",
+    "toggle.waterWalking": "mtf.magic", "toggle.ambientLight": "mtf.magic",
     # World & Exploration — crime/stealth utility
     "burst.blowCover": "mtf.world", "burst.bounty": "mtf.world",
     # Visual & Sound — cosmetic
@@ -719,6 +733,13 @@ def _build_param(p_src):
     out = {}
     if "label" in p_src:
         out["label"] = p_src["label"]
+    # Color picker param (v0.4.x): stored as an int 0xRRGGBB, rendered via
+    # SkyUI's AddColorOptionST swatch. Mutually exclusive with menu/text/slider
+    # fields — no min/max/step/menu apply.
+    if p_src.get("color"):
+        out["color"] = 1
+        out["default"] = p_src.get("default", 0xFFFFFF)
+        return out
     is_menu = "menu" in p_src
     if is_menu:
         # Menu params: emit each option as {id, label}. `menu` source may be
@@ -753,6 +774,8 @@ def _build_param(p_src):
         out["default"] = p_src.get("default", 0)
         if "step" in p_src:
             out["step"] = p_src["step"]
+        if "format" in p_src:
+            out["format"] = p_src["format"]
     return out
 
 

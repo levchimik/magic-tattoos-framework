@@ -280,6 +280,10 @@ stage_content "20_content_lewdmarks"  "lewdmarks"
 stage_content "25_content_lyru1"      "lyru-1"
 stage_content "26_content_lyru2"      "lyru-2"
 stage_content "22_content_rx"         "rx-overlays"
+# Extras (not a texture adapter): optional SPID NPC-distribution component —
+# ships the _DISTR.ini + sample distribution JSON. Carrier ESP records live in
+# the main plugin; this folder is what makes distribution active (+ a SPID dep).
+stage_content "24_content_spid"       "spid-distributor"
 
 # -----------------------------------------------------------------------------
 # 31_test_pack: smoke-test presets (from test-pack/) + F10 console-runner

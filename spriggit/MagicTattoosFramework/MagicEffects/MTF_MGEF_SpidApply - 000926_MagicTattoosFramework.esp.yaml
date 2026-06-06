@@ -1,0 +1,16 @@
+FormKey: 000926:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_SpidApply
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MTF_SpidApply
+Name:
+  TargetLanguage: English
+  Value: MTF Distribute
+Flags:
+- NoHitEvent
+- HideInUI
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectPeakValueModArchetype
+  ActorValue: AlterationModifier
