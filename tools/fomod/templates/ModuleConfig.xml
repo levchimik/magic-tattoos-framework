@@ -56,8 +56,8 @@ order relative to RaceMenu does not matter for it.]]></description>
         <group name="Integration Plugins" type="SelectAny">
           <plugins order="Explicit">
 
-            <plugin name="MTF Plugin: Fertility Mode Reloaded">
-              <description><![CDATA[Pregnancy / ovulation conditions backed by Fertility Mode Reloaded.
+            <plugin name="MTF Plugin: Fertility Mode">
+              <description><![CDATA[Pregnancy / ovulation conditions backed by Fertility Mode — original (v3) or Reloaded; both supported.
 
 Auto-recommended if Fertility Mode.esm is active.
 

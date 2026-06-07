@@ -4,6 +4,26 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
+## [v0.4.1] — 2026-06-07
+
+A compatibility fix. Drop-in over v0.4.0; no schema or save changes.
+
+### Fixed
+
+- **Fertility Mode (original / non-Reloaded) pregnancy & ovulation conditions.**
+  The Fertility Mode adapter's `pregnancy` and `ovulation` conditions only fired
+  on Fertility Mode *Reloaded* (which encodes the fertility state in an
+  `ImmersiveEffectsFaction` rank); on the original Fertility Mode, which has no
+  such faction, they silently never fired. They now read the same state directly
+  off Fertility Mode's `_JSW_BB_Storage` arrays — pregnancy progress from
+  `LastConception` / `PregnancyDuration`, a viable egg from `LastOvulation`
+  (egg age) vs `EggLife` — matching FM 3.x's own logic. Reloaded is unchanged.
+
+### Changed
+
+- FOMOD: the Fertility Mode option is relabeled from "Fertility Mode Reloaded"
+  to "Fertility Mode" (original or Reloaded — both supported).
+
 ## [v0.4.0] — 2026-06-06
 
 The biggest feature wave since launch: the effect catalog is now split into
@@ -274,5 +294,6 @@ still recommended for first-time setup.
 - Visual stress runner (End key) — 4 stacked tattoos × N NPCs.
 - N-fiber concurrency stress runner (PgDn) with a UIListMenu picker.
 
+[v0.4.1]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
 [v0.4.0]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
 [v0.3.0]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
