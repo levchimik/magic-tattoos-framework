@@ -5,17 +5,25 @@ Scriptname MTF_Plugin_FMR extends MTF_Plugin
 
  Metadata loaded from mtf.fmr.json by the base class.
 
- Conditions read FMR's ImmersiveEffectsFaction rank on the actor: FMR's
- poll loop encodes the full fertility state into that single rank
- (1..100 = pregnancy stage, 118 = ovulation, etc.). Faction ranks live
- ON THE ACTOR — sidesteps the array-property quirks that make direct
- Storage.LastConception[i]/LastOvulation[i] reads unreliable.
+ Two condition backends, chosen at runtime by which Fertility Mode is loaded:
 
-   0  pregnancy  — rank in (0, 100]; the rank itself IS the belly stage.
-                    Min belly stage param = minimum rank to fire.
-   1  ovulation  — rank == 118 (egg present OR in cycle ovulation window).
-                    Pregnancy ranks (1..100) take precedence — naturally
-                    false during pregnancy with no extra gate.
+ * RELOADED — reads FMR's ImmersiveEffectsFaction rank on the actor. FMR's
+   poll loop encodes the full fertility state into that single rank
+   (1..100 = pregnancy stage, 118 = ovulation, etc.). Faction ranks live
+   ON THE ACTOR — sidesteps the array-property quirks that make direct
+   Storage.LastConception[i]/LastOvulation[i] reads unreliable.
+
+ * ORIGINAL (non-Reloaded) — no ImmersiveEffectsFaction exists, so we read
+   the same state straight off the _JSW_BB_Storage arrays the way FM's own
+   _JSW_BB_Utility does. See _checkConditionOriginal.
+
+   0  pregnancy  — Reloaded: rank in (0, 100], the rank IS the belly stage.
+                    Original: LastConception>0, % = (now-LastConception) /
+                    PregnancyDuration. Param = minimum belly-stage % to fire.
+   1  ovulation  — Reloaded: rank == 118 (egg present / ovulation window).
+                    Original: LastOvulation in (0, EggLife] (egg age in days).
+                    Pregnancy naturally excludes ovulation (FM clears the egg
+                    on conception).
 
  Effects:
    0  trigger.ovulation  — one-shot: set LastOvulation[index] = 0.001
@@ -90,8 +98,9 @@ bool Function checkCondition(Actor target, int param, string cid)
         FMR_IEFaction = Game.GetFormFromFile(0x02666B, "Fertility Mode.esm") as Faction
     endif
     if FMR_IEFaction == None
-        ; Original Fertility Mode v3 lacks ImmersiveEffectsFaction.
-        return false
+        ; Original (non-Reloaded) Fertility Mode has no ImmersiveEffectsFaction
+        ; rank encoding — compute the same state directly from _JSW_BB_Storage.
+        return _checkConditionOriginal(target, param, cid)
     endif
     int rank = target.GetFactionRank(FMR_IEFaction)
     if cid == "pregnancy"
@@ -101,6 +110,59 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; Ovulation: rank 118 (egg present OR in ovulation window).
         ; Pregnancy ranks (1..100) take precedence — no !isPregnant gate needed.
         return rank == 118
+    endif
+    return false
+EndFunction
+
+bool Function _checkConditionOriginal(Actor target, int param, string cid)
+{Original (non-Reloaded) Fertility Mode path — no ImmersiveEffectsFaction, so
+ read the state straight off the _JSW_BB_Storage parallel arrays the same way
+ FM's own _JSW_BB_Utility does (verified against FM 3.x source):
+
+   pregnancy  — LastConception[i] > 0 ⇒ pregnant. Progress is
+                pregnantDay = (now - LastConception[i]) days over
+                PregnancyDuration days (handler line 859 / utility line 90).
+                Fires when that percentage >= param (min belly stage).
+   ovulation  — LastOvulation[i] is the egg's ACCUMULATED AGE in days (starts
+                at 0.001, grows each poll — utility 76/83), NOT a timestamp.
+                A viable egg is LastOvulation[i] > 0 && <= EggLife (utility
+                line 224 / config line 289). FM clears it to 0 on conception,
+                so pregnancy naturally excludes ovulation.
+
+ Indexed array reads use no `== None` guard — a truly-None array Papyrus-errors
+ and aborts gracefully; a `== None` compare would spam cast noise on a valid
+ array (project_papyrus_array_none_cast_noise). Globals fall back to FM's
+ documented defaults (30-day pregnancy, 2-day egg) if the form didn't resolve.}
+    if FMR_Storage == None
+        return false
+    endif
+    int i = _trackedIndex(target)
+    if i < 0
+        return false
+    endif
+
+    if cid == "pregnancy"
+        float conception = FMR_Storage.LastConception[i]
+        if conception <= 0.0
+            return false
+        endif
+        float dur = 30.0
+        if FMR_PregnancyDuration != None && FMR_PregnancyDuration.GetValue() > 0.0
+            dur = FMR_PregnancyDuration.GetValue()
+        endif
+        float pregnantDay = Utility.GetCurrentGameTime() - conception
+        float pct = (pregnantDay / dur) * 100.0
+        return pct >= param as float
+    elseif cid == "ovulation"
+        float eggAge = FMR_Storage.LastOvulation[i]
+        if eggAge <= 0.0
+            return false
+        endif
+        float eggLife = 2.0
+        if FMR_EggLife != None && FMR_EggLife.GetValue() > 0.0
+            eggLife = FMR_EggLife.GetValue()
+        endif
+        return eggAge <= eggLife
     endif
     return false
 EndFunction
