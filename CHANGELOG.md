@@ -4,6 +4,26 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
+## [v0.4.2] — 2026-06-08
+
+A compatibility fix. Drop-in over v0.4.1; no schema or save changes.
+
+### Fixed
+
+- **Tattoos invisible on RaceMenu 0.4.19.x (old SKEE).** `MTFPulse.dll` drives
+  the overlay's shader properties (alpha, emissive colour/multiple, tint) through
+  SKEE's `Override` interface. It required interface **v2** — the "wrapper"
+  ABI introduced by RaceMenu 0.4.20.0 — and rejected older RaceMenu (0.4.19.x),
+  which exposes the pre-wrapper **v1** interface. With the bridge dead, every
+  shader write silently no-opped: the overlay applied (texture in the store via
+  Papyrus/NiOverride) but rendered invisible, even though *manually* set RaceMenu
+  overlays worked. The bridge now detects the interface version and, on v1, drives
+  SKEE's legacy concrete `OverrideInterface` vtable directly — `SetNodeProperty`
+  at vtable slot 14, with the property key/index packed inside an `OverrideVariant`
+  and the node name passed as a `BSFixedString`. Pulse and visuals now work on
+  RaceMenu 0.4.19.x as well as 0.4.20.0+. The call stays SEH-guarded, so a vtable
+  mismatch disables the bridge rather than crashing.
+
 ## [v0.4.1] — 2026-06-07
 
 A compatibility fix. Drop-in over v0.4.0; no schema or save changes.

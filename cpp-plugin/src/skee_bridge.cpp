@@ -12,27 +12,32 @@
 namespace MTFPulse::skee_bridge {
 
     namespace {
-        // Cached on Init(), used by every WriteEmissiveMult call. Null
-        // means the bridge isn't ready (init not called, SKEE absent, or
-        // the version is too old).
-        skee::IOverrideInterface* g_override = nullptr;
+        // Exactly one of these is non-null after a successful Init().
+        //   g_override     — SKEE >= v2 (wrapper SetVariant API)
+        //   g_override_v1  — SKEE  v1   (legacy OverrideVariant API, RaceMenu 0.4.19.x)
+        // Both null means the bridge isn't ready (init not called, SKEE
+        // absent, or an unsupported version).
+        skee::IOverrideInterface*   g_override    = nullptr;
+        skee::IOverrideInterfaceV1* g_override_v1 = nullptr;
     }
 
-    bool IsReady() { return g_override != nullptr; }
+    bool IsReady() { return g_override != nullptr || g_override_v1 != nullptr; }
 
     namespace {
-        // Helper isolated from C++ destructors so we can use __try/__except.
+        // Helpers isolated from C++ destructors so we can use __try/__except.
         // MSVC forbids mixing structured exception handling with functions
         // that have unwindable C++ objects in the same scope.
         //
         // Returns true if the vtable call completed without raising a
         // Windows structured exception (access violation, illegal instr,
         // etc.). On exception, returns false — caller is expected to
-        // disable the bridge to prevent repeated crashes.
+        // disable the bridge to prevent repeated crashes. This is the net
+        // that keeps a vtable-layout mismatch (esp. the hand-transcribed v1
+        // ABI) from becoming a hard CTD.
         //
         // `key` is one of skee::OverrideParam::kParam_* — the same enum the
         // Papyrus-side NiOverride.AddNodeOverride* family uses.
-        static bool CallSetNodeProperty_SEH(
+        static bool CallSetNodeProperty_SEH_v2(
             skee::IOverrideInterface*             over,
             skee::TESObjectREFR*                  refr,
             const char*                           nodeName,
@@ -54,11 +59,28 @@ namespace MTFPulse::skee_bridge {
                 return false;
             }
         }
+
+        // v1 path: key+index already packed inside `ov`; nodeName is the raw
+        // interned BSFixedString pointer passed by value as void*.
+        static bool CallSetNodeProperty_SEH_v1(
+            skee::IOverrideInterfaceV1* over,
+            skee::TESObjectREFR*        refr,
+            void*                       nodeName,
+            skee::OverrideVariantV1*    ov) noexcept
+        {
+            __try {
+                over->SetNodeProperty(refr, nodeName, ov, /*immediate=*/true);
+                return true;
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {
+                return false;
+            }
+        }
     }
 
     bool Init()
     {
-        if (g_override) {
+        if (g_override || g_override_v1) {
             return true;  // already initialised
         }
 
@@ -93,55 +115,101 @@ namespace MTFPulse::skee_bridge {
             return false;
         }
 
-        // Down-cast through IPluginInterface — both classes live in the
-        // skee:: namespace and IOverrideInterface really IS the runtime
-        // type SKEE registered under that name.
-        auto* over = static_cast<skee::IOverrideInterface*>(iface);
-        const auto version = over->GetVersion();
-        if (version < skee::IOverrideInterface::kPluginVersion2) {
-            spdlog::warn("skee_bridge: Override interface v{} is too old (need >= {})",
-                         version,
-                         static_cast<int>(skee::IOverrideInterface::kPluginVersion2));
-            return false;
+        // GetVersion() lives at the same vtable slot (1, after the virtual
+        // dtor) in every SKEE generation, so reading it through the minimal
+        // IPluginInterface base is safe regardless of which ABI the rest of
+        // the object uses.
+        const auto version = iface->GetVersion();
+
+        if (version >= skee::IOverrideInterface::kPluginVersion2) {
+            g_override = static_cast<skee::IOverrideInterface*>(iface);
+            spdlog::info("skee_bridge: acquired Override interface v{} (wrapper ABI)", version);
+            return true;
         }
 
-        g_override = over;
-        spdlog::info("skee_bridge: acquired Override interface v{}", version);
-        return true;
+        if (version == skee::IOverrideInterface::kPluginVersion1) {
+            // Legacy RaceMenu 0.4.19.x. The object is SKEE's internal concrete
+            // OverrideInterface; we drive it through the hand-transcribed v1
+            // vtable shim. SEH-guarded, so a layout mismatch disables the
+            // bridge rather than crashing.
+            g_override_v1 = reinterpret_cast<skee::IOverrideInterfaceV1*>(iface);
+            spdlog::info("skee_bridge: acquired Override interface v1 (legacy ABI) — pulse enabled on old RaceMenu");
+            return true;
+        }
+
+        spdlog::warn("skee_bridge: Override interface v{} unsupported", version);
+        return false;
     }
 
     namespace {
-        // Shared cast + SEH call path used by every Write* function below.
-        // Doing the cast in one place keeps the reinterpret_cast quirk
-        // (RE::TESObjectREFR* ↔ skee::TESObjectREFR* — same underlying
-        // pointer, different opaque typedefs) isolated to one location.
-        bool WriteVariant(
-            RE::Actor*                            actor,
-            const char*                           nodeName,
-            skee::skee_u16                        key,
-            skee::IOverrideInterface::SetVariant& variant)
+        // Shared write path used by every Write* function below. Routes to
+        // whichever ABI Init() acquired. Doing the reinterpret_cast and the
+        // v1/v2 branch in one place keeps the per-property functions trivial.
+        //
+        // `fv` is used when isFloat, `iv` (packed 0x00RRGGBB for colors) when
+        // not. The RE::TESObjectREFR* ↔ skee::TESObjectREFR* cast is the same
+        // underlying pointer, different opaque typedefs.
+        bool WriteProp(
+            RE::Actor*     actor,
+            const char*    nodeName,
+            skee::skee_u16 key,
+            bool           isFloat,
+            float          fv,
+            skee::skee_i32 iv)
         {
-            if (!g_override || !actor || !nodeName) {
+            if (!actor || !nodeName) {
                 return false;
             }
             auto* refr = reinterpret_cast<skee::TESObjectREFR*>(static_cast<RE::TESObjectREFR*>(actor));
-            if (!CallSetNodeProperty_SEH(g_override, refr, nodeName, key, variant)) {
-                spdlog::error("skee_bridge: SetNodeProperty raised SEH on node='{}' key={} — disabling bridge",
-                              nodeName, static_cast<int>(key));
-                g_override = nullptr;
-                return false;
+
+            if (g_override) {  // v2 wrapper ABI
+                if (isFloat) {
+                    skee::FloatVariant variant{ fv };
+                    if (!CallSetNodeProperty_SEH_v2(g_override, refr, nodeName, key, variant)) {
+                        spdlog::error("skee_bridge: v2 SetNodeProperty raised SEH on node='{}' key={} — disabling bridge",
+                                      nodeName, static_cast<int>(key));
+                        g_override = nullptr;
+                        return false;
+                    }
+                } else {
+                    skee::IntVariant variant{ iv };
+                    if (!CallSetNodeProperty_SEH_v2(g_override, refr, nodeName, key, variant)) {
+                        spdlog::error("skee_bridge: v2 SetNodeProperty raised SEH on node='{}' key={} — disabling bridge",
+                                      nodeName, static_cast<int>(key));
+                        g_override = nullptr;
+                        return false;
+                    }
+                }
+                return true;
             }
-            return true;
+
+            if (g_override_v1) {  // v1 legacy ABI
+                skee::OverrideVariantV1 ov;
+                if (isFloat) {
+                    ov.SetFloat(key, /*index=*/-1, fv);
+                } else {
+                    ov.SetInt(key, /*index=*/-1, iv);
+                }
+                // BSFixedString is one interned pointer; construct it (which
+                // interns into the game's shared string pool SKEE also reads)
+                // and pass that pointer by value.
+                RE::BSFixedString node(nodeName);
+                void* nodeArg = *reinterpret_cast<void* const*>(&node);
+                if (!CallSetNodeProperty_SEH_v1(g_override_v1, refr, nodeArg, &ov)) {
+                    spdlog::error("skee_bridge: v1 SetNodeProperty raised SEH on node='{}' key={} — disabling bridge",
+                                  nodeName, static_cast<int>(key));
+                    g_override_v1 = nullptr;
+                    return false;
+                }
+                return true;
+            }
+
+            return false;  // bridge not ready
         }
     }
 
     bool WriteEmissiveMult(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, float mult)
     {
-        // SetNodeProperty doesn't take isFemale (it operates on the already-
-        // attached node graph regardless of sex). The parameter is kept in
-        // our public signature because the *persist* path AddNodeOverride
-        // does need it, and we may add that variant later.
-
         // v0.2.9 black-blob floor: SKEE overlay shaders couple diffuse
         // visibility to emissive intensity — em=0 renders the base ink's
         // dark "lit-by-emissive" diffuse as a near-black blob at alpha 100.
@@ -154,38 +222,32 @@ namespace MTFPulse::skee_bridge {
         if (mult <= 0.0f) {
             mult = 0.001f;
         }
-        skee::FloatVariant variant{ mult };
-        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderEmissiveMultiple, variant);
+        return WriteProp(actor, nodeName, skee::OverrideParam::kParam_ShaderEmissiveMultiple, /*isFloat=*/true, mult, 0);
     }
 
     bool WriteAlpha(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, float alpha)
     {
-        skee::FloatVariant variant{ alpha };
-        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderAlpha, variant);
+        return WriteProp(actor, nodeName, skee::OverrideParam::kParam_ShaderAlpha, /*isFloat=*/true, alpha, 0);
     }
 
     bool WriteTint(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, std::int32_t rgb)
     {
-        skee::IntVariant variant{ rgb };
-        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderTintColor, variant);
+        return WriteProp(actor, nodeName, skee::OverrideParam::kParam_ShaderTintColor, /*isFloat=*/false, 0.0f, rgb);
     }
 
     bool WriteEmissiveColor(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, std::int32_t rgb)
     {
-        skee::IntVariant variant{ rgb };
-        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderEmissiveColor, variant);
+        return WriteProp(actor, nodeName, skee::OverrideParam::kParam_ShaderEmissiveColor, /*isFloat=*/false, 0.0f, rgb);
     }
 
     bool WriteGlossiness(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, float gloss)
     {
-        skee::FloatVariant variant{ gloss };
-        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderGlossiness, variant);
+        return WriteProp(actor, nodeName, skee::OverrideParam::kParam_ShaderGlossiness, /*isFloat=*/true, gloss, 0);
     }
 
     bool WriteSpecular(RE::Actor* actor, [[maybe_unused]] bool isFemale, const char* nodeName, float spec)
     {
-        skee::FloatVariant variant{ spec };
-        return WriteVariant(actor, nodeName, skee::OverrideParam::kParam_ShaderSpecularStrength, variant);
+        return WriteProp(actor, nodeName, skee::OverrideParam::kParam_ShaderSpecularStrength, /*isFloat=*/true, spec, 0);
     }
 
 }  // namespace MTFPulse::skee_bridge

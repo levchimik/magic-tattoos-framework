@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace MTFPulse::skee {
@@ -34,6 +35,7 @@ namespace MTFPulse::skee {
     using skee_i32 = std::int32_t;
     using skee_u16 = std::uint16_t;
     using skee_u8  = std::uint8_t;
+    using skee_i8  = std::int8_t;
 
     class IPluginInterface
     {
@@ -180,6 +182,70 @@ namespace MTFPulse::skee {
         skee_i32 Int()     override { return _v; }
     private:
         skee_i32 _v;
+    };
+
+    // ───────────────────────── v1 (legacy) ABI ─────────────────────────
+    // RaceMenu 0.4.19.x (skee64 before the Jun-2023 "wrapper interface"
+    // commit 7694eab) exposes the *internal* concrete OverrideInterface
+    // class under QueryInterface("Override"), reporting GetVersion()==1.
+    // Its vtable and SetNodeProperty signature are COMPLETELY different
+    // from the v2 IOverrideInterface above — there is no SetVariant
+    // wrapper; the key + index are packed INSIDE an OverrideVariant struct
+    // passed by pointer, and nodeName is a BSFixedString (one interned
+    // pointer) passed by value.
+    //
+    // Layout transcribed from skee64/OverrideVariant.h @ 8adc4b6. We only
+    // ever pack int/float/color values, so `str` (a 16-byte StringTableItem
+    // = std::shared_ptr) stays zero and SKEE never reads it for numeric
+    // types — only the offset of `data` (8) has to be exact, which standard
+    // struct layout guarantees.
+    struct OverrideVariantV1
+    {
+        enum : skee_u8 { kType_None = 0, kType_String = 2, kType_Int = 3, kType_Float = 4, kType_Bool = 5 };
+
+        skee_u16 key   = 0;   // + 0
+        skee_u8  type  = 0;   // + 2
+        skee_i8  index = -1;  // + 3   (-1 == "no controller", == v2's kIndexMax byte 0xFF)
+        // 4 bytes padding -> union is 8-byte aligned (contains void*)
+        union { skee_i32 i; skee_u32 u; float f; bool b; void* p; } data{};  // + 8
+        void* _str0 = nullptr;  // +16  } StringTableItem (shared_ptr) — must
+        void* _str1 = nullptr;  // +24  } stay null for numeric variants
+
+        void SetFloat(skee_u16 k, skee_i8 idx, float v) { key = k; type = kType_Float; index = idx; data.f = v; }
+        void SetInt  (skee_u16 k, skee_i8 idx, skee_i32 v) { key = k; type = kType_Int;   index = idx; data.i = v; }
+    };
+    static_assert(sizeof(OverrideVariantV1) == 32, "OverrideVariant v1 layout drift");
+    static_assert(offsetof(OverrideVariantV1, data) == 8, "OverrideVariant v1 data offset");
+
+    // v1 vtable shim. Only slot 1 (GetVersion) and slot 14 (SetNodeProperty)
+    // are ever called; the intervening slots are placeholders that exist
+    // solely to position SetNodeProperty at the correct offset. Order/count
+    // verified against skee64/OverrideInterface.h @ 8adc4b6, with the
+    // virtual destructor occupying slot 0 (confirmed empirically: MTF's v2
+    // IPluginInterface — dtor@0, GetVersion@1 — reads a clean version==1
+    // from this very object). DO NOT reorder or remove slots.
+    //
+    // nodeName is a BSFixedString passed BY VALUE (one pointer); we type it
+    // as void* and hand SKEE the raw interned pointer. value is an
+    // OverrideVariantV1* (key/index live inside it).
+    class IOverrideInterfaceV1
+    {
+    public:
+        virtual ~IOverrideInterfaceV1() = default;                  // 0  ~dtor
+        virtual skee_u32 GetVersion() = 0;                          // 1  GetVersion
+        virtual void _vf02() = 0;  // Save                          // 2
+        virtual void _vf03() = 0;  // Load                          // 3
+        virtual void _vf04() = 0;  // Revert                        // 4
+        virtual void _vf05() = 0;  // LoadOverrides                 // 5
+        virtual void _vf06() = 0;  // LoadNodeOverrides             // 6
+        virtual void _vf07() = 0;  // LoadWeaponOverrides           // 7
+        virtual void _vf08() = 0;  // AddRawOverride                // 8
+        virtual void _vf09() = 0;  // AddOverride                   // 9
+        virtual void _vf10() = 0;  // AddRawNodeOverride            // 10
+        virtual void _vf11() = 0;  // AddNodeOverride               // 11
+        virtual void _vf12() = 0;  // SetArmorAddonProperty         // 12
+        virtual void _vf13() = 0;  // GetArmorAddonProperty         // 13
+        virtual void SetNodeProperty(TESObjectREFR* refr, void* nodeName, OverrideVariantV1* value, bool immediate) = 0;  // 14
     };
 
 }  // namespace MTFPulse::skee
