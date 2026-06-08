@@ -135,6 +135,7 @@ REQUIRED=(
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.ostim.json"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.bfng.json"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.slavetats.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.skyrimnet.json"
     "$TEMPLATES/info.xml"
     "$TEMPLATES/ModuleConfig.xml"
 )
@@ -257,9 +258,14 @@ echo "  staged 00_base ($(find "$BASE" -type f | wc -l) files)"
 # Integration plugin folders (10_plugin_*): ESP + matching .pex
 # -----------------------------------------------------------------------------
 # Stage one integration plugin folder. The 4th arg is the plugin catalog
-# basename (e.g. "mtf.fmr.json"); pass "" to skip when a plugin overrides
-# GetConditionCount/GetEffectCount in Papyrus and ships no JSON catalog
-# (SkyrimNet bridge does this — its counts return 0 directly).
+# basename (e.g. "mtf.fmr.json"); pass "" to skip only for a plugin that ships
+# no JSON catalog at all.
+# NOTE: the SkyrimNet bridge DOES ship a catalog (mtf.skyrimnet.json). It has
+# zero conditions, but it carries the "Special"/rp.text effect, which is
+# catalog-driven — so without staging the JSON that effect never registers and
+# presets referencing mtf.skyrimnet:rp.text bind to nothing. (Historically this
+# arg was "" back when the bridge truly had no catalog; that became a packaging
+# bug once rp.text was added — fixed here.)
 stage_plugin() {
     local folder="$1" esp="$2" pex="$3" catalog="${4:-}"
     local out="$STAGE/$folder"
@@ -280,7 +286,7 @@ stage_plugin "12_plugin_sexlab"    "MTF_Plugin_SexLab.esp"    "MTF_Plugin_SexLab
 stage_plugin "13_plugin_ostim"     "MTF_Plugin_OStim.esp"     "MTF_Plugin_OStim.pex"     "mtf.ostim.json"
 stage_plugin "14_plugin_bfng"      "MTF_Plugin_BFNG.esp"      "MTF_Plugin_BFNG.pex"      "mtf.bfng.json"
 stage_plugin "15_plugin_slavetats" "MTF_Plugin_SlaveTats.esp" "MTF_Plugin_SlaveTats.pex" "mtf.slavetats.json"
-stage_plugin "16_plugin_skyrimnet" "MTF_Plugin_SkyrimNet.esp" "MTF_Plugin_SkyrimNet.pex" ""
+stage_plugin "16_plugin_skyrimnet" "MTF_Plugin_SkyrimNet.esp" "MTF_Plugin_SkyrimNet.pex" "mtf.skyrimnet.json"
 # SkyrimNet bridge also ships an Inja prompt submodule that surfaces
 # MTF active tattoos in the LLM's character_bio context. Layered on top of
 # the bare ESP+PEX stage so a single FOMOD step delivers code AND prompt.
