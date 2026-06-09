@@ -397,6 +397,72 @@ echo "=== Stage complete: $STAGE ==="
 echo
 
 # -----------------------------------------------------------------------------
+# Coverage gate: source -> stage completeness.
+#
+# REQUIRED[] above guards that listed inputs EXIST. This guards the OPPOSITE
+# failure: a tracked source file (or a whole directory) that nobody remembered
+# to add a cp/stage_* line for, which then silently never ships. That is exactly
+# how data/meshes/ (the ambient-light attach NIF) went missing from every build
+# for releases — REQUIRED[] can't catch a file no one listed in the first place.
+#
+# Rule: every file tracked by git under data/ and content-packs/ must either
+# land in the stage (matched by basename) or be named in COVERAGE_EXCLUDE with a
+# comment. A newly-added source file therefore forces a conscious choice — ship
+# it or exclude it — instead of vanishing. Scope is deliberately data/ +
+# content-packs/, where "everything ships" is a clean invariant; source/scripts,
+# examples/, and test-pack/ have bespoke per-file staging and are out of scope.
+#
+# Matching is by basename (the stage reorganizes files into option folders, so
+# relative paths don't survive). Collisions are theoretically possible but would
+# only mask an orphan, never invent one. Set MTF_SKIP_COVERAGE=1 to bypass.
+# -----------------------------------------------------------------------------
+if [[ "${MTF_SKIP_COVERAGE:-0}" == "1" ]]; then
+    echo "=== Skipping coverage gate (MTF_SKIP_COVERAGE=1) ==="
+else
+    echo "=== Running coverage gate (source -> stage) ==="
+    COVERAGE_EXCLUDE=(
+        # Stress/visual test presets — dev-only; release_check separately
+        # asserts these never appear in the base FOMOD step.
+        'data/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/presets_builtin/*'
+        # MTFPulse.dll has its own multi-source lookup + conditional cp above
+        # (it is NOT staged from data/), so exclude it from basename coverage.
+        'data/SKSE/Plugins/MTFPulse.dll'
+        # Repo-level content-pack index, not a shippable pack.
+        'content-packs/README.md'
+        # obi-tattoos — unreleased WIP content pack; no FOMOD option yet.
+        'content-packs/obi-tattoos/*'
+        # Scratch/backup files that may sit in the worktree but never ship.
+        '*.bak' '*.orig' '*~'
+    )
+    # Basenames that made it into the stage (forward-slash paths under MSYS).
+    STAGED_BN="$(find "$STAGE" -type f | sed 's#.*/##' | sort -u)"
+    ORPHANS=()
+    while IFS= read -r rel; do
+        [[ -z "$rel" ]] && continue
+        skip=0
+        for pat in "${COVERAGE_EXCLUDE[@]}"; do
+            # [[ == ]] glob match; * spans '/' here, so dir excludes work.
+            # shellcheck disable=SC2053
+            if [[ "$rel" == $pat ]]; then skip=1; break; fi
+        done
+        [[ "$skip" == 1 ]] && continue
+        if ! grep -Fxq -- "${rel##*/}" <<<"$STAGED_BN"; then
+            ORPHANS+=("$rel")
+        fi
+    done < <(cd "$PROJ" && git ls-files data content-packs)
+
+    if [[ ${#ORPHANS[@]} -gt 0 ]]; then
+        echo "ERROR: tracked source files never reached the stage (and not excluded):" >&2
+        printf '  %s\n' "${ORPHANS[@]}" >&2
+        echo "Each must either get a cp/stage_* line above, or be added to" >&2
+        echo "COVERAGE_EXCLUDE (with a comment) if it legitimately never ships." >&2
+        exit 1
+    fi
+    echo "  coverage: every tracked source file is staged or explicitly excluded"
+fi
+echo
+
+# -----------------------------------------------------------------------------
 # Release gate: static pre-ship checks (tools/release_check.sh).
 #
 # Runs AFTER staging so it can validate the staged 00_base (no test/stress
