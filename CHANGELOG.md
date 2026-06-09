@@ -6,9 +6,23 @@ versions are the Nexus release tags.
 
 ## [v0.4.2] — 2026-06-08
 
-A packaging fix. Drop-in over v0.4.1; no schema or save changes.
+A compatibility and packaging fix. Drop-in over v0.4.1; no schema or save changes.
 
 ### Fixed
+
+- **Tattoos invisible on RaceMenu 0.4.19.x (old SKEE).** `MTFPulse.dll` drives
+  the overlay's shader properties (alpha, emissive colour/multiple, tint) through
+  SKEE's `Override` interface. It required interface **v2** — the "wrapper"
+  ABI introduced by RaceMenu 0.4.20.0 — and rejected older RaceMenu (0.4.19.x),
+  which exposes the pre-wrapper **v1** interface. With the bridge dead, every
+  shader write silently no-opped: the overlay applied (texture in the store via
+  Papyrus/NiOverride) but rendered invisible, even though *manually* set RaceMenu
+  overlays worked. The bridge now detects the interface version and, on v1, drives
+  SKEE's legacy concrete `OverrideInterface` vtable directly — `SetNodeProperty`
+  at vtable slot 14, with the property key/index packed inside an `OverrideVariant`
+  and the node name passed as a `BSFixedString`. Pulse and visuals now work on
+  RaceMenu 0.4.19.x as well as 0.4.20.0+. The call stays SEH-guarded, so a vtable
+  mismatch disables the bridge rather than crashing.
 
 - **Ambient Light effect (`toggle.ambientLight`) never worked from a FOMOD
   install.** The effect's magic effect (MGEF `0x924`, Light archetype → LIGH
@@ -20,6 +34,26 @@ A packaging fix. Drop-in over v0.4.1; no schema or save changes.
   build now stages `data/meshes/` into `00_base` and lists the NIF in the
   release prereq check, so a future missing mesh fails the build loudly instead
   of shipping a broken effect.
+
+- **Several effects silently dead on FOMOD installs — SkyrimNet `rp.text`, the
+  spell-cast emissive flash, the preset API, and SPID-distributed tattoos.** The
+  build never staged the files these features depend on. The SkyrimNet plugin
+  catalog (`mtf.skyrimnet.json`) was omitted, so its `rp.text` effect reported
+  `-1`/unregistered and presets binding it resolved to nothing. And four scripts
+  the ESPs attach via VMAD were never shipped — `MTF_CastListener` (the
+  `BeginCast*` → emissive flash trigger), `MTF_AliasPresetApi`, `MTF_AliasSkyrimNet`,
+  and `MTF_SpidApply` (the SPID-distribution MGEF script) — so each alias/MGEF
+  attachment bound to a missing `.pex` and silently no-op'd at runtime. All are
+  now staged (`mtf.skyrimnet.json` + the four scripts).
+
+### Changed
+
+- **Build hardening — packaging-omission gates.** `tools/fomod/build_fomod.sh`
+  now runs two coverage gates after staging and fails the build loudly on a gap:
+  a source→stage check (every git-tracked file under `data/` and `content-packs/`
+  must be staged or explicitly excluded) and a VMAD check (every script an ESP
+  binds must have its `.pex` staged). Together they close the class of
+  silent-omission bug behind every "never staged" fix above.
 
 ## [v0.4.1] — 2026-06-07
 
