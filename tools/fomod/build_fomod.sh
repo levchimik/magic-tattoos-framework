@@ -122,6 +122,7 @@ REQUIRED=(
     "$SRC_SCRIPTS/MTF_Plugin_SkyrimNet.pex"
     "$SRC_SCRIPTS/MTF_TestRunner.pex"
     "$DATA/SKSE/Plugins/MagicTattoosFramework.ini"
+    "$DATA/meshes/MTF/MTF_AmbientLightAttach.nif"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/mtf.module_map.json"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.attributes.json"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.combat.json"
@@ -251,6 +252,15 @@ cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/mtf.module_map.json
 # the one key and leaves every other RaceMenu setting (and user customization)
 # untouched — no loose-file conflict with RaceMenu's ini, load-order independent.
 cp "$STATIC/00_base/SKSE/Plugins/skee64_custom.ini" "$BASE/SKSE/Plugins/skee64_custom.ini"
+
+# Meshes — ambient-light attach carrier. The toggle.ambientLight effect's MGEF
+# (0x924) uses this NIF as its HitEffectArt (ARTO 0x929); the attached LIGH
+# (0x928) parents to it, so without the mesh the effect's light has nothing to
+# attach to and never renders. data/meshes is the only mesh tree MTF ships;
+# it was previously omitted from staging entirely, so every FOMOD install
+# silently lacked the ambient light. (Guarded by the REQUIRED[] check above.)
+mkdir -p "$BASE/meshes/MTF"
+cp "$DATA/meshes/MTF/MTF_AmbientLightAttach.nif" "$BASE/meshes/MTF/"
 
 echo "  staged 00_base ($(find "$BASE" -type f | wc -l) files)"
 

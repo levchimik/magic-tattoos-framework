@@ -4,6 +4,23 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
+## [v0.4.2] — 2026-06-08
+
+A packaging fix. Drop-in over v0.4.1; no schema or save changes.
+
+### Fixed
+
+- **Ambient Light effect (`toggle.ambientLight`) never worked from a FOMOD
+  install.** The effect's magic effect (MGEF `0x924`, Light archetype → LIGH
+  `0x928`) attaches its light via a HitEffectArt art object (ARTO `0x929`) whose
+  model is `meshes\MTF\MTF_AmbientLightAttach.nif`. That mesh — the only one MTF
+  ships — was never staged by `tools/fomod/build_fomod.sh`, which copied scripts,
+  the ESP, the DLL, INIs and catalogs but not the `meshes/` tree. So every FOMOD
+  install lacked the attach carrier and the light had nothing to parent to. The
+  build now stages `data/meshes/` into `00_base` and lists the NIF in the
+  release prereq check, so a future missing mesh fails the build loudly instead
+  of shipping a broken effect.
+
 ## [v0.4.1] — 2026-06-07
 
 A compatibility fix. Drop-in over v0.4.0; no schema or save changes.
