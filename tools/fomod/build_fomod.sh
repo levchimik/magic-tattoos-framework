@@ -107,6 +107,10 @@ REQUIRED=(
     "$ESP_OUT/MTF_Plugin_SlaveTats.esp"
     "$ESP_OUT/MTF_Plugin_SkyrimNet.esp"
     "$SRC_SCRIPTS/MTF_MainQuest.pex"
+    "$SRC_SCRIPTS/MTF_CastListener.pex"
+    "$SRC_SCRIPTS/MTF_AliasPresetApi.pex"
+    "$SRC_SCRIPTS/MTF_AliasSkyrimNet.pex"
+    "$SRC_SCRIPTS/MTF_SpidApply.pex"
     "$SRC_SCRIPTS/MTF_Plugin_Base.pex"
     "$SRC_SCRIPTS/MTF_Plugin_Combat.pex"
     "$SRC_SCRIPTS/MTF_Plugin_Magic.pex"
@@ -201,6 +205,17 @@ BASE_SCRIPTS=(
     MTFPulse
     MTF_ApplyTattoo
     MTF_HitListener
+    # Alias/MGEF scripts the base ESP (MagicTattoosFramework.esp) binds via VMAD
+    # but that were historically never staged — the ESP forced these onto the
+    # player/MGEF, found no .pex on disk, and the feature silently no-op'd:
+    #   MTF_CastListener  — CastListenerAlias (player); BeginCast* flash trigger
+    #   MTF_AliasPresetApi — PresetApiAlias (player); preset API surface
+    #   MTF_SpidApply     — MTF_MGEF_SpidApply (0x926); SPID-distributed tattoos
+    # (The VMAD-coverage gate after staging now fails the build if any ESP-
+    # referenced script like these is missing again.)
+    MTF_CastListener
+    MTF_AliasPresetApi
+    MTF_SpidApply
     MTF_MainQuest
     MTF_MCMQuest
     MTF_Plugin
@@ -304,6 +319,9 @@ if [[ -d "$CONTENT/skyrimnet-bridge" ]]; then
     cp -r "$CONTENT/skyrimnet-bridge/." "$STAGE/16_plugin_skyrimnet/"
     echo "  + skyrimnet-bridge prompt submodule layered into 16_plugin_skyrimnet"
 fi
+# Alias script bound by MTF_Plugin_SkyrimNet.esp's VMAD (was never staged, so
+# the SkyrimNet alias bound to nothing). Ships with the bridge option, not base.
+cp "$SRC_SCRIPTS/MTF_AliasSkyrimNet.pex" "$STAGE/16_plugin_skyrimnet/scripts/"
 
 # -----------------------------------------------------------------------------
 # Content-pack folders (20-24): JSON catalogs only
@@ -459,6 +477,30 @@ else
         exit 1
     fi
     echo "  coverage: every tracked source file is staged or explicitly excluded"
+
+    # ── VMAD script coverage: every script an ESP binds must be staged ──────
+    # Same failure class as above, but for source/scripts/*.pex: an ESP
+    # references a script via VMAD, no stage line ships the .pex, and at
+    # runtime the attachment silently binds to nothing. That is exactly how
+    # MTF_CastListener / MTF_AliasPresetApi / MTF_AliasSkyrimNet / MTF_SpidApply
+    # all shipped dead. Stronger than a directory walk: it checks against what
+    # the ESPs actually demand. Script names in the spriggit YAML are all
+    # MTF-prefixed and only ever appear as VMAD attachments (verified: no
+    # alias/quest Name value collides), so a flat grep extracts them reliably.
+    MISSING_SCRIPTS=()
+    while IFS= read -r sname; do
+        [[ -z "$sname" ]] && continue
+        grep -Fxq -- "${sname}.pex" <<<"$STAGED_BN" || MISSING_SCRIPTS+=("$sname")
+    done < <(grep -rhoE "Name:[[:space:]]*MTF[A-Za-z0-9_]*" "$PROJ/spriggit" 2>/dev/null \
+                 | sed -E 's/^Name:[[:space:]]*//' | sort -u)
+    if [[ ${#MISSING_SCRIPTS[@]} -gt 0 ]]; then
+        echo "ERROR: scripts referenced by ESP VMAD but never staged (.pex missing):" >&2
+        printf '  %s\n' "${MISSING_SCRIPTS[@]}" >&2
+        echo "Stage each (BASE_SCRIPTS for base-ESP scripts, or the relevant" >&2
+        echo "plugin folder) and add it to REQUIRED[]." >&2
+        exit 1
+    fi
+    echo "  coverage: every ESP-referenced VMAD script is staged"
 fi
 echo
 
