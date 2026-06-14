@@ -4,6 +4,47 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
+## [v0.4.3] — 2026-06-14
+
+A bug fix plus new Fertility Mode condition options. Drop-in over v0.4.2; no
+schema or save changes — the new conditions are additive, so existing presets
+are untouched.
+
+### Fixed
+
+- **Overlay base-slot change left a white "ghost" tattoo.** Changing the body
+  overlay base slot — e.g. an MCM-config reset on update — wrote `OverlaySlot`
+  and `CurrentOverlaySlot` together in a single pass, which slipped past the
+  slow-tick mismatch detector that clears the old slot. The previously painted
+  `Body [ovlN]` overlay was then orphaned in the SKEE co-save with no live
+  colour driver: it rendered as an untinted white/grey mark and fought the real
+  overlay. All base-slot changes now route through one `SetOverlaySlot` that
+  clears the previously painted range first (keyed off where it actually
+  painted), and the version-update wipe no longer clobbers a configured slot.
+  An already-stranded ghost can be cleared by setting that RaceMenu body-paint
+  slot back to Default once.
+
+### Added
+
+- **Fertility Mode (Reloaded) — new conditions.**
+  - **Cycle phase** — one condition with a Menstruation / Follicular /
+    Ovulation / Luteal picker.
+  - **Postpartum recovery** — fires during post-birth recovery, with a
+    minimum-recovery-% threshold.
+  - **Inseminated** — fires while the actor is carrying sperm, with a minimum
+    amount threshold.
+  - **Children** — fires when the player has at least N tracked children.
+  - The standalone **Ovulation** condition is kept alongside the new picker.
+
+### Changed
+
+- **SkyrimNet bio phrasing.** Condition and label text on the fertility and
+  arousal adapters (Fertility Mode, Beeing Female, OStim, SexLab, SexLab
+  Aroused) was reworded to read naturally under the bearer's name in the
+  generated bio — dropping the "the actor" subject prefix and internal/mechanical
+  notes — so a triggered tattoo renders e.g. "Triggered by: **Pregnancy** — is
+  pregnant and at least 50% through the pregnancy."
+
 ## [v0.4.2] — 2026-06-08
 
 A compatibility and packaging fix. Drop-in over v0.4.1; no schema or save changes.
@@ -345,6 +386,8 @@ still recommended for first-time setup.
 - Visual stress runner (End key) — 4 stacked tattoos × N NPCs.
 - N-fiber concurrency stress runner (PgDn) with a UIListMenu picker.
 
+[v0.4.3]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
+[v0.4.2]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
 [v0.4.1]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
 [v0.4.0]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
 [v0.3.0]: https://www.nexusmods.com/skyrimspecialedition/mods/180775
