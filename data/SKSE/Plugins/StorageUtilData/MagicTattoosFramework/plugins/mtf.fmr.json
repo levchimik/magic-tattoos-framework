@@ -6,7 +6,7 @@
     {
       "id": "pregnancy",
       "label": "Pregnancy",
-      "description": "the actor is pregnant and at least {param1}% through the pregnancy",
+      "description": "is pregnant and at least {param1}% through the pregnancy",
       "param": {
         "label": "Min belly stage (1-100)",
         "min": 1,
@@ -17,7 +17,55 @@
     {
       "id": "ovulation",
       "label": "Ovulation",
-      "description": "the actor is ovulating and at her most fertile"
+      "description": "is ovulating and at her most fertile"
+    },
+    {
+      "id": "postpartum",
+      "label": "Postpartum recovery",
+      "description": "is recovering from giving birth, at least {param1}% through recovery",
+      "param": {
+        "label": "Min recovery (0-100%)",
+        "min": 0,
+        "max": 100,
+        "default": 0
+      }
+    },
+    {
+      "id": "cycle.phase",
+      "label": "Cycle phase",
+      "description": "is in the {param1} phase of her menstrual cycle",
+      "param": {
+        "label": "Phase",
+        "default": "ovulation",
+        "menu": [
+          { "id": "menstruation", "label": "Menstruation" },
+          { "id": "follicular",   "label": "Follicular" },
+          { "id": "ovulation",    "label": "Ovulation" },
+          { "id": "luteal",       "label": "Luteal (PMS)" }
+        ]
+      }
+    },
+    {
+      "id": "inseminated",
+      "label": "Inseminated (sperm present)",
+      "description": "was recently inseminated and still has sperm present",
+      "param": {
+        "label": "Min sperm count",
+        "min": 1,
+        "max": 1000,
+        "default": 1
+      }
+    },
+    {
+      "id": "children",
+      "label": "Children",
+      "description": "has had at least {param1} children",
+      "param": {
+        "label": "Min children",
+        "min": 1,
+        "max": 20,
+        "default": 1
+      }
     }
   ],
   "effects": [

@@ -24,6 +24,13 @@ Scriptname MTF_Plugin_FMR extends MTF_Plugin
                     Original: LastOvulation in (0, EggLife] (egg age in days).
                     Pregnancy naturally excludes ovulation (FM clears the egg
                     on conception).
+   postpartum — Reloaded only: rank 101..115 (post-birth recovery). Param =
+                    minimum recovery % to fire ((rank-101)/14*100).
+   cycle.phase — Reloaded only: param1 (menu) picks menstruation / follicular
+                    / ovulation / luteal -> faction ranks 116 / 117 / 118 / 119.
+                    Original FM has no menstrual cycle, so this reads false on
+                    the non-Reloaded backend. (Standalone `ovulation` above is
+                    kept separately for now.)
 
  Effects:
    0  trigger.ovulation  — one-shot: set LastOvulation[index] = 0.001
@@ -85,9 +92,49 @@ int Function _trackedIndex(Actor target)
     return FMR_Storage.TrackedActors.Find(target as Form)
 EndFunction
 
+float Function _spermCount(Actor target)
+{Sperm units currently active in `target`, straight off _JSW_BB_Storage.
+ 0 if untracked. Indexed read uses no `== None` guard
+ (project_papyrus_array_none_cast_noise); a truly-None array aborts the
+ function gracefully via a Papyrus error on the indexed read.}
+    int i = _trackedIndex(target)
+    if i < 0
+        return 0.0
+    endif
+    return FMR_Storage.SpermCount[i]
+EndFunction
+
+int Function _childCount()
+{Number of children in FMR's player child roster (PlayerChildName.Length —
+ the same count FMR's own MCM shows). Flat roster, not per-actor. 0 if
+ Storage is unresolved; a truly-None array aborts gracefully on the .Length
+ read (project_papyrus_array_none_cast_noise convention).}
+    if FMR_Storage == None
+        return 0
+    endif
+    return FMR_Storage.PlayerChildName.Length
+EndFunction
+
 bool Function checkCondition(Actor target, int param, string cid)
     if target == None
         return false
+    endif
+    ; Sperm presence is read straight off _JSW_BB_Storage.SpermCount and is
+    ; backend-independent (the faction-rank encoding never carries it), so
+    ; handle it before the Reloaded/original split. Works on any FM variant
+    ; that keeps the _JSW_BB_Storage SpermCount array. param = min sperm units.
+    if cid == "inseminated"
+        return _spermCount(target) >= param as float
+    endif
+    ; Child count = FMR's PlayerChild* roster (a flat, NON-mother-attributed
+    ; list — PlayerChildAdd ignores the actor for indexing), so it's the
+    ; PLAYER's children, not a per-NPC tally. Only meaningful for the player.
+    ; Backend-independent; handle before the Reloaded/original split.
+    if cid == "children"
+        if target != Game.GetPlayer()
+            return false
+        endif
+        return _childCount() >= param
     endif
     ; Inline resolve: the Auto Hidden FMR_IEFaction property doesn't always
     ; backing-attach mid-save (project_papyrus_property_attach), so it can
@@ -110,6 +157,32 @@ bool Function checkCondition(Actor target, int param, string cid)
         ; Ovulation: rank 118 (egg present OR in ovulation window).
         ; Pregnancy ranks (1..100) take precedence — no !isPregnant gate needed.
         return rank == 118
+    elseif cid == "postpartum"
+        ; Post-birth recovery: rank 101..115. The handler sets
+        ; 101 + (birthDays/RecoveryDuration)*14 (see _JSW_BB_HandlerQuestAlias
+        ; :1034-1041), so recovery% = (rank-101)/14*100. param = min recovery %.
+        if rank < 101 || rank > 115
+            return false
+        endif
+        return ((rank - 101) * 100) / 14 >= param
+    elseif cid == "cycle.phase"
+        ; Consolidated cycle picker — param1 (menu) carries the phase id.
+        ; Map to the FMR faction-rank cycle encoding (handler :1077-1096),
+        ; which is set only while not pregnant. Reloaded-only; original FM
+        ; has no cycle (this branch is unreachable on that backend — it
+        ; routes through _checkConditionOriginal instead).
+        string phaseId = _host().GetEvalParamStr()
+        int wantRank = -1
+        if phaseId == "menstruation"
+            wantRank = 116
+        elseif phaseId == "follicular"
+            wantRank = 117
+        elseif phaseId == "ovulation"
+            wantRank = 118
+        elseif phaseId == "luteal"
+            wantRank = 119
+        endif
+        return wantRank > 0 && rank == wantRank
     endif
     return false
 EndFunction

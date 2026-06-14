@@ -6,7 +6,7 @@
     {
       "id": "scene.composition",
       "label": "Scene Composition",
-      "description": "the actor is in a sexual encounter with a certain mix of partners ({param1})",
+      "description": "is in a sexual encounter with a certain mix of partners ({param1})",
       "param": {
         "label": "Composition",
         "default": "any",
@@ -49,7 +49,7 @@
     {
       "id": "excitement",
       "label": "Excitement",
-      "description": "the actor is at least {param1}% aroused during a sexual encounter",
+      "description": "is at least {param1}% aroused during a sexual encounter",
       "param": {
         "label": "Min excitement",
         "min": 0,
@@ -60,7 +60,7 @@
     {
       "id": "times.climaxed",
       "label": "Times Climaxed",
-      "description": "the actor has climaxed at least {param1} time(s) in the current encounter",
+      "description": "has climaxed at least {param1} time(s) in the current encounter",
       "param": {
         "label": "Min climax count",
         "min": 0,
@@ -71,7 +71,7 @@
     {
       "id": "climax.stalled",
       "label": "Climax Stalled",
-      "description": "the actor's climax is being held back ({param1})",
+      "description": "climax is being held back ({param1})",
       "param": {
         "label": "Stall state",
         "default": "stalled",
@@ -90,7 +90,7 @@
     {
       "id": "scene.action",
       "label": "Scene Action (act type)",
-      "description": "the actor is giving or receiving a {param1} act during a sexual encounter",
+      "description": "is giving or receiving a {param1} act during a sexual encounter",
       "param": {
         "label": "Action type",
         "text": true,
@@ -100,7 +100,7 @@
     {
       "id": "scene.partner",
       "label": "Scene Partner (by name)",
-      "description": "the actor is in a sexual encounter with one of these partners: {param1}",
+      "description": "is in a sexual encounter with one of these partners: {param1}",
       "param": {
         "label": "Partner name(s)",
         "text": true,

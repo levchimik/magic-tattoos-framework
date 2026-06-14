@@ -6,7 +6,7 @@
     {
       "id": "arousal",
       "label": "Arousal",
-      "description": "the actor is at least {param1}% aroused",
+      "description": "is at least {param1}% aroused",
       "param": {
         "label": "Arousal threshold",
         "min": 0,
@@ -17,7 +17,7 @@
     {
       "id": "days.since.orgasm",
       "label": "Days Since Orgasm",
-      "description": "the actor has gone at least {param1} day(s) without an orgasm",
+      "description": "has gone at least {param1} day(s) without an orgasm",
       "param": {
         "label": "Min days since orgasm",
         "min": 0,
@@ -28,7 +28,7 @@
     {
       "id": "exposure.rate",
       "label": "Exposure Rate",
-      "description": "the actor's arousal is rising quickly (by at least {param1} per hour)",
+      "description": "arousal is rising quickly (by at least {param1} per hour)",
       "param": {
         "label": "Min exposure rate",
         "min": 0,
@@ -39,7 +39,7 @@
     {
       "id": "arousal.lock",
       "label": "Arousal Locked",
-      "description": "the actor's arousal is locked in place"
+      "description": "arousal is locked in place"
     }
   ],
   "effects": [
