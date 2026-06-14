@@ -55,6 +55,9 @@ int    Property STRESS_N_MAX = 30 AutoReadOnly
 ; the fade-on-death pipeline, then despawns. Shares mtf.stress.n with
 ; the PgDn picker — set N once via PgDn, drive both tests from there.
 int    Property HOTKEY_DX_END     = 0xCF        AutoReadOnly
+; v0.4.x ghost-tattoo test levers (HOME). Pops a UIListMenu to clobber /
+; safe-reset / clear the Body overlay slot — see _showSlotTestMenu.
+int    Property HOTKEY_DX_HOME    = 0xC7        AutoReadOnly
 ; LvlForswornMeleeFemale — NPC_ template (not LVLN). PlaceAtMe on a
 ; concrete NPC base is reliable in tight loops; the LVLN form 0x000442C8
 ; only spawned one of N=3 in practice (suspected leveled-resolution race).
@@ -84,6 +87,7 @@ Event OnInit()
     RegisterForKey(HOTKEY_DX_PGUP)
     RegisterForKey(HOTKEY_DX_PGDN)
     RegisterForKey(HOTKEY_DX_END)
+    RegisterForKey(HOTKEY_DX_HOME)
     RegisterForModEvent("MTF_StressKick", "OnStressKick")
 EndEvent
 
@@ -91,6 +95,7 @@ Event OnPlayerLoadGame()
     RegisterForKey(HOTKEY_DX_PGUP)
     RegisterForKey(HOTKEY_DX_PGDN)
     RegisterForKey(HOTKEY_DX_END)
+    RegisterForKey(HOTKEY_DX_HOME)
     RegisterForModEvent("MTF_StressKick", "OnStressKick")
 EndEvent
 
@@ -106,8 +111,43 @@ Event OnKeyDown(int keyCode)
         ; Same picker — it has a "Run VISUALS" row alongside "Run stress".
         ; Either hotkey opens it; user picks which run to fire.
         _showStressNMenu()
+    elseif keyCode == HOTKEY_DX_HOME
+        _showSlotTestMenu()
     endif
 EndEvent
+
+Function _showSlotTestMenu()
+{TEST (v0.4.x ghost-tattoo): first set "Overlay slot (Body)" = 16 in the MCM
+ and pick a tattoo, then HOME opens this picker:
+   * Clobber    -> reproduces the ghost (raw base==current reset)
+   * Safe reset -> the fixed path (SetOverlaySlot pre-clears) — no ghost
+   * Clear pool -> wipe the body overlay pool for a clean retry}
+    MTF_MainQuest mq = GetOwningQuest() as MTF_MainQuest
+    if mq == None
+        Debug.Notification("MTF: no MainQuest")
+        return
+    endif
+    UIListMenu m = UIExtensions.GetMenu("UIListMenu") as UIListMenu
+    if m == None
+        Debug.Notification("MTF: UIExtensions unavailable")
+        return
+    endif
+    m.ResetMenu()
+    m.AddEntryItem("-  MTF slot-ghost test  (base=" + mq.OverlaySlot + ", painted=" + mq.CurrentOverlaySlot + ")  -")
+    m.AddEntryItem(">> Clobber slot -> 2   (reproduce ghost)")
+    m.AddEntryItem(">> Safe reset slot -> 2   (fixed path)")
+    m.AddEntryItem(">> Clear body overlay pool   (cleanup)")
+    m.OpenMenu(Game.GetPlayer())
+    int idx = m.GetResultInt()
+    if idx == 1
+        mq.DebugClobberSlot()
+    elseif idx == 2
+        mq.SetOverlaySlot("Body", 2)
+        Debug.Notification("MTF TEST: safe reset via SetOverlaySlot (no ghost)")
+    elseif idx == 3
+        mq.DebugClearBodyPool()
+    endif
+EndFunction
 
 Function _showStressNMenu()
 {Pop a UIListMenu (UIExtensions). Three row classes:

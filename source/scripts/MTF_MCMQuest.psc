@@ -193,8 +193,14 @@ event OnVersionUpdate(int Version)
     ; save load.
     MainQuest.ModActive          = true
     MainQuest.updateInterval     = 0.1
-    MainQuest.OverlaySlot        = 2
-    MainQuest.CurrentOverlaySlot = 2
+    ; v0.4.x: do NOT reset the overlay base slots here. This block runs on
+    ; upgraders too, and writing OverlaySlot==CurrentOverlaySlot in one pass
+    ; clobbered a user's custom slot (e.g. 16) AND slipped past the slow-tick
+    ; mismatch detector — orphaning the old "Body [ovlN]" overlay as a white
+    ; ghost. Fresh installs already get 2 from the property declarations
+    ; (OverlaySlot / CurrentOverlaySlot = 2 Auto); upgraders keep their value.
+    ; All deliberate slot changes now go through MainQuest.SetOverlaySlot,
+    ; which clears the old range first.
 
     ; Default slot (idx 0): leave empty so the player sees no tattoo until
     ; they explicitly pick one in MCM. Loading visual catalogs is still
@@ -946,14 +952,12 @@ state SLOT_OVERLAY_SLOT
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
-        MainQuest.OverlaySlot = value as int
+        MainQuest.SetOverlaySlot("Body", value as int)
         SetSliderOptionValueST(value as int)
-        MainQuest.setRedraw()
     endEvent
     event OnDefaultST()
-        MainQuest.OverlaySlot = 2
+        MainQuest.SetOverlaySlot("Body", 2)
         SetSliderOptionValueST(2)
-        MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
         SetInfoText("Body base NiOverride overlay slot. Two consecutive slots are used: this slot (mark) and slot+1 (halo). Avoid conflicts with other overlay mods (SlaveTats, RaceMenu overlays).")
@@ -973,14 +977,12 @@ state SLOT_FACE_OVERLAY_SLOT
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
-        MainQuest.FaceOverlaySlot = value as int
+        MainQuest.SetOverlaySlot("Face", value as int)
         SetSliderOptionValueST(value as int)
-        MainQuest.setRedraw()
     endEvent
     event OnDefaultST()
-        MainQuest.FaceOverlaySlot = 0
+        MainQuest.SetOverlaySlot("Face", 0)
         SetSliderOptionValueST(0)
-        MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
         SetInfoText("Face base NiOverride overlay slot. Only meaningful when a Condition slot picks a pack with area=Face. Avoid conflicts with vanilla warpaints / face-overlay mods.")
@@ -995,14 +997,12 @@ state SLOT_HAND_OVERLAY_SLOT
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
-        MainQuest.HandOverlaySlot = value as int
+        MainQuest.SetOverlaySlot("Hands", value as int)
         SetSliderOptionValueST(value as int)
-        MainQuest.setRedraw()
     endEvent
     event OnDefaultST()
-        MainQuest.HandOverlaySlot = 0
+        MainQuest.SetOverlaySlot("Hands", 0)
         SetSliderOptionValueST(0)
-        MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
         SetInfoText("Hand base NiOverride overlay slot. Only meaningful when a Condition slot picks a pack with area=Hand.")
@@ -1017,14 +1017,12 @@ state SLOT_FEET_OVERLAY_SLOT
         SetSliderDialogInterval(1)
     endEvent
     event OnSliderAcceptST(float value)
-        MainQuest.FeetOverlaySlot = value as int
+        MainQuest.SetOverlaySlot("Feet", value as int)
         SetSliderOptionValueST(value as int)
-        MainQuest.setRedraw()
     endEvent
     event OnDefaultST()
-        MainQuest.FeetOverlaySlot = 0
+        MainQuest.SetOverlaySlot("Feet", 0)
         SetSliderOptionValueST(0)
-        MainQuest.setRedraw()
     endEvent
     event OnHighlightST()
         SetInfoText("Feet base NiOverride overlay slot. Only meaningful when a Condition slot picks a pack with area=Feet.")

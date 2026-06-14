@@ -5439,6 +5439,71 @@ Function _setAreaCurrentBaseSlot(string area, int value)
     endif
 EndFunction
 
+Function _setAreaBaseSlot(string area, int value)
+{Mirror writer for the MCM-driven TARGET base slot (OverlaySlot etc.),
+ companion of _setAreaCurrentBaseSlot. Routed through here so every base
+ change goes via the one guarded SetOverlaySlot path.}
+    if area == "Body"
+        OverlaySlot = value
+    elseif area == "Face"
+        FaceOverlaySlot = value
+    elseif area == "Hands"
+        HandOverlaySlot = value
+    elseif area == "Feet"
+        FeetOverlaySlot = value
+    endif
+EndFunction
+
+Function SetOverlaySlot(string area, int newBase)
+{Safe single entry point for changing an area's MCM base overlay slot.
+ Clears the range we ACTUALLY painted FIRST (via the Current<Area> mirror),
+ so nothing is stranded in the SKEE store when the base moves, THEN sets the
+ new base and forces a redraw.
+
+ The pre-clear is keyed off the painted mirror (Current<Area>), not the
+ OverlaySlot property — so it is correct even when the new base equals the
+ property's current value in a single pass. That is exactly the v0.4.x
+ ghost-tattoo bug: a reset wrote base==current together, the slow-tick
+ mismatch detector never fired, and "Body [ovl16]" stayed painted with no
+ live driver (renders white/B&W). Idempotent — a true no-op still refreshes.}
+    if _areaCurrentBaseSlot(area) != newBase
+        ; Same clear the slow-tick detector uses; keyed off Current<Area>
+        ; (where we really painted). Safe to call before the base changes.
+        removeOverlay(PlayerRef)
+    endif
+    _setAreaBaseSlot(area, newBase)
+    setRedraw()
+EndFunction
+
+; ── TEST-ONLY slot-ghost levers (driven by MTF_TestRunner's HOME-key menu) ───
+; Reproduce / verify the v0.4.x ghost-tattoo bug. Remove before ship.
+Function DebugClobberSlot()
+{TEST: reproduce the bug. Raw-writes base==current in one pass (what the old
+ update wipe did) — bypasses SetOverlaySlot's pre-clear, so whatever is
+ painted at the old Current slot is orphaned (renders white). No heal: the
+ slow-tick detector sees Current==Overlay and stays silent.}
+    OverlaySlot        = 2
+    CurrentOverlaySlot = 2
+    setRedraw()
+    Debug.Notification("MTF TEST: raw clobber -> ghost expected at old slot")
+EndFunction
+
+Function DebugClearBodyPool()
+{TEST: clear the WHOLE body overlay pool (ovl0..iNumOverlays) on the player
+ and Apply — a clean slate between test iterations. Destructive to any other
+ mod's body overlays too; test characters only.}
+    bool isFemale = PlayerRef.GetLeveledActorBase().GetSex() as bool
+    int n = _numOverlays("Body")
+    int i = 0
+    while i < n
+        clearOverlay(PlayerRef, isFemale, "Body", i)
+        i += 1
+    endwhile
+    NiOverride.ApplyNodeOverrides(PlayerRef)
+    MTFPulse.ClearActor(PlayerRef)
+    Debug.Notification("MTF TEST: cleared body overlay pool 0.." + (n - 1))
+EndFunction
+
 ; Per-area record of how many layers the player MCM-base draw last
 ; reserved. Needed by drawOverlayForActor's reserved==0 branch so a
 ; transition from "pack configured (N layers)" to "(no texture)" can
