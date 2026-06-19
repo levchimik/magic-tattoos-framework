@@ -1,0 +1,92 @@
+{
+ "displayname": "Test: BFNG Repro Ladder",
+ "int": {
+  "valid": 0
+ },
+ "schemaversion": 9,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "cond": { "packid": "", "entryid": "" },
+   "cooldown": { "min": 0, "mode": 0 },
+   "effect": [
+    { "key": "mtf.bfng:trigger.ovulation", "param1": 0, "param2": 0 },
+    { "key": "mtf.fx:sound.play", "param1": "detect_life_pulse", "param2": 3, "extras": { "volume": 100 } }
+   ]
+  },
+  {
+   "cond": {
+    "packid": "", "entryid": "", "op": 0,
+    "items": [ { "pluginid": "mtf.bfng:pregnancy.stage", "param": "labor" } ]
+   },
+   "cooldown": { "min": 0, "mode": 0 },
+   "effect": [
+    { "key": "mtf.fx:sound.play", "param1": "ui_quest_complete", "param2": 3, "extras": { "volume": 100 } }
+   ]
+  },
+  {
+   "cond": {
+    "packid": "", "entryid": "", "op": 0,
+    "items": [ { "pluginid": "mtf.bfng:pregnancy.stage", "param": "trimester3" } ]
+   },
+   "cooldown": { "min": 0, "mode": 0 },
+   "effect": [
+    { "key": "mtf.bfng:trigger.labor", "param1": 0, "param2": 0 },
+    { "key": "mtf.bfng:ward.womb", "param1": 20, "param2": 0 },
+    { "key": "mtf.fx:sound.play", "param1": "ui_shout_learned", "param2": 3, "extras": { "volume": 100 } }
+   ]
+  },
+  {
+   "cond": {
+    "packid": "", "entryid": "", "op": 0,
+    "items": [ { "pluginid": "mtf.bfng:pregnancy.stage", "param": "trimester2" } ]
+   },
+   "cooldown": { "min": 0, "mode": 0 },
+   "effect": [
+    { "key": "mtf.bfng:ward.womb", "param1": 20, "param2": 0 },
+    { "key": "mtf.fx:sound.play", "param1": "ui_quest_update", "param2": 3, "extras": { "volume": 100 } }
+   ]
+  },
+  {
+   "cond": {
+    "packid": "", "entryid": "", "op": 0,
+    "items": [ { "pluginid": "mtf.bfng:pregnancy.stage", "param": "trimester1" } ]
+   },
+   "cooldown": { "min": 0, "mode": 0 },
+   "effect": [
+    { "key": "mtf.bfng:mark.fecundity", "param1": 2, "param2": 0 },
+    { "key": "mtf.bfng:ward.womb", "param1": 20, "param2": 0 },
+    { "key": "mtf.fx:sound.play", "param1": "ui_new_quest", "param2": 3, "extras": { "volume": 100 } }
+   ]
+  },
+  {
+   "cond": {
+    "packid": "", "entryid": "", "op": 0,
+    "items": [ { "pluginid": "mtf.bfng:ovulation", "param": 0 } ]
+   },
+   "cooldown": { "min": 0, "mode": 0 },
+   "effect": [
+    { "key": "mtf.bfng:rite.quickening", "param1": 0, "param2": 0 },
+    { "key": "mtf.fx:sound.play", "param1": "ui_skill_up", "param2": 3, "extras": { "volume": 100 } }
+   ]
+  },
+  {
+   "cond": {
+    "packid": "", "entryid": "", "op": 0,
+    "items": [ { "pluginid": "mtf.bfng:cycle.phase", "param": "follicular" } ]
+   },
+   "cooldown": { "min": 0, "mode": 0 },
+   "effect": [
+    { "key": "mtf.bfng:trigger.ovulation", "param1": 0, "param2": 0 },
+    { "key": "mtf.fx:sound.play", "param1": "ui_level_up", "param2": 3, "extras": { "volume": 100 } }
+   ]
+  },
+  {
+   "cond": { "packid": "", "entryid": "" },
+   "cooldown": { "min": 0, "mode": 0 }
+  }
+ ],
+ "valid": 1
+}

@@ -67,6 +67,48 @@
         "max": 20,
         "default": 1
       }
+    },
+    {
+      "id": "pregnancy.stage",
+      "label": "Pregnancy Stage",
+      "description": "is in the {param1} stage of pregnancy",
+      "param": {
+        "label": "Stage",
+        "default": "trimester1",
+        "menu": [
+          { "label": "Trimester 1", "id": "trimester1" },
+          { "label": "Trimester 2", "id": "trimester2" },
+          { "label": "Trimester 3", "id": "trimester3" },
+          { "label": "Labor", "id": "labor" },
+          { "label": "Recovery", "id": "recovery" }
+        ]
+      }
+    },
+    {
+      "id": "father.near",
+      "label": "Father Nearby",
+      "description": "the father of the child she is carrying is within {param1} m",
+      "param": {
+        "label": "Radius (m)",
+        "min": 1,
+        "max": 100,
+        "default": 30,
+        "step": 5,
+        "format": "{0} m"
+      }
+    },
+    {
+      "id": "father.near.past",
+      "label": "Past Father Nearby",
+      "description": "a father of one of her already-born children is within {param1} m",
+      "param": {
+        "label": "Radius (m)",
+        "min": 1,
+        "max": 100,
+        "default": 30,
+        "step": 5,
+        "format": "{0} m"
+      }
     }
   ],
   "effects": [
@@ -75,6 +117,121 @@
       "label": "Trigger Ovulation",
       "description": "Makes the actor begin ovulating (no effect if she is already pregnant).",
       "kind": "burst"
+    },
+    {
+      "id": "mark.fecundity",
+      "label": "Mark of Fecundity",
+      "description": "While worn, guarantees a multiple pregnancy — raises the litter to {param1} babies if fewer were conceived. Never lowers a larger litter.",
+      "param1": {
+        "label": "Number of babies",
+        "min": 2,
+        "max": 5,
+        "default": 2
+      }
+    },
+    {
+      "id": "hex.barren",
+      "label": "Hex of Barrenness",
+      "description": "While worn, the actor cannot conceive. Her natural fertility is restored when the tattoo is removed."
+    },
+    {
+      "id": "charm.serenity",
+      "label": "Charm of Serenity",
+      "description": "While worn, suppresses the actor's PMS. Restored on removal."
+    },
+    {
+      "id": "purge.contraception",
+      "label": "Purge Contraception",
+      "description": "Instantly strips all contraceptive protection from the actor.",
+      "kind": "burst"
+    },
+    {
+      "id": "gift.fertility",
+      "label": "Gift of Fertility",
+      "description": "Re-enables conception for the actor this cycle (does not force pregnancy on its own).",
+      "kind": "burst"
+    },
+    {
+      "id": "induce.pms",
+      "label": "Induce PMS",
+      "description": "Re-enables PMS for the actor.",
+      "kind": "burst"
+    },
+    {
+      "id": "restore.natural",
+      "label": "Restore Natural Cycle",
+      "description": "Clears all manual fertility and PMS overrides, returning the actor to Beeing Female's automatic behavior.",
+      "kind": "burst"
+    },
+    {
+      "id": "rite.quickening",
+      "label": "Rite of Quickening",
+      "description": "Forces conception from sperm already present (no effect if already pregnant or no sperm is present).",
+      "kind": "burst"
+    },
+    {
+      "id": "trigger.labor",
+      "label": "Trigger Labor",
+      "description": "Induces birth if the actor is in her third trimester.",
+      "kind": "burst"
+    },
+    {
+      "id": "reset.cycle",
+      "label": "Reset Cycle",
+      "description": "Restarts the actor's menstrual cycle from the follicular phase (no effect while pregnant).",
+      "kind": "burst"
+    },
+    {
+      "id": "end.pregnancy",
+      "label": "End Pregnancy",
+      "description": "Terminates an active pregnancy (miscarriage). No effect if not pregnant.",
+      "kind": "burst"
+    },
+    {
+      "id": "ward.womb",
+      "label": "Ward of the Womb",
+      "description": "While worn, heals the unborn baby by {param1} health each hour — a protective pregnancy tattoo.",
+      "param1": {
+        "label": "Unborn health restored per game-hour",
+        "min": 1,
+        "max": 100,
+        "default": 20
+      }
+    },
+    {
+      "id": "ward.contraception",
+      "label": "Ward of Contraception",
+      "description": "While worn, tops up contraception by {param1}% each hour so protection never lapses.",
+      "param1": {
+        "label": "Contraception added per game-hour (%)",
+        "min": 1,
+        "max": 100,
+        "default": 50
+      }
+    },
+    {
+      "id": "cleanse.sperm",
+      "label": "Cleanse Sperm",
+      "description": "Instantly washes out {param1}% of the sperm currently inside the actor.",
+      "kind": "burst",
+      "param1": {
+        "label": "Sperm washed out (%)",
+        "min": 1,
+        "max": 100,
+        "default": 100
+      }
+    },
+    {
+      "id": "blight.womb",
+      "label": "Blight of the Womb",
+      "description": "Instantly damages the unborn baby by {param1} health. No effect if not pregnant.",
+      "kind": "burst",
+      "param1": {
+        "label": "Unborn health damage",
+        "min": 1,
+        "max": 100,
+        "default": 30
+      }
     }
   ]
 }
