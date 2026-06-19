@@ -1349,6 +1349,44 @@ Function SetCondParam2Str(int slot, string val)
     endif
 EndFunction
 
+; ── Per-slot THIRD condition parameter (StorageUtil-backed, v0.4.x) ───────────
+; Optional 3rd knob for conditions needing three values (e.g. npc.faction.near:
+; EditorID + radius + display name). Mirrors the param2 keyspace exactly so the
+; At(s,0) delegators, Save/Load, and MCM behave identically. param3 supports
+; slider + free-text only (no menu — the third param is realistically always a
+; threshold or a name/id).
+int Function GetCondParam3(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return 0
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.param3." + slot, 0)
+EndFunction
+
+Function SetCondParam3(int slot, int val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.cond.param3." + slot, val)
+EndFunction
+
+string Function GetCondParam3Str(int slot)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return ""
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.cond.param3." + slot + ".s", "")
+EndFunction
+
+Function SetCondParam3Str(int slot, string val)
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
+        return
+    endif
+    if val == ""
+        StorageUtil.UnsetStringValue(None, "mtf.cond.param3." + slot + ".s")
+    else
+        StorageUtil.SetStringValue(None, "mtf.cond.param3." + slot + ".s", val)
+    endif
+EndFunction
+
 ; ── Multi-condition per slot (AND/OR) — v0.3.0 ──────────────────────────────
 ; A slot can hold N conditions combined by ONE operator. Condition index 0
 ; reuses the legacy scalar keys (GetCondPluginId/Param/... above) for 100%
@@ -1497,6 +1535,40 @@ Function SetCondParam2StrAt(int slot, int j, string val)
     endif
 EndFunction
 
+int Function GetCondParam3At(int slot, int j)
+    if j <= 0
+        return GetCondParam3(slot)
+    endif
+    return StorageUtil.GetIntValue(self, "mtf.cond.x." + slot + "." + j + ".param3", 0)
+EndFunction
+
+Function SetCondParam3At(int slot, int j, int val)
+    if j <= 0
+        SetCondParam3(slot, val)
+        return
+    endif
+    StorageUtil.SetIntValue(self, "mtf.cond.x." + slot + "." + j + ".param3", val)
+EndFunction
+
+string Function GetCondParam3StrAt(int slot, int j)
+    if j <= 0
+        return GetCondParam3Str(slot)
+    endif
+    return StorageUtil.GetStringValue(None, "mtf.cond.x." + slot + "." + j + ".param3.s", "")
+EndFunction
+
+Function SetCondParam3StrAt(int slot, int j, string val)
+    if j <= 0
+        SetCondParam3Str(slot, val)
+        return
+    endif
+    if val == ""
+        StorageUtil.UnsetStringValue(None, "mtf.cond.x." + slot + "." + j + ".param3.s")
+    else
+        StorageUtil.SetStringValue(None, "mtf.cond.x." + slot + "." + j + ".param3.s", val)
+    endif
+EndFunction
+
 ; Clears every extra condition (index >= 1) for a slot back to empty, and
 ; resets count/op to the legacy single-condition representation. Used by
 ; LoadPreset before re-reading and by the MCM "clear slot" path.
@@ -1506,8 +1578,10 @@ Function ClearSlotExtraConds(int slot)
         SetCondPluginIdAt(slot, j, "")
         SetCondParamAt(slot, j, 0)
         SetCondParam2At(slot, j, 0)
+        SetCondParam3At(slot, j, 0)
         SetCondParamStrAt(slot, j, "")
         SetCondParam2StrAt(slot, j, "")
+        SetCondParam3StrAt(slot, j, "")
         j += 1
     endwhile
     SetCondCount(slot, 1)
@@ -1532,7 +1606,7 @@ bool Function _condParamIsMenu(string condKey)
     if itemIdx < 0
         return false
     endif
-    return p.GetConditionParamMenuOptionCount(itemIdx) > 0
+    return p.GetConditionParamMenuOptionCount(itemIdx) > 0 || p.GetConditionParamIsText(itemIdx)
 EndFunction
 
 bool Function _condParam2IsMenu(string condKey)
@@ -1547,7 +1621,25 @@ bool Function _condParam2IsMenu(string condKey)
     if itemIdx < 0
         return false
     endif
-    return p.GetConditionParam2MenuOptionCount(itemIdx) > 0
+    return p.GetConditionParam2MenuOptionCount(itemIdx) > 0 || p.GetConditionParam2IsText(itemIdx)
+EndFunction
+
+; v0.4.x: true when a condition's param3 (de)serializes as a STRING. param3 has
+; no menu support, so this is just the free-text flag. Save/Load route on it so
+; the text content persists instead of coercing to int 0.
+bool Function _condParam3IsStr(string condKey)
+    if condKey == ""
+        return false
+    endif
+    MTF_Plugin p = ResolvePluginByKey(condKey)
+    if p == None
+        return false
+    endif
+    int itemIdx = _condIdxFor(p, _keyItemId(condKey))
+    if itemIdx < 0
+        return false
+    endif
+    return p.GetConditionParam3IsText(itemIdx)
 EndFunction
 
 ; v0.3.x: true when paramN (de)serializes as a STRING — menu (string id) OR
@@ -1778,6 +1870,20 @@ Function _setEvalParam2Str(string val)
 EndFunction
 string Function GetEvalParam2Str()
     return StorageUtil.GetStringValue(self, "mtf.evalParam2.s", "")
+EndFunction
+; param3 eval-scratch (v0.4.x) — set by _checkOneCond before checkCondition so a
+; plugin reads its 3rd value via host.GetEvalParam3() / GetEvalParam3Str().
+Function _setEvalParam3(int val)
+    StorageUtil.SetIntValue(self, "mtf.evalParam3", val)
+EndFunction
+int Function GetEvalParam3()
+    return StorageUtil.GetIntValue(self, "mtf.evalParam3", 0)
+EndFunction
+Function _setEvalParam3Str(string val)
+    StorageUtil.SetStringValue(self, "mtf.evalParam3.s", val)
+EndFunction
+string Function GetEvalParam3Str()
+    return StorageUtil.GetStringValue(self, "mtf.evalParam3.s", "")
 EndFunction
 
 float Function GetCondPulseRate(int slot)
@@ -2840,6 +2946,11 @@ bool Function SavePreset(string rawName)
                 else
                     JsonUtil.SetPathIntValue(f, ipW + ".param2", GetCondParam2At(s, cjW))
                 endif
+                if _condParam3IsStr(ikeyW)
+                    JsonUtil.SetPathStringValue(f, ipW + ".param3", GetCondParam3StrAt(s, cjW))
+                else
+                    JsonUtil.SetPathIntValue(f, ipW + ".param3", GetCondParam3At(s, cjW))
+                endif
                 cjW += 1
             endwhile
         endif
@@ -3005,6 +3116,8 @@ bool Function LoadPreset(string name)
             SetCondParamStr(s, "")
             SetCondParam2(s, 0)
             SetCondParam2Str(s, "")
+            SetCondParam3(s, 0)
+            SetCondParam3Str(s, "")
             SetCondCount(s, 1)
             SetCondOp(s, 0)
         else
@@ -3027,6 +3140,13 @@ bool Function LoadPreset(string name)
                 else
                     SetCondParam2At(s, cjR, JsonUtil.GetPathIntValue(f, ipR + ".param2", 0))
                     SetCondParam2StrAt(s, cjR, "")
+                endif
+                if _condParam3IsStr(ikeyR)
+                    SetCondParam3StrAt(s, cjR, JsonUtil.GetPathStringValue(f, ipR + ".param3", ""))
+                    SetCondParam3At(s, cjR, 0)
+                else
+                    SetCondParam3At(s, cjR, JsonUtil.GetPathIntValue(f, ipR + ".param3", 0))
+                    SetCondParam3StrAt(s, cjR, "")
                 endif
                 cjR += 1
             endwhile
@@ -4426,7 +4546,7 @@ EndFunction
 ; setting the eval-param channel the plugin reads via host.GetEvalParam*.
 ; Shared by the player-live, JSON-peek, and scratch eval paths so the
 ; resolve/eval-param/checkCondition dance lives in exactly one place.
-bool Function _checkOneCond(Actor target, string key, int paramInt, int param2Int, string paramStr, string param2Str)
+bool Function _checkOneCond(Actor target, string key, int paramInt, int param2Int, int param3Int, string paramStr, string param2Str, string param3Str)
     if key == ""
         return false
     endif
@@ -4439,8 +4559,10 @@ bool Function _checkOneCond(Actor target, string key, int paramInt, int param2In
         return false
     endif
     _setEvalParam2(param2Int)
+    _setEvalParam3(param3Int)
     _setEvalParamStr(paramStr)
     _setEvalParam2Str(param2Str)
+    _setEvalParam3Str(param3Str)
     return p.checkCondition(target, paramInt, p.GetConditionId(itemIdx))
 EndFunction
 
@@ -4455,7 +4577,7 @@ bool Function _slotCondsMetLive(Actor target, int slot)
     int op = GetCondOp(slot)
     int j = 0
     while j < n
-        bool met = _checkOneCond(target, GetCondPluginIdAt(slot, j), GetCondParamAt(slot, j), GetCondParam2At(slot, j), GetCondParamStrAt(slot, j), GetCondParam2StrAt(slot, j))
+        bool met = _checkOneCond(target, GetCondPluginIdAt(slot, j), GetCondParamAt(slot, j), GetCondParam2At(slot, j), GetCondParam3At(slot, j), GetCondParamStrAt(slot, j), GetCondParam2StrAt(slot, j), GetCondParam3StrAt(slot, j))
         if op == 0 && !met
             return false
         endif
@@ -4477,8 +4599,8 @@ bool Function _slotCondsMetJson(Actor target, string f, int slot)
     string sp = ".slot[" + slot + "]"
     ; v0.3.1: conditions live in the .cond.items[] array. PathCount == 0 means
     ; an unconfigured slot. op 0 = AND (all must pass), 1 = OR (any). Short-
-    ; circuits. param2 int isn't carried on the JSON path (matches prior
-    ; behaviour); only the player-live path threads it.
+    ; circuits. v0.4.x: param2/param3 ints are now read straight from JSON here
+    ; too (was hardcoded 0), so numeric 2nd/3rd params work for NPC presets.
     int n = JsonUtil.PathCount(f, sp + ".cond.items")
     if n < 1
         return false
@@ -4489,9 +4611,12 @@ bool Function _slotCondsMetJson(Actor target, string f, int slot)
         string ip = sp + ".cond.items[" + j + "]"
         string key = JsonUtil.GetPathStringValue(f, ip + ".pluginid", "")
         int pInt = JsonUtil.GetPathIntValue(f, ip + ".param", 0)
+        int p2Int = JsonUtil.GetPathIntValue(f, ip + ".param2", 0)
+        int p3Int = JsonUtil.GetPathIntValue(f, ip + ".param3", 0)
         string pStr = JsonUtil.GetPathStringValue(f, ip + ".param", "")
         string p2Str = JsonUtil.GetPathStringValue(f, ip + ".param2", "")
-        bool met = _checkOneCond(target, key, pInt, 0, pStr, p2Str)
+        string p3Str = JsonUtil.GetPathStringValue(f, ip + ".param3", "")
+        bool met = _checkOneCond(target, key, pInt, p2Int, p3Int, pStr, p2Str, p3Str)
         if op == 0 && !met
             return false
         endif

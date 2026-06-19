@@ -20,6 +20,8 @@
     "cond:magiceffect.kw.shock": "mtf.magic",
     "cond:magicka": "mtf.attributes",
     "cond:magicka.below": "mtf.attributes",
+    "cond:npc.faction.near": "mtf.world",
+    "cond:npc.ref.near": "mtf.world",
     "cond:shout.cooldown": "mtf.dragonborn",
     "cond:shout.equipped": "mtf.dragonborn",
     "cond:shout.learned": "mtf.dragonborn",

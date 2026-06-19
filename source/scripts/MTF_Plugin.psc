@@ -207,6 +207,37 @@ string Function GetConditionParam2Format(int idx)
     return JsonUtil.GetPathStringValue(_catalogFile(), ".conditions[" + idx + "].param2.format", "{0}")
 EndFunction
 
+; ── Condition param3 (v0.4.x) ───────────────────────────────────────────────
+; Optional 3rd condition param. Slider OR free-text only (no menu). Empty label
+; = unused. Read at eval time via host.GetEvalParam3() / GetEvalParam3Str().
+string Function GetConditionParam3Label(int idx)
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".conditions[" + idx + "].param3.label", "")
+EndFunction
+
+int Function GetConditionParam3Min(int idx)
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".conditions[" + idx + "].param3.min", 0)
+EndFunction
+
+int Function GetConditionParam3Max(int idx)
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".conditions[" + idx + "].param3.max", 100)
+EndFunction
+
+int Function GetConditionParam3Default(int idx)
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".conditions[" + idx + "].param3.default", 0)
+EndFunction
+
+int Function GetConditionParam3Step(int idx)
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".conditions[" + idx + "].param3.step", 1)
+EndFunction
+
+string Function GetConditionParam3Format(int idx)
+    return JsonUtil.GetPathStringValue(_catalogFile(), ".conditions[" + idx + "].param3.format", "{0}")
+EndFunction
+
+bool Function GetConditionParam3IsText(int idx)
+    return JsonUtil.GetPathIntValue(_catalogFile(), ".conditions[" + idx + "].param3.text", 0) > 0
+EndFunction
+
 ; Condition param dropdowns.
 int Function GetConditionParamMenuOptionCount(int idx)
     return JsonUtil.PathCount(_catalogFile(), ".conditions[" + idx + "].param.menu")

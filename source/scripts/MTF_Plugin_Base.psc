@@ -388,6 +388,101 @@ bool Function _scanNearbyFollower(Actor target, int paramMeters)
     return false
 EndFunction
 
+; True if any living actor in the named faction is within paramMeters of
+; target. The faction is given by EditorID (e.g. "PotentialFollowerFaction")
+; and resolved at runtime via po3's GetFormFromEditorID — this needs po3
+; Tweaks' "Load EditorIDs" enabled (it is in this list); without that cache
+; the lookup returns None and the condition is simply never met.
+bool Function _scanNearbyFaction(Actor target, string facEditorId, int paramMeters)
+    if facEditorId == ""
+        return false
+    endif
+    Faction fac = PO3_SKSEFunctions.GetFormFromEditorID(facEditorId) as Faction
+    if fac == None
+        return false
+    endif
+    float radius = (paramMeters as float) * 70.0
+    if radius <= 0.0
+        return false
+    endif
+    Actor[] nearby = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
+    if nearby == None
+        return false
+    endif
+    int i = 0
+    while i < nearby.Length
+        Actor a = nearby[i]
+        if a != None && a != target && !a.IsDead() && a.IsInFaction(fac)
+            if a.GetDistance(target) <= radius
+                return true
+            endif
+        endif
+        i += 1
+    endwhile
+    return false
+EndFunction
+
+; True if any living actor whose display name matches one of a comma-separated
+; list is within paramMeters of target. Name compare is trimmed and (Papyrus
+; ==) case-insensitive — e.g. "Lydia, Aela the Huntress".
+bool Function _scanNearbyNamed(Actor target, string csv, int paramMeters)
+    if csv == ""
+        return false
+    endif
+    string[] names = StringUtil.Split(csv, ",")
+    if names.Length < 1
+        return false
+    endif
+    float radius = (paramMeters as float) * 70.0
+    if radius <= 0.0
+        return false
+    endif
+    Actor[] nearby = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
+    if nearby == None
+        return false
+    endif
+    int i = 0
+    while i < nearby.Length
+        Actor a = nearby[i]
+        if a != None && a != target && !a.IsDead()
+            if a.GetDistance(target) <= radius
+                string dn = a.GetDisplayName()
+                int j = 0
+                while j < names.Length
+                    string want = _trim(names[j])
+                    if want != "" && want == dn
+                        return true
+                    endif
+                    j += 1
+                endwhile
+            endif
+        endif
+        i += 1
+    endwhile
+    return false
+EndFunction
+
+; Strips leading/trailing spaces from a CSV-split token. Substring's len arg
+; is guarded > 0 (last >= start) to dodge PapyrusUtil's "len 0 = to-end" quirk.
+string Function _trim(string s) global
+    int n = StringUtil.GetLength(s)
+    if n <= 0
+        return ""
+    endif
+    int start = 0
+    while start < n && StringUtil.GetNthChar(s, start) == " "
+        start += 1
+    endwhile
+    int last = n - 1
+    while last >= start && StringUtil.GetNthChar(s, last) == " "
+        last -= 1
+    endwhile
+    if last < start
+        return ""
+    endif
+    return StringUtil.Substring(s, start, last - start + 1)
+EndFunction
+
 float Function _avPercent(Actor target, string av)
     float maxV = target.GetActorValueMax(av)
     if maxV <= 0.0
@@ -622,6 +717,13 @@ bool Function checkCondition(Actor target, int param, string cid)
         return target.GetActorValue("Invisibility") > 0.0
     elseif cid == "followers.any"
         return _scanNearbyFollower(target, param)
+    elseif cid == "npc.faction.near"
+        ; param1 = faction EditorID (text), param2 = radius (m), param3 = a
+        ; cosmetic display name used only in the rule description.
+        return _scanNearbyFaction(target, _host().GetEvalParamStr(), _host().GetEvalParam2())
+    elseif cid == "npc.ref.near"
+        ; param1 = comma-separated display names (free text), param2 = radius (m).
+        return _scanNearbyNamed(target, _host().GetEvalParamStr(), _host().GetEvalParam2())
     elseif cid == "gold.aboveThousand"
         if _goldForm == None
             _goldForm = Game.GetForm(0x0000000F)

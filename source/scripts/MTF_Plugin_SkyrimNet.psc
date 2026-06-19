@@ -737,7 +737,8 @@ String Function _renderBaseConditionsMd(MTF_MainQuest host, int slot) global
         if key != ""
             string clause = _renderConditionClause(host, key, \
                 host.GetCondParamStrAt(slot, j), host.GetCondParamAt(slot, j), \
-                host.GetCondParam2StrAt(slot, j), host.GetCondParam2At(slot, j))
+                host.GetCondParam2StrAt(slot, j), host.GetCondParam2At(slot, j), \
+                host.GetCondParam3StrAt(slot, j), host.GetCondParam3At(slot, j))
             if clause != ""
                 if rendered > 0
                     acc = acc + "; "
@@ -770,9 +771,11 @@ String Function _renderStackedConditionsMd(MTF_MainQuest host, string f, int slo
         if key != ""
             int    p1  = JsonUtil.GetPathIntValue(f,    ip + ".param",  0)
             int    p2  = JsonUtil.GetPathIntValue(f,    ip + ".param2", 0)
+            int    p3  = JsonUtil.GetPathIntValue(f,    ip + ".param3", 0)
             string p1s = JsonUtil.GetPathStringValue(f, ip + ".param",  "")
             string p2s = JsonUtil.GetPathStringValue(f, ip + ".param2", "")
-            string clause = _renderConditionClause(host, key, p1s, p1, p2s, p2)
+            string p3s = JsonUtil.GetPathStringValue(f, ip + ".param3", "")
+            string clause = _renderConditionClause(host, key, p1s, p1, p2s, p2, p3s, p3)
             if clause != ""
                 if rendered > 0
                     acc = acc + "; "
@@ -813,7 +816,7 @@ EndFunction
 ; Same parenthetical-drop rationale as _renderOneEffectMd: every parameterised
 ; condition description references its values via {param1}/{param2}, so a
 ; trailing "(<label>: <value>)" would be pure duplication.
-String Function _renderConditionClause(MTF_MainQuest host, string key, string p1s, int p1, string p2s, int p2) global
+String Function _renderConditionClause(MTF_MainQuest host, string key, string p1s, int p1, string p2s, int p2, string p3s, int p3) global
     if key == ""
         return ""
     endif
@@ -822,8 +825,10 @@ String Function _renderConditionClause(MTF_MainQuest host, string key, string p1
     string desc = ""
     string p1Val = ""
     string p2Val = ""
+    string p3Val = ""
     bool p1Declared = false
     bool p2Declared = false
+    bool p3Declared = false
     if p != None
         int itemIdx = host._condIdxFor(p, host._keyItemId(key))
         if itemIdx >= 0
@@ -837,9 +842,16 @@ String Function _renderConditionClause(MTF_MainQuest host, string key, string p1
                 p2Declared = true
                 p2Val = _resolveConditionParamValueLabel(p, itemIdx, true, p2s, p2)
             endif
+            if p.GetConditionParam3Label(itemIdx) != ""
+                p3Declared = true
+                p3Val = _resolveCondParam3ValueLabel(p, itemIdx, p3s, p3)
+            endif
         endif
     endif
     desc = _substDescPlaceholders(desc, p1Declared, p1Val, p2Declared, p2Val)
+    if p3Declared
+        desc = _replaceAll(desc, "{param3}", p3Val)
+    endif
     if label == "" && desc == ""
         return ""
     endif
@@ -974,6 +986,20 @@ String Function _resolveConditionParamValueLabel(MTF_Plugin p, int itemIdx, bool
         fmt = "{0}"
     endif
     return _formatNum(fmt, value)
+EndFunction
+
+; param3 value label (v0.4.x). param3 has no menu — text returns the raw string,
+; slider returns the formatted int. (Correctly honours the text flag, unlike the
+; param1/param2 resolver above which predates text-param descriptions.)
+String Function _resolveCondParam3ValueLabel(MTF_Plugin p, int itemIdx, string p3s, int p3) global
+    if p.GetConditionParam3IsText(itemIdx)
+        return p3s
+    endif
+    string fmt = p.GetConditionParam3Format(itemIdx)
+    if fmt == ""
+        fmt = "{0}"
+    endif
+    return _formatNum(fmt, p3)
 EndFunction
 
 ; Apply a printf-ish format string ("{0}", "{0}%", "Heartbeat: {0}/min") to

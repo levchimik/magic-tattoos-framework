@@ -232,16 +232,21 @@ def validate_condition(c: dict, idx: int, plugin_id: str) -> list[str]:
     if not isinstance(c.get("description"), str):
         errors.append(f"{breadcrumb_cond}.description: must be string (may be empty)")
 
-    # param / param2 — contiguous: param2 without param is invalid
+    # param / param2 / param3 — contiguous: a higher paramN without its
+    # predecessor is invalid (param3 requires param2 requires param).
     if "param2" in c and "param" not in c:
         errors.append(f"{breadcrumb_cond}: param2 present without param")
+    if "param3" in c and "param2" not in c:
+        errors.append(f"{breadcrumb_cond}: param3 present without param2")
     if "param" in c:
         errors += validate_param(c["param"], f"{breadcrumb_cond}.param")
     if "param2" in c:
         errors += validate_param(c["param2"], f"{breadcrumb_cond}.param2")
+    if "param3" in c:
+        errors += validate_param(c["param3"], f"{breadcrumb_cond}.param3")
 
     # Unknown keys warning — catches typos like "paarm" or "lable"
-    known = {"id", "label", "description", "param", "param2"}
+    known = {"id", "label", "description", "param", "param2", "param3"}
     extra = set(c.keys()) - known
     if extra:
         errors.append(f"{breadcrumb_cond}: unknown keys {sorted(extra)}")

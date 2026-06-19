@@ -586,6 +586,14 @@ function drawPresetEditorPage()
                     AddSliderOptionST("SLOT_COND_PARAM2", param2Label, MainQuest.GetCondParam2(idx), p.GetConditionParam2Format(itemIdx))
                 endif
             endif
+            string param3Label = p.GetConditionParam3Label(itemIdx)
+            if param3Label != ""
+                if p.GetConditionParam3IsText(itemIdx)
+                    AddInputOptionST("SLOT_COND_PARAM3", param3Label, _textRowLabel(MainQuest.GetCondParam3Str(idx)))
+                else
+                    AddSliderOptionST("SLOT_COND_PARAM3", param3Label, MainQuest.GetCondParam3(idx), p.GetConditionParam3Format(itemIdx))
+                endif
+            endif
         endif
 
         ; v0.3.0: optional SECOND condition + match mode. MCM exposes up to 2
@@ -619,6 +627,14 @@ function drawPresetEditorPage()
                                 _menuLabelForCondParam2(p2, itemIdx2, MainQuest.GetCondParam2StrAt(idx, 1)))
                         else
                             AddSliderOptionST("SLOT_COND2_PARAM2", param2Label2, MainQuest.GetCondParam2At(idx, 1), p2.GetConditionParam2Format(itemIdx2))
+                        endif
+                    endif
+                    string param3Label2 = p2.GetConditionParam3Label(itemIdx2)
+                    if param3Label2 != ""
+                        if p2.GetConditionParam3IsText(itemIdx2)
+                            AddInputOptionST("SLOT_COND2_PARAM3", param3Label2, _textRowLabel(MainQuest.GetCondParam3StrAt(idx, 1)))
+                        else
+                            AddSliderOptionST("SLOT_COND2_PARAM3", param3Label2, MainQuest.GetCondParam3At(idx, 1), p2.GetConditionParam3Format(itemIdx2))
                         endif
                     endif
                 endif
@@ -1074,9 +1090,11 @@ state SLOT_COND_TYPE
         ; shared param-string slot when the condition type is swapped.
         MainQuest.SetCondParamStr(slot, "")
         MainQuest.SetCondParam2Str(slot, "")
+        MainQuest.SetCondParam3Str(slot, "")
         if newKey == ""
             MainQuest.SetCondParam(slot, 0)
             MainQuest.SetCondParam2(slot, 0)
+            MainQuest.SetCondParam3(slot, 0)
         else
             MTF_Plugin p = MainQuest.ResolvePluginByKey(newKey)
             int itemIdx = -1
@@ -1086,9 +1104,11 @@ state SLOT_COND_TYPE
             if itemIdx >= 0
                 MainQuest.SetCondParam(slot, p.GetConditionParamDefault(itemIdx))
                 MainQuest.SetCondParam2(slot, p.GetConditionParam2Default(itemIdx))
+                MainQuest.SetCondParam3(slot, p.GetConditionParam3Default(itemIdx))
             else
                 MainQuest.SetCondParam(slot, 0)
                 MainQuest.SetCondParam2(slot, 0)
+                MainQuest.SetCondParam3(slot, 0)
             endif
         endif
         SetMenuOptionValueST(_condTypeLabel(newKey))
@@ -1098,8 +1118,10 @@ state SLOT_COND_TYPE
         MainQuest.SetCondPluginId(selectedCondition, "")
         MainQuest.SetCondParam(selectedCondition, 0)
         MainQuest.SetCondParam2(selectedCondition, 0)
+        MainQuest.SetCondParam3(selectedCondition, 0)
         MainQuest.SetCondParamStr(selectedCondition, "")
         MainQuest.SetCondParam2Str(selectedCondition, "")
+        MainQuest.SetCondParam3Str(selectedCondition, "")
         SetMenuOptionValueST(_condTypeLabel(""))
         ForcePageReset()
     endEvent
@@ -1263,6 +1285,83 @@ state SLOT_COND_PARAM2
             endif
         endif
         SetInfoText("Second parameter for the selected condition.")
+    endEvent
+endState
+
+; v0.4.x: third condition param (item 0). Slider OR free-text (no menu). Item 0
+; uses the slot-level GetCondParam3 / GetCondParam3Str accessors.
+state SLOT_COND_PARAM3
+    event OnSliderOpenST()
+        string key = MainQuest.GetCondPluginId(selectedCondition)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        if p == None
+            return
+        endif
+        int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+        if itemIdx < 0
+            return
+        endif
+        SetSliderDialogStartValue(MainQuest.GetCondParam3(selectedCondition))
+        SetSliderDialogDefaultValue(p.GetConditionParam3Default(itemIdx))
+        SetSliderDialogRange(p.GetConditionParam3Min(itemIdx), p.GetConditionParam3Max(itemIdx))
+        SetSliderDialogInterval(p.GetConditionParam3Step(itemIdx))
+    endEvent
+    event OnSliderAcceptST(float value)
+        string key = MainQuest.GetCondPluginId(selectedCondition)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        string fmt = "{0}"
+        if p != None
+            int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                fmt = p.GetConditionParam3Format(itemIdx)
+            endif
+        endif
+        MainQuest.SetCondParam3(selectedCondition, value as int)
+        SetSliderOptionValueST(value as int, fmt)
+    endEvent
+    event OnInputOpenST()
+        SetInputDialogStartText(MainQuest.GetCondParam3Str(selectedCondition))
+    endEvent
+    event OnInputAcceptST(string a_input)
+        MainQuest.SetCondParam3Str(selectedCondition, a_input)
+        SetInputOptionValueST(_textRowLabel(a_input))
+    endEvent
+    event OnDefaultST()
+        string key = MainQuest.GetCondPluginId(selectedCondition)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        int defVal = 0
+        string fmt = "{0}"
+        bool isText = false
+        int itemIdx = -1
+        if p != None
+            itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                defVal = p.GetConditionParam3Default(itemIdx)
+                fmt = p.GetConditionParam3Format(itemIdx)
+                isText = p.GetConditionParam3IsText(itemIdx)
+            endif
+        endif
+        if isText
+            MainQuest.SetCondParam3Str(selectedCondition, "")
+            MainQuest.SetCondParam3(selectedCondition, 0)
+            SetInputOptionValueST(_textRowLabel(""))
+        else
+            MainQuest.SetCondParam3(selectedCondition, defVal)
+            MainQuest.SetCondParam3Str(selectedCondition, "")
+            SetSliderOptionValueST(defVal, fmt)
+        endif
+    endEvent
+    event OnHighlightST()
+        string key = MainQuest.GetCondPluginId(selectedCondition)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        if p != None
+            int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                SetInfoText(p.GetConditionParam3Label(itemIdx))
+                return
+            endif
+        endif
+        SetInfoText("Third parameter for the selected condition.")
     endEvent
 endState
 
@@ -2468,11 +2567,11 @@ state SLOT_COND2_TYPE
         ; v0.3.2: clear cond2's param string slot too (see SLOT_COND_TYPE).
         MainQuest.SetCondParamStrAt(slot, 1, "")
         MainQuest.SetCondParam2StrAt(slot, 1, "")
-        MainQuest.SetCondParamStrAt(slot, 1, "")
-        MainQuest.SetCondParam2StrAt(slot, 1, "")
+        MainQuest.SetCondParam3StrAt(slot, 1, "")
         if newKey == ""
             MainQuest.SetCondParamAt(slot, 1, 0)
             MainQuest.SetCondParam2At(slot, 1, 0)
+            MainQuest.SetCondParam3At(slot, 1, 0)
             MainQuest.SetCondCount(slot, 1)
         else
             MTF_Plugin p = MainQuest.ResolvePluginByKey(newKey)
@@ -2483,9 +2582,11 @@ state SLOT_COND2_TYPE
             if itemIdx >= 0
                 MainQuest.SetCondParamAt(slot, 1, p.GetConditionParamDefault(itemIdx))
                 MainQuest.SetCondParam2At(slot, 1, p.GetConditionParam2Default(itemIdx))
+                MainQuest.SetCondParam3At(slot, 1, p.GetConditionParam3Default(itemIdx))
             else
                 MainQuest.SetCondParamAt(slot, 1, 0)
                 MainQuest.SetCondParam2At(slot, 1, 0)
+                MainQuest.SetCondParam3At(slot, 1, 0)
             endif
             MainQuest.SetCondCount(slot, 2)
         endif
@@ -2496,10 +2597,10 @@ state SLOT_COND2_TYPE
         MainQuest.SetCondPluginIdAt(selectedCondition, 1, "")
         MainQuest.SetCondParamStrAt(selectedCondition, 1, "")
         MainQuest.SetCondParam2StrAt(selectedCondition, 1, "")
+        MainQuest.SetCondParam3StrAt(selectedCondition, 1, "")
         MainQuest.SetCondParamAt(selectedCondition, 1, 0)
         MainQuest.SetCondParam2At(selectedCondition, 1, 0)
-        MainQuest.SetCondParamStrAt(selectedCondition, 1, "")
-        MainQuest.SetCondParam2StrAt(selectedCondition, 1, "")
+        MainQuest.SetCondParam3At(selectedCondition, 1, 0)
         MainQuest.SetCondCount(selectedCondition, 1)
         SetMenuOptionValueST(_condTypeLabel(""))
         ForcePageReset()
@@ -2645,6 +2746,74 @@ state SLOT_COND2_PARAM2
     endEvent
     event OnHighlightST()
         SetInfoText("Second threshold for condition 2 (if it has one).")
+    endEvent
+endState
+
+; v0.4.x: third param for condition 2 (item 1). Slider OR free-text (no menu).
+; Item 1 uses the At(.,1) accessors.
+state SLOT_COND2_PARAM3
+    event OnSliderOpenST()
+        string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        if p == None
+            return
+        endif
+        int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+        if itemIdx < 0
+            return
+        endif
+        SetSliderDialogStartValue(MainQuest.GetCondParam3At(selectedCondition, 1))
+        SetSliderDialogDefaultValue(p.GetConditionParam3Default(itemIdx))
+        SetSliderDialogRange(p.GetConditionParam3Min(itemIdx), p.GetConditionParam3Max(itemIdx))
+        SetSliderDialogInterval(p.GetConditionParam3Step(itemIdx))
+    endEvent
+    event OnSliderAcceptST(float value)
+        string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        string fmt = "{0}"
+        if p != None
+            int itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                fmt = p.GetConditionParam3Format(itemIdx)
+            endif
+        endif
+        MainQuest.SetCondParam3At(selectedCondition, 1, value as int)
+        SetSliderOptionValueST(value as int, fmt)
+    endEvent
+    event OnInputOpenST()
+        SetInputDialogStartText(MainQuest.GetCondParam3StrAt(selectedCondition, 1))
+    endEvent
+    event OnInputAcceptST(string a_input)
+        MainQuest.SetCondParam3StrAt(selectedCondition, 1, a_input)
+        SetInputOptionValueST(_textRowLabel(a_input))
+    endEvent
+    event OnDefaultST()
+        string key = MainQuest.GetCondPluginIdAt(selectedCondition, 1)
+        MTF_Plugin p = MainQuest.ResolvePluginByKey(key)
+        int defVal = 0
+        string fmt = "{0}"
+        bool isText = false
+        int itemIdx = -1
+        if p != None
+            itemIdx = MainQuest._condIdxFor(p, MainQuest._keyItemId(key))
+            if itemIdx >= 0
+                defVal = p.GetConditionParam3Default(itemIdx)
+                fmt = p.GetConditionParam3Format(itemIdx)
+                isText = p.GetConditionParam3IsText(itemIdx)
+            endif
+        endif
+        if isText
+            MainQuest.SetCondParam3StrAt(selectedCondition, 1, "")
+            MainQuest.SetCondParam3At(selectedCondition, 1, 0)
+            SetInputOptionValueST(_textRowLabel(""))
+        else
+            MainQuest.SetCondParam3At(selectedCondition, 1, defVal)
+            MainQuest.SetCondParam3StrAt(selectedCondition, 1, "")
+            SetSliderOptionValueST(defVal, fmt)
+        endif
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Third parameter for condition 2 (if it has one).")
     endEvent
 endState
 

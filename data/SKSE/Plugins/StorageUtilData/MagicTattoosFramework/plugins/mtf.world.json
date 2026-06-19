@@ -151,6 +151,47 @@
         "max": 1000,
         "default": 5
       }
+    },
+    {
+      "id": "npc.faction.near",
+      "label": "Faction Member Nearby",
+      "description": "Triggers when a {param3} is nearby (within {param2} m).",
+      "param": {
+        "label": "Faction EditorID (e.g. PotentialFollowerFaction)",
+        "text": true,
+        "default": ""
+      },
+      "param2": {
+        "label": "Radius (m)",
+        "min": 1,
+        "max": 100,
+        "default": 40,
+        "step": 5,
+        "format": "{0} m"
+      },
+      "param3": {
+        "label": "Display name (e.g. Potential follower)",
+        "text": true,
+        "default": ""
+      }
+    },
+    {
+      "id": "npc.ref.near",
+      "label": "Named Actor Nearby",
+      "description": "Triggers when an actor whose display name is one of {param1} is within {param2} m.",
+      "param": {
+        "label": "Actor display name(s), comma-separated",
+        "text": true,
+        "default": ""
+      },
+      "param2": {
+        "label": "Radius (m)",
+        "min": 1,
+        "max": 100,
+        "default": 40,
+        "step": 5,
+        "format": "{0} m"
+      }
     }
   ],
   "effects": [

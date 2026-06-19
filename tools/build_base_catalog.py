@@ -247,6 +247,20 @@ CONDITIONS = [
     ("gold.aboveThousand", "Gold >= N x 1000",
      "Triggers when the actor's gold is at or above {param1},000.",
      {"label": "Gold threshold (x 1000)", "max": 1000, "default": 5}),
+    # NPC proximity — faction member by EditorID / named actor by display name.
+    # npc.faction.near: param1 = faction EditorID (resolved at runtime via po3's
+    # GetFormFromEditorID — needs po3 Tweaks "Load EditorIDs"); param2 = radius
+    # slider; param3 = a cosmetic display name shown in the rule description.
+    ("npc.faction.near", "Faction Member Nearby",
+     "Triggers when a {param3} is nearby (within {param2} m).",
+     {"label": "Faction EditorID (e.g. PotentialFollowerFaction)", "text": True, "default": "",
+      "_param2": {"label": "Radius (m)", "min": 1, "max": 100, "default": 40, "step": 5, "format": "{0} m"},
+      "_param3": {"label": "Display name (e.g. Potential follower)", "text": True, "default": ""}}),
+    ("npc.ref.near", "Named Actor Nearby",
+     "Triggers when an actor whose display name is one of {param1} is within {param2} m.",
+     {"label": "Actor display name(s), comma-separated", "text": True, "default": "",
+      "_param2": {"label": "Radius (m)", "min": 1, "max": 100, "default": 40,
+                  "step": 5, "format": "{0} m"}}),
     # 44-45 — worn armor
     ("worn.heavyArmor", "Wearing Heavy Armor",
      "Triggers when the actor is wearing a heavy-armor cuirass.", None),
@@ -288,7 +302,7 @@ CONDITIONS = [
      "Triggers for {param1}s right after the Dragonborn unlocks a word of power (spends a dragon soul).",
      {"label": "Glow duration (s)", "min": 1, "max": 30, "default": 5}),
 ]
-assert len(CONDITIONS) == 37, f"expected 37 conditions, got {len(CONDITIONS)}"
+assert len(CONDITIONS) == 39, f"expected 39 conditions, got {len(CONDITIONS)}"
 
 # ── Shader catalog (idx 55 menu) ──────────────────────────────────────────────
 # Labels match MTF_Plugin_Base._shaderLabel; ordering matches _shaderFormId.
@@ -687,6 +701,7 @@ CONDITION_MODULE = {
     "location.kw": "mtf.world", "weather": "mtf.world", "time.range": "mtf.world",
     "faction.playerFollower": "mtf.world", "followers.any": "mtf.world",
     "gold.aboveThousand": "mtf.world",
+    "npc.faction.near": "mtf.world", "npc.ref.near": "mtf.world",
     "state.sprinting": "mtf.world", "state.running": "mtf.world",
     "state.sneaking": "mtf.world", "state.swimming": "mtf.world",
     "state.mounted": "mtf.world", "state.bleedingOut": "mtf.world",
@@ -757,6 +772,13 @@ def _build_param(p_src):
         out["color"] = 1
         out["default"] = p_src.get("default", 0xFFFFFF)
         return out
+    # Free-text param (v0.4.x): rendered via SkyUI's AddInputOptionST. Mutually
+    # exclusive with menu/slider — the value is a raw string (e.g. an actor's
+    # display name). Read in Papyrus via host.GetEvalParamStr().
+    if p_src.get("text"):
+        out["text"] = True
+        out["default"] = p_src.get("default", "")
+        return out
     is_menu = "menu" in p_src
     if is_menu:
         # Menu params: emit each option as {id, label}. `menu` source may be
@@ -805,6 +827,8 @@ def build_condition(idx, t):
         out["param"] = _build_param(param)
         if "_param2" in param:
             out["param2"] = _build_param(param["_param2"])
+        if "_param3" in param:
+            out["param3"] = _build_param(param["_param3"])
     return out
 
 
