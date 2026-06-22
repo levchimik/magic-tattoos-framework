@@ -343,6 +343,25 @@ Function _highlightPluginToggle(int slot)
     SetInfoText("Show " + _scratchPluginLabel + "'s conditions and effects in slot dropdowns. Disabling hides them all; existing bindings stay visible so you can clear them.")
 EndFunction
 
+; ── SkyrimNet "Persist visual changes" toggle (General page) ────────────────
+; Shares one value with the separate MTF_Plugin_SkyrimNet.esp through the host
+; (StorageUtil-backed). Select flips it; Default (reset key) clears the per-save
+; override so it follows the INI again.
+state SN_PERSIST_VISUAL
+    event OnSelectST()
+        bool now = !MainQuest.GetSkyrimNetPersistVisualChange()
+        MainQuest.SetSkyrimNetPersistVisualChange(now)
+        SetToggleOptionValueST(now)
+    endEvent
+    event OnDefaultST()
+        MainQuest.ResetSkyrimNetPersistVisualChange()
+        SetToggleOptionValueST(MainQuest.GetSkyrimNetPersistVisualChange())
+    endEvent
+    event OnHighlightST()
+        SetInfoText("When a tracked tattoo changes tier, send SkyrimNet a persistent event describing what changed — the new texture, or which layer colours shifted (from -> to). Lands in NPC memory without forcing a dialogue reaction. The short-lived scene event and the bio block are unaffected. Default follows the INI.")
+    endEvent
+endState
+
 function drawGeneralPage()
     SetCursorFillMode(TOP_TO_BOTTOM)
 
@@ -361,6 +380,16 @@ function drawGeneralPage()
     AddTextOptionST("GEN_RELOAD_VISUALS", "Reload visual packs", "(" + MainQuest.GetVisualPackCount() + " loaded)")
     AddToggleOptionST("GEN_RESCAN_ON_LOAD",  "Rescan packs on load",   MainQuest.GetRescanOnLoad())
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
+
+    ; SkyrimNet integration — only shown when SkyrimNet.esp is installed
+    ; (mirrors the bridge's own soft-detect). State-based toggle; the legacy
+    ; per-item TOGGLE pool refactor (see drawPluginsPage) freed enough named
+    ; states for this one (count is 124/127 with it). The value is shared with
+    ; the separate bridge ESP via MainQuest.GetSkyrimNetPersistVisualChange.
+    if Game.GetModByName("SkyrimNet.esp") != 255
+        AddHeaderOption("SkyrimNet")
+        AddToggleOptionST("SN_PERSIST_VISUAL", "Persist visual changes", MainQuest.GetSkyrimNetPersistVisualChange())
+    endif
     ; Lifecycle audit lives on MTF_MainQuest as `DumpLifecycleAudit` /
     ; `ResetLifecycleAudit` (console: `cqf MTF_MainQuest DumpLifecycleAudit`).
     ; Not wired into MCM because this script is at the engine's 127 named-

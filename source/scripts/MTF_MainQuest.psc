@@ -470,6 +470,42 @@ int Function MAX_CONDITIONS() global
     return v
 EndFunction
 
+; ── SkyrimNet persistent visual-change toggle (v0.4.4) ──────────────────────
+; Shared on/off switch for the SkyrimNet bridge's persistent visual-change
+; event. Stored as a GLOBAL StorageUtil int (None target) so this MCM-driven
+; host in MagicTattoosFramework.esp and the separate MTF_Plugin_SkyrimNet.esp
+; read the SAME value. The MCM writes it; the bridge reads it on every tier
+; change via GetSkyrimNetPersistVisualChange(). Sentinel -1 = "the user has
+; never touched the MCM toggle" -> fall back to the INI default
+; (Data/SKSE/Plugins/MagicTattoosFramework.ini [SkyrimNet] bPersistVisualChange,
+; default 1), so existing saves and headless setups keep their behaviour until
+; the toggle is first flipped, after which the per-save override wins.
+string Function SN_PERSIST_VISUAL_KEY() global
+    return "mtf.cfg.snPersistVisual"
+EndFunction
+
+bool Function GetSkyrimNetPersistVisualChange()
+    int v = StorageUtil.GetIntValue(None, SN_PERSIST_VISUAL_KEY(), -1)
+    if v < 0
+        return MTFPulse.GetConfigInt("SkyrimNet.bPersistVisualChange", 1) != 0
+    endif
+    return v != 0
+EndFunction
+
+Function SetSkyrimNetPersistVisualChange(bool enabled)
+    int v = 0
+    if enabled
+        v = 1
+    endif
+    StorageUtil.SetIntValue(None, SN_PERSIST_VISUAL_KEY(), v)
+EndFunction
+
+; Clear the per-save override (restore the -1 sentinel) so the getter falls
+; back to the INI default. Wired to the MCM toggle's Default/reset key.
+Function ResetSkyrimNetPersistVisualChange()
+    StorageUtil.SetIntValue(None, SN_PERSIST_VISUAL_KEY(), -1)
+EndFunction
+
 int Function MAX_CONDITIONS_MCM() global
     ; UI cap -- how many condition rows the MCM page renders. Slot 0 is
     ; the Default row on its own page; this counts conditional slots 1..N.
@@ -1198,6 +1234,21 @@ string Function GetEntryLayerTexture(string packId, string entryId, int layer)
         return ""
     endif
     return JsonUtil.GetPathStringValue(f, ".entries[" + idx + "].layers[" + layer + "].texture", "")
+EndFunction
+
+; v0.4.4: optional per-layer semantic name (e.g. "fill", "glow"). A pack MAY
+; add "name" to any layer object; absent/empty -> "" so callers fall back to
+; "Layer N". Lets a pack explain what each overlay layer represents — say a
+; solid base design vs. an edge-glow emissive — so LLM/UI surfaces read
+; "glow #X -> #Y" instead of "Layer 2 #X -> #Y". Purely cosmetic; no engine
+; behaviour keys off it.
+string Function GetEntryLayerName(string packId, string entryId, int layer)
+    string f = _packFileById(packId)
+    int idx = _findEntryIdx(packId, entryId)
+    if f == "" || idx < 0 || layer < 0
+        return ""
+    endif
+    return JsonUtil.GetPathStringValue(f, ".entries[" + idx + "].layers[" + layer + "].name", "")
 EndFunction
 
 ; v0.1.20: optional per-entry human-readable description for LLM/AI

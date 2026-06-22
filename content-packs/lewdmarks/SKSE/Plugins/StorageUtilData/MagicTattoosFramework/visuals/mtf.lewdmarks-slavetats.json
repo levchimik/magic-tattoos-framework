@@ -9,10 +9,12 @@
       "label": "Mark 001",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\001.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\001.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\001.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\001.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -27,10 +29,12 @@
       "label": "Mark 002",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\002.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\002.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\002.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\002.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -45,10 +49,12 @@
       "label": "Mark 003",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\003.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\003.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\003.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\003.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -63,10 +69,12 @@
       "label": "Mark 004",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\004.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\004.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\004.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\004.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -81,10 +89,12 @@
       "label": "Mark 005",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\005.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\005.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\005.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\005.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -99,10 +109,12 @@
       "label": "Mark 006",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\006.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\006.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\006.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\006.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -117,10 +129,12 @@
       "label": "Mark 007",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\007.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\007.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\007.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\007.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -135,10 +149,12 @@
       "label": "Mark 008",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\008.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\008.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\008.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\008.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -153,10 +169,12 @@
       "label": "Mark 009",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\009.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\009.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\009.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\009.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -171,10 +189,12 @@
       "label": "Mark 010",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\010.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\010.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\010.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\010.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -189,10 +209,12 @@
       "label": "Mark 011",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\011.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\011.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\011.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\011.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -207,10 +229,12 @@
       "label": "Mark 012",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\012.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\012.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\012.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\012.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -225,10 +249,12 @@
       "label": "Mark 013",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\013.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\013.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\013.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\013.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -243,10 +269,12 @@
       "label": "Mark 014",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\014.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\014.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\014.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\014.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -261,10 +289,12 @@
       "label": "Mark 015",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\015.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\015.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\015.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\015.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -279,10 +309,12 @@
       "label": "Mark 016",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\016.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\016.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\016.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\016.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -297,10 +329,12 @@
       "label": "Mark 017",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\017.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\017.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\017.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\017.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -315,10 +349,12 @@
       "label": "Mark 018",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\018.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\018.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\018.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\018.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -333,10 +369,12 @@
       "label": "Mark 019",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\019.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\019.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\019.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\019.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -351,10 +389,12 @@
       "label": "Mark 020",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\020.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\020.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\020.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\020.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -369,10 +409,12 @@
       "label": "Mark 021",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\021.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\021.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\021.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\021.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -387,10 +429,12 @@
       "label": "Mark 022",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\022.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\022.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\022.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\022.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -405,10 +449,12 @@
       "label": "Mark 023",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\023.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\023.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\023.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\023.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -423,10 +469,12 @@
       "label": "Mark 024",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\024.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\024.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\024.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\024.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -441,10 +489,12 @@
       "label": "Mark 025",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\025.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\025.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\025.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\025.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -459,10 +509,12 @@
       "label": "Mark 026",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\026.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\026.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\026.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\026.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -477,10 +529,12 @@
       "label": "Mark 027",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\027.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\027.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\027.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\027.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -495,10 +549,12 @@
       "label": "Mark 028",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\028.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\028.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\028.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\028.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -513,10 +569,12 @@
       "label": "Mark 029",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\029.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\029.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\029.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\029.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -531,10 +589,12 @@
       "label": "Mark 030",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\030.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\030.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\030.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\030.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -549,10 +609,12 @@
       "label": "Mark 031",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\031.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\031.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\031.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\031.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -567,10 +629,12 @@
       "label": "Mark 032",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\032.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\032.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\032.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\032.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -585,10 +649,12 @@
       "label": "Mark 033",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\033.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\033.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\033.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\033.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -603,10 +669,12 @@
       "label": "Mark 034",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\034.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\034.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\034.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\034.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -621,10 +689,12 @@
       "label": "Mark 035",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\035.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\035.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\035.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\035.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -639,10 +709,12 @@
       "label": "Mark 036",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\036.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\036.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\036.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\036.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -657,10 +729,12 @@
       "label": "Mark 037",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\037.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\037.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\037.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\037.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -675,10 +749,12 @@
       "label": "Mark 038",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\038.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\038.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\038.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\038.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -693,10 +769,12 @@
       "label": "Mark 039",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\039.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\039.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\039.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\039.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -711,10 +789,12 @@
       "label": "Mark 040",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\040.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\040.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\040.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\040.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -729,10 +809,12 @@
       "label": "Mark 041",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\041.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\041.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\041.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\041.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -747,10 +829,12 @@
       "label": "Mark 042",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\042.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\042.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\042.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\042.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -765,10 +849,12 @@
       "label": "Mark 043",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\043.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\043.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\043.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\043.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -783,10 +869,12 @@
       "label": "Mark 044",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\044.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\044.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\044.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\044.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -801,10 +889,12 @@
       "label": "Mark 045",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\045.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\045.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\045.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\045.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -819,10 +909,12 @@
       "label": "Mark 046",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\046.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\046.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\046.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\046.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -837,10 +929,12 @@
       "label": "Mark 047",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\047.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\047.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\047.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\047.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -855,10 +949,12 @@
       "label": "Mark 048",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\048.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\048.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\048.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\048.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -873,10 +969,12 @@
       "label": "Mark 049",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\049.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\049.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\049.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\049.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -891,10 +989,12 @@
       "label": "Mark 050",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\050.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\050.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\050.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\050.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -909,10 +1009,12 @@
       "label": "Mark 051",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\051.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\051.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\051.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\051.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -927,10 +1029,12 @@
       "label": "Mark 052",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\052.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\052.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\052.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\052.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -945,10 +1049,12 @@
       "label": "Mark 053",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\053.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\053.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\053.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\053.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -963,10 +1069,12 @@
       "label": "Mark 054",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\054.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\054.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\054.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\054.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -981,10 +1089,12 @@
       "label": "Mark 055",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\055.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\055.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\055.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\055.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -999,10 +1109,12 @@
       "label": "Mark 056",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\056.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\056.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\056.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\056.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1017,10 +1129,12 @@
       "label": "Mark 057",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\057.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\057.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\057.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\057.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1035,10 +1149,12 @@
       "label": "Mark 058",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\058.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\058.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\058.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\058.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1053,10 +1169,12 @@
       "label": "Mark 059",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\059.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\059.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\059.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\059.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1071,10 +1189,12 @@
       "label": "Mark 060",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\060.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\060.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\060.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\060.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1089,10 +1209,12 @@
       "label": "Mark 061",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\061.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\061.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\061.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\061.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1107,10 +1229,12 @@
       "label": "Mark 062",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\062.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\062.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\062.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\062.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1125,10 +1249,12 @@
       "label": "Mark 063",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\063.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\063.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\063.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\063.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1143,10 +1269,12 @@
       "label": "Mark 064",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\064.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\064.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\064.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\064.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1161,10 +1289,12 @@
       "label": "Mark 065",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\065.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\065.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\065.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\065.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1179,10 +1309,12 @@
       "label": "Mark 066",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\066.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\066.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\066.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\066.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1197,10 +1329,12 @@
       "label": "Mark 067",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\067.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\067.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\067.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\067.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1215,10 +1349,12 @@
       "label": "Mark 068",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\068.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\068.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\068.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\068.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1233,10 +1369,12 @@
       "label": "Mark 069",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\069.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\069.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\069.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\069.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1251,10 +1389,12 @@
       "label": "Mark 070",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\070.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\070.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\070.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\070.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1269,10 +1409,12 @@
       "label": "Mark 071",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\071.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\071.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\071.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\071.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1287,10 +1429,12 @@
       "label": "Mark 072",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\072.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\072.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\072.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\072.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1305,10 +1449,12 @@
       "label": "Mark 073",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\073.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\073.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\073.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\073.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1323,10 +1469,12 @@
       "label": "Mark 074",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\074.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\074.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\074.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\074.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1341,10 +1489,12 @@
       "label": "Mark 075",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\075.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\075.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\075.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\075.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1359,10 +1509,12 @@
       "label": "Mark 076",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\076.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\076.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\076.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\076.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1377,10 +1529,12 @@
       "label": "Mark 077",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\077.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\077.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\077.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\077.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1395,10 +1549,12 @@
       "label": "Mark 078",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\078.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\078.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\078.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\078.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1413,10 +1569,12 @@
       "label": "Mark 079",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\079.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\079.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\079.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\079.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1431,10 +1589,12 @@
       "label": "Mark 080",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\080.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\080.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\080.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\080.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1449,10 +1609,12 @@
       "label": "Mark 081",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\081.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\081.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\081.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\081.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1467,10 +1629,12 @@
       "label": "Mark 082",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\082.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\082.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\082.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\082.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1485,10 +1649,12 @@
       "label": "Mark 083",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\083.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\083.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\083.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\083.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1503,10 +1669,12 @@
       "label": "Mark 084",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\084.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\084.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\084.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\084.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1521,10 +1689,12 @@
       "label": "Mark 085",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\085.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\085.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\085.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\085.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1539,10 +1709,12 @@
       "label": "Mark 086",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\086.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\086.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\086.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\086.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1557,10 +1729,12 @@
       "label": "Mark 087",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\087.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\087.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\087.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\087.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1575,10 +1749,12 @@
       "label": "Mark 088",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\088.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\088.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\088.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\088.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1593,10 +1769,12 @@
       "label": "Mark 089",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\089.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\089.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\089.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\089.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1611,10 +1789,12 @@
       "label": "Mark 090",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\090.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\090.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\090.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\090.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1629,10 +1809,12 @@
       "label": "Mark 091",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\091.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\091.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\091.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\091.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1647,10 +1829,12 @@
       "label": "Mark 092",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\092.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\092.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\092.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\092.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1665,10 +1849,12 @@
       "label": "Mark 093",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\093.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\093.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\093.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\093.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1683,10 +1869,12 @@
       "label": "Mark 094",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\094.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\094.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\094.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\094.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1701,10 +1889,12 @@
       "label": "Mark 095",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\095.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\095.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\095.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\095.dds",
+          "name": "glow"
         }
       ],
       "tags": {
@@ -1719,10 +1909,12 @@
       "label": "Mark 096",
       "layers": [
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks\\096.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks\\096.dds",
+          "name": "fill"
         },
         {
-          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\096.dds"
+          "texture": "actors\\character\\slavetats\\LewdMarks-glow\\096.dds",
+          "name": "glow"
         }
       ],
       "tags": {

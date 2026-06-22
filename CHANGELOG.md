@@ -4,6 +4,56 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
+## [Unreleased]
+
+### Changed
+
+- **SkyrimNet no longer exposes preset names.** A preset's display/internal
+  name (which can carry dev notes or spoilers — e.g. "Test: Stamina Ladder x30
+  (v6 uncap)") is no longer sent to SkyrimNet anywhere. Every surface now
+  identifies a tattoo by its **location** (the entry's `placement` tag),
+  falling back to a bare "tattoo": the persistent visual-change event ("…'s
+  tattoo (lower abdomen) shifted colour: …"), the short-lived scene event,
+  the bio block header (now "This tattoo is currently triggered." instead of
+  "**\<name\>** — …"), and the `mtf_tattoo_change` event schema (the `subject`
+  field is now location-based and `preset_name` was dropped; a `verb_phrase`
+  field was added so templates read naturally). NPCs perceive a tattoo by
+  sight — where it is and what it looks like — never by its label.
+
+### Added
+
+- **SkyrimNet — persistent visual-change event.** On a tier transition the
+  bridge now optionally fires a SkyrimNet *persistent* event describing **what
+  changed** on the skin, so the LLM keeps a durable, factual record of the
+  tattoo's evolving look (separate from the existing short-lived scene event
+  and the bio block, both unchanged):
+  - **Texture changed** (the slot's pack/entry differs) → emits the
+    transition as "changed from \<old description\> to \<new description\>"
+    (just "appeared: \<description\>" when there is no prior tier).
+  - **Colour changed** (same texture, a layer's tint/emissive/intensity/alpha
+    differs) → emits only the fields that changed, each as a `from -> to`
+    transition, grouped per layer.
+  - **Neither** (only an effect or condition flipped) → emits nothing; the
+    short-lived state event already covers the bare transition.
+
+  Uses `RegisterPersistentEvent`, so the change lands in the bearer's event
+  history / NPC memory without forcing a dialogue reaction. Fires for any
+  actor (player + NPCs). Toggle in the **MCM** (General → SkyrimNet → "Persist
+  visual changes", shown only when SkyrimNet is installed) — a per-save
+  override that falls back to the `Data/SKSE/Plugins/MagicTattoosFramework.ini`
+  → `[SkyrimNet] bPersistVisualChange` default (1 = on) until first flipped.
+  The diff reuses the bio's exact accessors and per-layer text format, so the
+  emitted description always matches what the "## Magic Tattoos" block renders.
+
+- **Optional per-layer names in content packs.** A pack entry's `layers[]` may
+  now carry a `"name"` (e.g. `"fill"`, `"glow"`). When set, the SkyrimNet
+  bridge uses it verbatim in the bio's Color block and the visual-change event
+  — `glow #X -> #Y` instead of `Layer 2 #X -> #Y` — falling back to `Layer N`
+  when absent. Generic (any pack can opt in); the bundled **LewdMarks** pack
+  (RaceMenu + SlaveTats) now names its two layers `fill` (the solid design)
+  and `glow` (the edge emissive). Read host-side via `GetEntryLayerName`;
+  purely cosmetic, no behaviour change for packs that don't set it.
+
 ## [v0.4.3] — 2026-06-14
 
 A bug fix plus new Fertility Mode condition options. Drop-in over v0.4.2; no

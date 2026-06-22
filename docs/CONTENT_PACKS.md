@@ -98,8 +98,8 @@ The file's top level:
   "id": "001",
   "label": "Mark 001",
   "layers": [
-    { "texture": "actors\\character\\overlays\\lewdmarks\\001.dds" },
-    { "texture": "actors\\character\\overlays\\lewdmarks-glow\\001.dds" }
+    { "texture": "actors\\character\\overlays\\lewdmarks\\001.dds",      "name": "fill" },
+    { "texture": "actors\\character\\overlays\\lewdmarks-glow\\001.dds", "name": "glow" }
   ],
   "tags": {
     "subject": "fertility sigil, central heart, curling fallopian arms",
@@ -116,6 +116,7 @@ The file's top level:
 | `label` | string | yes | Shown in MCM's per-entry picker. |
 | `layers` | array | yes | One or more layer objects. Each layer renders as a separate NiOverride overlay (z-ordered), letting MTF independently tint / fade / pulse the base vs. emissive layers. Most packs have 1-2 layers. |
 | `layers[].texture` | string | yes | Path **relative to `Data/textures/`** (so `actors\\character\\overlays\\foo\\001.dds`, not `textures\\actors\\character\\overlays\\foo\\001.dds`). Use `\\` (double-backslash) in JSON; the engine accepts both `/` and `\\`. |
+| `layers[].name` | string | optional | Semantic name for the layer (e.g. `"fill"`, `"glow"`, `"outline"`). Surfaced **verbatim** by the SkyrimNet bridge — in the bio's Color block and the persistent visual-change event — so the LLM reads `glow #X -> #Y` instead of `Layer 2 #X -> #Y`. Absent/empty falls back to `Layer N` (1-based). Purely cosmetic; no engine behaviour keys off it. Names are read by `MTF_MainQuest.GetEntryLayerName`. |
 | `tags.subject` / `tags.style` / `tags.placement` | string | recommended | Freeform tag fields consumed by the SkyrimNet bridge and bio renderers. Plain English, comma-separated phrases. |
 | `description` | string | recommended | Full prose description (1-3 sentences) for LLM consumption. The SkyrimNet bridge surfaces this in NPC bio prompts so AI companions can react to specific tattoos by content, not just by name. |
 

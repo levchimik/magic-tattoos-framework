@@ -148,18 +148,23 @@ EndFunction
 ; to SkyrimNet's analytics / diary / memory pipelines — without a schema,
 ; structured-event consumers see `data` as an opaque string.
 Function _registerTattooChangeSchema()
+    ; subject is a LOCATION-based descriptor ("tattoo on the lower abdomen"),
+    ; never the preset's internal/display name — that may carry dev notes or
+    ; spoilers and must not reach NPCs. preset_name was removed for the same
+    ; reason. verb_phrase carries the readable predicate so the templates read
+    ; well without hardcoding "tattoo" (which subject already contains).
     string fields = "["                                                                                                  \
         + "{\"name\":\"verb\",\"type\":0,\"required\":true,\"description\":\"Transition kind: appeared_dormant | appeared_triggered | triggered | shifted | dormant\"},"  \
-        + "{\"name\":\"subject\",\"type\":0,\"required\":true,\"description\":\"Display subject: the preset's display_name, or 'Magic' for the player's MCM base preset\"},"  \
-        + "{\"name\":\"preset_name\",\"type\":0,\"required\":false,\"description\":\"Internal preset name; empty for the player's MCM base preset\"},"  \
-        + "{\"name\":\"prev_tier\",\"type\":1,\"required\":true,\"description\":\"Previous slot (-1 none, 0 dormant, 1-7 conditional)\"},"  \
-        + "{\"name\":\"new_tier\",\"type\":1,\"required\":true,\"description\":\"New slot (0 dormant, 1-7 conditional)\"}"  \
+        + "{\"name\":\"verb_phrase\",\"type\":0,\"required\":false,\"description\":\"Readable predicate, e.g. 'had its condition triggered'\"},"  \
+        + "{\"name\":\"subject\",\"type\":0,\"required\":true,\"description\":\"Location-based descriptor, e.g. 'Tattoo (lower abdomen)'. NEVER the preset's internal/display name.\"},"  \
+        + "{\"name\":\"prev_tier\",\"type\":1,\"required\":true,\"description\":\"Previous slot (-1 none, 0 dormant, 1+ conditional)\"},"  \
+        + "{\"name\":\"new_tier\",\"type\":1,\"required\":true,\"description\":\"New slot (0 dormant, 1+ conditional)\"}"  \
         + "]"
     string templates = "{"                                                                                                                                   \
-        + "\"recent_events\":\"{{subject}} tattoo {{verb}} ({{time_desc}})\","                                                                              \
-        + "\"raw\":\"{{subject}} tattoo {{verb}}\","                                                                                                        \
-        + "\"compact\":\"{{subject}} tattoo {{verb}}\","                                                                                                    \
-        + "\"verbose\":\"{{subject}} tattoo transitioned slot {{prev_tier}} -> {{new_tier}} ({{verb}})\""                                                   \
+        + "\"recent_events\":\"{{subject}} {{verb_phrase}} ({{time_desc}})\","                                                                              \
+        + "\"raw\":\"{{subject}} {{verb_phrase}}\","                                                                                                        \
+        + "\"compact\":\"{{subject}} {{verb_phrase}}\","                                                                                                    \
+        + "\"verbose\":\"{{subject}} transitioned slot {{prev_tier}} -> {{new_tier}} ({{verb}})\""                                                          \
         + "}"
     ; shortLivedEnabled=false (REVERTED in v0.1.24 second pass): empirically
     ; setting this true makes SkyrimNet auto-create a scene-context entry
@@ -241,11 +246,15 @@ Function HandleTierChange(string strArg, float numArg, Form sender)
     endif
 
     MTF_MainQuest host = _host()
-    string displayName = ""
-    if presetName != "" && host != None
-        displayName = host.GetPresetDisplayName(presetName)
+    if host == None
+        return
     endif
-    string subject = _subjectFor(displayName)
+    ; Identify the tattoo by LOCATION, never by the preset's internal/display
+    ; name (which may carry dev notes or spoilers). NPCs perceive it by sight.
+    ; Lowercase noun for mid-sentence use; capitalised for sentence starts.
+    string noun = _tattooNounFor(host, presetName, newTier)
+    string nounCap = "T" + StringUtil.Substring(noun, 1)
+    string verbPhrase = _verbPhrase(verb)
 
     ; ── Short-lived scene-context event (any actor, v0.1.24) ──────────────
     ; v0.1.24 widened scope: was player-only on the rationale that NPC events
@@ -257,13 +266,13 @@ Function HandleTierChange(string strArg, float numArg, Form sender)
     ;
     ; All gating + throttling for whether NPCs comment lives in SkyrimNet's
     ; UI now. No MTF-side toggle, no MTF-side throttle.
-    string descLine = subject + " tattoo " + _verbPhrase(verb) + "."
+    string descLine = nounCap + " " + verbPhrase + "."
 
     ; Structured payload matches the registered schema's fields.
     string data = "{"                                                          \
         + "\"verb\":\"" + verb + "\""                                          \
-        + ",\"subject\":\"" + _jsonEsc(subject) + "\""                         \
-        + ",\"preset_name\":\"" + _jsonEsc(presetName) + "\""                  \
+        + ",\"verb_phrase\":\"" + _jsonEsc(verbPhrase) + "\""                  \
+        + ",\"subject\":\"" + _jsonEsc(nounCap) + "\""                         \
         + ",\"prev_tier\":" + prevTier                                         \
         + ",\"new_tier\":" + newTier                                           \
         + "}"
@@ -285,6 +294,13 @@ Function HandleTierChange(string strArg, float numArg, Form sender)
         target, \
         None \
     )
+
+    ; ── Persistent visual-change event (v0.4.4, opt-out via INI) ──────────
+    ; Durable, factual record of WHAT changed visually (texture vs colour),
+    ; written to the bearer's event history / NPC memory WITHOUT forcing an
+    ; NPC dialogue reaction. Complements the short-lived scene line above.
+    ; No-ops when the toggle is off or nothing visual actually changed.
+    _emitVisualChange(host, target, presetName, prevTier, newTier, noun)
 EndFunction
 
 ; Classify a (prev, new) tier pair into a verb. Returns "" for no-op
@@ -329,14 +345,30 @@ String Function _verbPhrase(string verb) global
     return "changed state"
 EndFunction
 
-; Subject phrase for the scene-context line and the structured `subject`
-; field. Base preset has no display name → use a generic noun. Stacked
-; presets get their display name verbatim.
-String Function _subjectFor(string displayName) global
-    if displayName == ""
-        return "Magic"
+; Location-based public descriptor for a tattoo: "tattoo (<placement>)" from
+; the entry's placement tag, or just "tattoo" when the pack gives none. The
+; parenthetical form is grammar-agnostic — it reads cleanly for ANY placement
+; phrasing, whether a bare region ("across the back") or a full clause ("lower
+; abdomen, just above the pubic mound"), without the "on the …" trap. Used for
+; SkyrimNet-facing identification (the scene event + the persistent
+; visual-change event) so the preset's internal/display name — which may carry
+; dev notes or spoilers — is NEVER exposed. NPCs perceive a tattoo by sight:
+; where it is and what it looks like, not by its label. Lowercase ("tattoo …")
+; so it sits naturally after a possessive ("Lydia's tattoo (…)"); capitalise
+; at sentence-start call sites.
+String Function _tattooNounFor(MTF_MainQuest host, string presetName, int tier) global
+    bool isBase = (presetName == "")
+    string f = ""
+    if !isBase
+        f = host._presetFile(presetName)
     endif
-    return displayName
+    string packId  = _resolveTexPackId(host, f, isBase, tier)
+    string entryId = _resolveTexEntryId(host, f, isBase, tier)
+    string loc = host.GetEntryPlacement(packId, entryId)
+    if loc != ""
+        return "tattoo (" + loc + ")"
+    endif
+    return "tattoo"
 EndFunction
 
 ; ══════════════════════════════════════════════════════════════════════════
@@ -498,7 +530,10 @@ EndFunction
 ; subsections elide (so the caller doesn't emit a phantom blank block).
 String Function _composePresetMd(string displayName, int tier, string packLabel, string entryLabel, string visualDesc, string placement, float pulseRate, int pulseDepth, string layersMd, string effectsMd, string conditionMd, string actorName, bool externalView) global
     string md = ""
-    ; Header line
+    ; State line. `displayName != ""` just flags a stacked (named) preset vs the
+    ; player's MCM base — we use it ONLY as that flag, never printing the name
+    ; (it may carry dev notes / spoilers). The tattoo's identity comes from the
+    ; visual/placement lines below; here we state only dormant vs triggered.
     if displayName != ""
         ; `state` is a Papyrus reserved keyword (state blocks); use a
         ; different local name to avoid Caprica's "Expected Identifier
@@ -507,7 +542,7 @@ String Function _composePresetMd(string displayName, int tier, string packLabel,
         if tier > 0
             stateWord = "currently triggered"
         endif
-        md = md + "**" + displayName + "** — " + stateWord + ".\n"
+        md = md + "This tattoo is " + stateWord + ".\n"
     endif
     ; Visual / fallback descriptor
     string visualLine = ""
@@ -554,6 +589,18 @@ String Function _composePresetMd(string displayName, int tier, string packLabel,
     return md
 EndFunction
 
+; Display label for a layer: the pack's optional layer name (e.g. "glow") when
+; the entry defines one, else "Layer N" (1-based). Lets a content pack name
+; what each overlay layer is — used by both the bio's Color block and the
+; persistent visual-change event so the LLM reads "glow" instead of "Layer 2".
+String Function _layerLabel(MTF_MainQuest host, string packId, string entryId, int L) global
+    string nm = host.GetEntryLayerName(packId, entryId, L)
+    if nm != ""
+        return nm
+    endif
+    return "Layer " + (L + 1)
+EndFunction
+
 ; Layers block (base preset). One bullet per layer; reads tint/emissive
 ; from cond* property arrays so MCM slider edits show up here once the
 ; bridge gets re-poked.
@@ -574,7 +621,7 @@ String Function _renderBaseLayersMd(MTF_MainQuest host, int slot, string packId,
         int emissive = host.GetCondLayerEmissive(slot, i)
         float emMult = host.GetCondLayerEmissiveMult(slot, i)
         int alpha = host.GetCondLayerAlpha(slot, i)
-        acc = acc + "- Layer " + (i + 1) + ": tint " + host._intToHex(tint) \
+        acc = acc + "- " + _layerLabel(host, packId, entryId, i) + ": tint " + host._intToHex(tint) \
             + ", emissive " + host._intToHex(emissive) + " (intensity " + emMult \
             + "), alpha " + alpha + "%\n"
         i += 1
@@ -601,7 +648,7 @@ String Function _renderStackedLayersMd(MTF_MainQuest host, string presetFile, in
         string emissive = JsonUtil.GetPathStringValue(presetFile, lp + ".emissive", "#000000")
         float emMult = JsonUtil.GetPathFloatValue(presetFile, lp + ".emissivemult", 1.0)
         int alpha = JsonUtil.GetPathIntValue(presetFile, lp + ".alpha", 100)
-        acc = acc + "- Layer " + (i + 1) + ": tint " + tint \
+        acc = acc + "- " + _layerLabel(host, packId, entryId, i) + ": tint " + tint \
             + ", emissive " + emissive + " (intensity " + emMult \
             + "), alpha " + alpha + "%\n"
         i += 1
@@ -1109,4 +1156,234 @@ String Function _jsonEsc(string s) global
         i += 1
     endwhile
     return out
+EndFunction
+
+; ══════════════════════════════════════════════════════════════════════════
+; PERSISTENT VISUAL-CHANGE EVENT (v0.4.4)
+;
+; A second, opt-out channel layered on top of the short-lived scene event and
+; the StorageUtil bio refresh. On a tier transition it diffs the SAME preset's
+; previous vs new slot and emits a SkyrimNetApi.RegisterPersistentEvent
+; describing WHAT changed:
+;
+;   * Appeared, or the slot's pack/entry differs   -> the NEW texture's
+;     description (the imagery is the salient change).
+;   * Texture identical, a layer's colour differs  -> ONLY the layers whose
+;     tint/emissive/intensity/alpha changed, with their new values.
+;   * Nothing visual changed (only an effect/condition flipped) -> nothing
+;     (the short-lived state event already covers the bare transition).
+;
+; RegisterPersistentEvent (not RegisterShortLivedEvent): the change lands in
+; the bearer's durable event history / memory as a background fact the LLM can
+; recall, WITHOUT forcing an NPC to react to it. Fires for ANY actor; the
+; bearer is the originator.
+;
+; The diff reuses the bio's exact accessors and per-layer text format, so the
+; emitted description always matches what the "## Magic Tattoos" block renders.
+;
+; GATED by the MCM toggle (MTF MCM -> General -> SkyrimNet -> "Persist visual
+; changes"), resolved host-side by GetSkyrimNetPersistVisualChange(): a per-save
+; StorageUtil override falling back to the INI default
+; (Data/SKSE/Plugins/MagicTattoosFramework.ini [SkyrimNet] bPersistVisualChange,
+; 1 = on) until the toggle is first flipped. So it's switchable live in the MCM,
+; with the INI as the ship default / headless seed.
+; ══════════════════════════════════════════════════════════════════════════
+
+; Compose + fire the persistent visual-change event. No-op when the toggle is
+; off, the transition has no visual delta, or a stacked preset file is missing.
+Function _emitVisualChange(MTF_MainQuest host, Actor target, string presetName, int prevTier, int newTier, string noun) global
+    if host == None || target == None || newTier < 0
+        return
+    endif
+    ; Gate: MCM toggle (per-save StorageUtil override) -> INI default. Resolved
+    ; host-side in GetSkyrimNetPersistVisualChange so both ESPs share one value.
+    if !host.GetSkyrimNetPersistVisualChange()
+        return
+    endif
+    bool isBase = (presetName == "")
+    string f = ""
+    if !isBase
+        f = host._presetFile(presetName)
+        if f == ""
+            return
+        endif
+    endif
+    string actorName = target.GetDisplayName()
+    if actorName == ""
+        actorName = "The actor"
+    endif
+
+    string newPackId  = _resolveTexPackId(host, f, isBase, newTier)
+    string newEntryId = _resolveTexEntryId(host, f, isBase, newTier)
+
+    string content = ""
+    string d = ""
+    if prevTier < 0
+        ; Appeared — no prior tier, so the texture is new by definition.
+        d = _textureDescFor(host, newPackId, newEntryId)
+        if d != ""
+            content = actorName + "'s " + noun + " appeared: " + d + "."
+        endif
+    else
+        string prevPackId  = _resolveTexPackId(host, f, isBase, prevTier)
+        string prevEntryId = _resolveTexEntryId(host, f, isBase, prevTier)
+        if newPackId != prevPackId || newEntryId != prevEntryId
+            ; Texture changed -> describe the transition (from -> to).
+            d = _textureDescFor(host, newPackId, newEntryId)
+            string prevD = _textureDescFor(host, prevPackId, prevEntryId)
+            if d != "" && prevD != ""
+                content = actorName + "'s " + noun + " changed from " + prevD + " to " + d + "."
+            elseif d != ""
+                ; Prior tier had no resolvable look (e.g. an invisible Default).
+                content = actorName + "'s " + noun + " changed to " + d + "."
+            elseif newPackId == "" && newEntryId == ""
+                content = actorName + "'s " + noun + " faded and is no longer visible."
+            endif
+        else
+            ; Same texture -> describe only the colours that changed.
+            string ct = _colorChangeText(host, f, isBase, prevTier, newTier, newPackId, newEntryId)
+            if ct != ""
+                content = actorName + "'s " + noun + " shifted colour: " + ct + "."
+            endif
+        endif
+    endif
+
+    if content == ""
+        return
+    endif
+    SkyrimNetApi.RegisterPersistentEvent(content, target, None)
+EndFunction
+
+; Resolve a tier's texture pack id. Base uses the Default-inherit resolver;
+; stacked reads the slot's cond.packid with the slot[0] fallback (mirrors
+; _renderStackedPresetMd).
+String Function _resolveTexPackId(MTF_MainQuest host, string f, bool isBase, int tier) global
+    if isBase
+        return host.ResolveSlotPackId(tier)
+    endif
+    string p = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.packid", "")
+    if p == "" && tier > 0
+        p = JsonUtil.GetPathStringValue(f, ".slot[0].cond.packid", "")
+    endif
+    return p
+EndFunction
+
+; Texture entry id. Mirrors _resolveTexPackId's fallback EXACTLY so a stacked
+; slot inheriting slot[0] gets slot[0]'s entry too (matches the bio).
+String Function _resolveTexEntryId(MTF_MainQuest host, string f, bool isBase, int tier) global
+    if isBase
+        return host.ResolveSlotEntryId(tier)
+    endif
+    string pk = JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.packid", "")
+    if pk == "" && tier > 0
+        return JsonUtil.GetPathStringValue(f, ".slot[0].cond.entryid", "")
+    endif
+    return JsonUtil.GetPathStringValue(f, ".slot[" + tier + "].cond.entryid", "")
+EndFunction
+
+; Texture description for an entry. Prefers the pack-authored prose; falls back
+; to "a <entry> tattoo from the <pack> set" exactly as _composePresetMd does.
+; Returns "" when nothing resolves.
+String Function _textureDescFor(MTF_MainQuest host, string packId, string entryId) global
+    string visualDesc = host.GetEntryDescription(packId, entryId)
+    if visualDesc != ""
+        return visualDesc
+    endif
+    string packLabel = ""
+    int pi = host.FindVisualPackIndex(packId)
+    if pi >= 0
+        packLabel = host.visualPackLabels[pi]
+    endif
+    string entryLabel = _findEntryLabel(host, packId, entryId)
+    if packLabel != "" && entryLabel != ""
+        return "a " + entryLabel + " tattoo from the " + packLabel + " set"
+    elseif entryLabel != ""
+        return "a " + entryLabel + " tattoo"
+    endif
+    return ""
+EndFunction
+
+; Display string for ONE layer field. fieldIdx: 0=tint, 1=emissive,
+; 2=intensity, 3=alpha. Formats match the bio's layer bullet exactly (hex for
+; colours, raw float for intensity, "N%" for alpha) so the diff text reads
+; identically to the rendered "## Magic Tattoos" block. Base reads ints via
+; the cond accessors; stacked reads from the preset JSON.
+String Function _layerFieldAt(MTF_MainQuest host, string f, bool isBase, int tier, int L, int fieldIdx) global
+    if isBase
+        if fieldIdx == 0
+            return host._intToHex(host.GetCondLayerTint(tier, L))
+        elseif fieldIdx == 1
+            return host._intToHex(host.GetCondLayerEmissive(tier, L))
+        elseif fieldIdx == 2
+            return host.GetCondLayerEmissiveMult(tier, L) as string
+        endif
+        return (host.GetCondLayerAlpha(tier, L) as string) + "%"
+    endif
+    string lp = ".slot[" + tier + "].layer[" + L + "]"
+    if fieldIdx == 0
+        return JsonUtil.GetPathStringValue(f, lp + ".tint", "#FFFFFF")
+    elseif fieldIdx == 1
+        return JsonUtil.GetPathStringValue(f, lp + ".emissive", "#000000")
+    elseif fieldIdx == 2
+        return JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 1.0) as string
+    endif
+    return (JsonUtil.GetPathIntValue(f, lp + ".alpha", 100) as string) + "%"
+EndFunction
+
+; Human label for a layer field index (parallels _layerFieldAt).
+String Function _layerFieldName(int fieldIdx) global
+    if fieldIdx == 0
+        return "tint"
+    elseif fieldIdx == 1
+        return "emissive"
+    elseif fieldIdx == 2
+        return "intensity"
+    endif
+    return "alpha"
+EndFunction
+
+; Field-level colour diff between prevTier and newTier. packId/entryId are
+; identical for both tiers here (texture unchanged), so the layer count is
+; stable. Emits ONLY the fields that actually changed, each as a "from -> to"
+; transition, grouped per layer:
+;   "Layer 1 tint #777777 -> #FF0000, emissive #000000 -> #FF3030; Layer 2 ..."
+; Returns "" when nothing changed.
+String Function _colorChangeText(MTF_MainQuest host, string f, bool isBase, int prevTier, int newTier, string packId, string entryId) global
+    int layerN = host.GetEntryLayerCount(packId, entryId)
+    if layerN <= 0
+        return ""
+    endif
+    int maxL = MTF_MainQuest.MAX_LAYERS_PER_SLOT()
+    if layerN > maxL
+        layerN = maxL
+    endif
+    string acc = ""
+    int layersChanged = 0
+    int i = 0
+    while i < layerN
+        string layerClause = ""
+        int fieldsChanged = 0
+        int fi = 0
+        while fi < 4
+            string a = _layerFieldAt(host, f, isBase, prevTier, i, fi)
+            string b = _layerFieldAt(host, f, isBase, newTier, i, fi)
+            if a != b
+                if fieldsChanged > 0
+                    layerClause = layerClause + ", "
+                endif
+                layerClause = layerClause + _layerFieldName(fi) + " " + a + " -> " + b
+                fieldsChanged += 1
+            endif
+            fi += 1
+        endwhile
+        if fieldsChanged > 0
+            if layersChanged > 0
+                acc = acc + "; "
+            endif
+            acc = acc + _layerLabel(host, packId, entryId, i) + " " + layerClause
+            layersChanged += 1
+        endif
+        i += 1
+    endwhile
+    return acc
 EndFunction
