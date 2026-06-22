@@ -4,10 +4,17 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
-## [Unreleased]
+## [v0.6.0] — 2026-06-22
 
 ### Changed
 
+- **Per-slot scratch migrated to StorageUtil; conditional-tier cap lifted.**
+  Per-slot scratch state (condition mirror, layers, pulse, persist) moved off
+  fixed script arrays into per-preset StorageUtil keys, removing the old
+  8-slot ceiling on per-tier visuals and pulse. Conditional tiers up to
+  `iMaxConditions` (INI, default 32, max 256) now carry their own colour,
+  pulse, and persist instead of inheriting Default's. Save-safe — orphaned old
+  arrays are discarded on load; `CACHED_SCRATCH_VERSION` bumped 5 → 6.
 - **SkyrimNet no longer exposes preset names.** A preset's display/internal
   name (which can carry dev notes or spoilers — e.g. "Test: Stamina Ladder x30
   (v6 uncap)") is no longer sent to SkyrimNet anywhere. Every surface now
