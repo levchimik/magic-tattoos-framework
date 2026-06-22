@@ -1,0 +1,1442 @@
+{
+ "displayname": "Test: Stamina Ladder x30 (v6 uncap)",
+ "schemaversion": 9,
+ "hidden": 0,
+ "transition": {
+  "duration": 0.3
+ },
+ "slot": [
+  {
+   "name": "Default (>=95 full)",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046"
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#777777",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#777777",
+     "emissive": "#202020",
+     "emissivemult": 0.3
+    }
+   ]
+  },
+  {
+   "name": "T01 <5%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 5
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#FF0000",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#FF0000",
+     "emissive": "#FF0000",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.4,
+    "depth": 90
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T02 <8%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 8
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#FF2C00",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#FF2C00",
+     "emissive": "#FF2C00",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.37,
+    "depth": 89
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T03 <11%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 11
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#FF5800",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#FF5800",
+     "emissive": "#FF5800",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.34,
+    "depth": 89
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T04 <14%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 14
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#FF8400",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#FF8400",
+     "emissive": "#FF8400",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.31,
+    "depth": 88
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T05 <17%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 17
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#FFB000",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#FFB000",
+     "emissive": "#FFB000",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.28,
+    "depth": 87
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T06 <21%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 21
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#FFDC00",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#FFDC00",
+     "emissive": "#FFDC00",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.25,
+    "depth": 87
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T07 <24%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 24
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#F6FF00",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#F6FF00",
+     "emissive": "#F6FF00",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.22,
+    "depth": 86
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T08 <27%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 27
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#CAFF00",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#CAFF00",
+     "emissive": "#CAFF00",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.19,
+    "depth": 85
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T09 <30%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 30
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#9EFF00",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#9EFF00",
+     "emissive": "#9EFF00",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.16,
+    "depth": 85
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T10 <33%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 33
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#72FF00",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#72FF00",
+     "emissive": "#72FF00",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.13,
+    "depth": 84
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T11 <36%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 36
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#46FF00",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#46FF00",
+     "emissive": "#46FF00",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.1,
+    "depth": 83
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T12 <39%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 39
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#1AFF00",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#1AFF00",
+     "emissive": "#1AFF00",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.07,
+    "depth": 83
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T13 <42%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 42
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#00FF12",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#00FF12",
+     "emissive": "#00FF12",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.04,
+    "depth": 82
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T14 <45%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 45
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#00FF3E",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#00FF3E",
+     "emissive": "#00FF3E",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 1.01,
+    "depth": 81
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T15 <48%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 48
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#00FF6A",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#00FF6A",
+     "emissive": "#00FF6A",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.98,
+    "depth": 81
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T16 <52%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 52
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#00FF95",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#00FF95",
+     "emissive": "#00FF95",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.95,
+    "depth": 80
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T17 <55%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 55
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#00FFC1",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#00FFC1",
+     "emissive": "#00FFC1",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.92,
+    "depth": 79
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T18 <58%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 58
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#00FFED",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#00FFED",
+     "emissive": "#00FFED",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.89,
+    "depth": 79
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T19 <61%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 61
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#00E5FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#00E5FF",
+     "emissive": "#00E5FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.86,
+    "depth": 78
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T20 <64%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 64
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#00B9FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#00B9FF",
+     "emissive": "#00B9FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.83,
+    "depth": 77
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T21 <67%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 67
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#008DFF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#008DFF",
+     "emissive": "#008DFF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.8,
+    "depth": 77
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T22 <70%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 70
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#0061FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#0061FF",
+     "emissive": "#0061FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.77,
+    "depth": 76
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T23 <73%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 73
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#0035FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#0035FF",
+     "emissive": "#0035FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.74,
+    "depth": 75
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T24 <76%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 76
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#0009FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#0009FF",
+     "emissive": "#0009FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.71,
+    "depth": 75
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T25 <79%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 79
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#2300FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#2300FF",
+     "emissive": "#2300FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.68,
+    "depth": 74
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T26 <83%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 83
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#4F00FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#4F00FF",
+     "emissive": "#4F00FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.65,
+    "depth": 73
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T27 <86%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 86
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#7B00FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#7B00FF",
+     "emissive": "#7B00FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.62,
+    "depth": 73
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T28 <89%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 89
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#A700FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#A700FF",
+     "emissive": "#A700FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.59,
+    "depth": 72
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T29 <92%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 92
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#D300FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#D300FF",
+     "emissive": "#D300FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.56,
+    "depth": 71
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  },
+  {
+   "name": "T30 <95%",
+   "cond": {
+    "packid": "mtf.lewdmarks-racemenu",
+    "entryid": "046",
+    "op": 0,
+    "items": [
+     {
+      "pluginid": "mtf.attributes:stamina.below",
+      "param": 95
+     }
+    ]
+   },
+   "persist": {
+    "min": 1,
+    "allowOverride": 1
+   },
+   "layer": [
+    {
+     "alpha": 100,
+     "tint": "#FF00FF",
+     "emissive": "#000000",
+     "emissivemult": 0.0
+    },
+    {
+     "alpha": 100,
+     "tint": "#FF00FF",
+     "emissive": "#FF00FF",
+     "emissivemult": 2.0
+    }
+   ],
+   "pulse": {
+    "waveform": "heartbeat",
+    "rate": 0.53,
+    "depth": 71
+   },
+   "effect": [
+    {
+     "key": "mtf.attributes:damage.stamina",
+     "param1": -2
+    },
+    {
+     "key": "mtf.attributes:modify.staminaRegen",
+     "param1": -100
+    }
+   ]
+  }
+ ],
+ "valid": 1
+}

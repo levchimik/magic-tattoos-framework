@@ -80,17 +80,11 @@ bool _visualsLoaded = false
 ; returned whatever transient snapshot Papyrus reused — including a stale
 ; JSON path string from a different array. Switching to script-level vars
 ; gives us real backing storage and fixes NPC condition eval entirely.
-string[] _sCondPluginId
-int[]    _sCondParam
-string[] _sCondPackId
-string[] _sCondEntryId
-int[]    _sCondLayerTint
-int[]    _sCondLayerEmissive
-float[]  _sCondLayerEmissiveMult
-int[]    _sCondLayerAlpha
-float[]  _sCondPulseRate
-int[]    _sCondPulseDepth
-string[] _sCondWaveform
+; v6: the _sCond* per-slot scratch arrays were removed — all scratch cond /
+; layer / pulse state now lives in per-preset namespaced StorageUtil keys (see
+; the _getScratch* / _setScratch* accessors). Removing script vars is save-safe
+; (the reverse of the array-widen crash that froze them at length 8); existing
+; saves discard the orphaned array data on load.
 ; v0.2.6: Bool sentinel for the _s* scratch arrays. Per memory note
 ; project_papyrus_array_none_cast_noise, `if arr == None` checks on
 ; script-level arrays log "Cannot cast from None to T[]" EVEN WHEN
@@ -109,8 +103,9 @@ bool     _sArraysReady = false
 ; New "cool" durations (post-persist re-arm lockout) live under per-preset StorageUtil keys —
 ; see _getScratchCoolMin / _setScratchCoolMin. Vars renamed only in comment; Papyrus vars keep
 ; their physical names to preserve save attachment.
-int[]    _sCooldownMin
-int[]    _sCooldownMode
+; v6: _sCooldownMin / _sCooldownMode (persistMin / allowOverride) likewise moved
+; to per-preset StorageUtil keys — see _get/_setScratchPersistMin and
+; _get/_setScratchAllowOverride.
 ; Per-preset cross-fade duration (seconds) read from .transition.duration
 ; in the preset JSON. Applies to ALL tier transitions on this preset. <=0
 ; disables cross-fade (instant snap). Per-tier override is a v0.1.2+
@@ -1887,56 +1882,56 @@ string Function GetEvalParam3Str()
 EndFunction
 
 float Function GetCondPulseRate(int slot)
-    if slot < 0 || slot >= 8
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return 0.0
     endif
     return StorageUtil.GetFloatValue(self, "mtf.cond.pulse.rate." + slot, 0.0)
 EndFunction
 
 Function SetCondPulseRate(int slot, float v)
-    if slot < 0 || slot >= 8
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     StorageUtil.SetFloatValue(self, "mtf.cond.pulse.rate." + slot, v)
 EndFunction
 
 int Function GetCondPulseDepth(int slot)
-    if slot < 0 || slot >= 8
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return 0
     endif
     return StorageUtil.GetIntValue(self, "mtf.cond.pulse.depth." + slot, 0)
 EndFunction
 
 Function SetCondPulseDepth(int slot, int v)
-    if slot < 0 || slot >= 8
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     StorageUtil.SetIntValue(self, "mtf.cond.pulse.depth." + slot, v)
 EndFunction
 
 float Function GetCondPulsePause(int slot)
-    if slot < 0 || slot >= 8
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return 0.0
     endif
     return StorageUtil.GetFloatValue(self, "mtf.pulse.pause." + slot, 0.0)
 EndFunction
 
 Function SetCondPulsePause(int slot, float v)
-    if slot < 0 || slot >= 8
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     StorageUtil.SetFloatValue(self, "mtf.pulse.pause." + slot, v)
 EndFunction
 
 string Function GetCondWaveform(int slot)
-    if slot < 0 || slot >= 8
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return ""
     endif
     return StorageUtil.GetStringValue(None, "mtf.cond.pulse.waveform." + slot, "")
 EndFunction
 
 Function SetCondWaveform(int slot, string name)
-    if slot < 0 || slot >= 8
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return
     endif
     if name == ""
@@ -2303,8 +2298,8 @@ Float[] Function _waveformLUTForTier(int tier, bool useScratch)
 {Resolve waveform name for a tier and return its LUT.}
     string name = ""
     if useScratch
-        if _sArraysReady && tier >= 0 && tier < 8
-            name = _sCondWaveform[tier]
+        if _sArraysReady && tier >= 0
+            name = _getScratchWaveform(tier)
         endif
     else
         name = GetCondWaveform(tier)
@@ -2313,7 +2308,7 @@ Float[] Function _waveformLUTForTier(int tier, bool useScratch)
 EndFunction
 
 bool Function _slotHasPulse(int slot)
-    if slot < 0 || slot >= 8
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return false
     endif
     return GetCondPulseRate(slot) > 0.0 && GetCondPulseDepth(slot) > 0
@@ -2325,7 +2320,7 @@ bool Function _slotHasFlashEffect(int slot)
  (rate=0) roster entry for flash-only tiers — the C++ Tick needs a live
  entry to run the additive flash lane on top of the (no-pulse) ceiling.
  v0.3.9: flash.onhit moved from mtf.base to the mtf.fx module on the split.}
-    if slot < 0 || slot >= 8
+    if slot < 0 || slot > MAX_CONDITIONS_CACHED()
         return false
     endif
     int e = 0
@@ -2350,7 +2345,7 @@ Function _resyncPulseCache(int tier)
  worth of skee_bridge writes per frame; trivial compared to the eval/draw
  cost it replaces.}
     _pulseTier = -1
-    if tier < 0 || tier >= 8 || PlayerRef == None
+    if tier < 0 || tier > MAX_CONDITIONS_CACHED() || PlayerRef == None
         return
     endif
     string packId  = ResolveSlotPackId(tier)
@@ -4675,7 +4670,7 @@ Function _armPersistTimer(int slot)
  activation edge (prev→new transition) only when persistMin > 0. Indexed
  writes to Auto array properties silently no-op
  (project_papyrus_property_array_writes), so we do whole-array reassign.}
-    if slot <= 0 || slot >= 8 || !_arraysReady
+    if slot <= 0 || slot > MAX_CONDITIONS_CACHED() || !_arraysReady
         return
     endif
     int mins = GetCondPersistMin(slot)
@@ -4689,7 +4684,7 @@ Function _armCoolTimer(int slot)
 {Sets coolUntilGT[slot] = now + coolMin[slot] minutes. Called on the
  deactivation edge (prev→new transition where prev is this slot) only when
  coolMin > 0. cool[] storage is StorageUtil-backed (see _setCoolUntilGT).}
-    if slot <= 0 || slot >= 8 || !_arraysReady
+    if slot <= 0 || slot > MAX_CONDITIONS_CACHED() || !_arraysReady
         return
     endif
     int mins = _getCoolMin(slot)
@@ -5661,7 +5656,7 @@ int Function _playerBaseLayers(string area)
     int maxL = 0
     int maxLayers = MAX_LAYERS_PER_SLOT()
     int s = 0
-    while s < 8
+    while s <= MAX_CONDITIONS_CACHED()
         string packId  = ResolveSlotPackId(s)
         string entryId = ResolveSlotEntryId(s)
         if packId != "" && packId != "<none>" && entryId != "" && GetPackArea(packId) == area
@@ -5701,7 +5696,7 @@ int Function _computePresetReservedLayers(string area, bool useScratch)
     int maxL = 0
     int maxLayers = MAX_LAYERS_PER_SLOT()
     int s = 0
-    while s < 8
+    while s <= MAX_CONDITIONS_CACHED()
         string packId  = _g_resolvePackId(s, useScratch)
         string entryId = _g_resolveEntryId(s, useScratch)
         if packId != "" && packId != "<none>" && entryId != "" && GetPackArea(packId) == area
@@ -7096,21 +7091,9 @@ Function _ensureScratchArrays()
     if _sArraysReady
         return
     endif
-    if _sCondPluginId == None
-        _sCondPluginId          = new string[8]
-        _sCondParam             = new int[8]
-        _sCondPackId            = new string[8]
-        _sCondEntryId           = new string[8]
-        _sCondLayerTint         = new int[32]
-        _sCondLayerEmissive     = new int[32]
-        _sCondLayerEmissiveMult = new float[32]
-        _sCondLayerAlpha        = new int[32]
-        _sCondPulseRate         = new float[8]
-        _sCondPulseDepth        = new int[8]
-        _sCondWaveform          = new string[8]
-        _sCooldownMin           = new int[8]
-        _sCooldownMode          = new int[8]
-    endif
+    ; v6: nothing to allocate — all per-slot scratch lives in per-preset
+    ; StorageUtil keys now (see _getScratch* / _setScratch*). The flag just
+    ; records that the scratch subsystem is live so _g_* readers don't early-out.
     _sArraysReady = true
 EndFunction
 
@@ -7214,8 +7197,14 @@ int Function CACHED_SCRATCH_VERSION() global
  for every slot 0..maxC. v4 caches were produced WITHOUT those name
  writes; a cache hit on a v4 entry would skip cold load and the MCM
  slot dropdown would render canonical labels even when the preset
- stored custom names. Bumping forces a one-shot cold rebuild.}
-    return 5
+ stored custom names. Bumping forces a one-shot cold rebuild.
+
+ v6: full StorageUtil migration. The _s* scratch arrays were removed; cold
+ load now writes per-slot cond/layer/pulse/persist for EVERY slot 0..maxC to
+ per-preset namespaced scalar keys (not the old length-8 cache lists). v5
+ caches predate those scalar keys, so a v5 hit would read empty per-slot
+ scratch — bumping forces a one-shot cold rebuild on first access.}
+    return 6
 EndFunction
 
 ; v0.1.24 scratch-namespaced cool.min accessors. Per-preset (preset name
@@ -7227,6 +7216,81 @@ int Function _getScratchCoolMin(int slot)
 EndFunction
 Function _setScratchCoolMin(int slot, int v)
     StorageUtil.SetIntValue(self, "mtf.scratch.cool.min." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+
+; ── v6 full-StorageUtil scratch migration ──────────────────────────────────
+; The remaining per-slot scratch fields (cond packid/entryid, persistMin,
+; allowOverride, pulse rate/depth/waveform, layer tint/emissive/emult/alpha)
+; moved off the fixed-length _s* arrays onto per-preset namespaced StorageUtil
+; keys — same pattern as the cond.pluginid / pulse.pause accessors above. This
+; removes the length-8 visual/pulse/persist cap on the scratch (NPC) path so
+; every slot up to MAX_CONDITIONS() carries its own visual, pulse and persist.
+; Layer keys carry a trailing .<L> for the per-slot layer index (0..maxL-1).
+string Function _getScratchCondPackId(int slot)
+    return StorageUtil.GetStringValue(None, "mtf.scratch.cond.packid." + _scratchLoadedFor + "." + slot, "")
+EndFunction
+Function _setScratchCondPackId(int slot, string v)
+    StorageUtil.SetStringValue(None, "mtf.scratch.cond.packid." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+string Function _getScratchCondEntryId(int slot)
+    return StorageUtil.GetStringValue(None, "mtf.scratch.cond.entryid." + _scratchLoadedFor + "." + slot, "")
+EndFunction
+Function _setScratchCondEntryId(int slot, string v)
+    StorageUtil.SetStringValue(None, "mtf.scratch.cond.entryid." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+int Function _getScratchPersistMin(int slot)
+    return StorageUtil.GetIntValue(None, "mtf.scratch.persistmin." + _scratchLoadedFor + "." + slot, 0)
+EndFunction
+Function _setScratchPersistMin(int slot, int v)
+    StorageUtil.SetIntValue(None, "mtf.scratch.persistmin." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+int Function _getScratchAllowOverride(int slot)
+    return StorageUtil.GetIntValue(None, "mtf.scratch.allowoverride." + _scratchLoadedFor + "." + slot, 1)
+EndFunction
+Function _setScratchAllowOverride(int slot, int v)
+    StorageUtil.SetIntValue(None, "mtf.scratch.allowoverride." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+float Function _getScratchPulseRate(int slot)
+    return StorageUtil.GetFloatValue(None, "mtf.scratch.pulse.rate." + _scratchLoadedFor + "." + slot, 0.0)
+EndFunction
+Function _setScratchPulseRate(int slot, float v)
+    StorageUtil.SetFloatValue(None, "mtf.scratch.pulse.rate." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+int Function _getScratchPulseDepth(int slot)
+    return StorageUtil.GetIntValue(None, "mtf.scratch.pulse.depth." + _scratchLoadedFor + "." + slot, 0)
+EndFunction
+Function _setScratchPulseDepth(int slot, int v)
+    StorageUtil.SetIntValue(None, "mtf.scratch.pulse.depth." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+string Function _getScratchWaveform(int slot)
+    return StorageUtil.GetStringValue(None, "mtf.scratch.pulse.waveform." + _scratchLoadedFor + "." + slot, "")
+EndFunction
+Function _setScratchWaveform(int slot, string v)
+    StorageUtil.SetStringValue(None, "mtf.scratch.pulse.waveform." + _scratchLoadedFor + "." + slot, v)
+EndFunction
+int Function _getScratchLayerTint(int slot, int L)
+    return StorageUtil.GetIntValue(None, "mtf.scratch.layer.tint." + _scratchLoadedFor + "." + slot + "." + L, 16777215)
+EndFunction
+Function _setScratchLayerTint(int slot, int L, int v)
+    StorageUtil.SetIntValue(None, "mtf.scratch.layer.tint." + _scratchLoadedFor + "." + slot + "." + L, v)
+EndFunction
+int Function _getScratchLayerEmissive(int slot, int L)
+    return StorageUtil.GetIntValue(None, "mtf.scratch.layer.emissive." + _scratchLoadedFor + "." + slot + "." + L, 16777215)
+EndFunction
+Function _setScratchLayerEmissive(int slot, int L, int v)
+    StorageUtil.SetIntValue(None, "mtf.scratch.layer.emissive." + _scratchLoadedFor + "." + slot + "." + L, v)
+EndFunction
+float Function _getScratchLayerEmissiveMult(int slot, int L)
+    return StorageUtil.GetFloatValue(None, "mtf.scratch.layer.emult." + _scratchLoadedFor + "." + slot + "." + L, 0.0)
+EndFunction
+Function _setScratchLayerEmissiveMult(int slot, int L, float v)
+    StorageUtil.SetFloatValue(None, "mtf.scratch.layer.emult." + _scratchLoadedFor + "." + slot + "." + L, v)
+EndFunction
+int Function _getScratchLayerAlpha(int slot, int L)
+    return StorageUtil.GetIntValue(None, "mtf.scratch.layer.alpha." + _scratchLoadedFor + "." + slot + "." + L, 100)
+EndFunction
+Function _setScratchLayerAlpha(int slot, int L, int v)
+    StorageUtil.SetIntValue(None, "mtf.scratch.layer.alpha." + _scratchLoadedFor + "." + slot + "." + L, v)
 EndFunction
 
 bool Function _isScratchCached(string name)
@@ -7246,25 +7310,10 @@ bool Function _loadScratchFromCache(string name)
         return false
     endif
     string ck = "mtf.scratch.cached." + name
-    _sCondPluginId          = StorageUtil.StringListToArray(None, ck + ".cond.pluginid")
-    _sCondParam             = StorageUtil.IntListToArray(None,    ck + ".cond.param")
-    _sCondPackId            = StorageUtil.StringListToArray(None, ck + ".cond.packid")
-    _sCondEntryId           = StorageUtil.StringListToArray(None, ck + ".cond.entryid")
-    ; v0.1.24: storage key names kept for cache compat — values now hold
-    ; persistMin / allowOverride per the cooldown rework.
-    _sCooldownMin           = StorageUtil.IntListToArray(None,    ck + ".cooldown.min")   ; persistMin
-    _sCooldownMode          = StorageUtil.IntListToArray(None,    ck + ".cooldown.mode")  ; allowOverride
-    ; cool.min lives in a separate per-preset StorageUtil key written by
-    ; _setScratchCoolMin, not in the cached list — it persists across cache
-    ; hits because the key is namespaced by preset name, mirroring the
-    ; _setScratchPulsePause pattern. Nothing to read here.
-    _sCondPulseRate         = StorageUtil.FloatListToArray(None,  ck + ".pulse.rate")
-    _sCondPulseDepth        = StorageUtil.IntListToArray(None,    ck + ".pulse.depth")
-    _sCondWaveform          = StorageUtil.StringListToArray(None, ck + ".pulse.waveform")
-    _sCondLayerTint         = StorageUtil.IntListToArray(None,    ck + ".layer.tint")
-    _sCondLayerEmissive     = StorageUtil.IntListToArray(None,    ck + ".layer.emissive")
-    _sCondLayerEmissiveMult = StorageUtil.FloatListToArray(None,  ck + ".layer.emissivemult")
-    _sCondLayerAlpha        = StorageUtil.IntListToArray(None,    ck + ".layer.alpha")
+    ; v6: per-slot scratch (cond/layer/pulse/persist) lives in per-preset
+    ; namespaced StorageUtil scalar keys written during cold load; they persist
+    ; across preset swaps, so a warm hit has nothing per-slot to restore. Only
+    ; the preset-scoped transition / fade-on-death scalars are read back below.
     _sTransitionDuration    = StorageUtil.GetFloatValue(None, ck + ".transition.duration", 1.0)
     _sFadeOnDeathEnabled    = StorageUtil.GetIntValue(None, ck + ".fadeondeath.enabled", 0) > 0
     _sFadeOnDeathMode       = StorageUtil.GetIntValue(None, ck + ".fadeondeath.mode", 0)
@@ -7283,19 +7332,9 @@ Function _saveScratchToCache(string name)
         return
     endif
     string ck = "mtf.scratch.cached." + name
-    StorageUtil.StringListCopy(None, ck + ".cond.pluginid",       _sCondPluginId)
-    StorageUtil.IntListCopy(None,    ck + ".cond.param",          _sCondParam)
-    StorageUtil.StringListCopy(None, ck + ".cond.packid",         _sCondPackId)
-    StorageUtil.StringListCopy(None, ck + ".cond.entryid",        _sCondEntryId)
-    StorageUtil.IntListCopy(None,    ck + ".cooldown.min",        _sCooldownMin)
-    StorageUtil.IntListCopy(None,    ck + ".cooldown.mode",       _sCooldownMode)
-    StorageUtil.FloatListCopy(None,  ck + ".pulse.rate",          _sCondPulseRate)
-    StorageUtil.IntListCopy(None,    ck + ".pulse.depth",         _sCondPulseDepth)
-    StorageUtil.StringListCopy(None, ck + ".pulse.waveform",      _sCondWaveform)
-    StorageUtil.IntListCopy(None,    ck + ".layer.tint",          _sCondLayerTint)
-    StorageUtil.IntListCopy(None,    ck + ".layer.emissive",      _sCondLayerEmissive)
-    StorageUtil.FloatListCopy(None,  ck + ".layer.emissivemult",  _sCondLayerEmissiveMult)
-    StorageUtil.IntListCopy(None,    ck + ".layer.alpha",         _sCondLayerAlpha)
+    ; v6: per-slot scratch already persisted to per-preset namespaced scalar
+    ; keys during the cold-load loop; only the preset-scoped scalars + version
+    ; stamp are written here.
     StorageUtil.SetFloatValue(None,  ck + ".transition.duration",  _sTransitionDuration)
     StorageUtil.SetIntValue(None,    ck + ".fadeondeath.enabled",  _sFadeOnDeathEnabled as int)
     StorageUtil.SetIntValue(None,    ck + ".fadeondeath.mode",     _sFadeOnDeathMode)
@@ -7329,7 +7368,11 @@ bool Function _loadPresetToScratch(string name)
  namespaced by preset name). On miss: full JSON cold load + final
  `_saveScratchToCache` so future swaps to this preset are warm.}
     _ensureScratchArrays()
-    if name == _scratchLoadedFor
+    ; v6: also require the scratch to be cached under the CURRENT version. On a
+    ; mod-version upgrade _scratchLoadedFor survives in the save but the new
+    ; per-slot scalar keys don't exist yet; gating on _isScratchCached forces a
+    ; one-time cold rebuild instead of fast-returning onto empty scratch.
+    if name == _scratchLoadedFor && _isScratchCached(name)
         return name != ""
     endif
     if name == ""
@@ -7378,38 +7421,27 @@ bool Function _loadPresetToScratch(string name)
     int maxE = MAX_EFFECTS_PER_SLOT()
     int maxC = MAX_CONDITIONS()
     int mcmCap = MAX_CONDITIONS_MCM()
-    ; Build into LOCAL arrays inside the loop, then assign each whole array
-    ; back to the script-level vars at the end. Indexed writes to script-
-    ; level array vars on quest scripts can hit transient copies just like
-    ; properties (same Papyrus quirk). Whole-array reference assignment is
-    ; the only pattern that reliably persists.
-    string[] localCondPluginId    = new string[8]
-    int[]    localCondParam       = new int[8]
-    string[] localCondPackId      = new string[8]
-    string[] localCondEntryId     = new string[8]
-    int[]    localPersistMin      = new int[8]    ; semantic: persistMin (storage = _sCooldownMin)
-    int[]    localAllowOverride   = new int[8]    ; semantic: allowOverride (storage = _sCooldownMode)
-    float[]  localPulseRate       = new float[8]
-    int[]    localPulseDepth      = new int[8]
-    string[] localWaveform        = new string[8]
-    int[]    localLayerTint       = new int[32]
-    int[]    localLayerEmissive   = new int[32]
-    float[]  localLayerEmMult     = new float[32]
-    int[]    localLayerAlpha      = new int[32]
+    ; v6: unified cold-load loop over EVERY slot 0..maxC. All per-slot scratch
+    ; state — cond pre-scan mirror, layer visual, pulse, persist — writes through
+    ; per-preset namespaced StorageUtil accessors (_setScratch*). The fixed
+    ; length-8 _s* arrays are gone, so there is no MCM-cap / backend-cap split:
+    ; every slot carries its own visual, pulse and persist up to MAX_CONDITIONS().
+    ; Effect rows use the namespaced FX scratch keyspace (already slot-indexed,
+    ; any slot), written through the ForPreset variants so a VM yield mid-write
+    ; can't rebind the namespace (the v0.2.12 race that motivated them).
     int s = 0
-    while s < 8
+    while s <= maxC
         string sp = ".slot[" + s + "]"
-        ; v0.3.1: condition 0 now lives at .cond.items[0]. This scratch copy only
-        ; feeds the evaluateTierForActor pre-scan gate ("is slot configured" +
-        ; allowOverride); the real multi-condition AND/OR eval reads the full
-        ; .cond.items[] array via _slotCondsMetJson, so only item 0 is mirrored.
+        ; v0.3.1: condition 0 lives at .cond.items[0]; this scratch mirror only
+        ; feeds the evaluateTierForActor pre-scan gate. The real multi-condition
+        ; AND/OR eval reads the full .cond.items[] array via _slotCondsMetJson.
         string slotCondKey = JsonUtil.GetPathStringValue(f, sp + ".cond.items[0].pluginid", "")
-        localCondPluginId[s] = slotCondKey
+        _setScratchCondPluginId(s, slotCondKey)
         if _condParamIsMenu(slotCondKey)
             _setScratchCondParamStr(s, JsonUtil.GetPathStringValue(f, sp + ".cond.items[0].param", ""))
-            localCondParam[s] = 0
+            _setScratchCondParam(s, 0)
         else
-            localCondParam[s] = JsonUtil.GetPathIntValue(f, sp + ".cond.items[0].param", 0)
+            _setScratchCondParam(s, JsonUtil.GetPathIntValue(f, sp + ".cond.items[0].param", 0))
             _setScratchCondParamStr(s, "")
         endif
         if _condParam2IsMenu(slotCondKey)
@@ -7417,57 +7449,41 @@ bool Function _loadPresetToScratch(string name)
         else
             _setScratchCondParam2Str(s, "")
         endif
-        localCondPackId[s]   = JsonUtil.GetPathStringValue(f, sp + ".cond.packid",   "")
-        localCondEntryId[s]  = JsonUtil.GetPathStringValue(f, sp + ".cond.entryid",  "")
-        ; v0.2.9 per-slot display name into the per-preset scratch keyspace.
-        ; Currently only the MCM consumes this (NPCs don't render labels), but
-        ; the scratch population keeps the read-shape uniform across all slots.
-        _setScratchCondName(s, JsonUtil.GetPathStringValue(f, sp + ".name", ""))
-        ; v0.1.24 cooldown rework — read new schema 8 keys only. Defaults
-        ; per the migration policy: persist=0, allowOverride=1, cool=0.
-        localPersistMin[s]    = JsonUtil.GetPathIntValue(f, sp + ".persist.min", 0)
-        localAllowOverride[s] = JsonUtil.GetPathIntValue(f, sp + ".persist.allowOverride", 1)
-        _setScratchCoolMin(s, JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
-        localPulseRate[s]    = JsonUtil.GetPathFloatValue(f,  sp + ".pulse.rate",   0.0)
-        localPulseDepth[s]   = JsonUtil.GetPathIntValue(f,    sp + ".pulse.depth",  0)
-        localWaveform[s]     = JsonUtil.GetPathStringValue(f, sp + ".pulse.waveform", "")
-        _setScratchPulsePause(s, JsonUtil.GetPathFloatValue(f, sp + ".pulse.pause", 0.0))
+        _setScratchCondPackId(s,  JsonUtil.GetPathStringValue(f, sp + ".cond.packid",  ""))
+        _setScratchCondEntryId(s, JsonUtil.GetPathStringValue(f, sp + ".cond.entryid", ""))
+        ; v0.2.9 per-slot display name (MCM consumer only; uniform across slots).
+        _setScratchCondName(s,    JsonUtil.GetPathStringValue(f, sp + ".name", ""))
+        ; v0.1.24 cooldown rework — persist.min / persist.allowOverride / cool.min.
+        ; Defaults: persistMin=0, allowOverride=1, cool=0.
+        _setScratchPersistMin(s,    JsonUtil.GetPathIntValue(f, sp + ".persist.min", 0))
+        _setScratchAllowOverride(s, JsonUtil.GetPathIntValue(f, sp + ".persist.allowOverride", 1))
+        _setScratchCoolMin(s,       JsonUtil.GetPathIntValue(f, sp + ".cool.min", 0))
+        _setScratchPulseRate(s,  JsonUtil.GetPathFloatValue(f,  sp + ".pulse.rate",   0.0))
+        _setScratchPulseDepth(s, JsonUtil.GetPathIntValue(f,    sp + ".pulse.depth",  0))
+        _setScratchWaveform(s,   JsonUtil.GetPathStringValue(f, sp + ".pulse.waveform", ""))
+        _setScratchPulsePause(s, JsonUtil.GetPathFloatValue(f,  sp + ".pulse.pause",  0.0))
         int L = 0
         while L < maxL
-            int li = s * maxL + L
             string lp = sp + ".layer[" + L + "]"
-            localLayerTint[li]     = _readColor(f, lp + ".tint",         16777215)
-            localLayerEmissive[li] = _readColor(f, lp + ".emissive",     16777215)
-            localLayerEmMult[li]   = JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 0.0)
-            localLayerAlpha[li]    = JsonUtil.GetPathIntValue(f,   lp + ".alpha",        100)
+            _setScratchLayerTint(s, L,         _readColor(f, lp + ".tint",         16777215))
+            _setScratchLayerEmissive(s, L,     _readColor(f, lp + ".emissive",     16777215))
+            _setScratchLayerEmissiveMult(s, L, JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 0.0))
+            _setScratchLayerAlpha(s, L,        JsonUtil.GetPathIntValue(f,   lp + ".alpha",        100))
             L += 1
         endwhile
+        ; v0.2.7 perf fast-path: a slot past the MCM cap with an empty pluginId
+        ; has no condition to evaluate, so its effect bindings are dead — skip
+        ; the inner effect loop. MCM-cap slots (0..mcmCap) iterate unconditionally
+        ; so stale bindings from a previously-loaded preset get cleared.
+        bool runEffectLoop = (s <= mcmCap) || (slotCondKey != "")
         int e = 0
-        while e < maxE
+        while runEffectLoop && e < maxE
             string ep = sp + ".effect[" + e + "]"
-            ; Scratch effect storage lives in StorageUtil under
-            ; mtf.fx.scratch.<_scratchLoadedFor>.<slot>.<idx>.*. Per-preset
-            ; namespacing (Plan B v2) lets the StorageUtil cache hit path
-            ; skip these writes — each preset's effect bindings persist
-            ; across swaps under its own key segment. Missing entries
-            ; default to "" / 0.
             string effKey = JsonUtil.GetPathStringValue(f, ep + ".key", "")
-            ; v0.2.12: writes go through ForPreset variants — the inner sn
-            ; loop calls pLoadX.GetEffectParamMenuOptionCount which is a
-            ; cross-script call and yields the VM. A concurrent fiber's
-            ; _loadPresetToScratch can run during that yield and rebind
-            ; _scratchLoadedFor; legacy _writeFxKey / _writeFxParamN[Str]
-            ; would then redirect our subsequent writes to its namespace,
-            ; leaving OUR preset's scratch storage partially-written and
-            ; the subsequent dispatch reading empty effect keys. Threading
-            ; `name` explicitly through every write keeps them pinned to
-            ; THIS preset's namespace regardless of fiber interleaving.
             _writeFxKeyForPreset(s, e, true, name, effKey)
-            ; v0.2.1: uniform paramN scratch load. Walk 1..5, fall back to
-            ; the bound effect's declared default when the preset omits a
-            ; paramN key. Missing-entry sentinel = -999999 (cleaner than the
-            ; old hardcoded 0 default — a preset that legitimately stores 0
-            ; on a param now round-trips correctly).
+            ; v0.2.1: uniform paramN load. Walk 1..5, fall back to the bound
+            ; effect's declared default when the preset omits a paramN key.
+            ; v0.2.9/v0.3.x: menu + text params read as string, sliders as int.
             MTF_Plugin pLoadX = None
             int itemIdxX = -1
             if effKey != ""
@@ -7478,9 +7494,6 @@ bool Function _loadPresetToScratch(string name)
             endif
             int sn = 1
             while sn <= 5
-                ; v0.2.9: menu effect params read as string; sliders as int.
-                ; Catalog probe per param.
-                ; v0.3.x: text params also read as string (same path as menus).
                 bool isStrSn = (itemIdxX >= 0 && (pLoadX.GetEffectParamMenuOptionCount(itemIdxX, sn) > 0 || pLoadX.GetEffectParamIsText(itemIdxX, sn)))
                 if isStrSn
                     string snStr = JsonUtil.GetPathStringValue(f, ep + ".param" + sn, "")
@@ -7508,86 +7521,6 @@ bool Function _loadPresetToScratch(string name)
         endwhile
         s += 1
     endwhile
-    ; Whole-array reference assignments — the safe pattern. (Effect arrays
-    ; moved to StorageUtil scratch keys above; no array assign needed.)
-    _sCondPluginId          = localCondPluginId
-    _sCondParam             = localCondParam
-    _sCondPackId            = localCondPackId
-    _sCondEntryId           = localCondEntryId
-    _sCooldownMin           = localPersistMin     ; semantic: _sPersistMin
-    _sCooldownMode          = localAllowOverride  ; semantic: _sAllowOverride
-    _sCondPulseRate         = localPulseRate
-    _sCondPulseDepth        = localPulseDepth
-    _sCondWaveform          = localWaveform
-    _sCondLayerTint         = localLayerTint
-    _sCondLayerEmissive     = localLayerEmissive
-    _sCondLayerEmissiveMult = localLayerEmMult
-    _sCondLayerAlpha        = localLayerAlpha
-
-    ; v0.2.7 backend slots (s > MCM cap) load cond bindings + effect rows
-    ; into per-preset StorageUtil keys instead of widening the script-level
-    ; _s* arrays (the latter crashed PapyrusUtil on existing saves — see
-    ; _ensureScratchArrays comment block). Each backend slot writes its
-    ; cond.pluginid / cond.param to namespaced keys; the effect rows reuse
-    ; the same mtf.fx.scratch.<name>.<slot>.<e>.* keyspace as MCM slots
-    ; (already slot-indexed, no widening needed there).
-    int sb = mcmCap + 1
-    while sb <= maxC
-        string sp_b = ".slot[" + sb + "]"
-        ; v0.3.1: backend-slot condition 0 at .cond.items[0] (see player-slot
-        ; loader above — scratch mirror only feeds the pre-scan gate).
-        string pid_b = JsonUtil.GetPathStringValue(f, sp_b + ".cond.items[0].pluginid", "")
-        _setScratchCondPluginId(sb, pid_b)
-        if _condParamIsMenu(pid_b)
-            _setScratchCondParamStr(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.items[0].param", ""))
-            _setScratchCondParam(sb, 0)
-        else
-            _setScratchCondParam(sb, JsonUtil.GetPathIntValue(f, sp_b + ".cond.items[0].param", 0))
-            _setScratchCondParamStr(sb, "")
-        endif
-        if _condParam2IsMenu(pid_b)
-            _setScratchCondParam2Str(sb, JsonUtil.GetPathStringValue(f, sp_b + ".cond.items[0].param2", ""))
-        else
-            _setScratchCondParam2Str(sb, "")
-        endif
-        ; v0.2.9 per-slot display name (backend slot path).
-        _setScratchCondName(sb,     JsonUtil.GetPathStringValue(f, sp_b + ".name", ""))
-        ; cool.min for the backend slot (StorageUtil-keyed; safe for any slot).
-        _setScratchCoolMin(sb, JsonUtil.GetPathIntValue(f, sp_b + ".cool.min", 0))
-        ; Fast-skip: empty backend slot has no effects to write.
-        if pid_b != ""
-            int eb = 0
-            while eb < maxE
-                string ep_b = sp_b + ".effect[" + eb + "]"
-                string effKey_b = JsonUtil.GetPathStringValue(f, ep_b + ".key", "")
-                _writeFxKey(sb, eb, true, effKey_b)
-                MTF_Plugin pLoadB = None
-                int itemIdxB = -1
-                if effKey_b != ""
-                    pLoadB = ResolvePluginByKey(effKey_b)
-                    if pLoadB != None
-                        itemIdxB = _effectIdxFor(pLoadB, _keyItemId(effKey_b))
-                    endif
-                endif
-                int snb = 1
-                while snb <= 5
-                    int sentinelB = -999999
-                    int vb = JsonUtil.GetPathIntValue(f, ep_b + ".param" + snb, sentinelB)
-                    if vb == sentinelB
-                        if itemIdxB >= 0
-                            vb = pLoadB.GetEffectParamDefault(itemIdxB, snb)
-                        else
-                            vb = 0
-                        endif
-                    endif
-                    _writeFxParamN(sb, eb, snb, true, vb)
-                    snb += 1
-                endwhile
-                eb += 1
-            endwhile
-        endif
-        sb += 1
-    endwhile
 
     ; _scratchLoadedFor was already set at the top of cold load so the
     ; namespaced FX writes above resolved correctly. Persist the
@@ -7612,14 +7545,8 @@ string Function _g_condPluginId(int slot, bool useScratch)
         if slot < 0
             return ""
         endif
-        ; v0.2.7: MCM-cap slots live in the 8-deep _s* array; backend
-        ; slots (slot >= 8) read from per-preset StorageUtil keys. The
-        ; arrays stayed at length 8 because resizing them mid-save
-        ; crashes PapyrusUtil — see _ensureScratchArrays comment.
-        if slot >= _sCondPluginId.Length
-            return _getScratchCondPluginId(slot)
-        endif
-        return _sCondPluginId[slot]
+        ; v6: every slot reads from per-preset StorageUtil keys.
+        return _getScratchCondPluginId(slot)
     endif
     ; Player path: StorageUtil-backed, all slots up to MAX_CONDITIONS().
     return GetCondPluginId(slot)
@@ -7633,10 +7560,7 @@ int Function _g_condParam(int slot, bool useScratch)
         if slot < 0
             return 0
         endif
-        if slot >= _sCondParam.Length
-            return _getScratchCondParam(slot)
-        endif
-        return _sCondParam[slot]
+        return _getScratchCondParam(slot)
     endif
     return GetCondParam(slot)
 EndFunction
@@ -7651,13 +7575,10 @@ int Function _g_allowOverride(int slot, bool useScratch)
         if !_sArraysReady
             return 1   ; safe default: allow override when scratch not loaded
         endif
-        ; v0.2.7: backend slots (slot >= 8) get the default allowOverride=1.
-        ; Per-slot custom persist semantics aren't supported on backend scratch
-        ; — _s* arrays stay length 8.
-        if slot < 0 || slot >= _sCooldownMode.Length
+        if slot < 0
             return 1
         endif
-        return _sCooldownMode[slot]
+        return _getScratchAllowOverride(slot)
     endif
     return GetCondAllowOverride(slot)
 EndFunction
@@ -7667,11 +7588,10 @@ int Function _g_persistMin(int slot, bool useScratch)
         if !_sArraysReady
             return 0
         endif
-        ; v0.2.7: backend slots default persistMin=0 (no persist window).
-        if slot < 0 || slot >= _sCooldownMin.Length
+        if slot < 0
             return 0
         endif
-        return _sCooldownMin[slot]
+        return _getScratchPersistMin(slot)
     endif
     return GetCondPersistMin(slot)
 EndFunction
@@ -7688,12 +7608,10 @@ float Function _g_pulseRate(int slot, bool useScratch)
         if !_sArraysReady
             return 0.0
         endif
-        ; v0.2.7: backend slots don't have per-slot pulse — return 0
-        ; (Default's pulse, if any, would apply via the inheritance path).
-        if slot < 0 || slot >= _sCondPulseRate.Length
+        if slot < 0
             return 0.0
         endif
-        return _sCondPulseRate[slot]
+        return _getScratchPulseRate(slot)
     endif
     return GetCondPulseRate(slot)
 EndFunction
@@ -7703,10 +7621,10 @@ int Function _g_pulseDepth(int slot, bool useScratch)
         if !_sArraysReady
             return 0
         endif
-        if slot < 0 || slot >= _sCondPulseDepth.Length
+        if slot < 0
             return 0
         endif
-        return _sCondPulseDepth[slot]
+        return _getScratchPulseDepth(slot)
     endif
     return GetCondPulseDepth(slot)
 EndFunction
@@ -7843,15 +7761,13 @@ string Function _g_resolvePackId(int slot, bool useScratch)
     if !_sArraysReady
         return ""
     endif
-    ; v0.2.7: backend slots (slot >= _sCondPackId.Length) have no per-slot
-    ; visual; inherit Default's (slot 0) packId same as the in-range empty
-    ; case below.
-    if slot < 0 || slot >= _sCondPackId.Length
-        return _sCondPackId[0]
+    if slot < 0
+        return _getScratchCondPackId(0)
     endif
-    string pid = _sCondPackId[slot]
+    ; v6: empty packId on a non-Default slot still inherits slot 0's pack.
+    string pid = _getScratchCondPackId(slot)
     if pid == "" && slot > 0
-        return _sCondPackId[0]
+        return _getScratchCondPackId(0)
     endif
     return pid
 EndFunction
@@ -7863,13 +7779,13 @@ string Function _g_resolveEntryId(int slot, bool useScratch)
     if !_sArraysReady
         return ""
     endif
-    if slot < 0 || slot >= _sCondEntryId.Length
-        return _sCondEntryId[0]
+    if slot < 0
+        return _getScratchCondEntryId(0)
     endif
-    if slot > 0 && _sCondPackId[slot] == ""
-        return _sCondEntryId[0]
+    if slot > 0 && _getScratchCondPackId(slot) == ""
+        return _getScratchCondEntryId(0)
     endif
-    return _sCondEntryId[slot]
+    return _getScratchCondEntryId(slot)
 EndFunction
 
 ; v0.2.8: _safeLayerIdx retired — the StorageUtil-backed accessors return
@@ -7879,40 +7795,44 @@ EndFunction
 ; (slot 0..7 only; backend NPC slots have no per-slot visuals).
 int Function _g_layerTint(int lidx, bool useScratch)
     if useScratch
-        if !_sArraysReady || lidx < 0 || lidx >= _sCondLayerTint.Length
+        if !_sArraysReady || lidx < 0
             return 16777215
         endif
-        return _sCondLayerTint[lidx]
+        int maxLs = MAX_LAYERS_PER_SLOT()
+        return _getScratchLayerTint(lidx / maxLs, lidx % maxLs)
     endif
     int maxL = MAX_LAYERS_PER_SLOT()
     return GetCondLayerTint(lidx / maxL, lidx % maxL)
 EndFunction
 int Function _g_layerEmissive(int lidx, bool useScratch)
     if useScratch
-        if !_sArraysReady || lidx < 0 || lidx >= _sCondLayerEmissive.Length
+        if !_sArraysReady || lidx < 0
             return 16777215
         endif
-        return _sCondLayerEmissive[lidx]
+        int maxLs = MAX_LAYERS_PER_SLOT()
+        return _getScratchLayerEmissive(lidx / maxLs, lidx % maxLs)
     endif
     int maxL = MAX_LAYERS_PER_SLOT()
     return GetCondLayerEmissive(lidx / maxL, lidx % maxL)
 EndFunction
 float Function _g_layerEmissiveMult(int lidx, bool useScratch)
     if useScratch
-        if !_sArraysReady || lidx < 0 || lidx >= _sCondLayerEmissiveMult.Length
+        if !_sArraysReady || lidx < 0
             return 0.0
         endif
-        return _sCondLayerEmissiveMult[lidx]
+        int maxLs = MAX_LAYERS_PER_SLOT()
+        return _getScratchLayerEmissiveMult(lidx / maxLs, lidx % maxLs)
     endif
     int maxL = MAX_LAYERS_PER_SLOT()
     return GetCondLayerEmissiveMult(lidx / maxL, lidx % maxL)
 EndFunction
 int Function _g_layerAlpha(int lidx, bool useScratch)
     if useScratch
-        if !_sArraysReady || lidx < 0 || lidx >= _sCondLayerAlpha.Length
+        if !_sArraysReady || lidx < 0
             return 100
         endif
-        return _sCondLayerAlpha[lidx]
+        int maxLs = MAX_LAYERS_PER_SLOT()
+        return _getScratchLayerAlpha(lidx / maxLs, lidx % maxLs)
     endif
     int maxL = MAX_LAYERS_PER_SLOT()
     return GetCondLayerAlpha(lidx / maxL, lidx % maxL)
@@ -8501,7 +8421,7 @@ Function _rosterAddOrUpdate(Actor a, string name, int tier, float startRT, bool 
  the two queues into the C++ pending list and they're all installed at
  once with a single shared transition_start at EndBatch. Nothing extra
  is needed here.}
-    if a == None || name == "" || tier < 0 || tier >= 8
+    if a == None || name == "" || tier < 0 || tier > MAX_CONDITIONS_CACHED()
         return
     endif
     ; v0.1.17 Phase 3 (multi-area): a preset can paint across multiple area
