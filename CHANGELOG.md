@@ -27,6 +27,13 @@ versions are the Nexus release tags.
   field was added so templates read naturally). NPCs perceive a tattoo by
   sight — where it is and what it looks like — never by its label.
 
+- **Fertility (BFNG) condition/effect labels reworded to be self-explanatory.**
+  The `mtf.bfng.json` catalog labels now say what each entry *does* rather than
+  giving it a flavour name — e.g. "Pregnancy" → "Is Pregnant", "Cycle Phase" →
+  "Menstrual Cycle Phase", "Mark of Fecundity" → "Force Multiple Babies (while
+  worn)", "Hex of Barrenness" → "Prevent Conception (while worn)". Labels only;
+  no id, parameter, or behaviour changes, so existing presets are unaffected.
+
 ### Added
 
 - **SkyrimNet — persistent visual-change event.** On a tier transition the
@@ -60,6 +67,18 @@ versions are the Nexus release tags.
   (RaceMenu + SlaveTats) now names its two layers `fill` (the solid design)
   and `glow` (the edge emissive). Read host-side via `GetEntryLayerName`;
   purely cosmetic, no behaviour change for packs that don't set it.
+
+- **Stuck-shader recovery.** A new maintenance path brute-force `Stop()`s every
+  vanilla effect-shader MTF can play (invisibility, ghost, soul-trap, the flesh
+  spells, …) on an actor and resets its alpha, recovering someone left
+  invisible or shaded by a leaked duration-0 shader whose paired `Stop()` was
+  dropped (VM saturation or a `.pex` rebuild mid-save). Reachable two ways: the
+  **MCM** button *General → Maintenance → "Clear stuck FX on console target"*
+  (acts on the current console selection), and the `MTF_StopAllShaders` mod
+  event (sender = target actor, `None` → player) for programmatic callers such
+  as a SkyrimNet action. Every call is idempotent — `Stop()` on a non-playing
+  shader and `SetAlpha(1)` on a visible actor are both no-ops, so it is
+  harmless on the wrong target.
 
 ## [v0.4.3] — 2026-06-14
 

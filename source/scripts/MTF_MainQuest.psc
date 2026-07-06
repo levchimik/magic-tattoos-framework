@@ -8850,6 +8850,49 @@ Function ApiApplyPreset(Actor target, string presetName)
     _apiEmitApplyResult(target, presetName, rc)
 EndFunction
 
+Function StopAllMtfShadersOn(Actor target)
+{Recovery: brute-force Stop every vanilla EffectShader MTF can Play on `target`
+ and reset alpha. Clears an actor left invisible/shaded by a leaked Duration-0
+ shader.play whose paired Stop() was dropped (VM saturation, or a .pex rebuild
+ mid-save). Stop() on a non-playing shader and SetAlpha(1) on a visible actor
+ are both no-ops, so calling this on the wrong target is harmless. Reached from
+ the MCM "Clear stuck FX" button and the MTF_StopAllShaders mod event.}
+    if target == None
+        return
+    endif
+    ; Keep in sync with MTF_Plugin_Base._shaderFormIdById (22 vanilla shaders).
+    _stopMtfFx(target, 0x0002acd8) ; fire_cloak
+    _stopMtfFx(target, 0x0001b212) ; fire_burst
+    _stopMtfFx(target, 0x0001f03a) ; frost
+    _stopMtfFx(target, 0x0010a043) ; frost_chillrend
+    _stopMtfFx(target, 0x00057c67) ; shock
+    _stopMtfFx(target, 0x0003bf79) ; shock_storm
+    _stopMtfFx(target, 0x00094161) ; stoneflesh
+    _stopMtfFx(target, 0x00094162) ; ebonyflesh
+    _stopMtfFx(target, 0x000e9ac8) ; dragonhide
+    _stopMtfFx(target, 0x000506d7) ; soul_trap
+    _stopMtfFx(target, 0x0003b6cb) ; ghost_ethereal
+    _stopMtfFx(target, 0x000fe68c) ; ghost_red
+    _stopMtfFx(target, 0x0002df92) ; invisibility
+    _stopMtfFx(target, 0x000bcf25) ; muffle
+    _stopMtfFx(target, 0x0001c858) ; ward_shield
+    _stopMtfFx(target, 0x00075272) ; reanimate
+    _stopMtfFx(target, 0x000e7557) ; turn_undead_flames
+    _stopMtfFx(target, 0x00012fd9) ; heal
+    _stopMtfFx(target, 0x000abeff) ; absorb_health
+    _stopMtfFx(target, 0x000fd804) ; vampire_change
+    _stopMtfFx(target, 0x000ebec5) ; werewolf_transform
+    _stopMtfFx(target, 0x00000146) ; detect_life
+    target.SetAlpha(1.0)
+EndFunction
+
+Function _stopMtfFx(Actor t, int fid)
+    EffectShader es = Game.GetFormFromFile(fid, "Skyrim.esm") as EffectShader
+    if es
+        es.Stop(t)
+    endif
+EndFunction
+
 Function ApiRemovePreset(Actor target, string presetName)
 {Inbound MTF_RemovePreset dispatch. Refuses to remove if the API didn't
  apply this preset to this actor; otherwise calls RemoveAppliedPreset and

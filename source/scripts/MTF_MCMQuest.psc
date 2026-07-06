@@ -381,6 +381,11 @@ function drawGeneralPage()
     AddToggleOptionST("GEN_RESCAN_ON_LOAD",  "Rescan packs on load",   MainQuest.GetRescanOnLoad())
     AddToggleOptionST("GEN_DEBUG_MODE",      "Debug mode",             MainQuest.DebugMode)
 
+    ; Recovery: clear a leaked effect-shader (invisibility/ghost/...) left stuck
+    ; on an actor. Costs one named state (125/127 with it).
+    AddHeaderOption("Maintenance")
+    AddTextOptionST("GEN_STOP_SHADERS", "Clear stuck FX on console target", "")
+
     ; SkyrimNet integration — only shown when SkyrimNet.esp is installed
     ; (mirrors the bridge's own soft-detect). State-based toggle; the legacy
     ; per-item TOGGLE pool refactor (see drawPluginsPage) freed enough named
@@ -851,6 +856,21 @@ state GEN_RESCAN_ON_LOAD
     endEvent
     event OnHighlightST()
         SetInfoText("Automatically re-scan the visuals/ folder for content-pack JSONs every time a save loads, so packs installed or removed since last session are picked up without opening this menu. Same work as 'Reload visual packs', run on load. Default ON.")
+    endEvent
+endState
+
+state GEN_STOP_SHADERS
+    event OnSelectST()
+        Actor t = Game.GetCurrentConsoleRef() as Actor
+        if t == None
+            SetTextOptionValueST("(no console target)")
+            return
+        endif
+        MainQuest.StopAllMtfShadersOn(t)
+        SetTextOptionValueST("(cleared: " + t.GetDisplayName() + ")")
+    endEvent
+    event OnHighlightST()
+        SetInfoText("Brute-force stops every MTF effect-shader (invisibility, ghost, soul-trap, ...) on the actor currently selected in the console, and resets its alpha. Recovers an actor left invisible/shaded by a leaked shader. Open the console, click the actor (the selection persists after you close the console), then click this. Harmless if nothing is stuck.")
     endEvent
 endState
 

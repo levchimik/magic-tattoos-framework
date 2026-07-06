@@ -5,7 +5,7 @@
   "conditions": [
     {
       "id": "pregnancy",
-      "label": "Pregnancy",
+      "label": "Is Pregnant",
       "description": "is pregnant and at least {param1}% through the pregnancy",
       "param": {
         "label": "Min belly stage (1-100)",
@@ -16,12 +16,12 @@
     },
     {
       "id": "ovulation",
-      "label": "Ovulation",
+      "label": "Is Ovulating",
       "description": "is ovulating and at her most fertile"
     },
     {
       "id": "cycle.phase",
-      "label": "Cycle Phase",
+      "label": "Menstrual Cycle Phase",
       "description": "is in the {param1} part of her monthly cycle",
       "param": {
         "label": "Phase",
@@ -48,7 +48,7 @@
     },
     {
       "id": "baby.health",
-      "label": "Baby Health",
+      "label": "Unborn Baby Health",
       "description": "is pregnant and the unborn baby is at least {param1}% healthy",
       "param": {
         "label": "Min baby health (0-100)",
@@ -59,7 +59,7 @@
     },
     {
       "id": "num.births",
-      "label": "Birth Count",
+      "label": "Times Given Birth",
       "description": "has given birth at least {param1} time(s) before",
       "param": {
         "label": "Min births",
@@ -70,7 +70,7 @@
     },
     {
       "id": "pregnancy.stage",
-      "label": "Pregnancy Stage",
+      "label": "Pregnancy Stage (Trimester)",
       "description": "is in the {param1} stage of pregnancy",
       "param": {
         "label": "Stage",
@@ -86,7 +86,7 @@
     },
     {
       "id": "father.near",
-      "label": "Father Nearby",
+      "label": "Father of Current Baby Nearby",
       "description": "the father of the child she is carrying is within {param1} m",
       "param": {
         "label": "Radius (m)",
@@ -99,7 +99,7 @@
     },
     {
       "id": "father.near.past",
-      "label": "Past Father Nearby",
+      "label": "Father of a Past Child Nearby",
       "description": "a father of one of her already-born children is within {param1} m",
       "param": {
         "label": "Radius (m)",
@@ -114,13 +114,13 @@
   "effects": [
     {
       "id": "trigger.ovulation",
-      "label": "Trigger Ovulation",
+      "label": "Start Ovulation",
       "description": "Makes the actor begin ovulating (no effect if she is already pregnant).",
       "kind": "burst"
     },
     {
       "id": "mark.fecundity",
-      "label": "Mark of Fecundity",
+      "label": "Force Multiple Babies (while worn)",
       "description": "While worn, guarantees a multiple pregnancy — raises the litter to {param1} babies if fewer were conceived. Never lowers a larger litter.",
       "param1": {
         "label": "Number of babies",
@@ -131,65 +131,65 @@
     },
     {
       "id": "hex.barren",
-      "label": "Hex of Barrenness",
+      "label": "Prevent Conception (while worn)",
       "description": "While worn, the actor cannot conceive. Her natural fertility is restored when the tattoo is removed."
     },
     {
       "id": "charm.serenity",
-      "label": "Charm of Serenity",
+      "label": "Suppress PMS (while worn)",
       "description": "While worn, suppresses the actor's PMS. Restored on removal."
     },
     {
       "id": "purge.contraception",
-      "label": "Purge Contraception",
+      "label": "Remove All Contraception",
       "description": "Instantly strips all contraceptive protection from the actor.",
       "kind": "burst"
     },
     {
       "id": "gift.fertility",
-      "label": "Gift of Fertility",
+      "label": "Allow Conception This Cycle",
       "description": "Re-enables conception for the actor this cycle (does not force pregnancy on its own).",
       "kind": "burst"
     },
     {
       "id": "induce.pms",
-      "label": "Induce PMS",
+      "label": "Enable PMS",
       "description": "Re-enables PMS for the actor.",
       "kind": "burst"
     },
     {
       "id": "restore.natural",
-      "label": "Restore Natural Cycle",
+      "label": "Restore Automatic Cycle",
       "description": "Clears all manual fertility and PMS overrides, returning the actor to Beeing Female's automatic behavior.",
       "kind": "burst"
     },
     {
       "id": "rite.quickening",
-      "label": "Rite of Quickening",
+      "label": "Conceive From Existing Sperm",
       "description": "Forces conception from sperm already present (no effect if already pregnant or no sperm is present).",
       "kind": "burst"
     },
     {
       "id": "trigger.labor",
-      "label": "Trigger Labor",
+      "label": "Induce Labor (Give Birth)",
       "description": "Induces birth if the actor is in her third trimester.",
       "kind": "burst"
     },
     {
       "id": "reset.cycle",
-      "label": "Reset Cycle",
+      "label": "Restart Menstrual Cycle",
       "description": "Restarts the actor's menstrual cycle from the follicular phase (no effect while pregnant).",
       "kind": "burst"
     },
     {
       "id": "end.pregnancy",
-      "label": "End Pregnancy",
+      "label": "End Pregnancy (Miscarry)",
       "description": "Terminates an active pregnancy (miscarriage). No effect if not pregnant.",
       "kind": "burst"
     },
     {
       "id": "ward.womb",
-      "label": "Ward of the Womb",
+      "label": "Heal Unborn Baby (while worn)",
       "description": "While worn, heals the unborn baby by {param1} health each hour — a protective pregnancy tattoo.",
       "param1": {
         "label": "Unborn health restored per game-hour",
@@ -200,7 +200,7 @@
     },
     {
       "id": "ward.contraception",
-      "label": "Ward of Contraception",
+      "label": "Maintain Contraception (while worn)",
       "description": "While worn, tops up contraception by {param1}% each hour so protection never lapses.",
       "param1": {
         "label": "Contraception added per game-hour (%)",
@@ -211,7 +211,7 @@
     },
     {
       "id": "cleanse.sperm",
-      "label": "Cleanse Sperm",
+      "label": "Wash Out Sperm",
       "description": "Instantly washes out {param1}% of the sperm currently inside the actor.",
       "kind": "burst",
       "param1": {
@@ -223,7 +223,7 @@
     },
     {
       "id": "blight.womb",
-      "label": "Blight of the Womb",
+      "label": "Damage Unborn Baby",
       "description": "Instantly damages the unborn baby by {param1} health. No effect if not pregnant.",
       "kind": "burst",
       "param1": {
