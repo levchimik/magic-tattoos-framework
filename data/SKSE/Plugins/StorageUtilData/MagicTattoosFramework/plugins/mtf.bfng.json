@@ -109,6 +109,11 @@
         "step": 5,
         "format": "{0} m"
       }
+    },
+    {
+      "id": "sperm.present",
+      "label": "Has Sperm Inside",
+      "description": "has fertile sperm inside her right now, viable for conception"
     }
   ],
   "effects": [
@@ -127,6 +132,23 @@
         "min": 2,
         "max": 5,
         "default": 2
+      }
+    },
+    {
+      "id": "mark.fecundity.roll",
+      "label": "Chance of More Babies (while worn)",
+      "description": "While worn, she carries at least {param1} — each further baby then has a {param2}% chance to be added on top, rolled once when she conceives (a high chance can cascade into a large litter). Never lowers a larger natural litter.",
+      "param1": {
+        "label": "Guaranteed babies (at least)",
+        "min": 1,
+        "max": 6,
+        "default": 2
+      },
+      "param2": {
+        "label": "Chance for each additional baby (%)",
+        "min": 0,
+        "max": 100,
+        "default": 25
       }
     },
     {

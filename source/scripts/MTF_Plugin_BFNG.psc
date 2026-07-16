@@ -19,12 +19,18 @@ Scriptname MTF_Plugin_BFNG extends MTF_Plugin
                          sperm donor (FW.SpermName) does NOT count.
    6  father.near.past — father of an already-born child (FW.BornChildFather)
                          is loaded within param metres
+   8  sperm.present    — HasRelevantSperm(t,false): viable sperm inside her now
+                         (BFNG does the relevance/duration/lore-friendly maths).
 
  Effects (eid-keyed; bursts fire in onActivate, sustained set in onActivate
  and restore in onDeactivate):
    trigger.ovulation   burst     ChangeState(t,1). No-op if pregnant/ovulating.
    mark.fecundity      sustained guarantee a multiple pregnancy (setNumBabys),
                                  enforced each game-hour while worn. param1 = babies.
+   mark.fecundity.roll sustained at least param1 babies, +param2% chance each for
+                                 one more (rolled ONCE/pregnancy, stashed, capped
+                                 at _FECUND_ROLL_CAP = BFNG's MaxBabyPregnantWith
+                                 = 6). Never lowers a larger litter.
    hex.barren          sustained block conception while worn; prior flag stashed
                                  and restored on removal (setCanBecomePregnant).
    charm.serenity      sustained suppress PMS while worn (setCanBecomePMS).
@@ -141,6 +147,11 @@ bool Function checkCondition(Actor target, int param, string cid)
     elseif cid == "father.near.past"
         ; father.near.past: a father of an already-born child is loaded within range.
         return _anyFormListActorWithin(target, "FW.BornChildFather", _radiusUnits(param))
+    elseif cid == "sperm.present"
+        ; sperm.present: viable sperm currently inside her (BFNG does the timed
+        ; relevance/duration/lore-friendly maths). bShowTravelingSperm=false so
+        ; not-yet-arrived sperm doesn't count — this is "sperm present NOW".
+        return BFController.HasRelevantSperm(target, false)
     endif
     return false
 EndFunction
@@ -241,6 +252,12 @@ Function onActivate(Actor target, int param, int param2, string eid, int slot, i
         ; a fresh conception doesn't wait up to an hour for the first bump.
         _enforceFecundity(target, param)
 
+    elseif eid == "mark.fecundity.roll"
+        ; Sustained + random: at least param1 babies, each extra rolled at param2%.
+        ; Decided ONCE per pregnancy (stashed) so onGameTime re-enforcement doesn't
+        ; keep growing the litter. Apply now so a fresh conception bumps immediately.
+        _enforceFecundityRoll(target, param, param2, slot, effectIdx)
+
     elseif eid == "cleanse.sperm"
         ; Wash out param% of sperm currently inside her (default 100).
         _bfCmd(target, "WashOutSperm", param)
@@ -273,6 +290,14 @@ Function onDeactivate(Actor target, int param, int param2, string eid, int slot,
         BFController.setCanBecomePregnant(target, _popFlag(target, "barren", slot, effectIdx))
     elseif eid == "charm.serenity"
         BFController.setCanBecomePMS(target, _popFlag(target, "serenity", slot, effectIdx))
+    elseif eid == "mark.fecundity.roll"
+        ; Drop the decided-litter stash when the mark is removed so a re-applied
+        ; mark rolls fresh. (The litter already set on the active pregnancy stays —
+        ; we never lower it; we just stop enforcing.)
+        string rollKey = _fecundRollKey(slot, effectIdx)
+        if StorageUtil.HasIntValue(target, rollKey)
+            StorageUtil.UnsetIntValue(target, rollKey)
+        endif
     endif
 EndFunction
 
@@ -282,6 +307,10 @@ Function onGameTime(Actor target, int param, int param2, string eid, int slot, i
     endif
     if eid == "mark.fecundity"
         _enforceFecundity(target, param)
+    elseif eid == "mark.fecundity.roll"
+        ; Re-enforce the once-decided litter; also clears the decision when she
+        ; is no longer pregnant so the NEXT pregnancy re-rolls (see helper).
+        _enforceFecundityRoll(target, param, param2, slot, effectIdx)
     elseif eid == "ward.womb"
         ; Top up the unborn's health while worn. AddBaby-health is capped at 100
         ; inside BFNG; a no-op when not pregnant.
@@ -326,4 +355,66 @@ Function _enforceFecundity(Actor target, int wantBabies)
     if BFController.IsPregnant(target) && BFController.getNumBabys(target) < wantBabies
         BFController.setNumBabys(target, wantBabies)
     endif
+EndFunction
+
+int Function _FECUND_ROLL_CAP() global
+    ; Hard ceiling on a rolled litter = BFNG's own MaxBabyPregnantWith (6,
+    ; autoreadonly in FWSystem). setNumBabys does NOT clamp, but BFNG's birth
+    ; path force-clamps anything over 6 back to 6 — so forcing a larger litter
+    ; would silently collapse and risk NumChilds/ChildFather list desync. Cap
+    ; here so a 100%-chance cascade never exceeds what the engine can carry.
+    return 6
+EndFunction
+
+string Function _fecundRollKey(int slot, int eff) global
+    ; Per-(slot,effect) stash of the litter size decided for the CURRENT
+    ; pregnancy. Cleared when she's not pregnant (re-roll next time) and on removal.
+    return "mtf.bfng.fecundroll.decided." + slot + "." + eff
+EndFunction
+
+Function _enforceFecundityRoll(Actor target, int minBabies, int chance, int slot, int effectIdx)
+    ; "At least minBabies, +param2% chance for each additional." The extra babies
+    ; are rolled exactly ONCE per pregnancy and stashed, so hourly re-enforcement
+    ; only RAISES to the decided count — it never keeps rolling upward. Mirrors
+    ; _enforceFecundity's "never lower a larger natural litter" rule.
+    string key = _fecundRollKey(slot, effectIdx)
+    if !BFController.IsPregnant(target)
+        ; Not pregnant: forget the old decision so the next conception re-rolls.
+        if StorageUtil.HasIntValue(target, key)
+            StorageUtil.UnsetIntValue(target, key)
+        endif
+        return
+    endif
+    int decided
+    if StorageUtil.HasIntValue(target, key)
+        decided = StorageUtil.GetIntValue(target, key)
+    else
+        decided = _rollLitter(target, minBabies, chance)
+        StorageUtil.SetIntValue(target, key, decided)
+    endif
+    if BFController.getNumBabys(target) < decided
+        BFController.setNumBabys(target, decided)
+    endif
+EndFunction
+
+int Function _rollLitter(Actor target, int minBabies, int chance)
+    ; Decide a litter size: start at max(minBabies, natural litter) — so we never
+    ; undercut what BFNG already conceived — then add +1 per successful param2%
+    ; roll until one fails or the cap is hit.
+    int cap = _FECUND_ROLL_CAP()
+    if minBabies < 1
+        minBabies = 1
+    endif
+    if minBabies > cap
+        minBabies = cap
+    endif
+    int decided = minBabies
+    int natural = BFController.getNumBabys(target)
+    if natural > decided
+        decided = natural
+    endif
+    while decided < cap && Utility.RandomInt(1, 100) <= chance
+        decided += 1
+    endwhile
+    return decided
 EndFunction
