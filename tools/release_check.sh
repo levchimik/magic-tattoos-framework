@@ -99,6 +99,27 @@ for psc in "$SRC"/*.psc; do
 done
 [ "$stale" -eq 0 ] && grn "All .pex up to date with .psc"
 
+# 7. DLL copy-divergence guard. build.bat syncs Release output -> data/ on
+# every successful build, so a mismatch means a manual copy went stale (the
+# exact failure that shipped a May-31 DLL in data/ until 2026-07-12). Only a
+# real risk when MTF_SKIP_DLL=1 makes the FOMOD fall back to data/, so:
+# mismatch = FAIL, missing build output = WARN (freshness unverifiable).
+BUILT_DLL="$ROOT/cpp-plugin/build/x64-Release/Release/MTFPulse.dll"
+DATA_DLL="$ROOT/data/SKSE/Plugins/MTFPulse.dll"
+if [ -f "$BUILT_DLL" ] && [ -f "$DATA_DLL" ]; then
+  if cmp -s "$BUILT_DLL" "$DATA_DLL"; then
+    grn "data/ MTFPulse.dll matches build output"
+  else
+    red "data/SKSE/Plugins/MTFPulse.dll differs from build output — stale copy; re-run cpp-plugin/build.bat"
+  fi
+  newer_src="$(find "$ROOT/cpp-plugin/src" -name '*.cpp' -newer "$BUILT_DLL" 2>/dev/null | head -1)"
+  [ -n "$newer_src" ] && ylw "C++ source newer than built DLL ($(basename "$newer_src")) — rebuild before shipping"
+elif [ -f "$DATA_DLL" ]; then
+  ylw "no build-dir DLL to compare against — data/ DLL freshness unverifiable (risky with MTF_SKIP_DLL=1)"
+else
+  ylw "no MTFPulse.dll found at all — FOMOD would ship without the SKSE plugin"
+fi
+
 echo
 if [ "$fails" -gt 0 ]; then
   printf '\033[31m== %d FAIL, %d WARN — not release-ready ==\033[0m\n' "$fails" "$warns"

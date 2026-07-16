@@ -4,6 +4,65 @@ All notable changes to Magic Tattoos Framework are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/);
 versions are the Nexus release tags.
 
+## [v0.7.0] — 2026-07-16
+
+### Added
+
+- **Active Effects menu readout.** A new "Tattoo Effect" entry in the vanilla
+  Magic → Active Effects menu shows the player's currently-active tattoo
+  effects as readable text. One marker ability (`MTF_Spell_TattooStatus`,
+  ESL-range records 0x92B/0x92C) whose magic-effect description is rewritten
+  at runtime by a new `MTFPulse.SetEffectDescription` native. The menu
+  snapshots descriptions per effect instance, so the marker is re-applied
+  whenever the text genuinely changes — and on every game load, since magic
+  effect descriptions reset to the ESP default on load. INI toggle:
+  `[SkyrimNet] bActiveEffectReadout` (default on).
+- **SkyrimNet colour words.** The "## Magic Tattoos" bio block and the
+  visual-change events now describe layer looks in prose — "blazing crimson",
+  "soft deep pink, semi-transparent" — instead of raw numeric/hex values.
+  Colour names come from an editable 52-colour HTML/CSS-named palette at
+  `StorageUtilData/MagicTattoosFramework/colors.json` (nearest-RGB match; no
+  recompile needed to retune). When a layer glows (emissive non-black and
+  emissive multiplier above ~0), the described colour is the *glow* colour.
+  Pulse changes are narrated too: starts up / goes still / quickens / slows /
+  deepens / grows shallower. No event is emitted when nothing changed.
+- **Beeing Female NG — "Has Sperm Inside" condition.** New `sperm.present`
+  condition: true when the actor currently holds viable (impregnation-relevant)
+  sperm, via BFNG's `HasRelevantSperm`. Paramless.
+- **Beeing Female NG — "Chance of More Babies" effect.** New
+  `mark.fecundity.roll` sustained effect: guarantees *at least* param1 babies,
+  then rolls a param2% chance for each additional baby (cascading, capped at 6
+  — BFNG's own hard `MaxBabyPregnantWith` ceiling). The litter is decided once
+  per pregnancy and re-enforced hourly, and never lowers a larger natural
+  litter. Complements the fixed-count `mark.fecundity`.
+
+### Changed
+
+- **OStim — "Times Climaxed" condition max raised 10 → 30.** The climax-count
+  threshold slider now goes up to 30 orgasms in the current encounter.
+
+### Fixed
+
+- **`{param3}` now substitutes in effect descriptions.** Effect renderers only
+  replaced `{param1}`/`{param2}`, leaving e.g. Ambient Light's "colour
+  {param3}" literal. Colour-type params (`"color": 1`) additionally render as
+  a colour *name* ("white", not "16777215").
+- **Colour palette survives a failed first read.** PapyrusUtil caches a JSON
+  file whose first read fails (transient lock/parse error) as empty for the
+  whole game session — every colour then degraded to "coloured". The palette
+  lookup now evicts the poisoned cache entry (`JsonUtil.Unload`) and retries
+  once before falling back.
+
+### Build
+
+- `cpp-plugin/build.bat` now syncs a successful Release DLL to
+  `data/SKSE/Plugins/` (the FOMOD's `MTF_SKIP_DLL=1` fallback source) and the
+  dev modlist automatically, with loud warnings on failure — no more silently
+  stale DLL copies. `tools/release_check.sh` gained a matching divergence
+  gate (FAIL on `data/` DLL ≠ build output).
+- The FOMOD now stages `colors.json` (required by the SkyrimNet colour words).
+- New `tools/make_banner.py` — Nexus title-card/banner generator.
+
 ## [v0.6.0] — 2026-06-22
 
 ### Changed

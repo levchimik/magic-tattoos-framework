@@ -64,5 +64,18 @@ if %EC%==0 (
     echo.
     echo MTFPulse.dll: %~dp0%BUILD_DIR%\%BUILD_TYPE%\MTFPulse.dll
 )
+
+REM 5) Sync the Release artifact forward so no copy can go stale (mirrors
+REM    build_scripts.sh, which deploys .pex on every compile). data\ is the
+REM    repo-canonical copy the FOMOD falls back to when the build dir is
+REM    absent; the dev-modlist copy is what the game loads. Debug builds are
+REM    intentionally NOT synced. Instance deploys (LoreRim/AuthoriaRR) stay
+REM    manual — those are live playthroughs, not dev targets.
+if %EC%==0 if /I "%BUILD_TYPE%"=="Release" (
+    copy /Y "%~dp0%BUILD_DIR%\%BUILD_TYPE%\MTFPulse.dll" "%~dp0..\data\SKSE\Plugins\MTFPulse.dll" >nul 2>&1 && (echo Synced: data\SKSE\Plugins\MTFPulse.dll) || (echo WARNING: data\ DLL sync FAILED - copy manually)
+    if exist "F:\Modlists\Modding Essentials\mods\Magic Tattoos Framework\SKSE\Plugins\" (
+        copy /Y "%~dp0%BUILD_DIR%\%BUILD_TYPE%\MTFPulse.dll" "F:\Modlists\Modding Essentials\mods\Magic Tattoos Framework\SKSE\Plugins\MTFPulse.dll" >nul 2>&1 && (echo Synced: dev modlist SKSE\Plugins\MTFPulse.dll) || (echo WARNING: dev-modlist DLL sync FAILED ^(file locked? game running?^) - copy manually)
+    )
+)
 popd
 exit /b %EC%

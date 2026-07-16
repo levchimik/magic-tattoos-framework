@@ -128,6 +128,7 @@ REQUIRED=(
     "$DATA/SKSE/Plugins/MagicTattoosFramework.ini"
     "$DATA/meshes/MTF/MTF_AmbientLightAttach.nif"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/mtf.module_map.json"
+    "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/colors.json"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.attributes.json"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.combat.json"
     "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/plugins/mtf.magic.json"
@@ -259,6 +260,13 @@ done
 # "mtf.base:<id>" keys (from pre-v0.4 saves/presets) to "<module>:<id>". Must
 # ship or old saves can't resolve their bound conditions/effects.
 cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/mtf.module_map.json" \
+   "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/"
+
+# Colour-name palette (colors.json) — also one level above plugins/. The
+# SkyrimNet bridge's _rgbName reads it to render layer looks as colour WORDS
+# ("blazing crimson"); without it every colour degrades to the "coloured"
+# fallback. Editable by users without recompiling.
+cp "$DATA/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/colors.json" \
    "$BASE/SKSE/Plugins/StorageUtilData/MagicTattoosFramework/"
 
 # skee64_custom.ini override (bPlayerOnly=0). Shipped by default so MTF can
