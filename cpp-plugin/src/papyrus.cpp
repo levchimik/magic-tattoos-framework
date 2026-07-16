@@ -527,6 +527,29 @@ namespace MTFPulse::Papyrus {
             return Config::GetInt(v, default_value);
         }
 
+        // v0.6.x — overwrite a MagicEffect's in-game description at runtime.
+        // Backs the "Tattoo Effect" active-effect readout: MTF keeps one dummy
+        // constant ability on the player, and pushes the flattened SkyrimNet
+        // "## Magic Tattoos" text here so the vanilla Active Effects menu shows
+        // the currently-active tattoo effects. There is no Papyrus SetName for
+        // MagicEffect, but magicItemDescription is a plain BSFixedString we can
+        // rewrite — the menu substitutes <mag>/<dur> tags at display time and
+        // reads this field live when building rows, so overwriting it before
+        // the menu opens is reflected. No-op on a null effect; `text` is copied
+        // into the form's BSFixedString (the change is global to this one MGEF,
+        // which is fine — nothing else ever uses this dedicated record).
+        void SetEffectDescription(
+            RE::StaticFunctionTag* /*tag*/,
+            RE::EffectSetting*     mgef,
+            RE::BSFixedString      text)
+        {
+            if (!mgef) {
+                spdlog::warn("SetEffectDescription called with null MagicEffect");
+                return;
+            }
+            mgef->magicItemDescription = text;
+        }
+
     }  // namespace
 
     bool Register(RE::BSScript::IVirtualMachine* vm)
@@ -553,6 +576,7 @@ namespace MTFPulse::Papyrus {
         vm->RegisterFunction("ClearActorFade",    kClassName, ClearActorFade);
         vm->RegisterFunction("TriggerActorFade",  kClassName, TriggerActorFade);
         vm->RegisterFunction("GetConfigInt",      kClassName, GetConfigInt);
+        vm->RegisterFunction("SetEffectDescription", kClassName, SetEffectDescription);
         spdlog::info("Papyrus natives registered under '{}'", kClassName);
         return true;
     }

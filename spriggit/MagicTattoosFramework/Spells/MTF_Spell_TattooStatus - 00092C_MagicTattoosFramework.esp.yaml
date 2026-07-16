@@ -1,0 +1,14 @@
+FormKey: 00092C:MagicTattoosFramework.esp
+EditorID: MTF_Spell_TattooStatus
+Name:
+  TargetLanguage: English
+  Value: Magic Tattoos (MTF)
+EquipmentType: 013F45:Skyrim.esm
+Description:
+  TargetLanguage: English
+  Value: ''
+Type: Ability
+Effects:
+- BaseEffect: 00092B:MagicTattoosFramework.esp
+  Data:
+    Magnitude: 0

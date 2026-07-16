@@ -205,3 +205,20 @@ Function TriggerActorFade(Actor aktor, Int baseOverlaySlot, Int area) Global Nat
 ;                   "function MTFPulse.GetConfigInt not found" path falls
 ;                   through to the caller's own default).
 Int Function GetConfigInt(String key, Int defaultValue) Global Native
+
+; ── Runtime effect description (v0.6.x) ─────────────────────────────────────
+; Overwrite a MagicEffect's in-game description string (the DNAM the Active
+; Effects menu shows when the effect is highlighted). There is no Papyrus
+; SetName for a MagicEffect, but its description is a plain string the DLL can
+; rewrite. MTF uses this to back the single "Tattoo Effect" marker ability it
+; keeps on the player: on every tier change it pushes the current active-effect
+; text here, so the vanilla Active Effects menu reflects what the tattoos do.
+;
+;   mgef  — the MagicEffect record to rewrite (no-op if None).
+;   text  — the new description. The engine substitutes <mag>/<dur> tags at
+;           display time and reads this field live when the menu builds its
+;           rows, so setting it before the menu opens is reflected.
+;
+; NOTE: the change is global to that one MGEF record for the session — only
+; ever point this at a dedicated marker effect nothing else uses.
+Function SetEffectDescription(MagicEffect mgef, String text) Global Native

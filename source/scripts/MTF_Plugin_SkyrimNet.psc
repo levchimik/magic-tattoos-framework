@@ -135,6 +135,15 @@ Function _setupBridge()
     ; RegisterForModEvent (the native is on Alias/AMF) and Caprica
     ; forbids non-native scripts from declaring new Event types.
     _registerTattooChangeSchema()
+    ; v0.6.x: force the Active Effects readout marker to re-apply on load. The
+    ; marker ability is restored from the save with its OLD description snapshot,
+    ; and the base MGEF's description resets to the ESP default (form fields
+    ; aren't saved). Clearing the readout's last-pushed-text guard makes the seed
+    ; rebuild below re-apply the marker (remove+add) AFTER re-pushing the current
+    ; text — forcing a fresh instance that snapshots the correct description.
+    ; Without this the menu could show the default "no effects" line after a
+    ; reload even with effects active.
+    StorageUtil.UnsetStringValue(Game.GetPlayer(), "mtf.activefx.lastdesc")
     ; Seed the player's rendered bio. Without this, the bio shows nothing
     ; until the first tier change fires — which means on a fresh load with
     ; no impending mutation, the LLM never sees the tattoos. The rebuild is
@@ -404,6 +413,99 @@ Function _rebuildRenderedFor(Actor a) global
     StorageUtil.SetStringValue(a, _RENDERED_KEY(), text)
     string textExt = _buildRenderedMarkdown(host, a, true)
     StorageUtil.SetStringValue(a, _RENDERED_EXT_KEY(), textExt)
+    ; v0.6.x: mirror the player's active tattoo EFFECTS into the vanilla Active
+    ; Effects menu via a single marker ability whose description we rewrite.
+    ; Player-only, INI-gated; no-op for NPCs. Runs here because this is exactly
+    ; the mutation point where the active-effect set can change.
+    _syncActiveEffectReadout(host, a)
+EndFunction
+
+; ══════════════════════════════════════════════════════════════════════════
+; ACTIVE EFFECTS MENU READOUT (v0.6.x)
+;
+; Surfaces the player's currently-active tattoo EFFECTS in the vanilla
+; Magic > Active Effects menu, piggybacking the SkyrimNet per-effect render.
+; MTF keeps ONE marker ability (MTF_Spell_TattooStatus, whose effect is
+; MTF_MGEF_TattooStatus, name "Tattoo Effect") on the player while any effect
+; is active; the MGEF's description — the text shown when the entry is
+; highlighted — is rewritten each tier change to the same bullets the bio
+; renders. There is no runtime SetName for a MagicEffect, so the row label is
+; the static "Tattoo Effect" and all the changing information lives in the
+; description. Player-only (the menu is the player's); gated by the INI toggle
+; [SkyrimNet] bActiveEffectReadout (default 1).
+; ══════════════════════════════════════════════════════════════════════════
+
+Function _syncActiveEffectReadout(MTF_MainQuest host, Actor a) global
+    if a != Game.GetPlayer()
+        return
+    endif
+    if MTFPulse.GetConfigInt("SkyrimNet.bActiveEffectReadout", 1) == 0
+        return
+    endif
+    Spell statusSpell = Game.GetFormFromFile(0x92C, "MagicTattoosFramework.esp") as Spell
+    MagicEffect statusMgef = Game.GetFormFromFile(0x92B, "MagicTattoosFramework.esp") as MagicEffect
+    if statusSpell == None || statusMgef == None
+        return
+    endif
+    string effectsText = _buildActiveEffectsText(host, a)
+    if effectsText != ""
+        ; Push text first so a freshly-created instance snapshots it.
+        MTFPulse.SetEffectDescription(statusMgef, effectsText)
+        ; The vanilla Active Effects menu snapshots an ability's description when
+        ; its ActiveMagicEffect is CREATED — rewriting the base MGEF alone won't
+        ; refresh an already-applied marker. So on a genuine text change,
+        ; recreate the instance (remove+add, AFTER the description is set) to
+        ; force the new text into the menu. The marker MGEF has no script, so
+        ; remove+add is inert (no OnEffect events, no HUD message). Unchanged
+        ; text skips the churn; lastdesc persists in the save, so loading with
+        ; the same effects (snapshot already correct) doesn't re-apply.
+        if !a.HasSpell(statusSpell)
+            a.AddSpell(statusSpell, false)   ; false = no "effect gained" HUD msg
+        elseif effectsText != StorageUtil.GetStringValue(a, "mtf.activefx.lastdesc", "")
+            a.RemoveSpell(statusSpell)
+            a.AddSpell(statusSpell, false)
+        endif
+        StorageUtil.SetStringValue(a, "mtf.activefx.lastdesc", effectsText)
+    else
+        ; No active effects anywhere → drop the marker so the menu shows nothing.
+        ; Abilities must be pulled with RemoveSpell — DispelSpell excludes them.
+        if a.HasSpell(statusSpell)
+            a.RemoveSpell(statusSpell)
+        endif
+        StorageUtil.SetStringValue(a, "mtf.activefx.lastdesc", "")
+    endif
+EndFunction
+
+; Effects-only text for the readout: mirrors _buildRenderedMarkdown's preset
+; walk but collects ONLY the per-effect bullets (base tier + every stacked
+; preset, in bio order). Returns "" when no effect is active anywhere — the
+; caller then removes the marker ability.
+String Function _buildActiveEffectsText(MTF_MainQuest host, Actor a) global
+    string body = ""
+    ; Player base preset (MCM-driven); only the player has one.
+    if a == Game.GetPlayer()
+        int baseTier = host.GetCurrentTier()
+        if baseTier >= 0
+            body = body + _renderBaseEffectsMd(host, baseTier)
+        endif
+    endif
+    ; Stacked presets (list order).
+    int n = StorageUtil.StringListCount(a, "mtf.presets")
+    int i = 0
+    while i < n
+        string nm = StorageUtil.StringListGet(a, "mtf.presets", i)
+        if nm != ""
+            int tier = StorageUtil.GetIntValue(a, "mtf.preset." + nm + ".tier", -1)
+            if tier >= 0
+                string f = host._presetFile(nm)
+                if f != ""
+                    body = body + _renderStackedEffectsMd(host, f, tier)
+                endif
+            endif
+        endif
+        i += 1
+    endwhile
+    return body
 EndFunction
 
 ; Build the full Markdown block. Returns "" when no preset (base or
@@ -621,9 +723,11 @@ String Function _renderBaseLayersMd(MTF_MainQuest host, int slot, string packId,
         int emissive = host.GetCondLayerEmissive(slot, i)
         float emMult = host.GetCondLayerEmissiveMult(slot, i)
         int alpha = host.GetCondLayerAlpha(slot, i)
-        acc = acc + "- " + _layerLabel(host, packId, entryId, i) + ": tint " + host._intToHex(tint) \
-            + ", emissive " + host._intToHex(emissive) + " (intensity " + emMult \
-            + "), alpha " + alpha + "%\n"
+        bool lit = (emissive != 0) && (emMult > 0.05)
+        string phrase = _composeLayerPhrase(lit, _colorNameFromInt(emissive), _colorNameFromInt(tint), emMult, alpha)
+        if phrase != ""
+            acc = acc + "- " + _layerLabel(host, packId, entryId, i) + ": " + phrase + "\n"
+        endif
         i += 1
     endwhile
     return acc
@@ -648,9 +752,11 @@ String Function _renderStackedLayersMd(MTF_MainQuest host, string presetFile, in
         string emissive = JsonUtil.GetPathStringValue(presetFile, lp + ".emissive", "#000000")
         float emMult = JsonUtil.GetPathFloatValue(presetFile, lp + ".emissivemult", 1.0)
         int alpha = JsonUtil.GetPathIntValue(presetFile, lp + ".alpha", 100)
-        acc = acc + "- " + _layerLabel(host, packId, entryId, i) + ": tint " + tint \
-            + ", emissive " + emissive + " (intensity " + emMult \
-            + "), alpha " + alpha + "%\n"
+        bool lit = (emissive != "#000000") && (emMult > 0.05)
+        string phrase = _composeLayerPhrase(lit, _colorNameFromHex(emissive), _colorNameFromHex(tint), emMult, alpha)
+        if phrase != ""
+            acc = acc + "- " + _layerLabel(host, packId, entryId, i) + ": " + phrase + "\n"
+        endif
         i += 1
     endwhile
     return acc
@@ -666,9 +772,11 @@ String Function _renderBaseEffectsMd(MTF_MainQuest host, int slot) global
         if key != ""
             int    p1  = host._readFxParam(slot, e, false)
             int    p2  = host._readFxParam2(slot, e, false)
+            int    p3  = host._readFxParamN(slot, e, 3, false)
             string p1s = host._readFxParamNStr(slot, e, 1, false)   ; v0.2.9
             string p2s = host._readFxParamNStr(slot, e, 2, false)
-            string line = _renderOneEffectMd(host, key, p1s, p1, p2s, p2)
+            string p3s = host._readFxParamNStr(slot, e, 3, false)
+            string line = _renderOneEffectMd(host, key, p1s, p1, p2s, p2, p3s, p3)
             if line != ""
                 acc = acc + line
             endif
@@ -693,9 +801,11 @@ String Function _renderStackedEffectsMd(MTF_MainQuest host, string presetFile, i
             ; v0.2.9: read both shapes; resolver dispatches via catalog probe.
             int    p1  = JsonUtil.GetPathIntValue(presetFile,    base + ".param1", 0)
             int    p2  = JsonUtil.GetPathIntValue(presetFile,    base + ".param2", 0)
+            int    p3  = JsonUtil.GetPathIntValue(presetFile,    base + ".param3", 0)
             string p1s = JsonUtil.GetPathStringValue(presetFile, base + ".param1", "")
             string p2s = JsonUtil.GetPathStringValue(presetFile, base + ".param2", "")
-            string line = _renderOneEffectMd(host, key, p1s, p1, p2s, p2)
+            string p3s = JsonUtil.GetPathStringValue(presetFile, base + ".param3", "")
+            string line = _renderOneEffectMd(host, key, p1s, p1, p2s, p2, p3s, p3)
             if line != ""
                 acc = acc + line
             endif
@@ -716,25 +826,29 @@ EndFunction
 ; parenthetical pure duplication. Plugin authors who want a value visible
 ; must reference it in the description — empty placeholder = author chose
 ; not to expose that param to the LLM.
-String Function _renderOneEffectMd(MTF_MainQuest host, string key, string p1s, int p1, string p2s, int p2) global
+String Function _renderOneEffectMd(MTF_MainQuest host, string key, string p1s, int p1, string p2s, int p2, string p3s, int p3) global
     ; v0.2.9: p1s/p2s carry the string-id form for menu params; p1/p2 carry
     ; the int form for sliders. Resolver dispatches via catalog probe.
+    ; v0.6.x: param3 handled too (e.g. Ambient Light's colour, which renders as
+    ; a colour name) — was previously unsubstituted, leaving "{param3}" literal.
     MTF_Plugin p = host.ResolvePluginByKey(key)
     string label = ""
     string desc = ""
     string p1Val = ""
     string p2Val = ""
+    string p3Val = ""
     bool p1Declared = false
     bool p2Declared = false
+    bool p3Declared = false
     if p != None
         int itemIdx = host._effectIdxFor(p, host._keyItemId(key))
         if itemIdx >= 0
             label = p.GetEffectLabel(itemIdx)
             desc = p.GetEffectDescription(itemIdx)
-            ; Capture resolved value labels for description {param1}/{param2}
-            ; substitution. Empty label = effect doesn't use that param slot.
-            ; v0.3.x: track declared-ness separately so text params with empty
-            ; user copy still substitute "{paramN}" -> "" (not left literal).
+            ; Capture resolved value labels for description {param1}/{param2}/
+            ; {param3} substitution. Empty label = effect doesn't use that param
+            ; slot. v0.3.x: track declared-ness separately so text params with
+            ; empty user copy still substitute "{paramN}" -> "" (not left literal).
             if p.GetEffectParamLabel(itemIdx, 1) != ""
                 p1Declared = true
                 p1Val = _resolveParamValueLabel(p, itemIdx, 1, p1s, p1)
@@ -743,9 +857,16 @@ String Function _renderOneEffectMd(MTF_MainQuest host, string key, string p1s, i
                 p2Declared = true
                 p2Val = _resolveParamValueLabel(p, itemIdx, 2, p2s, p2)
             endif
+            if p.GetEffectParamLabel(itemIdx, 3) != ""
+                p3Declared = true
+                p3Val = _resolveParamValueLabel(p, itemIdx, 3, p3s, p3)
+            endif
         endif
     endif
     desc = _substDescPlaceholders(desc, p1Declared, p1Val, p2Declared, p2Val)
+    if p3Declared
+        desc = _replaceAll(desc, "{param3}", p3Val)
+    endif
     if label == "" && desc == ""
         ; Unknown plugin / removed effect — emit a debug-friendly stub so
         ; the user can see the orphan key in the bio.
@@ -935,6 +1056,160 @@ String Function _depthWord(int depth) global
     return "deeply"
 EndFunction
 
+; ── Colour-block words: brightness, opacity, colour NAME (v0.6.x) ────────────
+; Turn a layer's raw numbers/hex into prose, shared by the bio Color block and
+; the persistent change event so both read identically. A layer's LOOK is one
+; phrase via _composeLayerPhrase: "<brightness> <colour>" when it glows, else
+; just "<colour>" (the tint). The emissive colour takes priority when the layer
+; is lit — the perceived colour of a glowing sigil is its glow, not its (often
+; white/black) base tint. Inert/black/invisible layers collapse to "" and are
+; dropped by the caller.
+
+; Emissive brightness (the emissivemult float) -> bare word. Only used when the
+; layer is already known to be lit, so "no" never surfaces here.
+String Function _glowWord(float emMult) global
+    if emMult <= 0.05
+        return "no"
+    elseif emMult < 0.75
+        return "faint"
+    elseif emMult < 1.5
+        return "soft"
+    elseif emMult < 2.5
+        return "bright"
+    endif
+    return "blazing"
+EndFunction
+
+; Layer opacity (alpha 0-100) -> word. 100 (the common default) is "fully
+; opaque" and is omitted by _composeLayerPhrase; lower values are shown.
+String Function _alphaWord(int alpha) global
+    if alpha >= 95
+        return "fully opaque"
+    elseif alpha >= 70
+        return "mostly opaque"
+    elseif alpha >= 30
+        return "semi-transparent"
+    elseif alpha >= 1
+        return "barely visible"
+    endif
+    return "invisible"
+EndFunction
+
+; One hex digit ('0'-'9','a'-'f','A'-'F') -> 0..15. Unknown -> 0.
+Int Function _hexDigit(string c) global
+    int i = StringUtil.Find("0123456789abcdef", c)
+    if i < 0
+        i = StringUtil.Find("0123456789ABCDEF", c)
+    endif
+    if i < 0
+        return 0
+    endif
+    return i
+EndFunction
+
+; Two hex chars of `s` starting at `start` -> 0..255.
+Int Function _hexPair(string s, int start) global
+    return _hexDigit(StringUtil.GetNthChar(s, start)) * 16 + _hexDigit(StringUtil.GetNthChar(s, start + 1))
+EndFunction
+
+; "#RRGGBB" (or "RRGGBB") -> nearest palette colour name.
+String Function _colorNameFromHex(string hex) global
+    int off = 0
+    if StringUtil.GetNthChar(hex, 0) == "#"
+        off = 1
+    endif
+    return _rgbName(_hexPair(hex, off), _hexPair(hex, off + 2), _hexPair(hex, off + 4))
+EndFunction
+
+; Packed 0xRRGGBB int -> nearest palette colour name.
+String Function _colorNameFromInt(int rgb) global
+    return _rgbName((rgb / 65536) % 256, (rgb / 256) % 256, rgb % 256)
+EndFunction
+
+; Palette file (JsonUtil path, relative to Data/SKSE/Plugins/StorageUtilData/).
+; Shape: { "colors": [ { "name": "red", "hex": "#E00000" }, ... ] }. Editable
+; without recompiling; add as many rows as you like (no 128-array cap — this is
+; a JSON list, not a Papyrus array). JsonUtil caches the parsed file in memory,
+; so the per-call reads below don't hit disk after the first access.
+String Function _COLORS_JSON() global
+    return "MagicTattoosFramework/colors.json"
+EndFunction
+
+; Nearest colour NAME to an RGB triple, by squared Euclidean distance to the
+; JSON palette. RGB-nearest (not HSL): simple, and with dark/light anchors
+; (crimson, navy, brown, sky blue, pink) it classifies the MTF content packs
+; well. Called only on tier-change renders (not per-frame), so the JSON scan is
+; cheap. Falls back to "coloured" if the palette file is missing/empty.
+String Function _rgbName(int r, int g, int b) global
+    string cf = _COLORS_JSON()
+    int n = JsonUtil.PathCount(cf, ".colors")
+    if n <= 0
+        ; PapyrusUtil caches a file that failed its FIRST read (transient
+        ; open/parse error) as an empty root with isLoaded=true — every
+        ; colour then renders as "coloured" until the game restarts. Evict
+        ; the poisoned cache entry and re-read from disk once. (Observed
+        ; live 2026-07-12: one session's palette dead, next session fine,
+        ; identical bytes on disk.)
+        JsonUtil.Unload(cf, false)
+        n = JsonUtil.PathCount(cf, ".colors")
+    endif
+    if n <= 0
+        Debug.Trace("MTF.SkyrimNet: colour palette unreadable after retry: " + cf)
+        return "coloured"
+    endif
+    string best = "coloured"
+    int bestD = -1
+    int i = 0
+    while i < n
+        string base = ".colors[" + i + "]"
+        string hex = JsonUtil.GetPathStringValue(cf, base + ".hex", "")
+        if hex != ""
+            int off = 0
+            if StringUtil.GetNthChar(hex, 0) == "#"
+                off = 1
+            endif
+            int dr = r - _hexPair(hex, off)
+            int dg = g - _hexPair(hex, off + 2)
+            int db = b - _hexPair(hex, off + 4)
+            int d = dr * dr + dg * dg + db * db
+            if bestD < 0 || d < bestD
+                bestD = d
+                best = JsonUtil.GetPathStringValue(cf, base + ".name", "coloured")
+            endif
+        endif
+        i += 1
+    endwhile
+    return best
+EndFunction
+
+; The single source of a layer's look, shared by the bio and the change event.
+;   lit       — emissive is a real colour AND emissivemult > ~0 (caller decides)
+;   litColor  — colour NAME of the emissive (the glow colour)
+;   tintColor — colour NAME of the tint (the base fill)
+; Lit  -> "<brightness> <glow-colour>" (tint dropped; the glow is what's seen).
+; Unlit-> "<tint-colour>". Returns "" (caller drops the line) for an invisible
+; layer (alpha 0) or an unlit BLACK layer (an inert base beneath a glow layer,
+; the MTF fill/glow idiom — describing it as "black" would mislead). A non-empty
+; opacity clause is appended when the layer is translucent.
+String Function _composeLayerPhrase(bool lit, string litColor, string tintColor, float emMult, int alpha) global
+    if alpha <= 0
+        return ""
+    endif
+    string core = ""
+    if lit
+        core = _glowWord(emMult) + " " + litColor
+    else
+        if tintColor == "black"
+            return ""
+        endif
+        core = tintColor
+    endif
+    if alpha < 95
+        core = core + ", " + _alphaWord(alpha)
+    endif
+    return core
+EndFunction
+
 ; Pack-entry label lookup. Linear scan over pack entries; small N (typically
 ; <20 per pack) so cheaper than building a lookup table.
 String Function _findEntryLabel(MTF_MainQuest host, string packId, string entryId) global
@@ -969,6 +1244,11 @@ String Function _resolveParamValueLabel(MTF_Plugin p, int itemIdx, int n, string
     ; substitutes unconditionally for declared params (see callers).
     if p.GetEffectParamIsText(itemIdx, n)
         return sId
+    endif
+    ; v0.6.x: a colour param (e.g. Ambient Light's light colour) is an int RGB —
+    ; render it as a colour NAME from the palette rather than the raw number.
+    if p.GetEffectParamIsColor(itemIdx, n)
+        return _colorNameFromInt(value)
     endif
     int optCount = p.GetEffectParamMenuOptionCount(itemIdx, n)
     if optCount > 0
@@ -1240,10 +1520,17 @@ Function _emitVisualChange(MTF_MainQuest host, Actor target, string presetName, 
                 content = actorName + "'s " + noun + " faded and is no longer visible."
             endif
         else
-            ; Same texture -> describe only the colours that changed.
+            ; Same texture -> describe the colour AND pulse changes. Pulse is
+            ; narrated in words (quickens / slows / deepens / starts up / goes
+            ; still), bucketed so only a perceptible shift fires.
             string ct = _colorChangeText(host, f, isBase, prevTier, newTier, newPackId, newEntryId)
-            if ct != ""
-                content = actorName + "'s " + noun + " shifted colour: " + ct + "."
+            string pt = _pulseChangeText(host, f, isBase, prevTier, newTier)
+            if ct != "" && pt != ""
+                content = "On " + actorName + "'s " + noun + ", " + ct + ", and its pulse " + pt + "."
+            elseif ct != ""
+                content = "On " + actorName + "'s " + noun + ", " + ct + "."
+            elseif pt != ""
+                content = "On " + actorName + "'s " + noun + ", its pulse " + pt + "."
             endif
         endif
     endif
@@ -1303,51 +1590,100 @@ String Function _textureDescFor(MTF_MainQuest host, string packId, string entryI
     return ""
 EndFunction
 
-; Display string for ONE layer field. fieldIdx: 0=tint, 1=emissive,
-; 2=intensity, 3=alpha. Formats match the bio's layer bullet exactly (hex for
-; colours, raw float for intensity, "N%" for alpha) so the diff text reads
-; identically to the rendered "## Magic Tattoos" block. Base reads ints via
-; the cond accessors; stacked reads from the preset JSON.
-String Function _layerFieldAt(MTF_MainQuest host, string f, bool isBase, int tier, int L, int fieldIdx) global
+; Pulse rate for a tier — base via the cond accessor, stacked via preset JSON
+; (mirrors _resolveTexPackId's base/stacked split).
+Float Function _pulseRateAt(MTF_MainQuest host, string f, bool isBase, int tier) global
     if isBase
-        if fieldIdx == 0
-            return host._intToHex(host.GetCondLayerTint(tier, L))
-        elseif fieldIdx == 1
-            return host._intToHex(host.GetCondLayerEmissive(tier, L))
-        elseif fieldIdx == 2
-            return host.GetCondLayerEmissiveMult(tier, L) as string
+        return host.GetCondPulseRate(tier)
+    endif
+    return JsonUtil.GetPathFloatValue(f, ".slot[" + tier + "].pulse.rate", 0.0)
+EndFunction
+
+Int Function _pulseDepthAt(MTF_MainQuest host, string f, bool isBase, int tier) global
+    if isBase
+        return host.GetCondPulseDepth(tier)
+    endif
+    return JsonUtil.GetPathIntValue(f, ".slot[" + tier + "].pulse.depth", 0)
+EndFunction
+
+; Pulse transition phrase for the change event: how the light PULSE shifted
+; between tiers, bucketed through _rateWord/_depthWord so only a perceptible
+; change narrates. Reads after "its pulse " ("quickens", "slows and deepens")
+; or stands alone ("The pulse on X's tattoo goes still."). "" = unchanged.
+String Function _pulseChangeText(MTF_MainQuest host, string f, bool isBase, int prevTier, int newTier) global
+    float r0 = _pulseRateAt(host, f, isBase, prevTier)
+    float r1 = _pulseRateAt(host, f, isBase, newTier)
+    string rw0 = _rateWord(r0)   ; "" = not pulsing
+    string rw1 = _rateWord(r1)
+    ; On/off transitions dominate — narrate them alone, depth is implied.
+    if rw0 == "" && rw1 != ""
+        return "starts up"
+    elseif rw0 != "" && rw1 == ""
+        return "goes still"
+    endif
+    ; Both pulsing: rate direction only when it crosses a bucket.
+    string ratePhrase = ""
+    if rw0 != rw1
+        if r1 > r0
+            ratePhrase = "quickens"
+        elseif r1 < r0
+            ratePhrase = "slows"
         endif
-        return (host.GetCondLayerAlpha(tier, L) as string) + "%"
+    endif
+    ; Depth direction, likewise bucket-gated.
+    int d0 = _pulseDepthAt(host, f, isBase, prevTier)
+    int d1 = _pulseDepthAt(host, f, isBase, newTier)
+    string depthPhrase = ""
+    if _depthWord(d0) != _depthWord(d1)
+        if d1 > d0
+            depthPhrase = "deepens"
+        elseif d1 < d0
+            depthPhrase = "grows shallower"
+        endif
+    endif
+    if ratePhrase != "" && depthPhrase != ""
+        return ratePhrase + " and " + depthPhrase
+    elseif ratePhrase != ""
+        return ratePhrase
+    endif
+    return depthPhrase
+EndFunction
+
+; The full look phrase for ONE layer at a tier — the SAME phrase the bio
+; renders (via _composeLayerPhrase), so the change event and the "## Magic
+; Tattoos" block never disagree. "" = the layer shows nothing at that tier
+; (invisible, or an inert black base). Base reads ints via the cond accessors;
+; stacked reads the preset JSON.
+String Function _layerLookPhraseAt(MTF_MainQuest host, string f, bool isBase, int tier, int L) global
+    ; Papyrus scopes locals to the whole function, so declare the shared ones
+    ; once and assign per branch (can't redeclare in each arm).
+    float emMult
+    int alpha
+    bool lit
+    if isBase
+        int tintI = host.GetCondLayerTint(tier, L)
+        int emisI = host.GetCondLayerEmissive(tier, L)
+        emMult = host.GetCondLayerEmissiveMult(tier, L)
+        alpha = host.GetCondLayerAlpha(tier, L)
+        lit = (emisI != 0) && (emMult > 0.05)
+        return _composeLayerPhrase(lit, _colorNameFromInt(emisI), _colorNameFromInt(tintI), emMult, alpha)
     endif
     string lp = ".slot[" + tier + "].layer[" + L + "]"
-    if fieldIdx == 0
-        return JsonUtil.GetPathStringValue(f, lp + ".tint", "#FFFFFF")
-    elseif fieldIdx == 1
-        return JsonUtil.GetPathStringValue(f, lp + ".emissive", "#000000")
-    elseif fieldIdx == 2
-        return JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 1.0) as string
-    endif
-    return (JsonUtil.GetPathIntValue(f, lp + ".alpha", 100) as string) + "%"
+    string tintH = JsonUtil.GetPathStringValue(f, lp + ".tint", "#FFFFFF")
+    string emisH = JsonUtil.GetPathStringValue(f, lp + ".emissive", "#000000")
+    emMult = JsonUtil.GetPathFloatValue(f, lp + ".emissivemult", 1.0)
+    alpha = JsonUtil.GetPathIntValue(f, lp + ".alpha", 100)
+    lit = (emisH != "#000000") && (emMult > 0.05)
+    return _composeLayerPhrase(lit, _colorNameFromHex(emisH), _colorNameFromHex(tintH), emMult, alpha)
 EndFunction
 
-; Human label for a layer field index (parallels _layerFieldAt).
-String Function _layerFieldName(int fieldIdx) global
-    if fieldIdx == 0
-        return "tint"
-    elseif fieldIdx == 1
-        return "emissive"
-    elseif fieldIdx == 2
-        return "intensity"
-    endif
-    return "alpha"
-EndFunction
-
-; Field-level colour diff between prevTier and newTier. packId/entryId are
-; identical for both tiers here (texture unchanged), so the layer count is
-; stable. Emits ONLY the fields that actually changed, each as a "from -> to"
-; transition, grouped per layer:
-;   "Layer 1 tint #777777 -> #FF0000, emissive #000000 -> #FF3030; Layer 2 ..."
-; Returns "" when nothing changed.
+; Per-layer look diff between prevTier and newTier (texture identical, so the
+; layer count is stable). Each layer whose look phrase changed contributes a
+; prose clause, joined with "; ", sized to slot after "On <actor>'s <noun>,":
+;   "the glow shifts from bright red to blazing purple"
+;   "the fill appears as soft green"  /  "the glow fades"
+; Compares the WHOLE phrase, so a sub-bucket wobble emits nothing. "" = no
+; layer's look changed.
 String Function _colorChangeText(MTF_MainQuest host, string f, bool isBase, int prevTier, int newTier, string packId, string entryId) global
     int layerN = host.GetEntryLayerCount(packId, entryId)
     if layerN <= 0
@@ -1358,30 +1694,26 @@ String Function _colorChangeText(MTF_MainQuest host, string f, bool isBase, int 
         layerN = maxL
     endif
     string acc = ""
-    int layersChanged = 0
+    int changed = 0
     int i = 0
     while i < layerN
-        string layerClause = ""
-        int fieldsChanged = 0
-        int fi = 0
-        while fi < 4
-            string a = _layerFieldAt(host, f, isBase, prevTier, i, fi)
-            string b = _layerFieldAt(host, f, isBase, newTier, i, fi)
-            if a != b
-                if fieldsChanged > 0
-                    layerClause = layerClause + ", "
-                endif
-                layerClause = layerClause + _layerFieldName(fi) + " " + a + " -> " + b
-                fieldsChanged += 1
+        string p0 = _layerLookPhraseAt(host, f, isBase, prevTier, i)
+        string p1 = _layerLookPhraseAt(host, f, isBase, newTier, i)
+        if p0 != p1
+            string label = _layerLabel(host, packId, entryId, i)
+            string clause = ""
+            if p0 == ""
+                clause = "the " + label + " appears as " + p1
+            elseif p1 == ""
+                clause = "the " + label + " fades"
+            else
+                clause = "the " + label + " shifts from " + p0 + " to " + p1
             endif
-            fi += 1
-        endwhile
-        if fieldsChanged > 0
-            if layersChanged > 0
+            if changed > 0
                 acc = acc + "; "
             endif
-            acc = acc + _layerLabel(host, packId, entryId, i) + " " + layerClause
-            layersChanged += 1
+            acc = acc + clause
+            changed += 1
         endif
         i += 1
     endwhile

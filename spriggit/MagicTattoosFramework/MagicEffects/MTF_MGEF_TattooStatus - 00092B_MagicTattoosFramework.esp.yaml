@@ -1,0 +1,15 @@
+FormKey: 00092B:MagicTattoosFramework.esp
+EditorID: MTF_MGEF_TattooStatus
+Name:
+  TargetLanguage: English
+  Value: Tattoo Effect
+Description:
+  TargetLanguage: English
+  Value: No magic tattoo effects are currently active.
+Flags:
+- Recover
+- NoDeathDispel
+MagicSkill: Alteration
+Archetype:
+  MutagenObjectType: MagicEffectArchetype
+  ActorValue: AlterationModifier
